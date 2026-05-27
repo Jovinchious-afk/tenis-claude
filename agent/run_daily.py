@@ -63,6 +63,19 @@ def main():
 
     print(f"Pronađeno {len(matches_today)} mečeva danas, {len(matches_tomorrow)} sutra = {len(all_matches)} ukupno")
 
+    # Sortiraj po razini turnira: GS > Masters > 500 > 250 > Challenger
+    from config.model_config import TOURNAMENT_LEVELS
+    all_matches.sort(key=lambda m: (
+        -TOURNAMENT_LEVELS.get(m.get("level", "ATP 250"), 45),
+        m.get("date", ""),
+    ))
+
+    # Cap na 50 mečeva (GS/Masters uvijek unutar limita, Challengeri se režu ako ima previše)
+    MAX_MATCHES = 50
+    if len(all_matches) > MAX_MATCHES:
+        print(f"Reduciram na {MAX_MATCHES} mečeva (izbačeno {len(all_matches) - MAX_MATCHES} Challenger/nižih).")
+        all_matches = all_matches[:MAX_MATCHES]
+
     if not all_matches:
         print("Nema mečeva za analizu. Završavam.")
         return
