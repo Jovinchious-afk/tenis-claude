@@ -1,0 +1,124 @@
+import os
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+def send_daily_ticket_email(ticket_data: dict, matches: list) -> bool:
+    """Šalje dnevni tiket na email. Vraća True ako je uspješno poslano."""
+    subject = f"🎾 Tenis Tiket {ticket_data.get('ticket_date', '')} — Kvota: {ticket_data.get('total_odds', 0):.2f} | Pot. dobitak: €{ticket_data.get('potential_win', 0):.2f}"
+    body = _build_ticket_html(ticket_data, matches)
+    return _send_email(subject, body)
+
+
+def send_results_email(resolved_matches: list, ticket: dict) -> bool:
+    """Šalje email s rezultatima tiketa."""
+    status_emoji = "✅" if ticket.get("status") == "won" else "❌"
+    subject = f"{status_emoji} Rezultati tiketa {ticket.get('ticket_date', '')} — {ticket.get('status', '').upper()}"
+    body = _build_results_html(ticket, resolved_matches)
+    return _send_email(subject, body)
+
+
+def _send_email(subject: str, html_body: str) -> bool:
+    gmail_user = os.environ.get("GMAIL_USER")
+    gmail_password = os.environ.get("GMAIL_APP_PASSWORD")
+    recipient = os.environ.get("GMAIL_USER")
+
+    if not gmail_user or not gmail_password:
+        print("Email nije poslan: GMAIL_USER ili GMAIL_APP_PASSWORD nisu postavljeni")
+        return False
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = gmail_user
+    msg["To"] = recipient
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(gmail_user, gmail_password)
+            server.sendmail(gmail_user, recipient, msg.as_string())
+        print(f"Email poslan: {subject}")
+        return True
+    except Exception as e:
+        print(f"Greška pri slanju emaila: {e}")
+        return False
+
+
+def _build_ticket_html(ticket: dict, matches: list) -> str:
+    rows = ""
+    for m in matches:
+        value_badge = '<span style="background:#22c55e;color:white;padding:2px 6px;border-radius:4px;font-size:11px;">VALUE ✓</span>' if m.get("value_bet") else ""
+        rows += f"""
+        <tr>
+          <td style="padding:10px;border-bottom:1px solid #e5e7eb;">
+            <strong>{m.get('pick', '')}</strong> pobjeđuje<br>
+            <small style="color:#6b7280;">{m.get('player1','')} vs {m.get('player2','')}</small><br>
+            <small style="color:#6b7280;">{m.get('tournament','')} · {m.get('surface','')} · {m.get('round','')}</small>
+          </td>
+          <td style="padding:10px;border-bottom:1px solid #e5e7eb;text-align:center;">
+            <strong style="font-size:18px;">{m.get('odds', 0):.2f}</strong><br>
+            {value_badge}
+          </td>
+          <td style="padding:10px;border-bottom:1px solid #e5e7eb;text-align:center;">
+            {m.get('confidence', 0):.0f}%
+          </td>
+          <td style="padding:10px;border-bottom:1px solid #e5e7eb;">
+            <small style="color:#6b7280;">{m.get('risk_notes', '')}</small><br>
+            <small style="color:#9ca3af;">{m.get('handicap_option') or ''}</small>
+          </td>
+        </tr>"""
+
+    return f"""
+    <html><body style="font-family:Arial,sans-serif;max-width:700px;margin:0 auto;padding:20px;">
+      <h2 style="color:#1d4ed8;">🎾 Dnevni Tenis Tiket — {ticket.get('ticket_date','')}</h2>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+        <tr style="background:#f3f4f6;">
+          <th style="padding:10px;text-align:left;">Par</th>
+          <th style="padding:10px;text-align:center;">Kvota</th>
+          <th style="padding:10px;text-align:center;">Confidence</th>
+          <th style="padding:10px;text-align:left;">Napomene</th>
+        </tr>
+        {rows}
+      </table>
+      <div style="background:#1d4ed8;color:white;padding:15px;border-radius:8px;text-align:center;">
+        <strong>Ukupna kvota: {ticket.get('total_odds',0):.2f}</strong> &nbsp;|&nbsp;
+        Ulog: €{ticket.get('stake',50):.0f} &nbsp;|&nbsp;
+        <strong>Potencijalni dobitak: €{ticket.get('potential_win',0):.2f}</strong>
+      </div>
+      <p style="color:#6b7280;font-size:12px;margin-top:20px;">
+        Generirano automatski od Tennis Agent. Ovo nije financijski savjet.
+      </p>
+    </body></html>"""
+
+
+def _build_results_html(ticket: dict, matches: list) -> str:
+    rows = ""
+    for m in matches:
+        result_color = "#22c55e" if m.get("result") == "won" else "#ef4444"
+        result_text = "✅ POGODAK" if m.get("result") == "won" else "❌ PROMAŠAJ"
+        rows += f"""
+        <tr>
+          <td style="padding:10px;border-bottom:1px solid #e5e7eb;">
+            <strong>{m.get('pick', '')}</strong><br>
+            <small>{m.get('player1','')} vs {m.get('player2','')}</small><br>
+            <small style="color:#6b7280;">{m.get('tournament','')}</small>
+          </td>
+          <td style="padding:10px;border-bottom:1px solid #e5e7eb;text-align:center;color:{result_color};">
+            <strong>{result_text}</strong><br>
+            <small>{m.get('actual_winner','') or '-'}</small>
+          </td>
+        </tr>"""
+
+    status_color = "#22c55e" if ticket.get("status") == "won" else "#ef4444"
+    return f"""
+    <html><body style="font-family:Arial,sans-serif;max-width:700px;margin:0 auto;padding:20px;">
+      <h2 style="color:{status_color};">Rezultati tiketa — {ticket.get('ticket_date','')}</h2>
+      <table style="width:100%;border-collapse:collapse;">{rows}</table>
+      <p style="color:#6b7280;font-size:12px;margin-top:20px;">
+        Detaljna analiza promašaja dostupna u Streamlit aplikaciji.
+      </p>
+    </body></html>"""

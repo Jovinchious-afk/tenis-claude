@@ -1,0 +1,30 @@
+# Environment
+.env
+.env.local
+*.env
+
+# Streamlit secrets (lokalno)
+.streamlit/secrets.toml
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.egg-info/
+dist/
+build/
+
+# Temp files
+~$*
+*.tmp
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db

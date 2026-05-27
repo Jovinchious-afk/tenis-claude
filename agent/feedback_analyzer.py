@@ -1,0 +1,279 @@
+"""
+Feedback Analyzer: večernji job koji:
+1. Dohvaća rezultate završenih mečeva
+2. Ažurira statuse tiketa
+3. Analizira izgubljene parove (Claude)
+4. Predlaže i primjenjuje korekcije težina modela
+"""
+import os
+import json
+import datetime
+import anthropic
+from dotenv import load_dotenv
+from config.model_config import CLAUDE_MODELS, WEIGHT_ADJUSTMENT, DEFAULT_WEIGHTS
+from database import supabase_client as db
+from agent.data_fetcher import get_matches_for_date
+from utils.helpers import today_zagreb, days_ago, format_date
+
+load_dotenv()
+
+_client = None
+
+
+def _get_client() -> anthropic.Anthropic:
+    global _client
+    if _client is None:
+        _client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+    return _client
+
+
+def run_evening_update() -> dict:
+    """
+    Glavni entry point za večernji job.
+    Vraća summary promjena.
+    """
+    print("=== Večernji update ===")
+    summary = {"resolved": 0, "won": 0, "lost": 0, "analyzed": 0, "weight_updated": False}
+
+    # 1. Dohvati rezultate za mečeve od prekjučer i jučer
+    for n_days in [1, 2, 3]:
+        date = days_ago(n_days)
+        print(f"Dohvaćam rezultate za {format_date(date)}...")
+        finished_matches = get_matches_for_date(date)
+        finished_by_id = {m["external_id"]: m for m in finished_matches if m.get("status") in ("FT", "Finished", "AOT")}
+
+        pending = db.get_pending_matches()
+        for pm in pending:
+            ext_id = pm.get("external_match_id", "")
+            if ext_id in finished_by_id:
+                fm = finished_by_id[ext_id]
+                winner_id = fm.get("winner_id")
+                # Odredi pobjednika po imenu
+                actual_winner = _find_winner_name(fm, pm)
+                pick = pm.get("pick", "")
+                result = "won" if _names_match(pick, actual_winner) else "lost"
+                db.update_match_result(pm["id"], result, actual_winner, fm.get("score"))
+                summary["resolved"] += 1
+                if result == "won":
+                    summary["won"] += 1
+                else:
+                    summary["lost"] += 1
+                print(f"  Ažuriran: {pm['player1']} vs {pm['player2']} → {result} ({actual_winner})")
+
+    # 2. Ažuriraj statuseve tiketa
+    _update_ticket_statuses()
+
+    # 3. Analiziraj izgubljene parove
+    lost_matches = db.get_lost_matches_needing_analysis()
+    for lm in lost_matches[:5]:
+        analysis = _analyze_lost_match(lm)
+        if analysis:
+            db.save_loss_analysis(lm["id"], analysis)
+            summary["analyzed"] += 1
+
+    # 4. Ažuriraj performance log
+    _update_performance_log()
+
+    # 5. Provjeri trebamo li prilagoditi težine (tek nakon 10+ izgubljenih analiza)
+    weight_updated = _maybe_update_weights(lost_matches)
+    summary["weight_updated"] = weight_updated
+
+    print(f"Večernji update završen: {summary}")
+    return summary
+
+
+def _update_ticket_statuses() -> None:
+    """Pregledava tikete s pending statusom i ažurira ih kad su svi parovi riješeni."""
+    tickets = db.get_tickets(status="pending")
+    for ticket in tickets:
+        matches = ticket.get("ticket_matches", [])
+        if not matches:
+            continue
+        pending_count = sum(1 for m in matches if m.get("result") == "pending")
+        if pending_count > 0:
+            continue
+        won_count = sum(1 for m in matches if m.get("result") == "won")
+        total = len(matches)
+        status = "won" if won_count == total else "lost"
+        actual_win = ticket.get("stake", 50) * ticket.get("total_odds", 1) if status == "won" else 0
+        db.update_ticket_status(ticket["id"], status, actual_win)
+        print(f"  Tiket {ticket.get('ticket_date')}: {status} ({won_count}/{total})")
+
+
+def _analyze_lost_match(match: dict) -> str:
+    """Claude analizira zašto smo pogriješili na konkretnom paru."""
+    pick = match.get("pick", "")
+    actual = match.get("actual_winner", "")
+    p1 = match.get("player1", "")
+    p2 = match.get("player2", "")
+    score = match.get("actual_score", "N/A")
+    tournament = match.get("tournament", "")
+    surface = match.get("surface", "")
+    risk_notes = match.get("risk_notes", "")
+    confidence = match.get("confidence", 0)
+    key_factors = match.get("key_factors", [])
+
+    prompt = f"""Analitičar teniskih tiketa je izgubio predikciju. Analiziraj grešku.
+
+PAR: {p1} vs {p2} | {tournament} ({surface})
+NAŠA PREDIKCIJA: {pick} pobjeđuje (confidence: {confidence}%)
+STVARNI REZULTAT: {actual} pobijedio | Score: {score}
+NAVEDENI RIZICI: {risk_notes}
+KLJUČNI FAKTORI KOJI SU ODREDILI PICK: {', '.join(key_factors) if key_factors else 'N/A'}
+
+Napiši kratku analizu (max 150 riječi) koja objašnjava:
+1. Koji je faktor bio pogrešno procijenjen?
+2. Što je zapravo bilo presudno u meču?
+3. Što treba promijeniti u algoritmu procjene?
+
+Budi specifičan i konkretan. Fokusiraj se na faktore iz modela (ELO, podloga, forma, umor, H2H, itd.)"""
+
+    try:
+        client = _get_client()
+        response = client.messages.create(
+            model=CLAUDE_MODELS["feedback"],
+            max_tokens=300,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.content[0].text.strip()
+    except Exception as e:
+        print(f"Greška analize gubitka: {e}")
+        return f"Analiza nije dostupna: {str(e)[:100]}"
+
+
+def _maybe_update_weights(lost_matches: list) -> bool:
+    """
+    Prilagođava težine modela na temelju uzorka grešaka.
+    Potrebno minimalno 5 novih analiza da bi se pokrenulo ažuriranje.
+    """
+    if len(lost_matches) < 5:
+        return False
+
+    current_weights = db.get_active_weights()
+    analysis_texts = [lm.get("loss_analysis", "") for lm in lost_matches[:10] if lm.get("loss_analysis")]
+
+    if len(analysis_texts) < 5:
+        return False
+
+    prompt = f"""Na temelju analize {len(analysis_texts)} izgubljenih tenis predikcija, predloži prilagodbu težina modela.
+
+ANALIZE GREŠAKA:
+{chr(10).join(f'{i+1}. {a}' for i, a in enumerate(analysis_texts))}
+
+TRENUTNE TEŽINE:
+{json.dumps(current_weights, indent=2)}
+
+OGRANIČENJA:
+- Svaka promjena max ±{WEIGHT_ADJUSTMENT['step']}% po faktoru
+- Ukupna suma mora ostati 100%
+- Min težina po faktoru: {WEIGHT_ADJUSTMENT['min_weight']}%
+- Max težina po faktoru: {WEIGHT_ADJUSTMENT['max_weight']}%
+- Mijenjaj samo faktore koji su KONZISTENTNO pogrešni u analizama
+
+Odgovori ISKLJUČIVO u JSON formatu:
+{{
+  "new_weights": {{
+    "elo_ranking": 20.0,
+    "surface_style": 23.0,
+    "serve_return": 18.0,
+    "recent_form": 18.0,
+    "fatigue_injuries": 12.0,
+    "h2h_context": 5.0,
+    "odds_movement": 4.0
+  }},
+  "reason": "kratko objašnjenje što i zašto je promijenjeno",
+  "changed_factors": ["lista faktora koji su promijenjeni"]
+}}
+
+Ako nema jasnog uzorka koji zahtijeva promjenu, vrati iste težine s reason="Nema konzistentnog uzorka za promjenu"."""
+
+    try:
+        client = _get_client()
+        response = client.messages.create(
+            model=CLAUDE_MODELS["feedback"],
+            max_tokens=500,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        raw = response.content[0].text.strip().replace("```json", "").replace("```", "").strip()
+        result = json.loads(raw)
+        new_weights = result.get("new_weights", {})
+        reason = result.get("reason", "Automatska prilagodba")
+        changed = result.get("changed_factors", [])
+
+        # Provjeri da su nove težine validne
+        if not _validate_weights(new_weights):
+            print("Predložene težine nisu validne, odbačeno.")
+            return False
+
+        if not changed or reason == "Nema konzistentnog uzorka za promjenu":
+            print("Nema potrebe za promjenom težina.")
+            return False
+
+        db.save_new_weights(new_weights, reason, f"Auto-feedback na {len(analysis_texts)} analiza")
+        print(f"Težine ažurirane: {reason}")
+        return True
+
+    except Exception as e:
+        print(f"Greška ažuriranja težina: {e}")
+        return False
+
+
+def _update_performance_log() -> None:
+    today = format_date(today_zagreb())
+    tickets = db.get_tickets(limit=200)
+
+    total = len([t for t in tickets if t.get("status") != "pending"])
+    won = len([t for t in tickets if t.get("status") == "won"])
+    lost = len([t for t in tickets if t.get("status") == "lost"])
+    pending = len([t for t in tickets if t.get("status") == "pending"])
+
+    total_staked = total * 50.0
+    total_returned = sum(t.get("actual_win", 0) or 0 for t in tickets if t.get("status") == "won")
+    roi = ((total_returned - total_staked) / total_staked * 100) if total_staked > 0 else 0
+    running_balance = total_returned - total_staked
+
+    db.upsert_performance_log({
+        "log_date": today,
+        "total_tickets": total,
+        "won_tickets": won,
+        "lost_tickets": lost,
+        "pending_tickets": pending,
+        "total_staked": total_staked,
+        "total_returned": total_returned,
+        "roi_percent": round(roi, 2),
+        "running_balance": round(running_balance, 2),
+    })
+
+
+def _validate_weights(weights: dict) -> bool:
+    if not weights:
+        return False
+    total = sum(weights.values())
+    if abs(total - 100.0) > 0.5:
+        return False
+    for v in weights.values():
+        if v < WEIGHT_ADJUSTMENT["min_weight"] or v > WEIGHT_ADJUSTMENT["max_weight"]:
+            return False
+    return True
+
+
+def _find_winner_name(finished_match: dict, pending_match: dict) -> str:
+    winner_id = finished_match.get("winner_id")
+    if winner_id and winner_id == finished_match.get("player1_id"):
+        return pending_match.get("player1", "")
+    if winner_id and winner_id == finished_match.get("player2_id"):
+        return pending_match.get("player2", "")
+    return ""
+
+
+def _names_match(a: str, b: str) -> bool:
+    if not a or not b:
+        return False
+    a, b = a.lower().strip(), b.lower().strip()
+    if a == b:
+        return True
+    a_parts = a.split()
+    b_parts = b.split()
+    if not a_parts or not b_parts:
+        return False
+    return a_parts[-1] == b_parts[-1]

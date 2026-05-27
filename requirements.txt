@@ -1,0 +1,11 @@
+anthropic>=0.40.0
+python-dotenv>=1.0.0
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=5.0.0
+pytz>=2024.1
+pandas>=2.0.0
+streamlit>=1.57.0
+plotly>=5.18.0
+# Napomena: supabase paket je zamijenjen s direktnim REST API pozivima
+# zbog pyiceberg dependency konflikta na Python 3.14 (C++ Build Tools required)
