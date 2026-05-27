@@ -175,27 +175,9 @@ def main():
     ticket = build_ticket(predictions, weights)
 
     if not ticket:
-        # Ne bi se smjelo dogoditi — build_ticket ima kaskadni fallback
-        # Ako ipak dođe ovdje, uzmi top 4 po confidence bez obzira na sve
-        print("UPOZORENJE: Fallback nije uspio — forsiram top 4 pickova.")
-        top4 = sorted([p for p in predictions if not p.get("skip_reason")],
-                      key=lambda p: (p.get("confidence") or 0), reverse=True)[:4]
-        if not top4:
-            print("Nema nijedne valjane predikcije. Završavam.")
-            return
-        from agent.ticket_builder import _pick_odds
-        from utils.helpers import combined_odds, potential_win
-        from config.model_config import TICKET_CONFIG as _cfg
-        total_odds = combined_odds([_pick_odds(p) for p in top4])
-        ticket = {
-            "total_odds": round(total_odds, 4),
-            "potential_win": potential_win(_cfg["stake"], total_odds),
-            "stake": _cfg["stake"],
-            "matches_count": len(top4),
-            "ticket_summary": f"Emergency tiket — top {len(top4)} pickova po confidence-u.",
-            "status": "pending",
-            "matches": top4,
-        }
+        # build_ticket ima kaskadni fallback i ne bi smio vratiti None
+        print("KRITIČNA GREŠKA: Nema valjanih predikcija. Završavam.")
+        return
 
     print(f"\n=== TIKET GENERIRAN ===")
     print(f"Mečevi: {ticket['matches_count']}")

@@ -81,8 +81,15 @@ def build_ticket(predictions: list, weights: dict) -> Optional[dict]:
     best_combo = _find_best_combination(candidates, cfg)
 
     if not best_combo:
-        print("Nije moguće pronaći kombinaciju unutar zadanih parametara kvote.")
-        return None
+        # Kaskadni fallback za odds: smanji min_conf i traži par s višom kvotom
+        # koji će gurnuti kombiniranu kvotu u raspon 6-20
+        print("Standardni raspon nije dostignut — tražim riskantnije pickove s višom kvotom.")
+        all_valid = [p for p in predictions if not p.get("skip_reason")]
+        all_valid.sort(key=lambda p: _pick_odds(p), reverse=True)  # najviše kvote prvo
+        combined_pool = candidates + [p for p in all_valid if p not in candidates]
+        best_combo = _find_best_combination(combined_pool, cfg)
+        if best_combo:
+            print("Tiket složen s riskantijim pickovima — prihvaćamo veći rizik.")
 
     total_odds = combined_odds([_pick_odds(p) for p in best_combo])
     pot_win = potential_win(cfg["stake"], total_odds)
@@ -146,11 +153,21 @@ def _find_best_combination(candidates: list, cfg: dict) -> Optional[list]:
             continue
         for combo in itertools.combinations(candidates, n):
             # Provjeri diversifikaciju turnira
+            # GS i Masters: max 4 para (nezavisni top-tier mečevi)
+            # ATP 500/250/Challenger: max 2 para
             tournament_counts = {}
             for pred in combo:
                 t = pred.get("match", {}).get("tournament", "unknown")
                 tournament_counts[t] = tournament_counts.get(t, 0) + 1
-            if any(v > max_same_tournament for v in tournament_counts.values()):
+            too_many = False
+            for t, count in tournament_counts.items():
+                lvl = next((p.get("match", {}).get("level", "")
+                            for p in combo if p.get("match", {}).get("tournament", "") == t), "")
+                tier_limit = 4 if lvl in ("Grand Slam", "ATP Masters 1000") else max_same_tournament
+                if count > tier_limit:
+                    too_many = True
+                    break
+            if too_many:
                 continue
 
             odds = combined_odds([_pick_odds(p) for p in combo])
