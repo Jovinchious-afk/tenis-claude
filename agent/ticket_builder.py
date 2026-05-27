@@ -163,7 +163,12 @@ def _find_best_combination(candidates: list, cfg: dict) -> Optional[list]:
             for t, count in tournament_counts.items():
                 lvl = next((p.get("match", {}).get("level", "")
                             for p in combo if p.get("match", {}).get("tournament", "") == t), "")
-                tier_limit = 4 if lvl in ("Grand Slam", "ATP Masters 1000") else max_same_tournament
+                if lvl in ("Grand Slam", "ATP Masters 1000"):
+                    tier_limit = 5
+                elif lvl in ("ATP 500", "ATP 250"):
+                    tier_limit = 3
+                else:
+                    tier_limit = max_same_tournament  # Challenger: 2
                 if count > tier_limit:
                     too_many = True
                     break
