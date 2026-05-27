@@ -33,30 +33,45 @@ def build_ticket(predictions: list, weights: dict) -> Optional[dict]:
     Ulaz: lista predikcija iz predictor.analyze_match()
     Izlaz: optimalni tiket dict s matches, odds, summary
 
-    Strategija: 3-4 solidna favorita (conf >= 72%) + 1-2 value autsajdera
-    (conf >= 60%, bookmaker kvota >= 1.80, fair_odds povoljan).
-    Challengeri se ne stavljaju na tiket.
+    Strategija (quality-first):
+    - Primarni kriterij: statistička kvaliteta (confidence + value)
+    - Sekundarni: combined odds mora biti 6-20 (nije cilj, samo filter)
+    - Challengeri se ne stavljaju na tiket
+    - Kaskadni fallback — uvijek generiraj tiket, nikad ne odustaj
     """
     cfg = TICKET_CONFIG
-    min_conf = cfg["min_confidence"]
 
-    def _eligible(p, conf_threshold):
-        return (
-            not p.get("skip_reason")
-            and (p.get("confidence") or 0) >= conf_threshold
-            and p.get("match", {}).get("level", "") not in _NON_TICKET_LEVELS
-        )
+    def _eligible(p, conf_threshold, allow_challengers=False):
+        level = p.get("match", {}).get("level", "")
+        if not allow_challengers and level in _NON_TICKET_LEVELS:
+            return False
+        return not p.get("skip_reason") and (p.get("confidence") or 0) >= conf_threshold
 
-    candidates = [p for p in predictions if _eligible(p, min_conf)]
+    # Kaskadni fallback: 63% → 58% → 55% → last resort (best 4 bez obzira)
+    thresholds = [
+        (cfg["min_confidence"],        False),   # faza 1: 63%, bez Challengera
+        (cfg["fallback_confidence"],   False),   # faza 2: 58%, bez Challengera
+        (cfg["last_resort_confidence"], False),  # faza 3: 55%, bez Challengera
+        (cfg["last_resort_confidence"], True),   # faza 4: 55%, uz Challengere s real odds
+    ]
 
+    candidates = []
+    for conf_threshold, allow_challengers in thresholds:
+        candidates = [p for p in predictions if _eligible(p, conf_threshold, allow_challengers)]
+        if len(candidates) >= cfg["min_matches"]:
+            if conf_threshold < cfg["min_confidence"]:
+                print(f"Fallback: koristim conf >= {conf_threshold}%"
+                      f"{' (uključeni Challengeri)' if allow_challengers else ''}")
+            break
+
+    # Zadnji resort: uzmi sve valjane predikcije bez obzira na razinu ili conf
     if len(candidates) < cfg["min_matches"]:
-        min_conf = cfg["fallback_confidence"]
-        candidates = [p for p in predictions if _eligible(p, min_conf)]
-        if len(candidates) < cfg["min_matches"]:
-            print(f"Premalo kandidata ({len(candidates)}) i na fallback thresholdu {min_conf}% (bez Challengera)")
-            return None
+        candidates = [p for p in predictions if not p.get("skip_reason")]
+        candidates.sort(key=lambda p: (p.get("confidence") or 0), reverse=True)
+        candidates = candidates[:cfg["max_matches"]]
+        print(f"Last resort: uzimam top {len(candidates)} pickova po confidence-u")
 
-    # Sortiraj: value pickovi prvo, pa po confidence
+    # Sortiraj quality-first: value pick > visoki confidence > razina turnira
     candidates.sort(key=lambda p: (
         _is_value_pick(p),
         (p.get("confidence") or 0),
@@ -144,11 +159,17 @@ def _find_best_combination(candidates: list, cfg: dict) -> Optional[list]:
 
             avg_conf = sum(p.get("confidence", 0) for p in combo) / len(combo)
             value_count = sum(1 for p in combo if _is_value_pick(p))
-            base_count = sum(1 for p in combo if (p.get("confidence") or 0) >= 72)
+            high_conf_count = sum(1 for p in combo if (p.get("confidence") or 0) >= 72)
+            gs_masters_count = sum(1 for p in combo
+                                   if TOURNAMENT_LEVELS.get(
+                                       p.get("match", {}).get("level", ""), 0) >= 85)
 
-            # Scoring: visoki confidence + bonus za prave value pickove + bonus za base favourite
-            # Value pick s realnom kvotom >= 1.80 donosi +6 bodova svaki
-            score = avg_conf + (value_count * 6) + (base_count * 1.5)
+            # Quality-first scoring: statistička kvaliteta je primarni kriterij
+            # Odds su samo filter (6-20), ne cilj — ne bonusiramo "pogađanje" nekog raspona
+            score = (avg_conf * 1.5          # primarno: prosječni confidence
+                     + value_count * 6        # bonus za prave value pickove (real odds > fair)
+                     + high_conf_count * 2    # bonus za high-conf (72%+) pickove
+                     + gs_masters_count * 1)  # mali bonus za GS/Masters kvalitetu podataka
 
             if score > best_score:
                 best_score = score

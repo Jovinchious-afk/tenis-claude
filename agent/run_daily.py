@@ -70,10 +70,10 @@ def main():
         m.get("date", ""),
     ))
 
-    # Cap na 50 mečeva (GS/Masters uvijek unutar limita, Challengeri se režu ako ima previše)
-    MAX_MATCHES = 50
+    # Cap na 35 mečeva — GS/Masters uvijek unutar limita, Challengeri se režu ako ima previše
+    MAX_MATCHES = 35
     if len(all_matches) > MAX_MATCHES:
-        print(f"Reduciram na {MAX_MATCHES} mečeva (izbačeno {len(all_matches) - MAX_MATCHES} Challenger/nižih).")
+        print(f"Reduciram na {MAX_MATCHES} mečeva (izbačeno {len(all_matches) - MAX_MATCHES} nižih turnira).")
         all_matches = all_matches[:MAX_MATCHES]
 
     if not all_matches:
@@ -175,9 +175,27 @@ def main():
     ticket = build_ticket(predictions, weights)
 
     if not ticket:
-        print("UPOZORENJE: Nije moguće generirati tiket s dostupnim predikcijama!")
-        _send_no_ticket_email(today, predictions)
-        return
+        # Ne bi se smjelo dogoditi — build_ticket ima kaskadni fallback
+        # Ako ipak dođe ovdje, uzmi top 4 po confidence bez obzira na sve
+        print("UPOZORENJE: Fallback nije uspio — forsiram top 4 pickova.")
+        top4 = sorted([p for p in predictions if not p.get("skip_reason")],
+                      key=lambda p: (p.get("confidence") or 0), reverse=True)[:4]
+        if not top4:
+            print("Nema nijedne valjane predikcije. Završavam.")
+            return
+        from agent.ticket_builder import _pick_odds
+        from utils.helpers import combined_odds, potential_win
+        from config.model_config import TICKET_CONFIG as _cfg
+        total_odds = combined_odds([_pick_odds(p) for p in top4])
+        ticket = {
+            "total_odds": round(total_odds, 4),
+            "potential_win": potential_win(_cfg["stake"], total_odds),
+            "stake": _cfg["stake"],
+            "matches_count": len(top4),
+            "ticket_summary": f"Emergency tiket — top {len(top4)} pickova po confidence-u.",
+            "status": "pending",
+            "matches": top4,
+        }
 
     print(f"\n=== TIKET GENERIRAN ===")
     print(f"Mečevi: {ticket['matches_count']}")

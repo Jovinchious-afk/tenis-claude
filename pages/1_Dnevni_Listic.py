@@ -44,7 +44,7 @@ status = ticket.get("status", "pending")
 ticket_date = ticket.get("ticket_date", "")
 
 # Header
-col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
+col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 1])
 with col1:
     st.subheader(f"Tiket — {format_date_hr(today_zagreb()) if ticket_date == today_str else ticket_date}")
     st.markdown(_status_badge(status), unsafe_allow_html=True)
@@ -55,6 +55,13 @@ with col3:
 with col4:
     won_count = sum(1 for m in matches if m.get("result") == "won")
     st.metric("Pogođeni parovi", f"{won_count}/{len(matches)}")
+with col5:
+    if st.button("🗑️ Obriši tiket", type="secondary", use_container_width=True):
+        if db.delete_ticket(str(ticket.get("id", ""))):
+            st.success("Tiket obrisan.")
+            st.rerun()
+        else:
+            st.error("Greška pri brisanju.")
 
 st.markdown("---")
 

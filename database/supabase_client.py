@@ -132,6 +132,17 @@ def get_ticket_by_date(date_str: str) -> Optional[dict]:
     return t
 
 
+def delete_ticket(ticket_id: str) -> bool:
+    """Briše tiket i sve njegove mečeve iz baze."""
+    try:
+        _rest("DELETE", "ticket_matches", params={"ticket_id": f"eq.{ticket_id}"})
+        _rest("DELETE", "tickets", params={"id": f"eq.{ticket_id}"})
+        return True
+    except Exception as e:
+        print(f"Greška brisanja tiketa {ticket_id}: {e}")
+        return False
+
+
 # ── Ticket Matches ────────────────────────────────────────────────────────────
 
 def save_ticket_matches(matches: list) -> None:
