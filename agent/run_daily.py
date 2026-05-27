@@ -126,6 +126,7 @@ def main():
             odds = df.find_match_odds(match["player1"], match["player2"], all_odds)
             match["odds_p1"] = odds.get("p1_odds", 0)
             match["odds_p2"] = odds.get("p2_odds", 0)
+            match["odds_available"] = bool(odds)  # False = kvote nisu nađene u Odds API
 
             # Kompajliraj p1_data i p2_data
             p1_data = {**p1_info, **p1_stats,

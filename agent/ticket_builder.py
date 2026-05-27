@@ -24,25 +24,41 @@ def _get_client() -> anthropic.Anthropic:
     return _client
 
 
+# Razine turnira koje se NE stavljaju na tiket (samo analiziramo radi modela)
+_NON_TICKET_LEVELS = {"ATP Challenger", "ATP Qualifying"}
+
+
 def build_ticket(predictions: list, weights: dict) -> Optional[dict]:
     """
     Ulaz: lista predikcija iz predictor.analyze_match()
     Izlaz: optimalni tiket dict s matches, odds, summary
+
+    Strategija: 3-4 solidna favorita (conf >= 72%) + 1-2 value autsajdera
+    (conf >= 60%, bookmaker kvota >= 1.80, fair_odds povoljan).
+    Challengeri se ne stavljaju na tiket.
     """
     cfg = TICKET_CONFIG
     min_conf = cfg["min_confidence"]
 
-    candidates = [p for p in predictions if not p.get("skip_reason") and (p.get("confidence") or 0) >= min_conf]
+    def _eligible(p, conf_threshold):
+        return (
+            not p.get("skip_reason")
+            and (p.get("confidence") or 0) >= conf_threshold
+            and p.get("match", {}).get("level", "") not in _NON_TICKET_LEVELS
+        )
+
+    candidates = [p for p in predictions if _eligible(p, min_conf)]
 
     if len(candidates) < cfg["min_matches"]:
         min_conf = cfg["fallback_confidence"]
-        candidates = [p for p in predictions if not p.get("skip_reason") and (p.get("confidence") or 0) >= min_conf]
+        candidates = [p for p in predictions if _eligible(p, min_conf)]
         if len(candidates) < cfg["min_matches"]:
-            print(f"Premalo kandidata ({len(candidates)}) i na fallback thresholdu {min_conf}%")
+            print(f"Premalo kandidata ({len(candidates)}) i na fallback thresholdu {min_conf}% (bez Challengera)")
             return None
 
-    # Sortiraj po confidence desc, pa po tournament razini desc
+    # Sortiraj: value pickovi prvo, pa po confidence
     candidates.sort(key=lambda p: (
+        _is_value_pick(p),
         (p.get("confidence") or 0),
         TOURNAMENT_LEVELS.get(p.get("match", {}).get("level", "ATP 250"), 45)
     ), reverse=True)
@@ -97,8 +113,9 @@ def build_ticket(predictions: list, weights: dict) -> Optional[dict]:
 
 def _find_best_combination(candidates: list, cfg: dict) -> Optional[list]:
     """
-    Pronalazi optimalnu kombinaciju mečeva.
-    Prioritet: visoki confidence, kvota unutar 8-15, ne više od 2 meča istog turnira.
+    Nova strategija: traži kombinaciju 3-4 solidna favorita (conf>=72%) +
+    1-2 value autsajdera (conf>=60%, bookmaker kvota>=1.80, prava vrijednost).
+    Fallback: sve kombinacije unutar parametara ako nema dovoljno value pickova.
     """
     min_n = cfg["min_matches"]
     max_n = cfg["max_matches"]
@@ -109,7 +126,6 @@ def _find_best_combination(candidates: list, cfg: dict) -> Optional[list]:
     best = None
     best_score = -1
 
-    # Probamo sve kombinacije od max do min (prioritet više mečeva s dobrim kvotama)
     for n in range(max_n, min_n - 1, -1):
         if n > len(candidates):
             continue
@@ -126,16 +142,32 @@ def _find_best_combination(candidates: list, cfg: dict) -> Optional[list]:
             if odds < min_odds or odds > max_odds:
                 continue
 
-            # Score: prosječni confidence + bonus za value bets + bonus za više mečeva
             avg_conf = sum(p.get("confidence", 0) for p in combo) / len(combo)
-            value_bonus = sum(1 for p in combo if p.get("value", False)) * 2
-            score = avg_conf + value_bonus + (len(combo) * 0.5)
+            value_count = sum(1 for p in combo if _is_value_pick(p))
+            base_count = sum(1 for p in combo if (p.get("confidence") or 0) >= 72)
+
+            # Scoring: visoki confidence + bonus za prave value pickove + bonus za base favourite
+            # Value pick s realnom kvotom >= 1.80 donosi +6 bodova svaki
+            score = avg_conf + (value_count * 6) + (base_count * 1.5)
 
             if score > best_score:
                 best_score = score
                 best = list(combo)
 
     return best
+
+
+def _is_value_pick(pred: dict) -> bool:
+    """Pravi value pick: bookmaker kvota >= 1.80, odds su stvarne (ne default), fair_odds povoljan."""
+    match = pred.get("match", {})
+    if not match.get("odds_available", True):
+        return False
+    bookmaker_odds = _pick_odds(pred)
+    fair_odds = pred.get("fair_odds") or 0
+    if bookmaker_odds < 1.80 or fair_odds <= 0:
+        return False
+    # Value = bookmaker nudi barem 12% više od naše fair vrijednosti
+    return bookmaker_odds >= fair_odds * 1.12
 
 
 def _pick_odds(pred: dict) -> float:
