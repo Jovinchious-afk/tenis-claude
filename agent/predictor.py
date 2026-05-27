@@ -3,6 +3,7 @@ Predictor: za svaki meč šalje strukturirane podatke Claude Haiku-u koji
 primjenjuje težine modela i vraća procjenu (pick, confidence, fair_odds, value...).
 """
 import os
+import re
 import json
 import anthropic
 from dotenv import load_dotenv
@@ -12,6 +13,46 @@ from utils.helpers import safe_float
 load_dotenv()
 
 _client = None
+
+
+def _fix_json_strings(s: str) -> str:
+    """Escape literal newlines/tabs inside JSON string values (LLM often forgets to)."""
+    out = []
+    in_string = False
+    escape_next = False
+    for c in s:
+        if escape_next:
+            out.append(c)
+            escape_next = False
+        elif c == '\\' and in_string:
+            out.append(c)
+            escape_next = True
+        elif c == '"':
+            in_string = not in_string
+            out.append(c)
+        elif in_string and c == '\n':
+            out.append('\\n')
+        elif in_string and c == '\r':
+            pass  # skip \r
+        elif in_string and c == '\t':
+            out.append('\\t')
+        else:
+            out.append(c)
+    return ''.join(out)
+
+
+def _safe_json_parse(raw: str) -> dict:
+    """Parse JSON from LLM output — handles markdown fences, literal newlines in strings."""
+    raw = re.sub(r'```(?:json)?\s*', '', raw).strip()
+    start = raw.find('{')
+    end = raw.rfind('}')
+    if start == -1 or end <= start:
+        raise ValueError("No JSON object found in LLM response")
+    raw = raw[start:end + 1]
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return json.loads(_fix_json_strings(raw))
 
 
 def _get_client() -> anthropic.Anthropic:
@@ -194,9 +235,7 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             messages=[{"role": "user", "content": prompt}]
         )
         raw = response.content[0].text.strip()
-        # Clean up potential markdown code blocks
-        raw = raw.replace("```json", "").replace("```", "").strip()
-        result = json.loads(raw)
+        result = _safe_json_parse(raw)
         result["match"] = match
         return result
     except Exception as e:

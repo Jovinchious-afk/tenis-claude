@@ -255,7 +255,7 @@ Budi konkretan, navedi specifične razloge (podloga, forma, H2H, itd.)."""
         client = _get_client()
         response = client.messages.create(
             model=CLAUDE_MODELS["ticket_writer"],
-            max_tokens=400,
+            max_tokens=700,
             messages=[{"role": "user", "content": prompt}]
         )
         return response.content[0].text.strip()
