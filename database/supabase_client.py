@@ -166,10 +166,10 @@ def save_loss_analysis(match_id: str, analysis: str) -> None:
 
 
 def get_pending_matches() -> list:
-    two_days_ago = (datetime.date.today() - datetime.timedelta(days=2)).isoformat()
+    today = datetime.date.today().isoformat()
     return _select("ticket_matches", filters={
         "result": "eq.pending",
-        "match_date": f"lte.{two_days_ago}"
+        "match_date": f"lte.{today}"
     })
 
 

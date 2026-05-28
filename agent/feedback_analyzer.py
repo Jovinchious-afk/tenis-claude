@@ -35,30 +35,36 @@ def run_evening_update() -> dict:
     print("=== Večernji update ===")
     summary = {"resolved": 0, "won": 0, "lost": 0, "analyzed": 0, "weight_updated": False}
 
-    # 1. Dohvati rezultate za mečeve od prekjučer i jučer
-    for n_days in [1, 2, 3]:
+    # 1. Dohvati rezultate za mečeve od jučer, prekjučer i 3 dana unatrag
+    pending = db.get_pending_matches()
+    print(f"Pronađeno {len(pending)} pending parova za provjeru...")
+    resolved_ids = set()
+    for n_days in [0, 1, 2, 3]:
         date = days_ago(n_days)
-        print(f"Dohvaćam rezultate za {format_date(date)}...")
         finished_matches = get_matches_for_date(date)
-        finished_by_id = {m["external_id"]: m for m in finished_matches if m.get("status") in ("FT", "Finished", "AOT")}
-
-        pending = db.get_pending_matches()
+        finished_by_id = {m["external_id"]: m for m in finished_matches
+                          if m.get("status") == "finished"}
         for pm in pending:
+            if pm["id"] in resolved_ids:
+                continue
             ext_id = pm.get("external_match_id", "")
-            if ext_id in finished_by_id:
-                fm = finished_by_id[ext_id]
-                winner_id = fm.get("winner_id")
-                # Odredi pobjednika po imenu
-                actual_winner = _find_winner_name(fm, pm)
-                pick = pm.get("pick", "")
-                result = "won" if _names_match(pick, actual_winner) else "lost"
-                db.update_match_result(pm["id"], result, actual_winner, fm.get("score"))
-                summary["resolved"] += 1
-                if result == "won":
-                    summary["won"] += 1
-                else:
-                    summary["lost"] += 1
-                print(f"  Ažuriran: {pm['player1']} vs {pm['player2']} → {result} ({actual_winner})")
+            if ext_id not in finished_by_id:
+                continue
+            fm = finished_by_id[ext_id]
+            actual_winner = _find_winner_name(fm, pm)
+            if not actual_winner:
+                continue
+            pick = pm.get("pick", "")
+            result = "won" if _names_match(pick, actual_winner) else "lost"
+            db.update_match_result(pm["id"], result, actual_winner, fm.get("score"))
+            resolved_ids.add(pm["id"])
+            summary["resolved"] += 1
+            summary["won" if result == "won" else "lost"] += 1
+            print(f"  Ažuriran: {pm['player1']} vs {pm['player2']} → {result} ({actual_winner})")
+
+    for pm in pending:
+        if pm["id"] not in resolved_ids:
+            print(f"  Još nije gotov: {pm.get('player1')} vs {pm.get('player2')}")
 
     # 2. Ažuriraj statuseve tiketa
     _update_ticket_statuses()
@@ -258,10 +264,10 @@ def _validate_weights(weights: dict) -> bool:
 
 
 def _find_winner_name(finished_match: dict, pending_match: dict) -> str:
-    winner_id = finished_match.get("winner_id")
-    if winner_id and winner_id == finished_match.get("player1_id"):
+    winner_id = finished_match.get("winner_id", "")
+    if winner_id and winner_id == finished_match.get("player1_id", ""):
         return pending_match.get("player1", "")
-    if winner_id and winner_id == finished_match.get("player2_id"):
+    if winner_id and winner_id == finished_match.get("player2_id", ""):
         return pending_match.get("player2", "")
     return ""
 

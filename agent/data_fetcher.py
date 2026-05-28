@@ -194,9 +194,10 @@ def get_matches_for_date(date: datetime.date) -> list:
             "round":         _round_from_id(g.get("roundId")),
             "date":          date_str,
             "time":          str(g.get("timeGame", "") or ""),
-            "status":        "live" if g.get("live") else "scheduled",
+            "winner_id":     str(g.get("match_winner") or g.get("winnerId") or ""),
+            "status":        ("finished" if (g.get("match_winner") or g.get("winnerId")) and not g.get("live")
+                              else "live" if g.get("live") else "scheduled"),
             "score":         "",
-            "winner_id":     "",
             "level":         _get_tournament_level(tourn_name, tier),
             "seed1":         str(g.get("seed1", "") or ""),
             "seed2":         str(g.get("seed2", "") or ""),
