@@ -9,8 +9,8 @@ import itertools
 import anthropic
 from typing import Optional
 from dotenv import load_dotenv
-from config.model_config import TICKET_CONFIG, CLAUDE_MODELS, TOURNAMENT_LEVELS
-from utils.helpers import combined_odds, potential_win
+from config.model_config import TICKET_CONFIG, CLAUDE_MODELS, TOURNAMENT_LEVELS, DAILY_MATCH_LIMITS
+from utils.helpers import combined_odds, potential_win, today_zagreb, tomorrow_zagreb
 
 load_dotenv()
 
@@ -78,6 +78,7 @@ def build_ticket(predictions: list, weights: dict) -> Optional[dict]:
         TOURNAMENT_LEVELS.get(p.get("match", {}).get("level", "ATP 250"), 45)
     ), reverse=True)
 
+    candidates = _apply_daily_limits(candidates)
     best_combo = _find_best_combination(candidates, cfg)
 
     if not best_combo:
@@ -143,7 +144,6 @@ def _find_best_combination(candidates: list, cfg: dict) -> Optional[list]:
     max_n = cfg["max_matches"]
     min_odds = cfg["min_combined_odds"]
     max_odds = cfg["max_combined_odds"]
-    max_same_tournament = cfg["max_matches_same_tournament"]
 
     best = None
     best_score = -1
@@ -152,29 +152,6 @@ def _find_best_combination(candidates: list, cfg: dict) -> Optional[list]:
         if n > len(candidates):
             continue
         for combo in itertools.combinations(candidates, n):
-            # Provjeri diversifikaciju turnira
-            # GS i Masters: max 4 para (nezavisni top-tier mečevi)
-            # ATP 500/250/Challenger: max 2 para
-            tournament_counts = {}
-            for pred in combo:
-                t = pred.get("match", {}).get("tournament", "unknown")
-                tournament_counts[t] = tournament_counts.get(t, 0) + 1
-            too_many = False
-            for t, count in tournament_counts.items():
-                lvl = next((p.get("match", {}).get("level", "")
-                            for p in combo if p.get("match", {}).get("tournament", "") == t), "")
-                if lvl in ("Grand Slam", "ATP Masters 1000"):
-                    tier_limit = 5
-                elif lvl in ("ATP 500", "ATP 250"):
-                    tier_limit = 3
-                else:
-                    tier_limit = max_same_tournament  # Challenger: 2
-                if count > tier_limit:
-                    too_many = True
-                    break
-            if too_many:
-                continue
-
             # Nikad ne uzimaj pick s kvotom < 1.06
             if any(_pick_odds(p) < 1.06 for p in combo):
                 continue
@@ -266,3 +243,40 @@ Budi konkretan, navedi specifične razloge (podloga, forma, H2H, itd.)."""
     except Exception as e:
         print(f"Greška generiranja write-upa: {e}")
         return f"Tiket s {len(matches)} parova. Ukupna kvota: {total_odds:.2f}, potencijalni dobitak: €{pot_win:.2f}."
+
+
+def _apply_daily_limits(candidates: list) -> list:
+    """
+    Pre-filtrira kandidate: max N po (turniru, datum) prema DAILY_MATCH_LIMITS.
+    Unutar svake grupe zadržava top N po confidence-u.
+    Ovo se poziva PRIJE kombinatorike tako da motoru uvijek ostaje čist pool.
+    """
+    today_str = today_zagreb().isoformat()
+    tomorrow_str = tomorrow_zagreb().isoformat()
+
+    groups: dict = {}
+    for p in candidates:
+        m = p.get("match", {})
+        tournament = m.get("tournament", "unknown")
+        date = (m.get("date", "") or "")[:10]
+        groups.setdefault((tournament, date), []).append(p)
+
+    result = []
+    for (tournament, date), group in groups.items():
+        level = group[0].get("match", {}).get("level", "ATP 250")
+        limits = DAILY_MATCH_LIMITS.get(level, {"today": 2, "tomorrow": 2})
+
+        if date == today_str:
+            limit = limits["today"]
+        else:
+            limit = limits["tomorrow"]  # sutra ili dalje — konzervativniji limit
+
+        if limit == 0:
+            continue  # Challenger/Qualifying — preskačemo
+
+        group_sorted = sorted(group, key=lambda p: (p.get("confidence") or 0), reverse=True)
+        result.extend(group_sorted[:limit])
+        if len(group_sorted) > limit:
+            print(f"  Daily limit: {tournament} ({date}) — uzeto {limit}/{len(group_sorted)} kandidata")
+
+    return result

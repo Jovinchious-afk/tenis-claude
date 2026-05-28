@@ -40,7 +40,17 @@ TICKET_CONFIG = {
     "min_confidence": 63.0,
     "fallback_confidence": 58.0,
     "last_resort_confidence": 55.0,  # zadnji fallback — uvijek generiraj tiket
-    "max_matches_same_tournament": 2,
+}
+
+# Max kandidata po turniru po danu (danas vs sutra)
+# Ovo je pre-filter PRIJE kombinatorike — ne limit na tiketu
+DAILY_MATCH_LIMITS = {
+    "Grand Slam":       {"today": 5, "tomorrow": 4},
+    "ATP Masters 1000": {"today": 4, "tomorrow": 3},
+    "ATP 500":          {"today": 4, "tomorrow": 3},
+    "ATP 250":          {"today": 4, "tomorrow": 3},
+    "ATP Challenger":   {"today": 0, "tomorrow": 0},
+    "ATP Qualifying":   {"today": 0, "tomorrow": 0},
 }
 
 WEIGHT_ADJUSTMENT = {
