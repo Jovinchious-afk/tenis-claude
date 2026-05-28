@@ -97,6 +97,11 @@ if selected:
     matches = selected.get("ticket_matches", [])
     status = selected.get("status", "pending")
 
+    if selected.get("ticket_summary"):
+        with st.expander("📝 Write-up tiketa", expanded=True):
+            st.markdown(selected["ticket_summary"])
+        st.markdown("---")
+
     for m in matches:
         m_result = m.get("result", "pending")
         icon = "✅" if m_result == "won" else "❌" if m_result == "lost" else "⏳"
