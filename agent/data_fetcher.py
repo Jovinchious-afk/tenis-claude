@@ -543,6 +543,19 @@ def get_atp_injury_news() -> str:
     return "; ".join(combined[:15]) if combined else "Nema dostupnih vijesti."
 
 
+def get_match_stats(tournament_id: str, player1_id: str, player2_id: str) -> dict:
+    """
+    Endpoint: GET /atp/h2h/match-stats/{tournamentId}/{player1Id}/{player2Id}
+    Vraća detaljnu statistiku završenog meča (servis, return, break, winners...).
+    """
+    if not tournament_id or not player1_id or not player2_id:
+        return {}
+    data = _get(f"/atp/h2h/match-stats/{tournament_id}/{player1_id}/{player2_id}")
+    if not data:
+        return {}
+    return data.get("data", data) or {}
+
+
 def get_weather_for_tournament(city: str) -> dict:
     if not WEATHER_KEY or not city:
         return {}

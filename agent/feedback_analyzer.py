@@ -12,7 +12,7 @@ import anthropic
 from dotenv import load_dotenv
 from config.model_config import CLAUDE_MODELS, WEIGHT_ADJUSTMENT, DEFAULT_WEIGHTS
 from database import supabase_client as db
-from agent.data_fetcher import get_matches_for_date, get_recent_form
+from agent.data_fetcher import get_matches_for_date, get_recent_form, get_match_stats
 from utils.helpers import today_zagreb, days_ago, format_date
 
 load_dotenv()
@@ -35,14 +35,19 @@ def run_evening_update() -> dict:
     print("=== Večernji update ===")
     summary = {"resolved": 0, "won": 0, "lost": 0, "analyzed": 0, "weight_updated": False}
 
-    # 1. Izgradi lookup player_id po imenu (external_match_id se mijenja između dana)
+    # 1. Izgradi lookup player_id i tournament_id po imenu
     name_to_id = {}
+    match_to_tournament = {}  # (p1_lower, p2_lower) -> tournament_id
     for n_days in range(8):
         for m in get_matches_for_date(days_ago(n_days)):
             if m.get("player1_id"):
                 name_to_id[m["player1"].lower().strip()] = m["player1_id"]
             if m.get("player2_id"):
                 name_to_id[m["player2"].lower().strip()] = m["player2_id"]
+            if m.get("tournament_id"):
+                key = (m["player1"].lower().strip(), m["player2"].lower().strip())
+                match_to_tournament[key] = m["tournament_id"]
+                match_to_tournament[(key[1], key[0])] = m["tournament_id"]
 
     # 2. Za svaki pending par provjeri rezultat via past-matches
     pending = db.get_pending_matches()
@@ -69,7 +74,13 @@ def run_evening_update() -> dict:
     # 3. Analiziraj izgubljene parove
     lost_matches = db.get_lost_matches_needing_analysis()
     for lm in lost_matches[:5]:
-        analysis = _analyze_lost_match(lm)
+        p1_key = lm.get("player1", "").lower().strip()
+        p2_key = lm.get("player2", "").lower().strip()
+        p1_id = name_to_id.get(p1_key, "")
+        p2_id = name_to_id.get(p2_key, "")
+        tournament_id = match_to_tournament.get((p1_key, p2_key), "")
+        stats = get_match_stats(tournament_id, p1_id, p2_id) if (p1_id and p2_id and tournament_id) else {}
+        analysis = _analyze_lost_match(lm, stats)
         if analysis:
             db.save_loss_analysis(lm["id"], analysis)
             summary["analyzed"] += 1
@@ -103,7 +114,37 @@ def _update_ticket_statuses() -> None:
         print(f"  Tiket {ticket.get('ticket_date')}: {status} ({won_count}/{total})")
 
 
-def _analyze_lost_match(match: dict) -> str:
+def _format_match_stats(p1: str, p2: str, stats: dict) -> str:
+    """Formatira post-match statistike u čitljiv blok za Claude prompt."""
+    if not stats:
+        return ""
+    lines = ["\nSTATISTIKE MEČA:"]
+    p1_stats = stats.get("player1", stats.get("p1", {})) or {}
+    p2_stats = stats.get("player2", stats.get("p2", {})) or {}
+    stat_keys = [
+        ("aces", "Ace"),
+        ("double_faults", "Dvostruke greške"),
+        ("first_serve_percentage", "1. servis %"),
+        ("first_serve_points_won", "Poeni na 1. servisu %"),
+        ("second_serve_points_won", "Poeni na 2. servisu %"),
+        ("break_points_saved", "Sačuvani BP"),
+        ("break_points_faced", "BP protiv"),
+        ("break_points_converted", "Iskorišteni BP"),
+        ("break_points_on", "BP prilike"),
+        ("return_points_won", "Return poeni %"),
+        ("total_points_won", "Ukupni poeni"),
+        ("winners", "Winneri"),
+        ("unforced_errors", "Neforsirane greške"),
+    ]
+    for key, label in stat_keys:
+        v1 = p1_stats.get(key)
+        v2 = p2_stats.get(key)
+        if v1 is not None or v2 is not None:
+            lines.append(f"  {label}: {p1}={v1 if v1 is not None else 'N/A'} | {p2}={v2 if v2 is not None else 'N/A'}")
+    return "\n".join(lines) + "\n" if len(lines) > 1 else ""
+
+
+def _analyze_lost_match(match: dict, stats: dict = None) -> str:
     """Claude analizira zašto smo pogriješili na konkretnom paru."""
     pick = match.get("pick", "")
     actual = match.get("actual_winner", "")
@@ -116,6 +157,10 @@ def _analyze_lost_match(match: dict) -> str:
     confidence = match.get("confidence", 0)
     key_factors = match.get("key_factors", [])
 
+    stats_block = ""
+    if stats:
+        stats_block = _format_match_stats(p1, p2, stats)
+
     prompt = f"""Analitičar teniskih tiketa je izgubio predikciju. Analiziraj grešku.
 
 PAR: {p1} vs {p2} | {tournament} ({surface})
@@ -123,7 +168,7 @@ NAŠA PREDIKCIJA: {pick} pobjeđuje (confidence: {confidence}%)
 STVARNI REZULTAT: {actual} pobijedio | Score: {score}
 NAVEDENI RIZICI: {risk_notes}
 KLJUČNI FAKTORI KOJI SU ODREDILI PICK: {', '.join(key_factors) if key_factors else 'N/A'}
-
+{stats_block}
 Napiši kratku analizu (max 150 riječi) koja objašnjava:
 1. Koji je faktor bio pogrešno procijenjen?
 2. Što je zapravo bilo presudno u meču?
