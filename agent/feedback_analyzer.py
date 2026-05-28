@@ -35,19 +35,20 @@ def run_evening_update() -> dict:
     print("=== Večernji update ===")
     summary = {"resolved": 0, "won": 0, "lost": 0, "analyzed": 0, "weight_updated": False}
 
-    # 1. Izgradi lookup player_id po external_match_id (fixtures endpoint ima player IDs)
-    fixture_ids = {}
-    for n_days in [0, 1, 2, 3]:
+    # 1. Izgradi lookup player_id po imenu (external_match_id se mijenja između dana)
+    name_to_id = {}
+    for n_days in range(8):
         for m in get_matches_for_date(days_ago(n_days)):
-            if m.get("external_id") and m["external_id"] not in fixture_ids:
-                fixture_ids[m["external_id"]] = m.get("player1_id", "")
+            if m.get("player1_id"):
+                name_to_id[m["player1"].lower().strip()] = m["player1_id"]
+            if m.get("player2_id"):
+                name_to_id[m["player2"].lower().strip()] = m["player2_id"]
 
     # 2. Za svaki pending par provjeri rezultat via past-matches
     pending = db.get_pending_matches()
     print(f"Pronadeno {len(pending)} pending parova za provjeru...")
     for pm in pending:
-        ext_id = pm.get("external_match_id", "")
-        p1_id = fixture_ids.get(ext_id, "")
+        p1_id = name_to_id.get(pm.get("player1", "").lower().strip(), "")
         if not p1_id:
             print(f"  Nema player_id: {pm.get('player1')} vs {pm.get('player2')}")
             continue
