@@ -97,6 +97,25 @@ def main():
     print("Dohvaćam vijesti o ozljedama...")
     injury_news = df.get_atp_injury_news()
 
+    # 6b. Dohvati vremenske uvjete za svaki turnir (jednom po gradu)
+    print("Dohvaćam vremenske uvjete...")
+    weather_cache = {}
+    for match in all_matches:
+        city = _city_for_weather(match.get("tournament", ""))
+        if city and city not in weather_cache:
+            w = df.get_weather_for_tournament(city)
+            if w:
+                weather_cache[city] = (
+                    f"{w['temp_c']}°C, {w['condition']}, "
+                    f"Vjetar: {w['wind_kmh']} km/h, Vlaga: {w['humidity']}%"
+                )
+                print(f"  {city}: {weather_cache[city]}")
+            else:
+                weather_cache[city] = "N/A"
+    for match in all_matches:
+        city = _city_for_weather(match.get("tournament", ""))
+        match["weather"] = weather_cache.get(city, "N/A")
+
     # 7. Za svaki meč dohvati podatke o igračima
     print(f"\nDohvaćam podatke za {len(all_matches)} mečeva...")
     matches_with_data = []
@@ -271,6 +290,20 @@ def _last_match_date(matches: list) -> str:
     if not matches:
         return "N/A"
     return matches[0].get("date", "N/A")[:10]
+
+
+def _city_for_weather(tournament_name: str) -> str:
+    """Izvlači grad iz naziva turnira za weather API lookup."""
+    if not tournament_name:
+        return ""
+    # Format "French Open - Paris" → "Paris"
+    if " - " in tournament_name:
+        return tournament_name.split(" - ")[-1].strip()
+    # Format "Vicenza Challenger" → "Vicenza", "Little Rock Challenger" → "Little Rock"
+    for suffix in [" Challenger", " Open", " Masters", " Cup", " Trophy", " International"]:
+        if tournament_name.endswith(suffix):
+            return tournament_name[:-len(suffix)].strip()
+    return tournament_name.strip()
 
 
 def _extract_player_news(player_name: str, all_news: str) -> str:
