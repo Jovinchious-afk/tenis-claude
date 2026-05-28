@@ -41,6 +41,9 @@ _ROUND_ID_MAP = {
 # In-process cache: str(tournamentId) → {name, surface, category, city}
 _tournament_info_cache: dict = {}
 
+# Cache za tournament records: (player_id, tournament_id) → dict
+_tournament_record_cache: dict = {}
+
 # Rate limiter: max ~90 req/min (limit is 100/min)
 _last_api_call_time: float = 0.0
 _MIN_CALL_INTERVAL: float = 0.67
@@ -602,6 +605,52 @@ def get_player_surface_summary(player_id: str) -> dict:
             "matches": total,
             "win_pct": round(wins / total * 100, 1) if total > 0 else None,
         }
+    return result
+
+
+def get_player_tournament_record(player_id: str, tournament_id: str) -> dict:
+    """
+    Endpoint: GET /atp/player/tournament-record/{playerId}/{tournamentId}
+    Vraća povijesni rekord igrača na konkretnom turniru (sve godine).
+    """
+    if not player_id or not tournament_id:
+        return {}
+    cache_key = (str(player_id), str(tournament_id))
+    if cache_key in _tournament_record_cache:
+        return _tournament_record_cache[cache_key]
+
+    data = _get(f"/atp/player/tournament-record/{player_id}/{tournament_id}")
+    if not data:
+        _tournament_record_cache[cache_key] = {}
+        return {}
+
+    records = data.get("data", [])
+    if not records:
+        _tournament_record_cache[cache_key] = {}
+        return {}
+
+    total_wins = sum(r.get("wins", 0) or 0 for r in records)
+    total_losses = sum(r.get("losses", 0) or 0 for r in records)
+
+    best = max(records, key=lambda r: r.get("bestRoundId", 0))
+    best_round = best.get("bestRound", "N/A")
+    best_year = best.get("year", "")
+
+    recent = sorted(records, key=lambda r: r.get("year", 0), reverse=True)[:3]
+    recent_str = " / ".join(
+        f"{r['year']}: {r.get('bestRound', '?')} ({r.get('wins', 0)}W/{r.get('losses', 0)}L)"
+        for r in recent
+    )
+
+    result = {
+        "total_wins": total_wins,
+        "total_losses": total_losses,
+        "appearances": len(records),
+        "best_round": best_round,
+        "best_year": best_year,
+        "recent": recent_str,
+    }
+    _tournament_record_cache[cache_key] = result
     return result
 
 

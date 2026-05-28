@@ -218,8 +218,8 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         h2h_last=_last_h2h_result(h2h),
 
         weather=match.get("weather", "N/A"),
-        p1_tournament_history=p1.get("tournament_history", "N/A"),
-        p2_tournament_history=p2.get("tournament_history", "N/A"),
+        p1_tournament_history=_format_tournament_record(p1.get("tournament_record", {})),
+        p2_tournament_history=_format_tournament_record(p2.get("tournament_record", {})),
         odds_movement=match.get("odds_movement", "N/A"),
 
         odds_p1=f"{odds_p1:.2f}" if odds_p1 else "N/A",
@@ -309,6 +309,20 @@ def _format_surface_record(surface_summary: dict, surface: str) -> str:
     if not data or not data.get("matches"):
         return "N/A"
     return f"{data['wins']}W/{data['losses']}L ({data['win_pct']}%) u {data['matches']} mečeva"
+
+
+def _format_tournament_record(record: dict) -> str:
+    """Formatira turnirsku historiju za Claude prompt."""
+    if not record or not record.get("appearances"):
+        return "Nikad nije igrao ovaj turnir"
+    total = record["total_wins"] + record["total_losses"]
+    win_pct = round(record["total_wins"] / total * 100, 1) if total > 0 else 0
+    return (
+        f"{record['total_wins']}W/{record['total_losses']}L ({win_pct}%) "
+        f"u {record['appearances']} nastupa | "
+        f"Najbolje: {record['best_round']} ({record['best_year']}) | "
+        f"Zadnje: {record['recent']}"
+    )
 
 
 def _last_h2h_result(h2h: dict) -> str:

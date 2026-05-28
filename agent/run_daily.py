@@ -140,6 +140,11 @@ def main():
             p2_elo = df.find_player_elo(match["player2"], elo_data)
             p2_surface_summary = df.get_player_surface_summary(p2_id) if p2_id else {}
 
+            # Tournament record (cached — isti igrač ne zove API više puta)
+            tournament_id = match.get("tournament_id", "")
+            p1_tournament_rec = df.get_player_tournament_record(p1_id, tournament_id) if p1_id and tournament_id else {}
+            p2_tournament_rec = df.get_player_tournament_record(p2_id, tournament_id) if p2_id and tournament_id else {}
+
             # H2H
             h2h = df.get_h2h(p1_id, p2_id) if p1_id and p2_id else {}
 
@@ -161,6 +166,7 @@ def main():
                        "ranking": p1_info.get("ranking") or atp_rankings.get(match["player1"], 999),
                        "news": _extract_player_news(match["player1"], injury_news),
                        "surface_summary": p1_surface_summary,
+                       "tournament_record": p1_tournament_rec,
                        }
 
             p2_data = {**p2_info, **p2_stats,
@@ -174,6 +180,7 @@ def main():
                        "ranking": p2_info.get("ranking") or atp_rankings.get(match["player2"], 999),
                        "news": _extract_player_news(match["player2"], injury_news),
                        "surface_summary": p2_surface_summary,
+                       "tournament_record": p2_tournament_rec,
                        }
 
             matches_with_data.append({
