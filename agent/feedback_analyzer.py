@@ -12,7 +12,7 @@ import anthropic
 from dotenv import load_dotenv
 from config.model_config import CLAUDE_MODELS, WEIGHT_ADJUSTMENT, DEFAULT_WEIGHTS
 from database import supabase_client as db
-from agent.data_fetcher import get_matches_for_date
+from agent.data_fetcher import get_matches_for_date, get_recent_form
 from utils.helpers import today_zagreb, days_ago, format_date
 
 load_dotenv()
@@ -35,36 +35,32 @@ def run_evening_update() -> dict:
     print("=== Večernji update ===")
     summary = {"resolved": 0, "won": 0, "lost": 0, "analyzed": 0, "weight_updated": False}
 
-    # 1. Dohvati rezultate za mečeve od jučer, prekjučer i 3 dana unatrag
-    pending = db.get_pending_matches()
-    print(f"Pronađeno {len(pending)} pending parova za provjeru...")
-    resolved_ids = set()
+    # 1. Izgradi lookup player_id po external_match_id (fixtures endpoint ima player IDs)
+    fixture_ids = {}
     for n_days in [0, 1, 2, 3]:
-        date = days_ago(n_days)
-        finished_matches = get_matches_for_date(date)
-        finished_by_id = {m["external_id"]: m for m in finished_matches
-                          if m.get("status") == "finished"}
-        for pm in pending:
-            if pm["id"] in resolved_ids:
-                continue
-            ext_id = pm.get("external_match_id", "")
-            if ext_id not in finished_by_id:
-                continue
-            fm = finished_by_id[ext_id]
-            actual_winner = _find_winner_name(fm, pm)
-            if not actual_winner:
-                continue
-            pick = pm.get("pick", "")
-            result = "won" if _names_match(pick, actual_winner) else "lost"
-            db.update_match_result(pm["id"], result, actual_winner, fm.get("score"))
-            resolved_ids.add(pm["id"])
-            summary["resolved"] += 1
-            summary["won" if result == "won" else "lost"] += 1
-            print(f"  Ažuriran: {pm['player1']} vs {pm['player2']} → {result} ({actual_winner})")
+        for m in get_matches_for_date(days_ago(n_days)):
+            if m.get("external_id") and m["external_id"] not in fixture_ids:
+                fixture_ids[m["external_id"]] = m.get("player1_id", "")
 
+    # 2. Za svaki pending par provjeri rezultat via past-matches
+    pending = db.get_pending_matches()
+    print(f"Pronadeno {len(pending)} pending parova za provjeru...")
     for pm in pending:
-        if pm["id"] not in resolved_ids:
-            print(f"  Još nije gotov: {pm.get('player1')} vs {pm.get('player2')}")
+        ext_id = pm.get("external_match_id", "")
+        p1_id = fixture_ids.get(ext_id, "")
+        if not p1_id:
+            print(f"  Nema player_id: {pm.get('player1')} vs {pm.get('player2')}")
+            continue
+        actual_winner = _check_result_via_form(pm, p1_id)
+        if not actual_winner:
+            print(f"  Jos nije gotov: {pm.get('player1')} vs {pm.get('player2')}")
+            continue
+        pick = pm.get("pick", "")
+        result = "won" if _names_match(pick, actual_winner) else "lost"
+        db.update_match_result(pm["id"], result, actual_winner)
+        summary["resolved"] += 1
+        summary["won" if result == "won" else "lost"] += 1
+        print(f"  Azuriran: {pm['player1']} vs {pm['player2']} -> {result} ({actual_winner})")
 
     # 2. Ažuriraj statuseve tiketa
     _update_ticket_statuses()
@@ -263,12 +259,24 @@ def _validate_weights(weights: dict) -> bool:
     return True
 
 
-def _find_winner_name(finished_match: dict, pending_match: dict) -> str:
-    winner_id = finished_match.get("winner_id", "")
-    if winner_id and winner_id == finished_match.get("player1_id", ""):
-        return pending_match.get("player1", "")
-    if winner_id and winner_id == finished_match.get("player2_id", ""):
-        return pending_match.get("player2", "")
+def _check_result_via_form(pm: dict, player1_id: str) -> str:
+    """
+    Koristi past-matches endpoint (ima match_winner) za provjeru rezultata.
+    Vraća ime pobjednika ako je meč završen, inače ''.
+    """
+    p1_name = pm.get("player1", "")
+    p2_name = pm.get("player2", "")
+    cutoff = (datetime.date.today() - datetime.timedelta(days=7)).isoformat()
+    try:
+        form = get_recent_form(player1_id, 10)
+        for m in form.get("matches", []):
+            if m.get("date", "") < cutoff:
+                continue
+            if not _names_match(m.get("opponent", ""), p2_name):
+                continue
+            return p1_name if m.get("won") else p2_name
+    except Exception as e:
+        print(f"  Greska provjere {p1_name} vs {p2_name}: {e}")
     return ""
 
 
