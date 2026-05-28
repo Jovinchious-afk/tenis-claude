@@ -73,6 +73,7 @@ Datum: {date} | Format: {format}
 === {player1} ===
 ATP Ranking: #{p1_ranking} | Ranking trend: {p1_ranking_trend}
 ELO (opći): {p1_elo_overall} | ELO ({surface}): {p1_elo_surface}
+Rekord na {surface} (zadnje 3 god.): {p1_surface_record}
 Forma (zadnjih 5): {p1_form_5} | Forma (zadnjih 10): {p1_form_10}
 Forma na {surface} (6 mj): {p1_surface_form}
 Servis %: {p1_first_serve_pct} | Asevi/meč: {p1_aces}
@@ -87,6 +88,7 @@ Win% kao heavy favorit: {p1_fav_winpct}
 === {player2} ===
 ATP Ranking: #{p2_ranking} | Ranking trend: {p2_ranking_trend}
 ELO (opći): {p2_elo_overall} | ELO ({surface}): {p2_elo_surface}
+Rekord na {surface} (zadnje 3 god.): {p2_surface_record}
 Forma (zadnjih 5): {p2_form_5} | Forma (zadnjih 10): {p2_form_10}
 Forma na {surface} (6 mj): {p2_surface_form}
 Servis %: {p2_first_serve_pct} | Asevi/meč: {p2_aces}
@@ -161,6 +163,9 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
     p1_surface_form = _surface_form(p1.get("form_recent", {}).get("matches", []), surface)
     p2_surface_form = _surface_form(p2.get("form_recent", {}).get("matches", []), surface)
 
+    p1_surface_record = _format_surface_record(p1.get("surface_summary", {}), surface)
+    p2_surface_record = _format_surface_record(p2.get("surface_summary", {}), surface)
+
     h2h_surface_key = surface.lower().split()[0]
     h2h_surface_data = h2h.get(h2h_surface_key, {})
     h2h_surface_str = f"{h2h_surface_data.get('p1_wins', 0)}-{h2h_surface_data.get('p2_wins', 0)}" if h2h_surface_data else "N/A"
@@ -176,6 +181,7 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
 
         p1_ranking=p1.get("ranking", "N/A"), p1_ranking_trend=p1.get("ranking_trend", "N/A"),
         p1_elo_overall=p1.get("elo_overall", 1500), p1_elo_surface=p1.get(elo_key, 1500),
+        p1_surface_record=p1_surface_record,
         p1_form_5=p1_form5, p1_form_10=p1_form10, p1_surface_form=p1_surface_form,
         p1_first_serve_pct=p1.get("first_serve_pct", "N/A"),
         p1_aces=p1.get("aces_per_game", "N/A"),
@@ -192,6 +198,7 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
 
         p2_ranking=p2.get("ranking", "N/A"), p2_ranking_trend=p2.get("ranking_trend", "N/A"),
         p2_elo_overall=p2.get("elo_overall", 1500), p2_elo_surface=p2.get(elo_key, 1500),
+        p2_surface_record=p2_surface_record,
         p2_form_5=p2_form5, p2_form_10=p2_form10, p2_surface_form=p2_surface_form,
         p2_first_serve_pct=p2.get("first_serve_pct", "N/A"),
         p2_aces=p2.get("aces_per_game", "N/A"),
@@ -291,6 +298,17 @@ def _surface_form(matches: list, surface: str) -> str:
         return "N/A"
     wins = sum(1 for m in filtered if m.get("won"))
     return f"{wins}/{len(filtered)}"
+
+
+def _format_surface_record(surface_summary: dict, surface: str) -> str:
+    """Formatira career win% na podlozi iz surface_summary dicta."""
+    key = surface.lower().split()[0]  # "Clay" → "clay", "Hard" → "hard", "Grass" → "grass"
+    if key == "indoor":
+        key = "hard"
+    data = surface_summary.get(key, {})
+    if not data or not data.get("matches"):
+        return "N/A"
+    return f"{data['wins']}W/{data['losses']}L ({data['win_pct']}%) u {data['matches']} mečeva"
 
 
 def _last_h2h_result(h2h: dict) -> str:

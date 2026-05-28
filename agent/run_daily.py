@@ -131,12 +131,14 @@ def main():
             p1_stats = df.get_player_stats(p1_id) if p1_id else {}
             p1_form = df.get_recent_form(p1_id, 10) if p1_id else {}
             p1_elo = df.find_player_elo(match["player1"], elo_data)
+            p1_surface_summary = df.get_player_surface_summary(p1_id) if p1_id else {}
 
             # Player 2 data
             p2_info = df.get_player_info(p2_id) if p2_id else {}
             p2_stats = df.get_player_stats(p2_id) if p2_id else {}
             p2_form = df.get_recent_form(p2_id, 10) if p2_id else {}
             p2_elo = df.find_player_elo(match["player2"], elo_data)
+            p2_surface_summary = df.get_player_surface_summary(p2_id) if p2_id else {}
 
             # H2H
             h2h = df.get_h2h(p1_id, p2_id) if p1_id and p2_id else {}
@@ -158,6 +160,7 @@ def main():
                        "last_match_date": _last_match_date(p1_form.get("matches", [])),
                        "ranking": p1_info.get("ranking") or atp_rankings.get(match["player1"], 999),
                        "news": _extract_player_news(match["player1"], injury_news),
+                       "surface_summary": p1_surface_summary,
                        }
 
             p2_data = {**p2_info, **p2_stats,
@@ -170,6 +173,7 @@ def main():
                        "last_match_date": _last_match_date(p2_form.get("matches", [])),
                        "ranking": p2_info.get("ranking") or atp_rankings.get(match["player2"], 999),
                        "news": _extract_player_news(match["player2"], injury_news),
+                       "surface_summary": p2_surface_summary,
                        }
 
             matches_with_data.append({

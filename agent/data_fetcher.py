@@ -556,6 +556,55 @@ def get_match_stats(tournament_id: str, player1_id: str, player2_id: str) -> dic
     return data.get("data", data) or {}
 
 
+def get_player_surface_summary(player_id: str) -> dict:
+    """
+    Endpoint: GET /atp/player/surface-summary/{player_id}
+    Vraća win% po podlozi, agregirano za zadnje 3 kalendarske godine.
+    Format: {"clay": {"wins": 27, "losses": 7, "matches": 34, "win_pct": 79.4}, ...}
+    """
+    if not player_id:
+        return {}
+    data = _get(f"/atp/player/surface-summary/{player_id}")
+    if not data:
+        return {}
+
+    import datetime as _dt
+    current_year = _dt.date.today().year
+    recent_years = {current_year, current_year - 1, current_year - 2}
+
+    totals: dict = {}
+    for year_data in data.get("data", []):
+        if year_data.get("year") not in recent_years:
+            continue
+        for s in year_data.get("surfaces", []):
+            court = s.get("court", "")
+            wins = s.get("courtWins", 0) or 0
+            losses = s.get("courtLosses", 0) or 0
+            if court == "Clay":
+                key = "clay"
+            elif court in ("Hard", "I.hard"):
+                key = "hard"
+            elif court == "Grass":
+                key = "grass"
+            else:
+                continue
+            if key not in totals:
+                totals[key] = [0, 0]
+            totals[key][0] += wins
+            totals[key][1] += losses
+
+    result = {}
+    for surface, (wins, losses) in totals.items():
+        total = wins + losses
+        result[surface] = {
+            "wins": wins,
+            "losses": losses,
+            "matches": total,
+            "win_pct": round(wins / total * 100, 1) if total > 0 else None,
+        }
+    return result
+
+
 def get_weather_for_tournament(city: str) -> dict:
     if not WEATHER_KEY or not city:
         return {}
