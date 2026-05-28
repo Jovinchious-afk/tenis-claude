@@ -175,6 +175,10 @@ def _find_best_combination(candidates: list, cfg: dict) -> Optional[list]:
             if too_many:
                 continue
 
+            # Nikad ne uzimaj pick s kvotom < 1.06
+            if any(_pick_odds(p) < 1.06 for p in combo):
+                continue
+
             odds = combined_odds([_pick_odds(p) for p in combo])
             if odds < min_odds or odds > max_odds:
                 continue

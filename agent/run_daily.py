@@ -189,6 +189,12 @@ def main():
     # 9. Spremi u Supabase
     if not DRY_RUN:
         try:
+            # Ako tiket za danas već postoji, obriši ga (sprječava duplikate)
+            existing = db.get_ticket_by_date(format_date(today))
+            if existing:
+                print(f"Tiket za {format_date(today)} već postoji (ID: {existing.get('id')}) — brišem stari.")
+                db.delete_ticket(str(existing.get("id", "")))
+
             saved_ticket = db.save_ticket({
                 "ticket_date": format_date(today),
                 "status": "pending",

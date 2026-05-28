@@ -1,10 +1,6 @@
 name: Daily Tennis Ticket
 
 on:
-  schedule:
-    # 9:30 CEST (UTC+2, ljeto) = 07:30 UTC
-    # Zimi promijeni u '30 8 * * *' za CET (UTC+1)
-    - cron: '30 7 * * *'
   workflow_dispatch:
     inputs:
       dry_run:
