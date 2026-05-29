@@ -44,8 +44,15 @@ with col2:
 with col3:
     st.metric("Izgubljeni", len(lost))
 with col4:
-    roi_delta = "positive" if roi > 0 else "negative"
-    st.metric("ROI", f"{roi:.1f}%", delta=f"€{balance:.2f}")
+    roi_hex = "#22c55e" if roi >= 0 else "#ef4444"
+    sign = "+" if balance >= 0 else ""
+    st.markdown(f"""
+    <div style="padding:4px 0">
+        <div style="font-size:0.85rem;color:#9ca3af;margin-bottom:4px;">ROI</div>
+        <div style="font-size:2rem;font-weight:700;color:{roi_hex};line-height:1.1">{roi:.1f}%</div>
+        <div style="font-size:0.85rem;color:{roi_hex};">{sign}€{balance:.2f}</div>
+    </div>
+    """, unsafe_allow_html=True)
 with col5:
     st.metric("Neriješeni", len(pending))
 
