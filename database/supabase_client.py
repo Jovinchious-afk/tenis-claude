@@ -180,6 +180,13 @@ def get_lost_matches_needing_analysis() -> list:
     })
 
 
+def get_analyzed_lost_matches(limit: int = 20) -> list:
+    return _select("ticket_matches", filters={
+        "result": "eq.lost",
+        "analysis_done": "eq.true"
+    }, order="resolved_at.desc", limit=limit)
+
+
 # ── Model Weights ─────────────────────────────────────────────────────────────
 
 def get_active_weights() -> dict:

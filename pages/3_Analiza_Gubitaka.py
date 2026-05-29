@@ -5,6 +5,7 @@ Claude-ova analiza izgubljenih parova — zašto smo pogriješili.
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import datetime
 import streamlit as st
 from database import supabase_client as db
 
@@ -41,15 +42,34 @@ if not_analyzed:
 
 st.markdown("---")
 
-# Filter
-surface_filter = st.selectbox("Filtriraj po podlozi:", ["Sve", "Clay", "Hard", "Grass", "Indoor Hard"])
-tournament_filter = st.text_input("Filtriraj po turniru:", "")
+# Filteri
+col_f1, col_f2 = st.columns(2)
+with col_f1:
+    surface_filter = st.selectbox("Filtriraj po podlozi:", ["Sve", "Clay", "Hard", "Grass", "Indoor Hard"])
+with col_f2:
+    tournament_filter = st.text_input("Filtriraj po turniru:", "")
+
+# Filter po datumu
+all_dates = sorted(set(m.get("ticket_date", "") for m in analyzed if m.get("ticket_date")))
+if all_dates:
+    min_date = datetime.date.fromisoformat(all_dates[0])
+    max_date = datetime.date.fromisoformat(all_dates[-1])
+    col_d1, col_d2 = st.columns(2)
+    with col_d1:
+        date_from = st.date_input("Od datuma:", value=min_date, min_value=min_date, max_value=max_date)
+    with col_d2:
+        date_to = st.date_input("Do datuma:", value=max_date, min_value=min_date, max_value=max_date)
+else:
+    date_from = date_to = None
 
 filtered = analyzed
 if surface_filter != "Sve":
     filtered = [m for m in filtered if m.get("surface", "") == surface_filter]
 if tournament_filter:
     filtered = [m for m in filtered if tournament_filter.lower() in m.get("tournament", "").lower()]
+if date_from and date_to:
+    filtered = [m for m in filtered
+                if date_from.isoformat() <= m.get("ticket_date", "") <= date_to.isoformat()]
 
 st.markdown(f"**Prikazujem {len(filtered)} analiziranih gubitaka:**")
 st.markdown("---")

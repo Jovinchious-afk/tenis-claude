@@ -35,8 +35,16 @@ with col1:
 with col2:
     st.metric("Win rate tiketa", f"{win_rate:.1f}%")
 with col3:
-    roi_color = "normal" if roi >= 0 else "inverse"
-    st.metric("ROI", f"{roi:.1f}%", delta=f"€{total_returned - total_staked:.2f}")
+    balance = total_returned - total_staked
+    roi_hex = "#22c55e" if roi >= 0 else "#ef4444"
+    sign = "+" if balance >= 0 else ""
+    st.markdown(f"""
+    <div style="padding:4px 0">
+        <div style="font-size:0.85rem;color:#9ca3af;margin-bottom:4px;">ROI</div>
+        <div style="font-size:2rem;font-weight:700;color:{roi_hex};line-height:1.1">{roi:.1f}%</div>
+        <div style="font-size:0.85rem;color:{roi_hex};">{sign}€{balance:.2f}</div>
+    </div>
+    """, unsafe_allow_html=True)
 with col4:
     st.metric("Uloženo", f"€{total_staked:.0f}")
 with col5:

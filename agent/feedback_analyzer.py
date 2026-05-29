@@ -251,13 +251,17 @@ Budi specifičan i konkretan. Fokusiraj se na faktore iz modela (ELO, podloga, f
 def _maybe_update_weights(lost_matches: list) -> bool:
     """
     Prilagođava težine modela na temelju uzorka grešaka.
-    Potrebno minimalno 5 novih analiza da bi se pokrenulo ažuriranje.
+    Koristi SVE analizirane gubitke iz baze (ne samo tekući run).
+    Potrebno minimalno 5 analiziranih grešaka ukupno.
     """
-    if len(lost_matches) < 5:
+    # Dohvati sve dosad analizirane gubitke iz baze
+    all_analyzed = db.get_analyzed_lost_matches(limit=20)
+    if len(all_analyzed) < 5:
+        print(f"  Nedovoljno analiziranih gubitaka za weight update ({len(all_analyzed)}/5).")
         return False
 
     current_weights = db.get_active_weights()
-    analysis_texts = [lm.get("loss_analysis", "") for lm in lost_matches[:10] if lm.get("loss_analysis")]
+    analysis_texts = [m.get("loss_analysis", "") for m in all_analyzed[:10] if m.get("loss_analysis")]
 
     if len(analysis_texts) < 5:
         return False
