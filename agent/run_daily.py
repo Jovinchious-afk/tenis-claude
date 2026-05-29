@@ -80,6 +80,18 @@ def main():
         print("Nema mečeva za analizu. Završavam.")
         return
 
+    # Prilagodi min odds prema broju dostupnih mečeva
+    total_matches = len(all_matches)
+    if total_matches <= 3:
+        print(f"Samo {total_matches} meča dostupno — premalo za tiket. Završavam.")
+        _send_no_ticket_email(today, [])
+        return
+    elif total_matches == 4:
+        min_odds_override = 6.0
+        print(f"Točno 4 meča — spuštam min kvotu na {min_odds_override} (QF/mali dan).")
+    else:
+        min_odds_override = None  # standardnih 9.0
+
     # 3. Dohvati ELO ratings jednom za sve (batch)
     print("\nDohvaćam ELO ratingse s Tennis Abstract...")
     elo_data = df.get_tennis_abstract_elo()
@@ -202,7 +214,7 @@ def main():
 
     # 8. Generiraj tiket
     print("\nGeneriram optimalni tiket...")
-    ticket = build_ticket(predictions, weights)
+    ticket = build_ticket(predictions, weights, min_odds_override=min_odds_override)
 
     if not ticket:
         # build_ticket ima kaskadni fallback i ne bi smio vratiti None

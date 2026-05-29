@@ -28,7 +28,7 @@ def _get_client() -> anthropic.Anthropic:
 _NON_TICKET_LEVELS = {"ATP Challenger", "ATP Qualifying"}
 
 
-def build_ticket(predictions: list, weights: dict) -> Optional[dict]:
+def build_ticket(predictions: list, weights: dict, min_odds_override: float = None) -> Optional[dict]:
     """
     Ulaz: lista predikcija iz predictor.analyze_match()
     Izlaz: optimalni tiket dict s matches, odds, summary
@@ -39,7 +39,9 @@ def build_ticket(predictions: list, weights: dict) -> Optional[dict]:
     - Challengeri se ne stavljaju na tiket
     - Kaskadni fallback — uvijek generiraj tiket, nikad ne odustaj
     """
-    cfg = TICKET_CONFIG
+    cfg = dict(TICKET_CONFIG)
+    if min_odds_override is not None:
+        cfg["min_combined_odds"] = min_odds_override
 
     def _eligible(p, conf_threshold, allow_challengers=False):
         level = p.get("match", {}).get("level", "")
