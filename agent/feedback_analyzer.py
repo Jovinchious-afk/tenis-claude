@@ -261,25 +261,72 @@ def _maybe_update_weights(lost_matches: list) -> bool:
         return False
 
     current_weights = db.get_active_weights()
-    analysis_texts = [m.get("loss_analysis", "") for m in all_analyzed[:10] if m.get("loss_analysis")]
+    matches_with_analysis = [m for m in all_analyzed[:10] if m.get("loss_analysis")]
 
-    if len(analysis_texts) < 5:
+    if len(matches_with_analysis) < 5:
         return False
 
-    prompt = f"""Na temelju analize {len(analysis_texts)} izgubljenih tenis predikcija, predloži prilagodbu težina modela.
+    match_blocks = []
+    for i, m in enumerate(matches_with_analysis):
+        p1 = m.get("player1", "?")
+        p2 = m.get("player2", "?")
+        pick = m.get("pick", "?")
+        actual = m.get("actual_winner", "?")
+        conf = m.get("confidence", 0)
+        odds = m.get("odds", 0)
+        surface = m.get("surface", "?")
+        runda = m.get("round", "?")
+        tournament = m.get("tournament", "?")
+        level = m.get("tournament_level", "")
+        fmt = "BoF5" if "Grand Slam" in level else "BoF3"
+        risk = m.get("risk_notes", "—")
+        factors = m.get("key_factors", [])
+        factors_str = "; ".join(factors) if factors else "N/A"
+        analysis = m.get("loss_analysis", "")
 
-ANALIZE GREŠAKA:
-{chr(10).join(f'{i+1}. {a}' for i, a in enumerate(analysis_texts))}
+        block = (
+            f"--- GUBITAK {i+1} ---\n"
+            f"Par: {p1} vs {p2} | {tournament} | {surface} | {runda} | {fmt}\n"
+            f"Pick: {pick} (confidence: {conf}%, kvota: {odds:.2f})\n"
+            f"Pobijedio: {actual}\n"
+            f"Ključni faktori koji su odredili pick: {factors_str}\n"
+            f"Navedeni rizici unaprijed: {risk}\n"
+            f"Claude analiza greške: {analysis}"
+        )
+        match_blocks.append(block)
 
-TRENUTNE TEŽINE:
+    matches_section = "\n\n".join(match_blocks)
+
+    prompt = f"""Si ekspert za analizu tenis predikcijskih modela. Na temelju {len(matches_with_analysis)} detaljno dokumentiranih izgubljenih predikcija, predloži prilagodbu težina modela.
+
+IZGUBLJENE PREDIKCIJE S KONTEKSTOM:
+{matches_section}
+
+TRENUTNE TEŽINE MODELA:
 {json.dumps(current_weights, indent=2)}
+
+ŠTO SVAKA TEŽINA POKRIVA:
+- elo_ranking: ELO rating, ATP ranking, trend rankinga, kvaliteta protivnika
+- surface_style: podloga + stil igre matchup (clay/hard/grass specijalist)
+- serve_return: servis%, return%, aces, break pointovi
+- recent_form: forma zadnjih 5-10 mečeva (W/L omjer, kvaliteta protivnika)
+- fatigue_injuries: umor, ozljede, raspored mečeva, putovanja, dani odmora
+- h2h_context: H2H, turnirski kontekst, motivacija, mentalni faktori
+- odds_movement: kretanje kvota, market signal, value detection
+
+UPUTA:
+Analiziraj obrasce grešaka kroz sve izgubke. Traži faktore koji su KONZISTENTNO bili podcijenjeni ili precijenjeni.
+Posebno obrati pažnju na:
+- Pojavljuje li se isti faktor kao greška u 3+ slučajeva?
+- Postoji li razlika u performansi između BoF3 i BoF5 formata?
+- Je li umor/forma ili ELO/ranking dominantno podcijenjeno?
 
 OGRANIČENJA:
 - Svaka promjena max ±{WEIGHT_ADJUSTMENT['step']}% po faktoru
 - Ukupna suma mora ostati 100%
 - Min težina po faktoru: {WEIGHT_ADJUSTMENT['min_weight']}%
 - Max težina po faktoru: {WEIGHT_ADJUSTMENT['max_weight']}%
-- Mijenjaj samo faktore koji su KONZISTENTNO pogrešni u analizama
+- Mijenjaj SAMO faktore s jasnim uzorkom u podacima
 
 Odgovori ISKLJUČIVO u JSON formatu:
 {{
@@ -292,7 +339,7 @@ Odgovori ISKLJUČIVO u JSON formatu:
     "h2h_context": 5.0,
     "odds_movement": 4.0
   }},
-  "reason": "kratko objašnjenje što i zašto je promijenjeno",
+  "reason": "konkretno objašnjenje — koji faktor, koliko slučajeva, zašto promjena",
   "changed_factors": ["lista faktora koji su promijenjeni"]
 }}
 
