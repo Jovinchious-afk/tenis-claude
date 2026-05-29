@@ -36,7 +36,7 @@ TICKET_CONFIG = {
     "min_matches": 4,
     "max_matches": 7,
     "min_combined_odds": 9.0,
-    "max_combined_odds": 20.0,
+    "max_combined_odds": 40.0,
     "min_confidence": 63.0,
     "fallback_confidence": 58.0,
     "last_resort_confidence": 55.0,  # zadnji fallback — uvijek generiraj tiket
