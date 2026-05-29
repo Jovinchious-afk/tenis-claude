@@ -9,6 +9,13 @@ import streamlit as st
 import pandas as pd
 from database import supabase_client as db
 
+
+def _names_match(a: str, b: str) -> bool:
+    if not a or not b:
+        return False
+    a, b = a.lower().strip(), b.lower().strip()
+    return a == b or a.split()[-1] == b.split()[-1]
+
 st.set_page_config(page_title="Arhiva | Tennis Agent", page_icon="🎾", layout="wide")
 st.title("📋 Arhiva Listića")
 
@@ -104,7 +111,15 @@ if selected:
 
     for m in matches:
         m_result = m.get("result", "pending")
-        icon = "✅" if m_result == "won" else "❌" if m_result == "lost" else "⏳"
+        if m_result == "won":
+            icon = "✅"
+        elif m_result == "lost":
+            icon = "❌"
+        elif m_result == "void":
+            icon = "🟡"
+        else:
+            icon = "⏳"
+
         with st.expander(f"{icon} {m.get('pick','')} — {m.get('tournament','')} ({m.get('surface','')})", expanded=False):
             c1, c2 = st.columns(2)
             with c1:
@@ -115,6 +130,35 @@ if selected:
             with c2:
                 st.write(f"**Runda:** {m.get('round','')}")
                 st.write(f"**Datum:** {m.get('match_date','')}")
-                st.write(f"**Rezultat:** {m.get('result','pending')}")
+                if m_result == "void":
+                    st.markdown("**Rezultat:** 🟡 Walkover / Odgoda")
+                else:
+                    st.write(f"**Rezultat:** {m_result}")
                 if m.get("actual_winner"):
                     st.write(f"**Pobijedio:** {m.get('actual_winner','')}")
+
+            # Ručno razrješavanje pending mečeva
+            if m_result == "pending":
+                st.markdown("---")
+                st.caption("Ručno označi rezultat:")
+                col_w, col_l, col_v = st.columns(3)
+                match_id = m.get("id", "")
+                pick = m.get("pick", "")
+                p1 = m.get("player1", "")
+                p2 = m.get("player2", "")
+                with col_w:
+                    if st.button("✅ Won", key=f"won_{match_id}"):
+                        db.update_match_result(match_id, "won", pick)
+                        st.success("Označeno kao won")
+                        st.rerun()
+                with col_l:
+                    if st.button("❌ Lost", key=f"lost_{match_id}"):
+                        actual = p2 if _names_match(pick, p1) else p1
+                        db.update_match_result(match_id, "lost", actual)
+                        st.success("Označeno kao lost")
+                        st.rerun()
+                with col_v:
+                    if st.button("🟡 Void", key=f"void_{match_id}"):
+                        db.update_match_result(match_id, "void", "Walkover / Odgoda")
+                        st.success("Označeno kao void")
+                        st.rerun()
