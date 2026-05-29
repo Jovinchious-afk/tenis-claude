@@ -35,9 +35,10 @@ def run_evening_update() -> dict:
     print("=== Večernji update ===")
     summary = {"resolved": 0, "won": 0, "lost": 0, "analyzed": 0, "weight_updated": False}
 
-    # 1. Izgradi lookup player_id i tournament_id po imenu
+    # 1. Izgradi lookup player_id, tournament_id i fixture winner po imenu
     name_to_id = {}
-    match_to_tournament = {}  # (p1_lower, p2_lower) -> tournament_id
+    match_to_tournament = {}   # (p1_lower, p2_lower) -> tournament_id
+    fixture_winner = {}        # (p1_lower, p2_lower) -> winner_name  (za walkover/predaju)
     for n_days in range(8):
         for m in get_matches_for_date(days_ago(n_days)):
             if m.get("player1_id"):
@@ -48,25 +49,57 @@ def run_evening_update() -> dict:
                 key = (m["player1"].lower().strip(), m["player2"].lower().strip())
                 match_to_tournament[key] = m["tournament_id"]
                 match_to_tournament[(key[1], key[0])] = m["tournament_id"]
+            # Fixture winner — pokriva walkover/predaju gdje past-matches nema zapisa
+            w_id = str(m.get("winner_id") or "")
+            if w_id and w_id != "0":
+                winner_name = ""
+                if w_id == str(m.get("player1_id", "")):
+                    winner_name = m["player1"]
+                elif w_id == str(m.get("player2_id", "")):
+                    winner_name = m["player2"]
+                if winner_name:
+                    fkey = (m["player1"].lower().strip(), m["player2"].lower().strip())
+                    fixture_winner[fkey] = winner_name
+                    fixture_winner[(fkey[1], fkey[0])] = winner_name
 
     # 2. Za svaki pending par provjeri rezultat via past-matches
     pending = db.get_pending_matches()
     print(f"Pronadeno {len(pending)} pending parova za provjeru...")
     for pm in pending:
-        p1_id = name_to_id.get(pm.get("player1", "").lower().strip(), "")
-        if not p1_id:
-            print(f"  Nema player_id: {pm.get('player1')} vs {pm.get('player2')}")
+        p1_name = pm.get("player1", "")
+        p2_name = pm.get("player2", "")
+        p1_id = name_to_id.get(p1_name.lower().strip(), "")
+        p2_id = name_to_id.get(p2_name.lower().strip(), "")
+
+        if not p1_id and not p2_id:
+            print(f"  Nema player_id: {p1_name} vs {p2_name}")
             continue
-        actual_winner = _check_result_via_form(pm, p1_id)
+
+        # Pokušaj via past-matches (normalno) — probaj s oba igrača
+        actual_winner = ""
+        if p1_id:
+            actual_winner = _check_result_via_form(pm, p1_id)
+        if not actual_winner and p2_id:
+            pm_alt = {**pm, "player1": p2_name, "player2": p1_name}
+            actual_winner = _check_result_via_form(pm_alt, p2_id)
+
+        # Fallback: walkover/predaja — fixture direktno zna pobjednika
         if not actual_winner:
-            print(f"  Jos nije gotov: {pm.get('player1')} vs {pm.get('player2')}")
+            fkey = (p1_name.lower().strip(), p2_name.lower().strip())
+            actual_winner = fixture_winner.get(fkey, "")
+            if actual_winner:
+                print(f"  Walkover/predaja detektirana via fixture: {actual_winner}")
+
+        if not actual_winner:
+            print(f"  Jos nije gotov: {p1_name} vs {p2_name}")
             continue
+
         pick = pm.get("pick", "")
         result = "won" if _names_match(pick, actual_winner) else "lost"
         db.update_match_result(pm["id"], result, actual_winner)
         summary["resolved"] += 1
         summary["won" if result == "won" else "lost"] += 1
-        print(f"  Azuriran: {pm['player1']} vs {pm['player2']} -> {result} ({actual_winner})")
+        print(f"  Azuriran: {p1_name} vs {p2_name} -> {result} ({actual_winner})")
 
     # 2. Ažuriraj statuseve tiketa
     _update_ticket_statuses()
