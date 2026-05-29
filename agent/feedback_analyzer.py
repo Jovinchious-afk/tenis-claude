@@ -130,21 +130,28 @@ def run_evening_update() -> dict:
 
 
 def _update_ticket_statuses() -> None:
-    """Pregledava tikete s pending statusom i ažurira ih kad su svi parovi riješeni."""
+    """Pregledava tikete s pending statusom i ažurira ih kad su svi parovi riješeni.
+    Kombinirani tiket se gubi čim jedan par izgubi — ne čekamo ostale pending parove."""
     tickets = db.get_tickets(status="pending")
     for ticket in tickets:
         matches = ticket.get("ticket_matches", [])
         if not matches:
             continue
+        lost_count = sum(1 for m in matches if m.get("result") == "lost")
+        won_count = sum(1 for m in matches if m.get("result") == "won")
+        total = len(matches)
+        # Jedan gubitak = tiket izgubljen odmah, bez čekanja pending parova
+        if lost_count > 0:
+            db.update_ticket_status(ticket["id"], "lost", 0)
+            print(f"  Tiket {ticket.get('ticket_date')}: lost ({lost_count} izgubljen/ih, {won_count}/{total} razriješeno)")
+            continue
+        # Svi parovi dobiveni = tiket dobiven
         pending_count = sum(1 for m in matches if m.get("result") == "pending")
         if pending_count > 0:
             continue
-        won_count = sum(1 for m in matches if m.get("result") == "won")
-        total = len(matches)
-        status = "won" if won_count == total else "lost"
-        actual_win = ticket.get("stake", 50) * ticket.get("total_odds", 1) if status == "won" else 0
-        db.update_ticket_status(ticket["id"], status, actual_win)
-        print(f"  Tiket {ticket.get('ticket_date')}: {status} ({won_count}/{total})")
+        actual_win = ticket.get("stake", 50) * ticket.get("total_odds", 1)
+        db.update_ticket_status(ticket["id"], "won", actual_win)
+        print(f"  Tiket {ticket.get('ticket_date')}: won ({won_count}/{total})")
 
 
 def _format_match_stats(p1: str, p2: str, stats: dict) -> str:
