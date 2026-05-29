@@ -71,6 +71,7 @@ Podloga: {surface} | Runda: {round}
 Datum: {date} | Format: {format}
 
 === {player1} ===
+Dob: {p1_age} god. | Ruka: {p1_hand}
 ATP Ranking: #{p1_ranking} | Ranking trend: {p1_ranking_trend}
 ELO (opći): {p1_elo_overall} | ELO ({surface}): {p1_elo_surface}
 Rekord na {surface} (zadnje 3 god.): {p1_surface_record}
@@ -80,12 +81,13 @@ Servis %: {p1_first_serve_pct} | Asevi/meč: {p1_aces}
 Poeni na 1. servis: {p1_first_serve_won} | Poeni na 2. servis: {p1_second_serve_won}
 Break lopte spašene: {p1_bp_saved} | Break konverzija: {p1_break_conv}
 Return poeni (na 2. servis): {p1_return_won}
-Mečevi zadnjih 7 dana: {p1_matches_7d} | Zadnji meč: {p1_last_match}
+Mečevi zadnjih 7 dana: {p1_matches_7d} | Zadnji meč: {p1_last_match} | Dana odmora: {p1_days_rest}
 Poznate ozljede/vijesti: {p1_news}
 Win% kao heavy favorit: {p1_fav_winpct}
 1. set → meč konverzija: {p1_first_set_conv}
 
 === {player2} ===
+Dob: {p2_age} god. | Ruka: {p2_hand}
 ATP Ranking: #{p2_ranking} | Ranking trend: {p2_ranking_trend}
 ELO (opći): {p2_elo_overall} | ELO ({surface}): {p2_elo_surface}
 Rekord na {surface} (zadnje 3 god.): {p2_surface_record}
@@ -95,7 +97,7 @@ Servis %: {p2_first_serve_pct} | Asevi/meč: {p2_aces}
 Poeni na 1. servis: {p2_first_serve_won} | Poeni na 2. servis: {p2_second_serve_won}
 Break lopte spašene: {p2_bp_saved} | Break konverzija: {p2_break_conv}
 Return poeni (na 2. servis): {p2_return_won}
-Mečevi zadnjih 7 dana: {p2_matches_7d} | Zadnji meč: {p2_last_match}
+Mečevi zadnjih 7 dana: {p2_matches_7d} | Zadnji meč: {p2_last_match} | Dana odmora: {p2_days_rest}
 Poznate ozljede/vijesti: {p2_news}
 Win% kao heavy favorit: {p2_fav_winpct}
 1. set → meč konverzija: {p2_first_set_conv}
@@ -104,6 +106,7 @@ Win% kao heavy favorit: {p2_fav_winpct}
 Ukupno: {h2h_overall}
 Na {surface}: {h2h_surface}
 Zadnji meč: {h2h_last}
+Trend (zadnja 3): {h2h_trend}
 
 === KONTEKST ===
 Uvjeti: {weather}
@@ -166,9 +169,13 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
     p1_surface_record = _format_surface_record(p1.get("surface_summary", {}), surface)
     p2_surface_record = _format_surface_record(p2.get("surface_summary", {}), surface)
 
+    p1_days_rest = _days_since(p1.get("last_match_date", ""))
+    p2_days_rest = _days_since(p2.get("last_match_date", ""))
+
     h2h_surface_key = surface.lower().split()[0]
     h2h_surface_data = h2h.get(h2h_surface_key, {})
     h2h_surface_str = f"{h2h_surface_data.get('p1_wins', 0)}-{h2h_surface_data.get('p2_wins', 0)}" if h2h_surface_data else "N/A"
+    h2h_trend = _h2h_trend(h2h)
 
     odds_p1 = safe_float(match.get("odds_p1", 0))
     odds_p2 = safe_float(match.get("odds_p2", 0))
@@ -179,6 +186,7 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         surface=surface, round=match.get("round", ""), date=match.get("date", ""),
         format="Best of 3" if "Grand Slam" not in match.get("level", "") else "Best of 5",
 
+        p1_age=p1.get("age", "N/A"), p1_hand=_format_hand(p1.get("hand", "")),
         p1_ranking=p1.get("ranking", "N/A"), p1_ranking_trend=p1.get("ranking_trend", "N/A"),
         p1_elo_overall=p1.get("elo_overall", 1500), p1_elo_surface=p1.get(elo_key, 1500),
         p1_surface_record=p1_surface_record,
@@ -192,10 +200,12 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         p1_return_won=p1.get("return_points_won", "N/A"),
         p1_matches_7d=p1.get("matches_7d", 0),
         p1_last_match=p1.get("last_match_date", "N/A"),
+        p1_days_rest=p1_days_rest,
         p1_news=p1.get("news", "Nema vijesti") or "Nema vijesti",
         p1_fav_winpct=p1.get("fav_win_pct", "N/A"),
         p1_first_set_conv=p1.get("first_set_conv", "N/A"),
 
+        p2_age=p2.get("age", "N/A"), p2_hand=_format_hand(p2.get("hand", "")),
         p2_ranking=p2.get("ranking", "N/A"), p2_ranking_trend=p2.get("ranking_trend", "N/A"),
         p2_elo_overall=p2.get("elo_overall", 1500), p2_elo_surface=p2.get(elo_key, 1500),
         p2_surface_record=p2_surface_record,
@@ -209,6 +219,7 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         p2_return_won=p2.get("return_points_won", "N/A"),
         p2_matches_7d=p2.get("matches_7d", 0),
         p2_last_match=p2.get("last_match_date", "N/A"),
+        p2_days_rest=p2_days_rest,
         p2_news=p2.get("news", "Nema vijesti") or "Nema vijesti",
         p2_fav_winpct=p2.get("fav_win_pct", "N/A"),
         p2_first_set_conv=p2.get("first_set_conv", "N/A"),
@@ -216,6 +227,7 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         h2h_overall=f"{h2h.get('p1_wins', 0)}-{h2h.get('p2_wins', 0)} (ukupno {h2h.get('total', 0)})",
         h2h_surface=h2h_surface_str,
         h2h_last=_last_h2h_result(h2h),
+        h2h_trend=h2h_trend,
 
         weather=match.get("weather", "N/A"),
         p1_tournament_history=_format_tournament_record(p1.get("tournament_record", {})),
@@ -309,6 +321,42 @@ def _format_surface_record(surface_summary: dict, surface: str) -> str:
     if not data or not data.get("matches"):
         return "N/A"
     return f"{data['wins']}W/{data['losses']}L ({data['win_pct']}%) u {data['matches']} mečeva"
+
+
+def _days_since(date_str: str) -> str:
+    """Broj dana od zadnjeg meča do danas."""
+    if not date_str or date_str == "N/A":
+        return "N/A"
+    try:
+        import datetime
+        d = datetime.date.fromisoformat(str(date_str)[:10])
+        days = (datetime.date.today() - d).days
+        return f"{days} dana"
+    except Exception:
+        return "N/A"
+
+
+def _format_hand(hand: str) -> str:
+    if not hand:
+        return "N/A"
+    h = hand.lower().strip()
+    if h in ("left", "l", "ljevica", "left-handed"):
+        return "Lijeva (ljevak)"
+    if h in ("right", "r", "desnica", "right-handed"):
+        return "Desna"
+    return hand
+
+
+def _h2h_trend(h2h: dict) -> str:
+    """Trend zadnja 3 H2H meča — tko dominira recentno."""
+    matches = h2h.get("recent_matches", [])
+    if not matches:
+        return "N/A"
+    recent = matches[:3]
+    winners = [m.get("winner", "") for m in recent if m.get("winner")]
+    if not winners:
+        return "N/A"
+    return " → ".join(winners) if len(winners) > 1 else winners[0]
 
 
 def _format_tournament_record(record: dict) -> str:
