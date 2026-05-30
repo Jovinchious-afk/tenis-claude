@@ -32,8 +32,15 @@ def run_evening_update() -> dict:
     Glavni entry point za večernji job.
     Vraća summary promjena.
     """
-    print("=== Večernji update ===")
+    print("=== Evening update ===")
     summary = {"resolved": 0, "won": 0, "lost": 0, "analyzed": 0, "weight_updated": False}
+
+    # One-time migration: reset old analyses generated with incorrect ELO data (1500 defaults)
+    # Only runs if all existing analyses contain the old Croatian-language format
+    existing = db.get_analyzed_lost_matches(limit=1)
+    if existing and existing[0].get("loss_analysis", "").startswith("Analitičar"):
+        print("  Migrating loss analyses to English with corrected ELO data...")
+        db.reset_loss_analyses()
 
     # 1. Izgradi lookup player_id, tournament_id i fixture winner po imenu
     name_to_id = {}
@@ -220,20 +227,20 @@ def _analyze_lost_match(match: dict, stats: dict = None) -> str:
     if stats:
         stats_block = _format_match_stats(p1, p2, stats)
 
-    prompt = f"""Analitičar teniskih tiketa je izgubio predikciju. Analiziraj grešku.
+    prompt = f"""A tennis prediction model made an incorrect prediction. Analyse the error.
 
-PAR: {p1} vs {p2} | {tournament} ({surface})
-NAŠA PREDIKCIJA: {pick} pobjeđuje (confidence: {confidence}%)
-STVARNI REZULTAT: {actual} pobijedio | Score: {score}
-NAVEDENI RIZICI: {risk_notes}
-KLJUČNI FAKTORI KOJI SU ODREDILI PICK: {', '.join(key_factors) if key_factors else 'N/A'}
+MATCH: {p1} vs {p2} | {tournament} ({surface})
+OUR PREDICTION: {pick} to win (confidence: {confidence}%)
+ACTUAL RESULT: {actual} won | Score: {score}
+STATED RISKS: {risk_notes}
+KEY FACTORS THAT DROVE THE PICK: {', '.join(key_factors) if key_factors else 'N/A'}
 {stats_block}
-Napiši kratku analizu (max 150 riječi) koja objašnjava:
-1. Koji je faktor bio pogrešno procijenjen?
-2. Što je zapravo bilo presudno u meču?
-3. Što treba promijeniti u algoritmu procjene?
+Write a concise analysis (max 150 words) explaining:
+1. Which factor was incorrectly assessed?
+2. What actually decided the match?
+3. What should change in the prediction algorithm?
 
-Budi specifičan i konkretan. Fokusiraj se na faktore iz modela (ELO, podloga, forma, umor, H2H, itd.)"""
+Be specific and concrete. Focus on model factors (ELO, surface, form, fatigue, H2H, etc.)"""
 
     try:
         client = _get_client()
@@ -285,65 +292,63 @@ def _maybe_update_weights(lost_matches: list) -> bool:
         analysis = m.get("loss_analysis", "")
 
         block = (
-            f"--- GUBITAK {i+1} ---\n"
-            f"Par: {p1} vs {p2} | {tournament} | {surface} | {runda} | {fmt}\n"
-            f"Pick: {pick} (confidence: {conf}%, kvota: {odds:.2f})\n"
-            f"Pobijedio: {actual}\n"
-            f"Ključni faktori koji su odredili pick: {factors_str}\n"
-            f"Navedeni rizici unaprijed: {risk}\n"
-            f"Claude analiza greške: {analysis}"
+            f"--- LOSS {i+1} ---\n"
+            f"Match: {p1} vs {p2} | {tournament} | {surface} | {runda} | {fmt}\n"
+            f"Pick: {pick} (confidence: {conf}%, odds: {odds:.2f})\n"
+            f"Winner: {actual}\n"
+            f"Key factors that drove the pick: {factors_str}\n"
+            f"Stated risks beforehand: {risk}\n"
+            f"Error analysis: {analysis}"
         )
         match_blocks.append(block)
 
     matches_section = "\n\n".join(match_blocks)
 
-    prompt = f"""Si ekspert za analizu tenis predikcijskih modela. Na temelju {len(matches_with_analysis)} detaljno dokumentiranih izgubljenih predikcija, predloži prilagodbu težina modela.
+    prompt = f"""You are an expert in tennis prediction model analysis. Based on {len(matches_with_analysis)} documented incorrect predictions, suggest adjustments to the model weights.
 
-IZGUBLJENE PREDIKCIJE S KONTEKSTOM:
+LOSSES WITH FULL CONTEXT:
 {matches_section}
 
-TRENUTNE TEŽINE MODELA:
+CURRENT MODEL WEIGHTS:
 {json.dumps(current_weights, indent=2)}
 
-ŠTO SVAKA TEŽINA POKRIVA:
-- elo_ranking: ELO rating, ATP ranking, trend rankinga, kvaliteta protivnika
-- surface_style: podloga + stil igre matchup (clay/hard/grass specijalist)
-- serve_return: servis%, return%, aces, break pointovi
-- recent_form: forma zadnjih 5-10 mečeva (W/L omjer, kvaliteta protivnika)
-- fatigue_injuries: umor, ozljede, raspored mečeva, putovanja, dani odmora
-- h2h_context: H2H, turnirski kontekst, motivacija, mentalni faktori
-- odds_movement: kretanje kvota, market signal, value detection
+WHAT EACH WEIGHT COVERS:
+- elo_ranking: ELO rating, ATP ranking, ranking trend, opponent quality
+- surface_style: surface + playing style matchup (clay/hard/grass specialist)
+- serve_return: serve%, return%, aces, break points
+- recent_form: form over last 5-10 matches (W/L ratio, opponent quality)
+- fatigue_injuries: fatigue, injuries, match schedule, travel, days of rest
+- h2h_context: H2H record, tournament context, motivation, mental factors
 
-UPUTA:
-Analiziraj obrasce grešaka kroz sve izgubke. Traži faktore koji su KONZISTENTNO bili podcijenjeni ili precijenjeni.
-Posebno obrati pažnju na:
-- Pojavljuje li se isti faktor kao greška u 3+ slučajeva?
-- Postoji li razlika u performansi između BoF3 i BoF5 formata?
-- Je li umor/forma ili ELO/ranking dominantno podcijenjeno?
+INSTRUCTIONS:
+Analyse error patterns across all losses. Look for factors that were CONSISTENTLY underweighted or overweighted.
+Pay particular attention to:
+- Does the same factor appear as an error in 3+ cases?
+- Is there a difference in performance between BoF3 and BoF5 formats?
+- Is fatigue/form or ELO/ranking consistently underestimated?
 
-OGRANIČENJA:
-- Svaka promjena max ±{WEIGHT_ADJUSTMENT['step']}% po faktoru
-- Ukupna suma mora ostati 100%
-- Min težina po faktoru: {WEIGHT_ADJUSTMENT['min_weight']}%
-- Max težina po faktoru: {WEIGHT_ADJUSTMENT['max_weight']}%
-- Mijenjaj SAMO faktore s jasnim uzorkom u podacima
+CONSTRAINTS:
+- Max change ±{WEIGHT_ADJUSTMENT['step']}% per factor
+- Total must remain 100%
+- Min weight per factor: {WEIGHT_ADJUSTMENT['min_weight']}%
+- Max weight per factor: {WEIGHT_ADJUSTMENT['max_weight']}%
+- Change ONLY factors with a clear pattern in the data
 
-Odgovori ISKLJUČIVO u JSON formatu:
+Respond ONLY in JSON format:
 {{
   "new_weights": {{
     "elo_ranking": 20.0,
     "surface_style": 23.0,
     "serve_return": 18.0,
-    "recent_form": 18.0,
-    "fatigue_injuries": 12.0,
-    "h2h_context": 5.0,
-    "odds_movement": 4.0
+    "recent_form": 20.0,
+    "fatigue_injuries": 14.0,
+    "h2h_context": 5.0
   }},
-  "reason": "konkretno objašnjenje — koji faktor, koliko slučajeva, zašto promjena",
-  "changed_factors": ["lista faktora koji su promijenjeni"]
+  "reason": "specific explanation — which factor, how many cases, why the change",
+  "changed_factors": ["list of changed factors"]
 }}
 
-Ako nema jasnog uzorka koji zahtijeva promjenu, vrati iste težine s reason="Nema konzistentnog uzorka za promjenu"."""
+If there is no clear pattern requiring change, return the same weights with reason="No consistent pattern requiring change"."""
 
     try:
         client = _get_client()

@@ -16,8 +16,8 @@ def _names_match(a: str, b: str) -> bool:
     a, b = a.lower().strip(), b.lower().strip()
     return a == b or a.split()[-1] == b.split()[-1]
 
-st.set_page_config(page_title="Arhiva | Tennis Agent", page_icon="🎾", layout="wide")
-st.title("📋 Arhiva Listića")
+st.set_page_config(page_title="Archive | Tennis Agent", page_icon="🎾", layout="wide")
+st.title("📋 Ticket Archive")
 
 tickets = db.get_tickets(limit=100)
 
@@ -38,11 +38,11 @@ balance = total_returned - total_staked
 
 col1, col2, col3, col4, col5 = st.columns(5)
 with col1:
-    st.metric("Ukupno tiketa", len(resolved))
+    st.metric("Total tickets", len(resolved))
 with col2:
-    st.metric("Dobiveni", len(won), delta=f"{len(won)/len(resolved)*100:.0f}%" if resolved else "0%")
+    st.metric("Won", len(won), delta=f"{len(won)/len(resolved)*100:.0f}%" if resolved else "0%")
 with col3:
-    st.metric("Izgubljeni", len(lost))
+    st.metric("Lost", len(lost))
 with col4:
     roi_hex = "#22c55e" if roi >= 0 else "#ef4444"
     sign = "+" if balance >= 0 else ""
@@ -54,10 +54,10 @@ with col4:
     </div>
     """, unsafe_allow_html=True)
 with col5:
-    st.metric("Neriješeni", len(pending))
+    st.metric("Pending", len(pending))
 
 if pending:
-    st.info(f"Još {len(pending)} tiketa čeka rezultate.")
+    st.info(f"{len(pending)} ticket(s) still waiting for results.")
 
 st.markdown("---")
 
@@ -73,14 +73,14 @@ for t in reversed(resolved):
     picked = [m.get("pick", "") for m in matches]
 
     rows.append({
-        "Datum": t.get("ticket_date", ""),
+        "Date": t.get("ticket_date", ""),
         "Status": "✅ WON" if won_t else "❌ LOST",
-        "Parovi": len(matches),
-        "Ukupna kvota": f"{t.get('total_odds', 0):.2f}",
-        "Pot. dobitak": f"€{t.get('potential_win', 0):.2f}",
-        "Ostvaren": f"€{actual_win:.2f}" if won_t else "—",
+        "Picks": len(matches),
+        "Combined odds": f"{t.get('total_odds', 0):.2f}",
+        "Pot. return": f"€{t.get('potential_win', 0):.2f}",
+        "Returned": f"€{actual_win:.2f}" if won_t else "—",
         "Running balance": f"€{running_balance:.2f}",
-        "Pikovi": ", ".join(picked),
+        "Selections": ", ".join(picked),
     })
 
 df_tickets = pd.DataFrame(rows)
@@ -102,9 +102,9 @@ st.dataframe(
 st.markdown("---")
 
 # Detalji odabranog tiketa
-st.subheader("Detalji tiketa")
+st.subheader("Ticket details")
 ticket_dates = [t.get("ticket_date", "") for t in tickets]
-selected_date = st.selectbox("Odaberi tiket:", ticket_dates)
+selected_date = st.selectbox("Select ticket:", ticket_dates)
 
 selected = next((t for t in tickets if t.get("ticket_date") == selected_date), None)
 if selected:
@@ -112,7 +112,7 @@ if selected:
     status = selected.get("status", "pending")
 
     if selected.get("ticket_summary"):
-        with st.expander("📝 Write-up tiketa", expanded=True):
+        with st.expander("📝 Ticket write-up", expanded=True):
             st.markdown(selected["ticket_summary"])
         st.markdown("---")
 
@@ -130,24 +130,24 @@ if selected:
         with st.expander(f"{icon} {m.get('pick','')} — {m.get('tournament','')} ({m.get('surface','')})", expanded=False):
             c1, c2 = st.columns(2)
             with c1:
-                st.write(f"**Par:** {m.get('player1','')} vs {m.get('player2','')}")
+                st.write(f"**Match:** {m.get('player1','')} vs {m.get('player2','')}")
                 st.write(f"**Pick:** {m.get('pick','')}")
-                st.write(f"**Kvota:** {m.get('odds',0):.2f}")
+                st.write(f"**Odds:** {m.get('odds',0):.2f}")
                 st.write(f"**Confidence:** {m.get('confidence',0):.0f}%")
             with c2:
-                st.write(f"**Runda:** {m.get('round','')}")
-                st.write(f"**Datum:** {m.get('match_date','')}")
+                st.write(f"**Round:** {m.get('round','')}")
+                st.write(f"**Date:** {m.get('match_date','')}")
                 if m_result == "void":
-                    st.markdown("**Rezultat:** 🟡 Walkover / Odgoda")
+                    st.markdown("**Result:** 🟡 Walkover / Postponed")
                 else:
-                    st.write(f"**Rezultat:** {m_result}")
+                    st.write(f"**Result:** {m_result}")
                 if m.get("actual_winner"):
-                    st.write(f"**Pobijedio:** {m.get('actual_winner','')}")
+                    st.write(f"**Winner:** {m.get('actual_winner','')}")
 
-            # Ručno razrješavanje pending mečeva
+            # Manual result override for pending matches
             if m_result == "pending":
                 st.markdown("---")
-                st.caption("Ručno označi rezultat:")
+                st.caption("Manually set result:")
                 col_w, col_l, col_v = st.columns(3)
                 match_id = m.get("id", "")
                 pick = m.get("pick", "")
@@ -156,16 +156,16 @@ if selected:
                 with col_w:
                     if st.button("✅ Won", key=f"won_{match_id}"):
                         db.update_match_result(match_id, "won", pick)
-                        st.success("Označeno kao won")
+                        st.success("Marked as won")
                         st.rerun()
                 with col_l:
                     if st.button("❌ Lost", key=f"lost_{match_id}"):
                         actual = p2 if _names_match(pick, p1) else p1
                         db.update_match_result(match_id, "lost", actual)
-                        st.success("Označeno kao lost")
+                        st.success("Marked as lost")
                         st.rerun()
                 with col_v:
                     if st.button("🟡 Void", key=f"void_{match_id}"):
-                        db.update_match_result(match_id, "void", "Walkover / Odgoda")
-                        st.success("Označeno kao void")
+                        db.update_match_result(match_id, "void", "Walkover / Postponed")
+                        st.success("Marked as void")
                         st.rerun()

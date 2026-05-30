@@ -180,6 +180,17 @@ def get_lost_matches_needing_analysis() -> list:
     })
 
 
+def reset_loss_analyses() -> int:
+    """Resetira sve analize gubitaka da se mogu ponovo generirati s ispravnim podacima."""
+    result = _rest("PATCH", "ticket_matches",
+                   params={"result": "eq.lost", "analysis_done": "eq.true"},
+                   body={"analysis_done": False, "loss_analysis": None},
+                   prefer="return=representation")
+    count = len(result)
+    print(f"Reset {count} loss analyses for re-generation.")
+    return count
+
+
 def get_analyzed_lost_matches(limit: int = 20) -> list:
     return _select("ticket_matches", filters={
         "result": "eq.lost",

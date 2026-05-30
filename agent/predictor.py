@@ -62,86 +62,88 @@ def _get_client() -> anthropic.Anthropic:
     return _client
 
 
-ANALYSIS_PROMPT_TEMPLATE = """Ti si ekspertni tenis analitičar. Tvoj zadatak je procijeniti sljedeći meč koristeći isključivo pružene podatke i zadane težine.
+ANALYSIS_PROMPT_TEMPLATE = """You are an expert tennis analyst. Evaluate the following match using only the provided data and model weights.
 
-=== MEČ ===
+=== MATCH ===
 {player1} vs {player2}
-Turnir: {tournament} | Razina: {level}
-Podloga: {surface} | Runda: {round}
-Datum: {date} | Format: {format}
+Tournament: {tournament} | Level: {level}
+Surface: {surface} | Round: {round}
+Date: {date} | Format: {format}
+Round context: {round_context}
 
 === {player1} ===
-Dob: {p1_age} god. | Ruka: {p1_hand}
+Age: {p1_age} | Playing hand: {p1_hand}
 ATP Ranking: #{p1_ranking} | Ranking trend: {p1_ranking_trend}
-ELO (opći): {p1_elo_overall} | ELO ({surface}): {p1_elo_surface}
-Rekord na {surface} (zadnje 3 god.): {p1_surface_record}
-Forma (zadnjih 5): {p1_form_5} | Forma (zadnjih 10): {p1_form_10}
-Forma na {surface} (6 mj): {p1_surface_form}
-Servis %: {p1_first_serve_pct} | Asevi/meč: {p1_aces}
-Poeni na 1. servis: {p1_first_serve_won} | Poeni na 2. servis: {p1_second_serve_won}
-Break lopte spašene: {p1_bp_saved} | Break konverzija: {p1_break_conv}
-Return poeni (na 2. servis): {p1_return_won}
-Mečevi zadnjih 7 dana: {p1_matches_7d} | Zadnji meč: {p1_last_match} | Dana odmora: {p1_days_rest}
-Poznate ozljede/vijesti: {p1_news}
-Win% kao heavy favorit: {p1_fav_winpct}
-1. set → meč konverzija: {p1_first_set_conv}
+ELO (overall): {p1_elo_overall} | ELO ({surface}): {p1_elo_surface}
+{surface} record (last 3 years): {p1_surface_record}
+Form (last 5): {p1_form_5} | Form (last 10): {p1_form_10}
+{surface} form (6 months): {p1_surface_form}
+1st serve %: {p1_first_serve_pct} | Aces/match: {p1_aces}
+1st serve points won: {p1_first_serve_won} | 2nd serve points won: {p1_second_serve_won}
+Break points saved: {p1_bp_saved} | Break conversion: {p1_break_conv}
+Return points won (on 2nd serve): {p1_return_won}
+Matches last 7 days: {p1_matches_7d} | Last match: {p1_last_match} | Days rest: {p1_days_rest}
+Known injuries/news: {p1_news}
+Win% as heavy favourite: {p1_fav_winpct}
+1st set → match conversion: {p1_first_set_conv}
 
 === {player2} ===
-Dob: {p2_age} god. | Ruka: {p2_hand}
+Age: {p2_age} | Playing hand: {p2_hand}
 ATP Ranking: #{p2_ranking} | Ranking trend: {p2_ranking_trend}
-ELO (opći): {p2_elo_overall} | ELO ({surface}): {p2_elo_surface}
-Rekord na {surface} (zadnje 3 god.): {p2_surface_record}
-Forma (zadnjih 5): {p2_form_5} | Forma (zadnjih 10): {p2_form_10}
-Forma na {surface} (6 mj): {p2_surface_form}
-Servis %: {p2_first_serve_pct} | Asevi/meč: {p2_aces}
-Poeni na 1. servis: {p2_first_serve_won} | Poeni na 2. servis: {p2_second_serve_won}
-Break lopte spašene: {p2_bp_saved} | Break konverzija: {p2_break_conv}
-Return poeni (na 2. servis): {p2_return_won}
-Mečevi zadnjih 7 dana: {p2_matches_7d} | Zadnji meč: {p2_last_match} | Dana odmora: {p2_days_rest}
-Poznate ozljede/vijesti: {p2_news}
-Win% kao heavy favorit: {p2_fav_winpct}
-1. set → meč konverzija: {p2_first_set_conv}
+ELO (overall): {p2_elo_overall} | ELO ({surface}): {p2_elo_surface}
+{surface} record (last 3 years): {p2_surface_record}
+Form (last 5): {p2_form_5} | Form (last 10): {p2_form_10}
+{surface} form (6 months): {p2_surface_form}
+1st serve %: {p2_first_serve_pct} | Aces/match: {p2_aces}
+1st serve points won: {p2_first_serve_won} | 2nd serve points won: {p2_second_serve_won}
+Break points saved: {p2_bp_saved} | Break conversion: {p2_break_conv}
+Return points won (on 2nd serve): {p2_return_won}
+Matches last 7 days: {p2_matches_7d} | Last match: {p2_last_match} | Days rest: {p2_days_rest}
+Known injuries/news: {p2_news}
+Win% as heavy favourite: {p2_fav_winpct}
+1st set → match conversion: {p2_first_set_conv}
 
 === H2H ===
-Ukupno: {h2h_overall}
-Na {surface}: {h2h_surface}
-Zadnji meč: {h2h_last}
-Trend (zadnja 3): {h2h_trend}
+Overall: {h2h_overall}
+On {surface}: {h2h_surface}
+Last meeting: {h2h_last}
+Recent trend (last 3): {h2h_trend}
 
-=== KONTEKST ===
-Uvjeti: {weather}
-Turnirska historia {player1}: {p1_tournament_history}
-Turnirska historia {player2}: {p2_tournament_history}
+=== CONTEXT ===
+Conditions: {weather}
+Tournament history {player1}: {p1_tournament_history}
+Tournament history {player2}: {p2_tournament_history}
 {odds_alert}
 
-=== TEŽINE MODELA ===
-ELO + ranking trend + kvaliteta protivnika: {w_elo_ranking}%
-Podloga + stil igre matchup: {w_surface_style}%
-Servis + return statistika: {w_serve_return}%
-Forma zadnjih 5-10 mečeva: {w_recent_form}%
-Umor + ozljede + raspored: {w_fatigue_injuries}%
-H2H + turnirski kontekst: {w_h2h_context}%
+=== MODEL WEIGHTS ===
+ELO + ranking trend + opponent quality: {w_elo_ranking}%
+Surface + playing style matchup: {w_surface_style}%
+Serve + return stats: {w_serve_return}%
+Recent form (last 5-10 matches): {w_recent_form}%
+Fatigue + injuries + schedule: {w_fatigue_injuries}%
+H2H + tournament context: {w_h2h_context}%
 
-=== UPUTA ===
-Formiraš predikciju isključivo na temelju statističkih faktora i težina modela — neovisno od bookmaker kvota.
-Ako statistike i forma govore za ne-favorita, biraš ne-favorita. Budući da ne igramo sisteme, pick mora biti visoko pouzdan (min 63% confidence).
-Za hendikep opciju: predloži samo ako je favorit izrazito dominantan I nema tie-break profila.
+=== INSTRUCTIONS ===
+Form your prediction based exclusively on statistical factors and model weights — independent of bookmaker odds.
+If stats and form favour the underdog, pick the underdog. Since we do not play system bets, the pick must be highly reliable (min 63% confidence).
+For handicap option: suggest only if the favourite is clearly dominant AND has no tiebreak profile.
+Round context is critical: early rounds allow larger upsets; later rounds (SF/F) favour proven performers. Adjust confidence accordingly.
 
-Odgovori ISKLJUČIVO u sljedećem JSON formatu (bez ikakvih dodatnih tekstova):
+Respond ONLY in the following JSON format (no additional text):
 {{
-  "pick": "ime igrača koji pobjeđuje",
+  "pick": "player name who wins",
   "confidence": 67,
   "fair_odds": 1.49,
   "value": true,
-  "risk_level": "nizak|srednji|visok",
-  "risk_notes": "kratko objašnjenje glavnih rizika (max 80 znakova)",
-  "handicap_option": "opis hendikep opcije ili null",
-  "key_factors": ["faktor1", "faktor2", "faktor3"],
-  "analysis": "2-3 rečenice ključne analize meča",
+  "risk_level": "low|medium|high",
+  "risk_notes": "brief explanation of main risks (max 80 chars)",
+  "handicap_option": "handicap option description or null",
+  "key_factors": ["factor1", "factor2", "factor3"],
+  "analysis": "2-3 sentences of key match analysis",
   "skip_reason": null
 }}
 
-Ako meč treba preskočiti (prevelika nesigurnost, ozljeda, nedostupnost podataka), postavi "skip_reason" na string s razlogom, a ostala polja na null."""
+If the match should be skipped (too much uncertainty, injury, insufficient data), set "skip_reason" to a string with the reason and all other fields to null."""
 
 
 def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights: dict, all_news: str = "") -> dict:
@@ -181,6 +183,7 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         tournament=match.get("tournament", ""), level=match.get("level", "ATP 250"),
         surface=surface, round=match.get("round", ""), date=match.get("date", ""),
         format="Best of 3" if "Grand Slam" not in match.get("level", "") else "Best of 5",
+        round_context=_round_context(match.get("round", ""), match.get("level", "")),
 
         p1_age=p1.get("age", "N/A"), p1_hand=_format_hand(p1.get("hand", "")),
         p1_ranking=p1.get("ranking", "N/A"), p1_ranking_trend=p1.get("ranking_trend", "N/A"),
@@ -313,6 +316,28 @@ def _format_surface_record(surface_summary: dict, surface: str) -> str:
     if not data or not data.get("matches"):
         return "N/A"
     return f"{data['wins']}W/{data['losses']}L ({data['win_pct']}%) u {data['matches']} mečeva"
+
+
+def _round_context(round_str: str, level: str) -> str:
+    """Contextual description of the round to help Claude calibrate confidence."""
+    r = round_str.upper().strip()
+    is_gs = "Grand Slam" in level
+    fmt = "Best of 5" if is_gs else "Best of 3"
+    if r in ("R128", "R1", "1R", "FIRST ROUND"):
+        return f"First round ({fmt}). Large skill gaps possible; qualifiers and lucky losers present. Higher upset potential."
+    if r in ("R64", "R2", "2R", "SECOND ROUND"):
+        return f"Second round ({fmt}). Qualifiers mostly gone. Some upsets still common."
+    if r in ("R32", "R3", "3R", "THIRD ROUND"):
+        return f"Third round ({fmt}). Field significantly reduced. Top players usually through."
+    if r in ("R16", "4R", "FOURTH ROUND", "ROUND OF 16"):
+        return f"Round of 16 ({fmt}). Only proven performers remain. Upsets less frequent."
+    if r in ("QF", "QUARTERFINAL", "QUARTER-FINAL", "1/4"):
+        return f"Quarterfinal ({fmt}). Elite level — all 8 players have proven themselves over 4-5 matches. Physical fatigue starts to matter."
+    if r in ("SF", "SEMIFINAL", "SEMI-FINAL", "1/2"):
+        return f"Semifinal ({fmt}). Top 4 players in the draw. Both players battle-hardened. Fatigue and mental strength decisive."
+    if r in ("F", "FINAL", "FINALE"):
+        return f"Final ({fmt}). Both finalists proven over 6 matches. Upsets rare but possible. Psychological pressure and physical condition critical."
+    return f"Round: {round_str} ({fmt})."
 
 
 def _odds_alert(odds_p1: float, odds_p2: float, name_p1: str, name_p2: str) -> str:

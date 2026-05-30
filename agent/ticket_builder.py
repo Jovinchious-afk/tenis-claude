@@ -207,32 +207,31 @@ def _pick_odds(pred: dict) -> float:
 
 
 def _generate_ticket_summary(matches: list, total_odds: float, pot_win: float, weights: dict) -> str:
-    """Claude Sonnet piše kratki write-up tiketa na hrvatskom."""
+    """Claude Sonnet writes the ticket write-up in English."""
     picks_text = "\n".join([
-        f"{i+1}. {m['pick']} pobjeđuje {m['player1']} vs {m['player2']} "
-        f"({m['tournament']}, {m['surface']}) — kvota: {m['odds']:.2f}, "
-        f"confidence: {m['confidence']:.0f}%, "
-        f"{'VALUE ✓' if m.get('value_bet') else ''}\n"
-        f"   Rizik: {m.get('risk_notes','')}\n"
-        f"   Ključni faktori: {', '.join(m.get('key_factors',[]))}"
+        f"{i+1}. {m['pick']} to win — {m['player1']} vs {m['player2']} "
+        f"({m['tournament']}, {m['surface']}, {m.get('round','')}) — odds: {m['odds']:.2f}, "
+        f"confidence: {m['confidence']:.0f}%"
+        f"{', VALUE ✓' if m.get('value_bet') else ''}\n"
+        f"   Risk: {m.get('risk_notes','')}\n"
+        f"   Key factors: {', '.join(m.get('key_factors',[]))}"
         for i, m in enumerate(matches)
     ])
 
-    prompt = f"""Ti si stručni tenis analitičar. Napiši kratki write-up za sljedeći sportski tiket.
-Napiši maksimalno 200 riječi, na hrvatskom jeziku, u stilu sportskog komentatora.
+    prompt = f"""You are an expert tennis analyst. Write a concise ticket write-up in English, in the style of a sports analyst. Maximum 200 words.
 
-TIKET:
+TICKET:
 {picks_text}
 
-Ukupna kvota: {total_odds:.2f}
-Potencijalni dobitak: €{pot_win:.2f} na €50
+Combined odds: {total_odds:.2f}
+Potential return: €{pot_win:.2f} on €50 stake
 
-Napiši:
-1. Jednu rečenicu o generalnoj kvaliteti tiketa
-2. Za svaki par: jednu rečenicu zašto je to dobar pick (fokus na ključne faktore)
-3. Završnu rečenicu o ukupnoj procjeni
+Write:
+1. One sentence on the overall ticket quality
+2. For each pick: one sentence explaining why it is a good selection (focus on key factors)
+3. One closing sentence with overall assessment
 
-Budi konkretan, navedi specifične razloge (podloga, forma, H2H, itd.)."""
+Be specific — mention surface, form, H2H, fatigue where relevant."""
 
     try:
         client = _get_client()

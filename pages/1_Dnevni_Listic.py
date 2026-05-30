@@ -9,8 +9,8 @@ import streamlit as st
 from database import supabase_client as db
 from utils.helpers import today_zagreb, format_date, format_date_hr
 
-st.set_page_config(page_title="Dnevni Listić | Tennis Agent", page_icon="🎾", layout="wide")
-st.title("🎾 Dnevni Listić")
+st.set_page_config(page_title="Daily Ticket | Tennis Agent", page_icon="🎾", layout="wide")
+st.title("🎾 Daily Ticket")
 
 
 def _status_badge(status: str) -> str:
@@ -22,21 +22,22 @@ def _status_badge(status: str) -> str:
 
 
 def _risk_color(risk: str) -> str:
-    return {"nizak": "#22c55e", "srednji": "#f59e0b", "visok": "#ef4444"}.get(risk.lower() if risk else "", "#9ca3af")
+    return {"low": "#22c55e", "medium": "#f59e0b", "high": "#ef4444",
+            "nizak": "#22c55e", "srednji": "#f59e0b", "visok": "#ef4444"}.get(risk.lower() if risk else "", "#9ca3af")
 
 
 today_str = format_date(today_zagreb())
 ticket = db.get_ticket_by_date(today_str)
 
 if not ticket:
-    st.info("Nema tiketa za danas. Agent će generirati tiket u 9:30h.")
+    st.info("No ticket for today. Run the Daily Ticket action on GitHub to generate one.")
     st.markdown("---")
-    st.subheader("Zadnji dostupni tiket")
+    st.subheader("Latest available ticket")
     tickets = db.get_tickets(limit=1)
     ticket = tickets[0] if tickets else None
 
 if not ticket:
-    st.warning("Nema tiketa u bazi. Provjeri da li je agent pokrenut.")
+    st.warning("No tickets in database. Check that the agent has been run.")
     st.stop()
 
 matches = ticket.get("ticket_matches", [])
@@ -49,25 +50,25 @@ with col1:
     st.subheader(f"Tiket — {format_date_hr(today_zagreb()) if ticket_date == today_str else ticket_date}")
     st.markdown(_status_badge(status), unsafe_allow_html=True)
 with col2:
-    st.metric("Ukupna kvota", f"{ticket.get('total_odds', 0):.2f}")
+    st.metric("Combined odds", f"{ticket.get('total_odds', 0):.2f}")
 with col3:
-    st.metric("Potencijalni dobitak", f"€{ticket.get('potential_win', 0):.2f}")
+    st.metric("Potential return", f"€{ticket.get('potential_win', 0):.2f}")
 with col4:
     won_count = sum(1 for m in matches if m.get("result") == "won")
-    st.metric("Pogođeni parovi", f"{won_count}/{len(matches)}")
+    st.metric("Correct picks", f"{won_count}/{len(matches)}")
 with col5:
-    if st.button("🗑️ Obriši tiket", type="secondary", use_container_width=True):
+    if st.button("🗑️ Delete ticket", type="secondary", use_container_width=True):
         if db.delete_ticket(str(ticket.get("id", ""))):
-            st.success("Tiket obrisan.")
+            st.success("Ticket deleted.")
             st.rerun()
         else:
-            st.error("Greška pri brisanju.")
+            st.error("Error deleting ticket.")
 
 st.markdown("---")
 
 # Summary
 if ticket.get("ticket_summary"):
-    with st.expander("📝 Write-up tiketa", expanded=True):
+    with st.expander("📝 Ticket write-up", expanded=True):
         st.markdown(ticket["ticket_summary"])
 
 st.markdown("---")
@@ -83,7 +84,7 @@ for i, m in enumerate(matches):
         c1, c2, c3, c4, c5 = st.columns([3, 1, 1, 1, 2])
 
         with c1:
-            st.markdown(f"**{i+1}. {m.get('pick', '')}** pobjeđuje")
+            st.markdown(f"**{i+1}. {m.get('pick', '')}** to win")
             st.caption(f"{m.get('player1','')} vs {m.get('player2','')}")
             st.caption(f"🏆 {m.get('tournament','')} · {m.get('surface','')} · {m.get('round','')}")
             if m.get("match_date"):
@@ -110,23 +111,23 @@ for i, m in enumerate(matches):
             if m.get("risk_notes"):
                 st.caption(f"⚠️ {m['risk_notes']}")
             if m.get("handicap_option"):
-                st.caption(f"📊 Hendikep: {m['handicap_option']}")
+                st.caption(f"📊 Handicap: {m['handicap_option']}")
             if m.get("actual_winner") and m_result != "pending":
-                st.caption(f"🏁 Pobijedio: {m['actual_winner']}")
+                st.caption(f"🏁 Winner: {m['actual_winner']}")
 
         st.markdown("</div>", unsafe_allow_html=True)
 
     if m.get("key_factors"):
-        with st.expander(f"Ključni faktori — {m.get('pick','')}"):
+        with st.expander(f"Key factors — {m.get('pick','')}"):
             for factor in m.get("key_factors", []):
                 st.write(f"• {factor}")
 
 st.markdown("---")
 col1, col2 = st.columns(2)
 with col1:
-    st.markdown(f"**Ulog:** €{ticket.get('stake', 50):.0f}")
-    st.markdown(f"**Ukupna kvota:** {ticket.get('total_odds', 0):.2f}")
+    st.markdown(f"**Stake:** €{ticket.get('stake', 50):.0f}")
+    st.markdown(f"**Combined odds:** {ticket.get('total_odds', 0):.2f}")
 with col2:
-    st.markdown(f"**Potencijalni dobitak:** €{ticket.get('potential_win', 0):.2f}")
+    st.markdown(f"**Potential return:** €{ticket.get('potential_win', 0):.2f}")
     if status == "won":
-        st.markdown(f"**Ostvareni dobitak:** €{ticket.get('actual_win', 0):.2f}")
+        st.markdown(f"**Actual return:** €{ticket.get('actual_win', 0):.2f}")

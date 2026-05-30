@@ -11,8 +11,8 @@ import plotly.graph_objects as go
 import plotly.express as px
 from database import supabase_client as db
 
-st.set_page_config(page_title="Model Statistike | Tennis Agent", page_icon="🎾", layout="wide")
-st.title("📊 Model Statistike")
+st.set_page_config(page_title="Model Statistics | Tennis Agent", page_icon="🎾", layout="wide")
+st.title("📊 Model Statistics")
 
 # ── Performance data ──────────────────────────────────────────────────────────
 
@@ -31,9 +31,9 @@ win_rate = (len(won_tickets) / len(resolved) * 100) if resolved else 0
 # KPI row
 col1, col2, col3, col4, col5 = st.columns(5)
 with col1:
-    st.metric("Ukupno tiketa", len(resolved))
+    st.metric("Total tickets", len(resolved))
 with col2:
-    st.metric("Win rate tiketa", f"{win_rate:.1f}%")
+    st.metric("Ticket win rate", f"{win_rate:.1f}%")
 with col3:
     balance = total_returned - total_staked
     roi_hex = "#22c55e" if roi >= 0 else "#ef4444"
@@ -46,16 +46,16 @@ with col3:
     </div>
     """, unsafe_allow_html=True)
 with col4:
-    st.metric("Uloženo", f"€{total_staked:.0f}")
+    st.metric("Staked", f"€{total_staked:.0f}")
 with col5:
-    st.metric("Vraćeno", f"€{total_returned:.0f}")
+    st.metric("Returned", f"€{total_returned:.0f}")
 
 st.markdown("---")
 
 # ── ROI Chart ────────────────────────────────────────────────────────────────
 
 if perf_data and len(perf_data) > 1:
-    st.subheader("📈 Kumulativni balans kroz sezonu")
+    st.subheader("📈 Cumulative balance through the season")
     df_perf = pd.DataFrame(perf_data)
     fig = go.Figure()
     fig.add_trace(go.Scatter(
@@ -65,20 +65,20 @@ if perf_data and len(perf_data) > 1:
         line=dict(color="#3b82f6", width=2),
         fill="tozeroy",
         fillcolor="rgba(59,130,246,0.1)",
-        name="Kumulativni balans (€)"
+        name="Cumulative balance (€)"
     ))
     fig.add_hline(y=0, line_dash="dash", line_color="gray")
     fig.update_layout(
         height=300, margin=dict(l=0, r=0, t=20, b=0),
-        yaxis_title="€", xaxis_title="Datum",
+        yaxis_title="€", xaxis_title="Date",
         hovermode="x unified"
     )
     st.plotly_chart(fig, use_container_width=True)
 
-# ── Win rate po turniru ───────────────────────────────────────────────────────
+# ── Win rate by tournament ───────────────────────────────────────────────────
 
 if resolved:
-    st.subheader("🏆 Performanse po tipu turnira")
+    st.subheader("🏆 Performance by tournament level")
     all_matches = []
     for t in resolved:
         for m in t.get("ticket_matches", []):
@@ -89,7 +89,7 @@ if resolved:
         from collections import defaultdict
         level_stats = defaultdict(lambda: {"won": 0, "total": 0})
         for m in all_matches:
-            level = m.get("tournament_level", "Nepoznato")
+            level = m.get("tournament_level", "Unknown")
             level_stats[level]["total"] += 1
             if m.get("result") == "won":
                 level_stats[level]["won"] += 1
@@ -97,15 +97,15 @@ if resolved:
         level_rows = []
         for level, stats in level_stats.items():
             wr = stats["won"] / stats["total"] * 100 if stats["total"] else 0
-            level_rows.append({"Razina": level, "Parovi": stats["total"], "Pogođeni": stats["won"], "Win %": f"{wr:.0f}%"})
+            level_rows.append({"Level": level, "Picks": stats["total"], "Correct": stats["won"], "Win %": f"{wr:.0f}%"})
 
-        st.dataframe(pd.DataFrame(level_rows).sort_values("Parovi", ascending=False), hide_index=True, use_container_width=True)
+        st.dataframe(pd.DataFrame(level_rows).sort_values("Picks", ascending=False), hide_index=True, use_container_width=True)
 
-    # Win rate po podlozi
-    st.subheader("🎾 Performanse po podlozi")
+    # Win rate by surface
+    st.subheader("🎾 Performance by surface")
     surface_stats = defaultdict(lambda: {"won": 0, "total": 0})
     for m in all_matches:
-        surface = m.get("surface", "Nepoznato")
+        surface = m.get("surface", "Unknown")
         surface_stats[surface]["total"] += 1
         if m.get("result") == "won":
             surface_stats[surface]["won"] += 1
@@ -113,11 +113,11 @@ if resolved:
     surf_rows = []
     for surface, stats in surface_stats.items():
         wr = stats["won"] / stats["total"] * 100 if stats["total"] else 0
-        surf_rows.append({"Podloga": surface, "Parovi": stats["total"], "Pogođeni": stats["won"], "Win %": f"{wr:.0f}%"})
+        surf_rows.append({"Surface": surface, "Picks": stats["total"], "Correct": stats["won"], "Win %": f"{wr:.0f}%"})
 
     if surf_rows:
-        fig2 = px.bar(pd.DataFrame(surf_rows), x="Podloga", y=["Pogođeni", "Parovi"],
-                      barmode="overlay", color_discrete_map={"Pogođeni": "#22c55e", "Parovi": "#e2e8f0"})
+        fig2 = px.bar(pd.DataFrame(surf_rows), x="Surface", y=["Correct", "Picks"],
+                      barmode="overlay", color_discrete_map={"Correct": "#22c55e", "Picks": "#e2e8f0"})
         fig2.update_layout(height=250, margin=dict(l=0, r=0, t=20, b=0))
         st.plotly_chart(fig2, use_container_width=True)
 
@@ -125,53 +125,52 @@ st.markdown("---")
 
 # ── Trenutne težine modela ────────────────────────────────────────────────────
 
-st.subheader("⚙️ Trenutne težine modela")
+st.subheader("⚙️ Current model weights")
 current_weights = db.get_active_weights()
 
 if current_weights:
     labels = {
         "elo_ranking": "ELO + Ranking trend",
-        "surface_style": "Podloga + Stil igre",
-        "serve_return": "Servis + Return",
-        "recent_form": "Forma (5-10 mečeva)",
-        "fatigue_injuries": "Umor + Ozljede",
-        "h2h_context": "H2H + Kontekst",
-        "odds_movement": "Kretanje kvota",
+        "surface_style": "Surface + Style matchup",
+        "serve_return": "Serve + Return",
+        "recent_form": "Form (5-10 matches)",
+        "fatigue_injuries": "Fatigue + Injuries",
+        "h2h_context": "H2H + Context",
     }
-    weight_rows = [{"Faktor": labels.get(k, k), "Težina (%)": v} for k, v in current_weights.items()]
-    df_weights = pd.DataFrame(weight_rows).sort_values("Težina (%)", ascending=False)
+    weight_rows = [{"Factor": labels.get(k, k), "Weight (%)": v} for k, v in current_weights.items() if k != "odds_movement"]
+    df_weights = pd.DataFrame(weight_rows).sort_values("Weight (%)", ascending=False)
 
     col1, col2 = st.columns([1, 1])
     with col1:
         st.dataframe(df_weights, hide_index=True, use_container_width=True)
     with col2:
-        fig3 = px.pie(df_weights, values="Težina (%)", names="Faktor",
+        fig3 = px.pie(df_weights, values="Weight (%)", names="Factor",
                       color_discrete_sequence=px.colors.qualitative.Set3)
         fig3.update_layout(height=300, margin=dict(l=0, r=0, t=20, b=0), showlegend=True)
         st.plotly_chart(fig3, use_container_width=True)
 
-# ── History težina ────────────────────────────────────────────────────────────
+# ── Weight history ────────────────────────────────────────────────────────────
 
-st.subheader("📜 Historija promjena težina")
+st.subheader("📜 Weight change history")
 weight_history = db.get_weight_history()
 
 if len(weight_history) > 1:
     for wh in weight_history:
-        with st.expander(f"Verzija {wh.get('version')} — {wh.get('created_at','')[:10]} {'(aktivna)' if wh.get('is_active') else ''}", expanded=False):
+        with st.expander(f"Version {wh.get('version')} — {wh.get('created_at','')[:10]} {'(active)' if wh.get('is_active') else ''}", expanded=False):
             if wh.get("update_reason"):
-                st.write(f"**Razlog:** {wh['update_reason']}")
+                st.write(f"**Reason:** {wh['update_reason']}")
             if wh.get("triggered_by"):
-                st.write(f"**Pokrenuto od:** {wh['triggered_by']}")
+                st.write(f"**Triggered by:** {wh['triggered_by']}")
             st.json(wh.get("weights", {}))
 else:
-    st.info("Samo jedna verzija težina postoji (početna verzija). Težine se automatski prilagođavaju nakon dovoljno analiziranih grešaka.")
+    st.info("Only one version of weights exists (initial version). Weights are automatically adjusted after enough error analyses.")
 
-# ── Confidence kalibracija ────────────────────────────────────────────────────
+# ── Confidence calibration ────────────────────────────────────────────────────
 
 if resolved and all_matches:
     st.markdown("---")
-    st.subheader("🎯 Kalibracija confidence-a")
-    st.caption("Uspoređuje navedeni confidence s stvarnim win rateom — dobro kalibriran model ima dijagonalu.")
+    st.subheader("🎯 Confidence calibration")
+    st.caption("Compares stated confidence with actual win rate — a well-calibrated model follows the diagonal.")
 
     bins = [(55, 65), (65, 70), (70, 75), (75, 80), (80, 100)]
     cal_rows = []
@@ -182,10 +181,10 @@ if resolved and all_matches:
         actual_wr = sum(1 for m in in_bin if m.get("result") == "won") / len(in_bin) * 100
         cal_rows.append({
             "Confidence range": f"{low}-{high}%",
-            "Parovi": len(in_bin),
-            "Navedeni conf.": f"{(low+high)/2:.0f}%",
-            "Stvarni win%": f"{actual_wr:.0f}%",
-            "Kalibriran?": "✅" if abs((low+high)/2 - actual_wr) < 10 else "⚠️"
+            "Picks": len(in_bin),
+            "Stated conf.": f"{(low+high)/2:.0f}%",
+            "Actual win%": f"{actual_wr:.0f}%",
+            "Calibrated?": "✅" if abs((low+high)/2 - actual_wr) < 10 else "⚠️"
         })
 
     if cal_rows:
