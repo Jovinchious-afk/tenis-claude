@@ -5,13 +5,12 @@ automatically by the feedback loop. These are the initial defaults.
 """
 
 DEFAULT_WEIGHTS = {
-    "elo_ranking": 20.0,        # ELO + ranking trend + opponent quality
-    "surface_style": 23.0,      # Surface + style matchup
-    "serve_return": 18.0,       # Serve + return stats (surface-adjusted)
-    "recent_form": 20.0,        # Form last 5-10 matches (quality-adjusted) +2
-    "fatigue_injuries": 14.0,   # Fatigue, injuries, travel, schedule +2
-    "h2h_context": 5.0,         # H2H + tournament context + motivation
-    # odds_movement uklonjeno — model formira predikciju neovisno od tržišta
+    "elo_ranking": 22.0,        # ELO (surface-specific weighted higher than ATP ranking) + opponent quality
+    "surface_style": 20.0,      # Surface win rate + style matchup + playing hand
+    "serve_return": 22.0,       # Hold%, break%, serve points won%, return dominance
+    "recent_form": 17.0,        # Form last 5-10 matches (opponent-quality adjusted)
+    "fatigue_injuries": 13.0,   # Fatigue, injuries, days rest, age, match load
+    "h2h_context": 6.0,         # H2H (min 3 recent matches), tournament context, round, weather
 }
 
 TOURNAMENT_LEVELS = {

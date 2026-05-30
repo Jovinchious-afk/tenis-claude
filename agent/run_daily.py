@@ -173,6 +173,10 @@ def main():
             p1_tournament_rec = df.get_player_tournament_record(p1_id, tournament_id) if p1_id and tournament_id else {}
             p2_tournament_rec = df.get_player_tournament_record(p2_id, tournament_id) if p2_id and tournament_id else {}
 
+            # Avg opponent ELO last 10 — quality-adjusted form signal
+            p1_avg_opp_elo = _avg_opponent_elo(p1_form.get("matches", []), elo_data)
+            p2_avg_opp_elo = _avg_opponent_elo(p2_form.get("matches", []), elo_data)
+
             # H2H
             h2h = df.get_h2h(p1_id, p2_id) if p1_id and p2_id else {}
 
@@ -195,6 +199,7 @@ def main():
                        "news": _extract_player_news(match["player1"], injury_news),
                        "surface_summary": p1_surface_summary,
                        "tournament_record": p1_tournament_rec,
+                       "avg_opp_elo": p1_avg_opp_elo,
                        }
 
             p2_data = {**p2_info, **p2_stats,
@@ -209,6 +214,7 @@ def main():
                        "news": _extract_player_news(match["player2"], injury_news),
                        "surface_summary": p2_surface_summary,
                        "tournament_record": p2_tournament_rec,
+                       "avg_opp_elo": p2_avg_opp_elo,
                        }
 
             matches_with_data.append({
@@ -329,6 +335,22 @@ def _last_match_date(matches: list) -> str:
     if not matches:
         return "N/A"
     return matches[0].get("date", "N/A")[:10]
+
+
+def _avg_opponent_elo(matches: list, elo_data: dict) -> str:
+    """Compute average ELO of last 10 opponents — quality-of-opposition signal."""
+    from agent import data_fetcher as _df
+    elos = []
+    for m in matches[:10]:
+        opp = m.get("opponent", "")
+        if not opp:
+            continue
+        opp_elo = _df.find_player_elo(opp, elo_data).get("elo_overall", 0)
+        if opp_elo and opp_elo > 1000:
+            elos.append(opp_elo)
+    if not elos:
+        return "N/A"
+    return str(round(sum(elos) / len(elos)))
 
 
 def _city_for_weather(tournament_name: str) -> str:

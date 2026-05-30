@@ -75,39 +75,46 @@ Round context: {round_context}
 Age: {p1_age} | Playing hand: {p1_hand}
 ATP Ranking: #{p1_ranking} | Ranking trend: {p1_ranking_trend}
 ELO (overall): {p1_elo_overall} | ELO ({surface}): {p1_elo_surface}
+NOTE: Surface-specific ELO is more predictive than ATP ranking for this match.
 {surface} record (last 3 years): {p1_surface_record}
 Form (last 5): {p1_form_5} | Form (last 10): {p1_form_10}
+Avg opponent ELO (last 10): {p1_avg_opp_elo} — quality-adjusted form signal
 {surface} form (6 months): {p1_surface_form}
-1st serve %: {p1_first_serve_pct} | Aces/match: {p1_aces}
-1st serve points won: {p1_first_serve_won} | 2nd serve points won: {p1_second_serve_won}
-Break points saved: {p1_bp_saved} | Break conversion: {p1_break_conv}
-Return points won (on 2nd serve): {p1_return_won}
-Matches last 7 days: {p1_matches_7d} | Last match: {p1_last_match} | Days rest: {p1_days_rest}
+--- Serve dominance ---
+Total serve points won: {p1_serve_pts_won}% | Hold % (est.): {p1_hold_pct}%
+1st serve %: {p1_first_serve_pct} | 1st serve pts won: {p1_first_serve_won}
+2nd serve pts won: {p1_second_serve_won} | Aces/match: {p1_aces}
+BP saved: {p1_bp_saved} | BP converted: {p1_break_conv}
+Return pts won: {p1_return_won}% (break proxy)
+--- Physical condition ---
+Matches last 7 days: {p1_matches_7d} | Days rest: {p1_days_rest} | Age: {p1_age}
 Known injuries/news: {p1_news}
-Win% as heavy favourite: {p1_fav_winpct}
-1st set → match conversion: {p1_first_set_conv}
 
 === {player2} ===
 Age: {p2_age} | Playing hand: {p2_hand}
 ATP Ranking: #{p2_ranking} | Ranking trend: {p2_ranking_trend}
 ELO (overall): {p2_elo_overall} | ELO ({surface}): {p2_elo_surface}
+NOTE: Surface-specific ELO is more predictive than ATP ranking for this match.
 {surface} record (last 3 years): {p2_surface_record}
 Form (last 5): {p2_form_5} | Form (last 10): {p2_form_10}
+Avg opponent ELO (last 10): {p2_avg_opp_elo} — quality-adjusted form signal
 {surface} form (6 months): {p2_surface_form}
-1st serve %: {p2_first_serve_pct} | Aces/match: {p2_aces}
-1st serve points won: {p2_first_serve_won} | 2nd serve points won: {p2_second_serve_won}
-Break points saved: {p2_bp_saved} | Break conversion: {p2_break_conv}
-Return points won (on 2nd serve): {p2_return_won}
-Matches last 7 days: {p2_matches_7d} | Last match: {p2_last_match} | Days rest: {p2_days_rest}
+--- Serve dominance ---
+Total serve points won: {p2_serve_pts_won}% | Hold % (est.): {p2_hold_pct}%
+1st serve %: {p2_first_serve_pct} | 1st serve pts won: {p2_first_serve_won}
+2nd serve pts won: {p2_second_serve_won} | Aces/match: {p2_aces}
+BP saved: {p2_bp_saved} | BP converted: {p2_break_conv}
+Return pts won: {p2_return_won}% (break proxy)
+--- Physical condition ---
+Matches last 7 days: {p2_matches_7d} | Days rest: {p2_days_rest} | Age: {p2_age}
 Known injuries/news: {p2_news}
-Win% as heavy favourite: {p2_fav_winpct}
-1st set → match conversion: {p2_first_set_conv}
 
 === H2H ===
 Overall: {h2h_overall}
 On {surface}: {h2h_surface}
 Last meeting: {h2h_last}
 Recent trend (last 3): {h2h_trend}
+H2H reliability: {h2h_reliability}
 
 === CONTEXT ===
 Conditions: {weather}
@@ -128,6 +135,13 @@ Form your prediction based exclusively on statistical factors and model weights 
 If stats and form favour the underdog, pick the underdog. Since we do not play system bets, the pick must be highly reliable (min 63% confidence).
 For handicap option: suggest only if the favourite is clearly dominant AND has no tiebreak profile.
 Round context is critical: early rounds allow larger upsets; later rounds (SF/F) favour proven performers. Adjust confidence accordingly.
+
+Key analytical priorities:
+- Surface-specific ELO outweighs ATP ranking. A player ranked #15 with clay ELO 1750 is better on clay than a #8 with clay ELO 1680.
+- Hold% and serve dominance are the strongest predictors in ATP tennis (especially hard/grass). A player who wins 70%+ of serve points rarely loses service games.
+- Average opponent ELO context: if a player has 8/10 form but avg opponent ELO was 1600, that form is less significant than 7/10 against avg ELO 1900.
+- H2H: only apply meaningfully if H2H has 3+ recent matches on same/similar surface. Small or old H2H samples are noise — downweight them.
+- Fatigue compounds across rounds: a player who played a 3-hour match yesterday is not the same as one who had 2 days rest, especially in BoF5.
 
 Respond ONLY in the following JSON format (no additional text):
 {{
@@ -190,6 +204,9 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         p1_elo_overall=p1.get("elo_overall", 1500), p1_elo_surface=p1.get(elo_key, 1500),
         p1_surface_record=p1_surface_record,
         p1_form_5=p1_form5, p1_form_10=p1_form10, p1_surface_form=p1_surface_form,
+        p1_avg_opp_elo=p1.get("avg_opp_elo", "N/A"),
+        p1_serve_pts_won=p1.get("serve_points_won", "N/A"),
+        p1_hold_pct=p1.get("hold_pct", "N/A"),
         p1_first_serve_pct=p1.get("first_serve_pct", "N/A"),
         p1_aces=p1.get("aces_per_game", "N/A"),
         p1_first_serve_won=p1.get("first_serve_points_won", "N/A"),
@@ -200,15 +217,16 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         p1_matches_7d=p1.get("matches_7d", 0),
         p1_last_match=p1.get("last_match_date", "N/A"),
         p1_days_rest=p1_days_rest,
-        p1_news=p1.get("news", "Nema vijesti") or "Nema vijesti",
-        p1_fav_winpct=p1.get("fav_win_pct", "N/A"),
-        p1_first_set_conv=p1.get("first_set_conv", "N/A"),
+        p1_news=p1.get("news", "No news") or "No news",
 
         p2_age=p2.get("age", "N/A"), p2_hand=_format_hand(p2.get("hand", "")),
         p2_ranking=p2.get("ranking", "N/A"), p2_ranking_trend=p2.get("ranking_trend", "N/A"),
         p2_elo_overall=p2.get("elo_overall", 1500), p2_elo_surface=p2.get(elo_key, 1500),
         p2_surface_record=p2_surface_record,
         p2_form_5=p2_form5, p2_form_10=p2_form10, p2_surface_form=p2_surface_form,
+        p2_avg_opp_elo=p2.get("avg_opp_elo", "N/A"),
+        p2_serve_pts_won=p2.get("serve_points_won", "N/A"),
+        p2_hold_pct=p2.get("hold_pct", "N/A"),
         p2_first_serve_pct=p2.get("first_serve_pct", "N/A"),
         p2_aces=p2.get("aces_per_game", "N/A"),
         p2_first_serve_won=p2.get("first_serve_points_won", "N/A"),
@@ -219,14 +237,13 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         p2_matches_7d=p2.get("matches_7d", 0),
         p2_last_match=p2.get("last_match_date", "N/A"),
         p2_days_rest=p2_days_rest,
-        p2_news=p2.get("news", "Nema vijesti") or "Nema vijesti",
-        p2_fav_winpct=p2.get("fav_win_pct", "N/A"),
-        p2_first_set_conv=p2.get("first_set_conv", "N/A"),
+        p2_news=p2.get("news", "No news") or "No news",
 
-        h2h_overall=f"{h2h.get('p1_wins', 0)}-{h2h.get('p2_wins', 0)} (ukupno {h2h.get('total', 0)})",
+        h2h_overall=f"{h2h.get('p1_wins', 0)}-{h2h.get('p2_wins', 0)} (total {h2h.get('total', 0)})",
         h2h_surface=h2h_surface_str,
         h2h_last=_last_h2h_result(h2h),
         h2h_trend=h2h_trend,
+        h2h_reliability=_h2h_reliability(h2h),
 
         weather=match.get("weather", "N/A"),
         p1_tournament_history=_format_tournament_record(p1.get("tournament_record", {})),
@@ -373,6 +390,27 @@ def _format_hand(hand: str) -> str:
     if h in ("right", "r", "desnica", "right-handed"):
         return "Desna"
     return hand
+
+
+def _h2h_reliability(h2h: dict) -> str:
+    """Assess if H2H sample is reliable enough to influence prediction."""
+    total = h2h.get("total", 0)
+    matches = h2h.get("recent_matches", [])
+    if total == 0:
+        return "No H2H history — ignore H2H factor entirely."
+    if total < 3:
+        return f"Only {total} meeting(s) — small sample, treat H2H as weak signal only."
+    # Check recency — if last match was over 3 years ago, downweight
+    if matches:
+        last_date = matches[0].get("date", "")[:4] if matches else ""
+        try:
+            import datetime
+            years_ago = datetime.date.today().year - int(last_date)
+            if years_ago >= 3:
+                return f"{total} meetings but last was {years_ago}y ago — recency low, downweight."
+        except Exception:
+            pass
+    return f"{total} meetings — H2H reliable, apply normally."
 
 
 def _h2h_trend(h2h: dict) -> str:
