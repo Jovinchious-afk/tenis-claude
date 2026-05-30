@@ -8,10 +8,10 @@ DEFAULT_WEIGHTS = {
     "elo_ranking": 20.0,        # ELO + ranking trend + opponent quality
     "surface_style": 23.0,      # Surface + style matchup
     "serve_return": 18.0,       # Serve + return stats (surface-adjusted)
-    "recent_form": 18.0,        # Form last 5-10 matches (quality-adjusted)
-    "fatigue_injuries": 12.0,   # Fatigue, injuries, travel, schedule
+    "recent_form": 20.0,        # Form last 5-10 matches (quality-adjusted) +2
+    "fatigue_injuries": 14.0,   # Fatigue, injuries, travel, schedule +2
     "h2h_context": 5.0,         # H2H + tournament context + motivation
-    "odds_movement": 4.0,       # Odds movement + market signal (filter role)
+    # odds_movement uklonjeno — model formira predikciju neovisno od tržišta
 }
 
 TOURNAMENT_LEVELS = {

@@ -112,11 +112,7 @@ Trend (zadnja 3): {h2h_trend}
 Uvjeti: {weather}
 Turnirska historia {player1}: {p1_tournament_history}
 Turnirska historia {player2}: {p2_tournament_history}
-Kretanje kvota: {odds_movement}
-
-=== BOOKMAKER KVOTE ===
-{player1}: {odds_p1}
-{player2}: {odds_p2}
+{odds_alert}
 
 === TEŽINE MODELA ===
 ELO + ranking trend + kvaliteta protivnika: {w_elo_ranking}%
@@ -125,11 +121,11 @@ Servis + return statistika: {w_serve_return}%
 Forma zadnjih 5-10 mečeva: {w_recent_form}%
 Umor + ozljede + raspored: {w_fatigue_injuries}%
 H2H + turnirski kontekst: {w_h2h_context}%
-Kretanje kvota + market signal: {w_odds_movement}%
 
 === UPUTA ===
-Primijeni navedene težine pri procjeni. Budući da ne igramo sisteme, bitno je da pick bude visoko pouzdan (min 63% confidence).
-Uzmi u obzir sve faktore. Za hendikep opciju: predloži samo ako je favorit izrazito dominantan I nema tie-break profila.
+Formiraš predikciju isključivo na temelju statističkih faktora i težina modela — neovisno od bookmaker kvota.
+Ako statistike i forma govore za ne-favorita, biraš ne-favorita. Budući da ne igramo sisteme, pick mora biti visoko pouzdan (min 63% confidence).
+Za hendikep opciju: predloži samo ako je favorit izrazito dominantan I nema tie-break profila.
 
 Odgovori ISKLJUČIVO u sljedećem JSON formatu (bez ikakvih dodatnih tekstova):
 {{
@@ -232,18 +228,14 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         weather=match.get("weather", "N/A"),
         p1_tournament_history=_format_tournament_record(p1.get("tournament_record", {})),
         p2_tournament_history=_format_tournament_record(p2.get("tournament_record", {})),
-        odds_movement=match.get("odds_movement", "N/A"),
-
-        odds_p1=f"{odds_p1:.2f}" if odds_p1 else "N/A",
-        odds_p2=f"{odds_p2:.2f}" if odds_p2 else "N/A",
+        odds_alert=_odds_alert(odds_p1, odds_p2, match["player1"], match["player2"]),
 
         w_elo_ranking=weights.get("elo_ranking", 20),
         w_surface_style=weights.get("surface_style", 23),
         w_serve_return=weights.get("serve_return", 18),
-        w_recent_form=weights.get("recent_form", 18),
-        w_fatigue_injuries=weights.get("fatigue_injuries", 12),
+        w_recent_form=weights.get("recent_form", 20),
+        w_fatigue_injuries=weights.get("fatigue_injuries", 14),
         w_h2h_context=weights.get("h2h_context", 5),
-        w_odds_movement=weights.get("odds_movement", 4),
     )
 
     try:
@@ -321,6 +313,17 @@ def _format_surface_record(surface_summary: dict, surface: str) -> str:
     if not data or not data.get("matches"):
         return "N/A"
     return f"{data['wins']}W/{data['losses']}L ({data['win_pct']}%) u {data['matches']} mečeva"
+
+
+def _odds_alert(odds_p1: float, odds_p2: float, name_p1: str, name_p2: str) -> str:
+    """Upozorenje samo ako su kvote ekstremno neuravnotežene — signal ozljede/povlačenja."""
+    if not odds_p1 or not odds_p2 or odds_p1 <= 0 or odds_p2 <= 0:
+        return ""
+    ratio = max(odds_p1, odds_p2) / min(odds_p1, odds_p2)
+    if ratio >= 6.0:
+        big = name_p1 if odds_p1 > odds_p2 else name_p2
+        return f"⚠️ TRŽIŠNI SIGNAL: {big} ima ekstremno visoku kvotu ({max(odds_p1, odds_p2):.2f}) — provjeri ima li vijesti o ozljedi/povlačenju."
+    return ""
 
 
 def _days_since(date_str: str) -> str:
