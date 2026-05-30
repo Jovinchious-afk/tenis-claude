@@ -118,6 +118,10 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
         if best_combo:
             print("Tiket složen s riskantijim pickovima — prihvaćamo veći rizik.")
 
+    # Final holistic review by Claude Sonnet before ticket is confirmed
+    rejected_candidates = [p for p in candidates if p not in best_combo]
+    best_combo = _review_ticket(best_combo, rejected_candidates, cfg)
+
     total_odds = combined_odds([_pick_odds(p) for p in best_combo])
     pot_win = potential_win(cfg["stake"], total_odds)
 
@@ -254,6 +258,124 @@ def _pick_odds(pred: dict) -> float:
     if pick.lower() in p1.lower() or p1.lower() in pick.lower():
         return float(m.get("odds_p1", 1.5) or 1.5)
     return float(m.get("odds_p2", 1.5) or 1.5)
+
+
+def _review_ticket(proposed: list, rejected: list, cfg: dict) -> list:
+    """
+    Claude Sonnet reviews the mathematically selected ticket holistically.
+    Can confirm, modify (max 2 swaps), reduce, or force a valid ticket.
+    Falls back to proposed ticket if review fails or produces invalid result.
+    """
+    def _pick_summary(p: dict) -> str:
+        m = p.get("match", {})
+        conf = p.get("confidence", 0)
+        fair = p.get("fair_odds") or 0
+        bm = _pick_odds(p)
+        edge = round((1.0/fair - 1.0/bm) * 100, 1) if fair > 0 and bm > 0 else 0
+        fmt = "BoF5" if "Grand Slam" in m.get("level", "") else "BoF3"
+        return (
+            f"  Pick: {p.get('pick','')} | {m.get('player1','')} vs {m.get('player2','')} "
+            f"| {m.get('tournament','')} {m.get('round','')} {fmt} | {m.get('surface','')}\n"
+            f"  Confidence: {conf}% | Fair odds: {fair:.2f} | Bookmaker: {bm:.2f} | Edge: {edge:+.1f}pp\n"
+            f"  Risk: {p.get('risk_level','')} — {p.get('risk_notes','')}\n"
+            f"  Key factors: {'; '.join(p.get('key_factors',[]))}\n"
+            f"  Analysis: {p.get('analysis','')}"
+        )
+
+    proposed_section = "\n\n".join(_pick_summary(p) for p in proposed)
+    rejected_section = "\n\n".join(_pick_summary(p) for p in rejected[:5]) if rejected else "None"
+
+    from utils.helpers import combined_odds as _co
+    joint_prob = 1.0
+    for p in proposed:
+        joint_prob *= (p.get("confidence", 50) / 100)
+    c_odds = _co([_pick_odds(p) for p in proposed])
+
+    prompt = f"""You are the final holistic reviewer of a tennis betting ticket.
+
+The mathematical optimizer has already applied: joint probability scoring, edge bonuses, weakest-pick penalty, extra-pick penalty, surface ELO, avg opponent ELO, fatigue, H2H reliability, and round context.
+
+PROPOSED TICKET ({len(proposed)} picks | Combined odds: {c_odds:.2f} | Joint probability: {joint_prob*100:.1f}%):
+{proposed_section}
+
+REJECTED CANDIDATES (closest to selection):
+{rejected_section}
+
+YOUR ROLE:
+Review the ticket holistically as an experienced tennis analyst. You may:
+A. CONFIRM — keep as-is
+B. MODIFY — replace 1-2 picks if tennis reasoning clearly overrules the math
+C. REDUCE — remove the weakest link if it makes the ticket fragile (never below 4 picks)
+D. FORCE — if ticket is weak, build the best possible 4-7 pick ticket from all available
+
+CHECK FOR: hidden fatigue, false recent form (weak opponents), surface/style mismatch, overlapping risk (too many picks with same vulnerability), data gaps (ELO 1500), BoF5 stamina implications, H2H small sample overweighting.
+
+HARD CONSTRAINTS:
+- Final ticket: 4-7 picks, combined odds 9-40 (or 6-40 if only 4 matches available)
+- Max 2 replacements
+- Never remove a strong pick just because odds are low
+- Never add a pick just to increase odds
+- Prefer stability over excitement
+
+Respond ONLY in this JSON format:
+{{
+  "decision": "CONFIRM|MODIFY|REDUCE|FORCE",
+  "final_picks": ["exact player name as given above", ...],
+  "changes": "No changes made. / Removed X, added Y because: ...",
+  "warning": "One sentence on the biggest risk to this ticket."
+}}"""
+
+    try:
+        client = _get_client()
+        response = client.messages.create(
+            model=CLAUDE_MODELS["ticket_writer"],
+            max_tokens=400,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        import re as _re
+        raw = response.content[0].text.strip()
+        raw = _re.sub(r'```(?:json)?\s*', '', raw).strip().strip('`')
+        result = json.loads(raw)
+
+        decision = result.get("decision", "CONFIRM")
+        final_names = result.get("final_picks", [])
+        changes = result.get("changes", "")
+        warning = result.get("warning", "")
+
+        if changes and changes != "No changes made.":
+            print(f"  Reviewer [{decision}]: {changes}")
+        if warning:
+            print(f"  Reviewer warning: {warning}")
+
+        if decision == "CONFIRM" or not final_names:
+            return proposed
+
+        # Match returned names back to prediction objects
+        all_pool = proposed + rejected
+        final_combo = []
+        for name in final_names:
+            name_lower = name.lower().strip()
+            for p in all_pool:
+                pick = (p.get("pick") or "").lower().strip()
+                if pick == name_lower or pick.split()[-1] == name_lower.split()[-1]:
+                    if p not in final_combo:
+                        final_combo.append(p)
+                        break
+
+        # Validate result — must be 4-7 picks and odds in range
+        if len(final_combo) >= cfg["min_matches"]:
+            rev_odds = combined_odds([_pick_odds(p) for p in final_combo])
+            if cfg["min_combined_odds"] <= rev_odds <= cfg["max_combined_odds"]:
+                return final_combo
+            print(f"  Reviewer result invalid odds ({rev_odds:.2f}) — keeping original.")
+        else:
+            print(f"  Reviewer returned {len(final_combo)} picks — keeping original.")
+
+        return proposed
+
+    except Exception as e:
+        print(f"  Reviewer error: {e} — keeping original ticket.")
+        return proposed
 
 
 def _generate_ticket_summary(matches: list, total_odds: float, pot_win: float, weights: dict) -> str:
