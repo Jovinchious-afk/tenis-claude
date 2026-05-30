@@ -73,7 +73,31 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
         candidates = candidates[:cfg["max_matches"]]
         print(f"Last resort: uzimam top {len(candidates)} pickova po confidence-u")
 
-    # Sortiraj quality-first: value pick > visoki confidence > razina turnira
+    # Edge override: picks with confidence 55-62% but edge >= 8pp enter the pool
+    # These are the "intuition/underdog" picks the market is undervaluing
+    edge_overrides = []
+    for p in predictions:
+        if p.get("skip_reason"):
+            continue
+        conf = p.get("confidence") or 0
+        if 55 <= conf < 63:
+            fair = p.get("fair_odds") or 0
+            bookmaker = _pick_odds(p)
+            if fair > 0 and bookmaker > 0:
+                edge = (1.0 / fair - 1.0 / bookmaker) * 100
+                if edge >= 8.0:
+                    level = p.get("match", {}).get("level", "")
+                    if level not in _NON_TICKET_LEVELS:
+                        edge_overrides.append(p)
+                        print(f"  Edge override: {p.get('pick','')} conf={conf}% edge={edge:.1f}pp")
+
+    # Merge: add overrides not already in candidates
+    candidate_ids = {id(p) for p in candidates}
+    for p in edge_overrides:
+        if id(p) not in candidate_ids:
+            candidates.append(p)
+
+    # Sort by score potential: value pick > high confidence > tournament level
     candidates.sort(key=lambda p: (
         _is_value_pick(p),
         (p.get("confidence") or 0),
@@ -138,9 +162,14 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
 
 def _find_best_combination(candidates: list, cfg: dict) -> Optional[list]:
     """
-    Nova strategija: traži kombinaciju 3-4 solidna favorita (conf>=72%) +
-    1-2 value autsajdera (conf>=60%, bookmaker kvota>=1.80, prava vrijednost).
-    Fallback: sve kombinacije unutar parametara ako nema dovoljno value pickova.
+    Quality-first scoring using joint probability as primary metric.
+    Formula:
+      score = joint_probability × 100
+            + edge_bonus × 1.5        (edge >= 3pp, proportional, cap 10/pick)
+            + high_conf_count × 2     (confidence >= 72%)
+            - weakest_pick_penalty    (max(0, 68 - min_conf) × 1.5)
+            - extra_pick_penalty      ((n_picks - 4) × 3)
+    Combined odds 9-40 is a hard filter, not a target.
     """
     min_n = cfg["min_matches"]
     max_n = cfg["max_matches"]
@@ -154,7 +183,6 @@ def _find_best_combination(candidates: list, cfg: dict) -> Optional[list]:
         if n > len(candidates):
             continue
         for combo in itertools.combinations(candidates, n):
-            # Nikad ne uzimaj pick s kvotom < 1.06
             if any(_pick_odds(p) < 1.06 for p in combo):
                 continue
 
@@ -162,20 +190,7 @@ def _find_best_combination(candidates: list, cfg: dict) -> Optional[list]:
             if odds < min_odds or odds > max_odds:
                 continue
 
-            avg_conf = sum(p.get("confidence", 0) for p in combo) / len(combo)
-            value_count = sum(1 for p in combo if _is_value_pick(p))
-            high_conf_count = sum(1 for p in combo if (p.get("confidence") or 0) >= 72)
-            gs_masters_count = sum(1 for p in combo
-                                   if TOURNAMENT_LEVELS.get(
-                                       p.get("match", {}).get("level", ""), 0) >= 85)
-
-            # Quality-first scoring: statistička kvaliteta je primarni kriterij
-            # Odds su samo filter (6-20), ne cilj — ne bonusiramo "pogađanje" nekog raspona
-            score = (avg_conf * 1.5          # primarno: prosječni confidence
-                     + value_count * 6        # bonus za prave value pickove (real odds > fair)
-                     + high_conf_count * 2    # bonus za high-conf (72%+) pickove
-                     + gs_masters_count * 1)  # mali bonus za GS/Masters kvalitetu podataka
-
+            score = _score_combo(combo)
             if score > best_score:
                 best_score = score
                 best = list(combo)
@@ -183,17 +198,52 @@ def _find_best_combination(candidates: list, cfg: dict) -> Optional[list]:
     return best
 
 
+def _score_combo(combo: tuple) -> float:
+    """Score a combination using joint probability as primary signal."""
+    confs = [max(1, p.get("confidence", 50)) for p in combo]
+
+    # Joint probability (primary) — product of all confidences
+    joint_prob = 1.0
+    for c in confs:
+        joint_prob *= c / 100.0
+
+    # Edge bonus: proportional, only if edge >= 3pp, cap 10 per pick
+    edge_total = 0.0
+    for p in combo:
+        fair = p.get("fair_odds") or 0
+        bookmaker = _pick_odds(p)
+        if fair > 0 and bookmaker > 0:
+            model_prob = 1.0 / fair * 100
+            implied_prob = 1.0 / bookmaker * 100
+            edge = model_prob - implied_prob
+            if edge >= 3.0:
+                edge_total += min(10.0, edge)
+
+    # High confidence bonus
+    high_conf_count = sum(1 for c in confs if c >= 72)
+
+    # Weakest pick penalty
+    weakest = min(confs)
+    weakest_penalty = max(0.0, (68 - weakest) * 1.5)
+
+    # Extra pick penalty
+    extra_penalty = (len(combo) - 4) * 3
+
+    return (joint_prob * 100
+            + edge_total * 1.5
+            + high_conf_count * 2
+            - weakest_penalty
+            - extra_penalty)
+
+
 def _is_value_pick(pred: dict) -> bool:
-    """Pravi value pick: bookmaker kvota >= 1.80, odds su stvarne (ne default), fair_odds povoljan."""
-    match = pred.get("match", {})
-    if not match.get("odds_available", True):
+    """Value pick: edge >= 3pp between our fair probability and bookmaker implied probability."""
+    fair = pred.get("fair_odds") or 0
+    bookmaker = _pick_odds(pred)
+    if fair <= 0 or bookmaker <= 0:
         return False
-    bookmaker_odds = _pick_odds(pred)
-    fair_odds = pred.get("fair_odds") or 0
-    if bookmaker_odds < 1.80 or fair_odds <= 0:
-        return False
-    # Value = bookmaker nudi barem 12% više od naše fair vrijednosti
-    return bookmaker_odds >= fair_odds * 1.12
+    edge = (1.0 / fair - 1.0 / bookmaker) * 100
+    return edge >= 3.0
 
 
 def _pick_odds(pred: dict) -> float:
