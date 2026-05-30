@@ -35,12 +35,16 @@ def run_evening_update() -> dict:
     print("=== Evening update ===")
     summary = {"resolved": 0, "won": 0, "lost": 0, "analyzed": 0, "weight_updated": False}
 
-    # One-time migration: reset old analyses generated with incorrect ELO data (1500 defaults)
-    # Only runs if all existing analyses contain the old Croatian-language format
+    # One-time migration: reset all old loss analyses so they are re-generated
+    # in English with corrected ELO data. Runs once until no analyzed losses remain.
     existing = db.get_analyzed_lost_matches(limit=1)
-    if existing and existing[0].get("loss_analysis", "").startswith("Analitičar"):
-        print("  Migrating loss analyses to English with corrected ELO data...")
-        db.reset_loss_analyses()
+    if existing:
+        analysis_text = existing[0].get("loss_analysis", "") or ""
+        # Detect old Croatian-language analyses by common Croatian words
+        is_old = any(w in analysis_text for w in ["Analiza", "Faktori", "Pogrešno", "Presudni", "Promjena", "greške", "faktor"])
+        if is_old:
+            count = db.reset_loss_analyses()
+            print(f"  Migrated {count} loss analyses to English (will re-generate this run).")
 
     # 1. Izgradi lookup player_id, tournament_id i fixture winner po imenu
     name_to_id = {}

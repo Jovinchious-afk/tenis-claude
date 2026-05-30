@@ -71,7 +71,13 @@ def main():
     matches_tomorrow = df.get_matches_for_date(tomorrow)
     all_matches = matches_today + matches_tomorrow
 
-    print(f"Pronađeno {len(matches_today)} mečeva danas, {len(matches_tomorrow)} sutra = {len(all_matches)} ukupno")
+    # Filter out live and finished matches — only schedule upcoming matches
+    live_removed = [m for m in all_matches if m.get("status") in ("live", "finished")]
+    all_matches = [m for m in all_matches if m.get("status") == "scheduled"]
+    if live_removed:
+        print(f"Filtered out {len(live_removed)} live/finished matches (only scheduled matches on ticket).")
+
+    print(f"Found {len(matches_today)} today, {len(matches_tomorrow)} tomorrow = {len(all_matches)} scheduled for analysis")
 
     # Sortiraj po razini turnira: GS > Masters > 500 > 250 > Challenger
     from config.model_config import TOURNAMENT_LEVELS
