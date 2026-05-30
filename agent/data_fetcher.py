@@ -471,24 +471,31 @@ def get_tennis_abstract_elo() -> dict:
             return {}
 
         # Pronađi indekse kolumni iz zaglavlja
+        # Tennis Abstract headers: ELO Rank | Player | Age | Elo | hElo Rank | hElo | cElo Rank | cElo | gElo Rank | gElo
         header_row = table.find("tr")
-        col_indices = {"name": 1, "elo": 2, "hard": 3, "clay": 4, "grass": 5}
+        col_indices = {"name": 1, "elo": 3, "hard": 5, "clay": 7, "grass": 9}
         if header_row:
             headers = [th.get_text(strip=True).lower() for th in header_row.find_all(["th", "td"])]
             for i, h in enumerate(headers):
                 if "player" in h or "name" in h:
                     col_indices["name"] = i
-                elif h in ("elo", "overall", "total") or (h == "elo" ):
+                elif h == "elo":
                     col_indices["elo"] = i
-                elif "hard" in h:
+                elif h == "helo":          # hard ELO value (ne rank)
                     col_indices["hard"] = i
-                elif "clay" in h:
+                elif h == "celo":          # clay ELO value
                     col_indices["clay"] = i
-                elif "grass" in h:
+                elif h == "gelo":          # grass ELO value
+                    col_indices["grass"] = i
+                elif "hard" in h and "rank" not in h:
+                    col_indices["hard"] = i
+                elif "clay" in h and "rank" not in h:
+                    col_indices["clay"] = i
+                elif "grass" in h and "rank" not in h:
                     col_indices["grass"] = i
 
         elo_data = {}
-        for row in table.find_all("tr")[1:300]:
+        for row in table.find_all("tr")[1:500]:  # 500 umjesto 300 — sigurnosna margina
             cols = row.find_all("td")
             if len(cols) < 3:
                 continue
@@ -518,14 +525,41 @@ def get_tennis_abstract_elo() -> dict:
 
 
 def find_player_elo(player_name: str, elo_data: dict) -> dict:
-    name_lower = player_name.lower()
-    if name_lower in elo_data:
-        return elo_data[name_lower]
-    surname = name_lower.split()[-1] if name_lower else ""
+    import unicodedata
+
+    def _normalize(s: str) -> str:
+        """Ukloni dijakritike i standardiziraj razmake."""
+        s = unicodedata.normalize("NFD", s)
+        s = "".join(c for c in s if unicodedata.category(c) != "Mn")
+        return s.lower().strip()
+
+    default = {"elo_overall": 1500, "elo_hard": 1500, "elo_clay": 1500, "elo_grass": 1500}
+    if not player_name:
+        return default
+
+    name_norm = _normalize(player_name)
+
+    # 1. Direktno podudaranje (normalizirano)
     for key in elo_data:
-        if surname and surname in key:
+        if _normalize(key) == name_norm:
             return elo_data[key]
-    return {"elo_overall": 1500, "elo_hard": 1500, "elo_clay": 1500, "elo_grass": 1500}
+
+    # 2. Poklapanje po prezimenu
+    surname = name_norm.split()[-1]
+    matches = [key for key in elo_data if surname in _normalize(key)]
+    if len(matches) == 1:
+        return elo_data[matches[0]]
+
+    # 3. Poklapanje prvog i zadnjeg dijela imena
+    parts = name_norm.split()
+    if len(parts) >= 2:
+        first, last = parts[0], parts[-1]
+        for key in elo_data:
+            k = _normalize(key)
+            if last in k and (first in k or k.startswith(first[0])):
+                return elo_data[key]
+
+    return default
 
 
 # ── ATP News ──────────────────────────────────────────────────────────────────
