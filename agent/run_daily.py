@@ -47,14 +47,26 @@ def main():
     from config.model_config import DEFAULT_WEIGHTS
     try:
         weights = db.get_active_weights()
-        # Migracija: ako stare težine još imaju odds_movement, upiši novu verziju bez njega
+        # Auto-migration: sync DB weights with DEFAULT_WEIGHTS if they differ
         if "odds_movement" in weights:
-            print("Migracija težina: uklanjam odds_movement, redistribuiram na recent_form i fatigue_injuries.")
+            print("Migration: removing odds_movement, saving v2.")
             db.save_new_weights(
                 DEFAULT_WEIGHTS,
-                "Uklonjen odds_movement faktor — model formira predikcije neovisno od tržišta. "
-                "Redistribuirano: recent_form +2% (18→20), fatigue_injuries +2% (12→14).",
-                "Automatska migracija v2"
+                "Removed odds_movement factor — model predicts independently of market. "
+                "Redistributed: recent_form +2% (18→20), fatigue_injuries +2% (12→14).",
+                "Auto migration v2"
+            )
+            weights = DEFAULT_WEIGHTS
+        elif any(abs(weights.get(k, 0) - v) > 0.1 for k, v in DEFAULT_WEIGHTS.items()):
+            print("Migration: DEFAULT_WEIGHTS changed — saving new version to DB.")
+            changes = [f"{k}: {weights.get(k, 0)}→{v}" for k, v in DEFAULT_WEIGHTS.items()
+                       if abs(weights.get(k, 0) - v) > 0.1]
+            db.save_new_weights(
+                DEFAULT_WEIGHTS,
+                f"Weight redistribution: {', '.join(changes)}. "
+                "ELO+Ranking 20→22%, Serve+Return 18→22%, Surface 23→20%, "
+                "Form 20→17%, Fatigue 14→13%, H2H 5→6%.",
+                "Auto migration v3"
             )
             weights = DEFAULT_WEIGHTS
         print(f"Učitane težine modela: {weights}")
