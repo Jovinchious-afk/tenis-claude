@@ -44,12 +44,22 @@ def main():
         print("DRY RUN MODE: tiket se neće spremiti u DB niti poslati emailom")
 
     # 1. Učitaj aktivne težine iz Supabase
+    from config.model_config import DEFAULT_WEIGHTS
     try:
         weights = db.get_active_weights()
+        # Migracija: ako stare težine još imaju odds_movement, upiši novu verziju bez njega
+        if "odds_movement" in weights:
+            print("Migracija težina: uklanjam odds_movement, redistribuiram na recent_form i fatigue_injuries.")
+            db.save_new_weights(
+                DEFAULT_WEIGHTS,
+                "Uklonjen odds_movement faktor — model formira predikcije neovisno od tržišta. "
+                "Redistribuirano: recent_form +2% (18→20), fatigue_injuries +2% (12→14).",
+                "Automatska migracija v2"
+            )
+            weights = DEFAULT_WEIGHTS
         print(f"Učitane težine modela: {weights}")
     except Exception as e:
         print(f"Greška učitavanja težina, koristim default: {e}")
-        from config.model_config import DEFAULT_WEIGHTS
         weights = DEFAULT_WEIGHTS
 
     # 2. Dohvati mečeve za danas i sutra
