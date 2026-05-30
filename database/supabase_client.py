@@ -200,6 +200,14 @@ def get_analyzed_lost_matches(limit: int = 20) -> list:
 
 # ── Model Weights ─────────────────────────────────────────────────────────────
 
+def get_active_weight_version_date() -> str:
+    """Returns the created_at date of the currently active model weights version."""
+    results = _select("model_weights", select="created_at", filters={"is_active": "eq.true"}, order="version.desc", limit=1)
+    if results:
+        return (results[0].get("created_at") or "")[:10]
+    return "2000-01-01"
+
+
 def get_active_weights() -> dict:
     results = _select("model_weights", filters={"is_active": "eq.true"}, order="version.desc", limit=1)
     if results:

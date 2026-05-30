@@ -265,10 +265,16 @@ def _maybe_update_weights(lost_matches: list) -> bool:
     Koristi SVE analizirane gubitke iz baze (ne samo tekući run).
     Potrebno minimalno 5 analiziranih grešaka ukupno.
     """
-    # Dohvati sve dosad analizirane gubitke iz baze
-    all_analyzed = db.get_analyzed_lost_matches(limit=20)
+    # Only use losses from matches played AFTER the current weights were activated.
+    # This ensures we correct the current model, not a previous version.
+    weights_active_since = db.get_active_weight_version_date()
+    all_analyzed_raw = db.get_analyzed_lost_matches(limit=40)
+    all_analyzed = [m for m in all_analyzed_raw
+                    if (m.get("match_date") or "") >= weights_active_since]
+
     if len(all_analyzed) < 5:
-        print(f"  Nedovoljno analiziranih gubitaka za weight update ({len(all_analyzed)}/5).")
+        print(f"  Not enough losses under current weights ({len(all_analyzed)}/5, "
+              f"weights active since {weights_active_since}).")
         return False
 
     current_weights = db.get_active_weights()
