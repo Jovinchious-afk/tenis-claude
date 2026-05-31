@@ -49,29 +49,40 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
             return False
         return not p.get("skip_reason") and (p.get("confidence") or 0) >= conf_threshold
 
-    # Kaskadni fallback: 63% → 58% → 55% → last resort (best 4 bez obzira)
+    # Challengeri i Qualifying NIKAD ne idu na tiket — hard filter
+    def _is_main_tour(p) -> bool:
+        level = p.get("match", {}).get("level", "")
+        # Reject anything that looks like a Challenger/ITF/Qualifying
+        low = level.lower()
+        if any(kw in low for kw in ["challenger", "qualifying", "itf", "future"]):
+            return False
+        return True
+
+    # Kaskadni fallback: 63% → 58% → 55% — Challengeri nikad
     thresholds = [
-        (cfg["min_confidence"],        False),   # faza 1: 63%, bez Challengera
-        (cfg["fallback_confidence"],   False),   # faza 2: 58%, bez Challengera
-        (cfg["last_resort_confidence"], False),  # faza 3: 55%, bez Challengera
-        (cfg["last_resort_confidence"], True),   # faza 4: 55%, uz Challengere s real odds
+        cfg["min_confidence"],         # faza 1: 63%
+        cfg["fallback_confidence"],    # faza 2: 58%
+        cfg["last_resort_confidence"], # faza 3: 55%
     ]
 
     candidates = []
-    for conf_threshold, allow_challengers in thresholds:
-        candidates = [p for p in predictions if _eligible(p, conf_threshold, allow_challengers)]
+    for conf_threshold in thresholds:
+        candidates = [p for p in predictions
+                      if not p.get("skip_reason")
+                      and (p.get("confidence") or 0) >= conf_threshold
+                      and _is_main_tour(p)]
         if len(candidates) >= cfg["min_matches"]:
             if conf_threshold < cfg["min_confidence"]:
-                print(f"Fallback: koristim conf >= {conf_threshold}%"
-                      f"{' (uključeni Challengeri)' if allow_challengers else ''}")
+                print(f"Fallback: using conf >= {conf_threshold}% (no Challengers)")
             break
 
-    # Zadnji resort: uzmi sve valjane predikcije bez obzira na razinu ili conf
+    # Zadnji resort: svi main-tour bez obzira na conf, ali NIKAD Challenger
     if len(candidates) < cfg["min_matches"]:
-        candidates = [p for p in predictions if not p.get("skip_reason")]
+        candidates = [p for p in predictions
+                      if not p.get("skip_reason") and _is_main_tour(p)]
         candidates.sort(key=lambda p: (p.get("confidence") or 0), reverse=True)
         candidates = candidates[:cfg["max_matches"]]
-        print(f"Last resort: uzimam top {len(candidates)} pickova po confidence-u")
+        print(f"Last resort: top {len(candidates)} main-tour picks by confidence")
 
     # Edge override: picks with confidence 55-62% but edge >= 8pp enter the pool
     # These are the "intuition/underdog" picks the market is undervaluing
@@ -86,8 +97,7 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
             if fair > 0 and bookmaker > 0:
                 edge = (1.0 / fair - 1.0 / bookmaker) * 100
                 if edge >= 8.0:
-                    level = p.get("match", {}).get("level", "")
-                    if level not in _NON_TICKET_LEVELS:
+                    if _is_main_tour(p):
                         edge_overrides.append(p)
                         print(f"  Edge override: {p.get('pick','')} conf={conf}% edge={edge:.1f}pp")
 
