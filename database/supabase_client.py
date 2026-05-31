@@ -251,3 +251,33 @@ def get_performance_history(days: int = 60) -> list:
 
 def save_analyzed_match(match_data: dict) -> None:
     _upsert("analyzed_matches", match_data, on_conflict="external_match_id")
+
+
+# ── ELO Cache ─────────────────────────────────────────────────────────────────
+
+def get_elo_cache() -> dict:
+    """Fetch all ELO entries from Supabase cache. Returns dict keyed by player_name.lower()."""
+    rows = _select("elo_cache", select="player_name,elo_overall,elo_hard,elo_clay,elo_grass", limit=2000)
+    result = {}
+    for r in rows:
+        name = (r.get("player_name") or "").lower().strip()
+        if name:
+            result[name] = {
+                "elo_overall": r.get("elo_overall") or 1500,
+                "elo_hard":    r.get("elo_hard")    or 1500,
+                "elo_clay":    r.get("elo_clay")    or 1500,
+                "elo_grass":   r.get("elo_grass")   or 1500,
+            }
+    return result
+
+
+def upsert_elo_cache(entries: list) -> None:
+    """Upsert list of ELO dicts with keys: player_name, elo_overall, elo_hard, elo_clay, elo_grass."""
+    if not entries:
+        return
+    # Batch in chunks of 200
+    for i in range(0, len(entries), 200):
+        batch = entries[i:i+200]
+        _rest("POST", "elo_cache", body=batch,
+              prefer="return=minimal,resolution=merge-duplicates",
+              params={"on_conflict": "player_name"})

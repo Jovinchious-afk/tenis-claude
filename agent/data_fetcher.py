@@ -481,16 +481,26 @@ def _name_match(a: str, b: str) -> bool:
 # ── Tennis Abstract ELO ───────────────────────────────────────────────────────
 
 def get_tennis_abstract_elo() -> dict:
+    """
+    Returns ELO data dict keyed by player name (lowercase).
+    Primary: reads from Supabase elo_cache (populated by scripts/update_elo_cache.py).
+    Fallback: scrapes Tennis Abstract directly (works from local IP, blocked on GitHub Actions).
+    """
+    from database import supabase_client as _db
+    cached = _db.get_elo_cache()
+    if cached:
+        print(f"ELO: loaded {len(cached)} players from Supabase cache.")
+        return cached
+    print("ELO cache empty — attempting direct scrape (may fail on GitHub Actions)...")
+
     url = "https://www.tennisabstract.com/reports/atp_elo_ratings.html"
     try:
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.9",
-            "Accept-Encoding": "gzip, deflate, br",
+            "Referer": "https://www.tennisabstract.com/",
             "Connection": "keep-alive",
-            "Upgrade-Insecure-Requests": "1",
-            "Cache-Control": "max-age=0",
         }
         r = requests.get(url, timeout=20, headers=headers)
         r.raise_for_status()

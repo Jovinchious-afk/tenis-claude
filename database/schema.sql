@@ -4,6 +4,16 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- ELO Cache (populated locally via scripts/update_elo_cache.py, read by GitHub Actions)
+CREATE TABLE IF NOT EXISTS elo_cache (
+    player_name TEXT PRIMARY KEY,
+    elo_overall FLOAT NOT NULL DEFAULT 1500,
+    elo_hard    FLOAT NOT NULL DEFAULT 1500,
+    elo_clay    FLOAT NOT NULL DEFAULT 1500,
+    elo_grass   FLOAT NOT NULL DEFAULT 1500,
+    updated_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Dnevni tiketi
 CREATE TABLE IF NOT EXISTS tickets (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
