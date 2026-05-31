@@ -345,6 +345,11 @@ Respond ONLY in this JSON format:
         import re as _re
         raw = response.content[0].text.strip()
         raw = _re.sub(r'```(?:json)?\s*', '', raw).strip().strip('`')
+        # Robust JSON parse — handles unterminated strings and literal newlines
+        start = raw.find('{')
+        end = raw.rfind('}')
+        if start != -1 and end > start:
+            raw = raw[start:end + 1]
         result = json.loads(raw)
 
         decision = result.get("decision", "CONFIRM")

@@ -262,7 +262,7 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         client = _get_client()
         response = client.messages.create(
             model=CLAUDE_MODELS["analysis"],
-            max_tokens=512,
+            max_tokens=900,
             messages=[{"role": "user", "content": prompt}]
         )
         raw = response.content[0].text.strip()

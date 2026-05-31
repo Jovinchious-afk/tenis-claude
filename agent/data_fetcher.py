@@ -576,17 +576,21 @@ def find_player_elo(player_name: str, elo_data: dict) -> dict:
     if not player_name:
         return default
 
-    name_norm = _normalize(player_name)
+    # Normalize hyphens to spaces — "Carreno-Busta" → "Carreno Busta"
+    name_norm = _normalize(player_name).replace("-", " ").replace("  ", " ")
     _elo_debug = len(elo_data) == 0  # warn if elo_data is empty
 
-    # 1. Direktno podudaranje (normalizirano)
+    def _norm_key(k):
+        return _normalize(k).replace("-", " ").replace("  ", " ")
+
+    # 1. Direktno podudaranje (normalizirano, bez crtica)
     for key in elo_data:
-        if _normalize(key) == name_norm:
+        if _norm_key(key) == name_norm:
             return elo_data[key]
 
-    # 2. Poklapanje po prezimenu
+    # 2. Poklapanje po prezimenu (zadnja riječ, bez crtica)
     surname = name_norm.split()[-1]
-    matches = [key for key in elo_data if surname in _normalize(key)]
+    matches = [key for key in elo_data if surname in _norm_key(key)]
     if len(matches) == 1:
         return elo_data[matches[0]]
 
@@ -595,7 +599,7 @@ def find_player_elo(player_name: str, elo_data: dict) -> dict:
     if len(parts) >= 2:
         first, last = parts[0], parts[-1]
         for key in elo_data:
-            k = _normalize(key)
+            k = _norm_key(key)
             if last in k and (first in k or k.startswith(first[0])):
                 return elo_data[key]
 
