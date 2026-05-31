@@ -195,6 +195,7 @@ def get_matches_for_date(date: datetime.date) -> list:
             "tournament_id": tournament_id,
             "surface":       surface,
             "round":         _round_from_id(g.get("roundId")),
+            "round_id":      int(g.get("roundId") or 0),
             "date":          date_str,
             "time":          str(g.get("timeGame", "") or ""),
             "winner_id":     str(g.get("match_winner") or g.get("winnerId") or ""),
@@ -557,6 +558,7 @@ def find_player_elo(player_name: str, elo_data: dict) -> dict:
         return default
 
     name_norm = _normalize(player_name)
+    _elo_debug = len(elo_data) == 0  # warn if elo_data is empty
 
     # 1. Direktno podudaranje (normalizirano)
     for key in elo_data:
@@ -578,6 +580,12 @@ def find_player_elo(player_name: str, elo_data: dict) -> dict:
             if last in k and (first in k or k.startswith(first[0])):
                 return elo_data[key]
 
+    # Log missed lookups so we can diagnose ELO matching issues
+    surname = name_norm.split()[-1] if name_norm else ""
+    surname_matches = [key for key in elo_data if surname in _normalize(key)]
+    print(f"  ELO MISS: '{player_name}' (norm='{name_norm}') → "
+          f"surname '{surname}' found {len(surname_matches)} candidates: "
+          f"{surname_matches[:3] if surname_matches else 'none'}")
     return default
 
 

@@ -197,7 +197,7 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         tournament=match.get("tournament", ""), level=match.get("level", "ATP 250"),
         surface=surface, round=match.get("round", ""), date=match.get("date", ""),
         format="Best of 3" if "Grand Slam" not in match.get("level", "") else "Best of 5",
-        round_context=_round_context(match.get("round", ""), match.get("level", "")),
+        round_context=_round_context(match.get("round", ""), match.get("level", ""), match.get("round_id", 0)),
 
         p1_age=p1.get("age", "N/A"), p1_hand=_format_hand(p1.get("hand", "")),
         p1_ranking=p1.get("ranking", "N/A"), p1_ranking_trend=p1.get("ranking_trend", "N/A"),
@@ -335,25 +335,41 @@ def _format_surface_record(surface_summary: dict, surface: str) -> str:
     return f"{data['wins']}W/{data['losses']}L ({data['win_pct']}%) u {data['matches']} mečeva"
 
 
-def _round_context(round_str: str, level: str) -> str:
-    """Contextual description of the round to help Claude calibrate confidence."""
-    r = round_str.upper().strip()
+def _round_context(round_str: str, level: str, round_id: int = 0) -> str:
+    """Contextual description of the round using numeric round_id (eliminates F ambiguity)."""
     is_gs = "Grand Slam" in level
     fmt = "Best of 5" if is_gs else "Best of 3"
-    if r in ("R128", "R1", "1R", "FIRST ROUND"):
-        return f"First round ({fmt}). Large skill gaps possible; qualifiers and lucky losers present. Higher upset potential."
-    if r in ("R64", "R2", "2R", "SECOND ROUND"):
-        return f"Second round ({fmt}). Qualifiers mostly gone. Some upsets still common."
-    if r in ("R32", "R3", "3R", "THIRD ROUND"):
-        return f"Third round ({fmt}). Field significantly reduced. Top players usually through."
-    if r in ("R16", "4R", "FOURTH ROUND", "ROUND OF 16"):
-        return f"Round of 16 ({fmt}). Only proven performers remain. Upsets less frequent."
-    if r in ("QF", "QUARTERFINAL", "QUARTER-FINAL", "1/4"):
-        return f"Quarterfinal ({fmt}). Elite level — all 8 players have proven themselves over 4-5 matches. Physical fatigue starts to matter."
-    if r in ("SF", "SEMIFINAL", "SEMI-FINAL", "1/2"):
-        return f"Semifinal ({fmt}). Top 4 players in the draw. Both players battle-hardened. Fatigue and mental strength decisive."
-    if r in ("F", "FINAL", "FINALE"):
-        return f"Final ({fmt}). Both finalists proven over 6 matches. Upsets rare but possible. Psychological pressure and physical condition critical."
+
+    # Prefer numeric ID — avoids the "F" ambiguity (API uses F for both Final and sometimes other rounds)
+    if round_id:
+        _ctx = {
+            1: f"First round ({fmt}). Large skill gaps possible; qualifiers and lucky losers present. Higher upset potential.",
+            2: f"Second round ({fmt}). Qualifiers mostly gone. Some upsets still common.",
+            3: f"Third round ({fmt}). Field significantly reduced. Top players usually through.",
+            4: f"Round of 16 ({fmt}). Only proven performers remain. Upsets less frequent.",
+            5: f"Quarterfinal ({fmt}). Elite level — all 8 players proven over 4-5 matches. Physical fatigue starts to matter.",
+            6: f"Semifinal ({fmt}). Top 4 in the draw. Both battle-hardened. Fatigue and mental strength decisive.",
+            7: f"Final ({fmt}). Both finalists proven over 6+ matches. Psychological pressure and physical condition critical.",
+        }
+        if round_id in _ctx:
+            return _ctx[round_id]
+
+    # String fallback
+    r = round_str.upper().strip()
+    if r in ("R128", "R1"):
+        return f"First round ({fmt})."
+    if r in ("R64", "R2"):
+        return f"Second round ({fmt})."
+    if r in ("R32", "R3"):
+        return f"Third round ({fmt}). Field significantly reduced."
+    if r in ("R16", "R4"):
+        return f"Round of 16 ({fmt}). Only proven performers remain."
+    if r == "QF":
+        return f"Quarterfinal ({fmt}). Elite level — physical fatigue starts to matter."
+    if r == "SF":
+        return f"Semifinal ({fmt}). Both players battle-hardened. Fatigue decisive."
+    if r == "F":
+        return f"Final ({fmt}). Both finalists proven over 6+ matches."
     return f"Round: {round_str} ({fmt})."
 
 
