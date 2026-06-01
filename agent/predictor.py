@@ -88,6 +88,8 @@ BP saved: {p1_bp_saved} | BP converted: {p1_break_conv}
 Return pts won: {p1_return_won}% (break proxy)
 --- Physical condition ---
 Matches last 7 days: {p1_matches_7d} | Sets last 7 days: {p1_sets_7d} | Days rest: {p1_days_rest} | Age: {p1_age}
+Current tournament path: {p1_tourn_path}
+Form trend: {p1_form_trend}
 Known injuries/news: {p1_news}
 
 === {player2} ===
@@ -107,6 +109,8 @@ BP saved: {p2_bp_saved} | BP converted: {p2_break_conv}
 Return pts won: {p2_return_won}% (break proxy)
 --- Physical condition ---
 Matches last 7 days: {p2_matches_7d} | Sets last 7 days: {p2_sets_7d} | Days rest: {p2_days_rest} | Age: {p2_age}
+Current tournament path: {p2_tourn_path}
+Form trend: {p2_form_trend}
 Known injuries/news: {p2_news}
 
 === H2H ===
@@ -118,6 +122,7 @@ H2H reliability: {h2h_reliability}
 
 === CONTEXT ===
 Conditions: {weather}
+Altitude: {altitude}
 Tournament history {player1}: {p1_tournament_history}
 Tournament history {player2}: {p2_tournament_history}
 {odds_alert}
@@ -218,6 +223,8 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         p1_sets_7d=p1.get("sets_7d", 0) or "N/A",
         p1_last_match=p1.get("last_match_date", "N/A"),
         p1_days_rest=p1_days_rest,
+        p1_tourn_path=p1.get("tournament_path", "N/A"),
+        p1_form_trend=p1.get("form_trend", "N/A"),
         p1_news=p1.get("news", "No news") or "No news",
 
         p2_age=p2.get("age", "N/A"), p2_hand=_format_hand(p2.get("hand", "")),
@@ -239,6 +246,8 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         p2_sets_7d=p2.get("sets_7d", 0) or "N/A",
         p2_last_match=p2.get("last_match_date", "N/A"),
         p2_days_rest=p2_days_rest,
+        p2_tourn_path=p2.get("tournament_path", "N/A"),
+        p2_form_trend=p2.get("form_trend", "N/A"),
         p2_news=p2.get("news", "No news") or "No news",
 
         h2h_overall=f"{h2h.get('p1_wins', 0)}-{h2h.get('p2_wins', 0)} (total {h2h.get('total', 0)})",
@@ -248,6 +257,7 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         h2h_reliability=_h2h_reliability(h2h),
 
         weather=match.get("weather", "N/A"),
+        altitude=match.get("altitude", "Normal altitude"),
         p1_tournament_history=_format_tournament_record(p1.get("tournament_record", {})),
         p2_tournament_history=_format_tournament_record(p2.get("tournament_record", {})),
         odds_alert=_odds_alert(odds_p1, odds_p2, match["player1"], match["player2"]),

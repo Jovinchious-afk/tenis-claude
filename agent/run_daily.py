@@ -201,6 +201,19 @@ def main():
             p1_avg_opp_elo = _avg_opponent_elo(p1_form.get("matches", []), elo_data)
             p2_avg_opp_elo = _avg_opponent_elo(p2_form.get("matches", []), elo_data)
 
+            # Current tournament path — sets/scores dropped this week
+            p1_tourn_path = _tournament_path(p1_form.get("matches", []), tournament_id)
+            p2_tourn_path = _tournament_path(p2_form.get("matches", []), tournament_id)
+
+            # Form trend — last 3 vs previous 7
+            p1_trend = _form_trend(p1_form.get("matches", []))
+            p2_trend = _form_trend(p2_form.get("matches", []))
+
+            # Altitude context
+            altitude = _altitude_context(match.get("tournament", ""))
+            if altitude:
+                match["altitude"] = altitude
+
             # H2H
             h2h = df.get_h2h(p1_id, p2_id) if p1_id and p2_id else {}
 
@@ -225,6 +238,8 @@ def main():
                        "surface_summary": p1_surface_summary,
                        "tournament_record": p1_tournament_rec,
                        "avg_opp_elo": p1_avg_opp_elo,
+                       "tournament_path": p1_tourn_path,
+                       "form_trend": p1_trend,
                        }
 
             p2_data = {**p2_info, **p2_stats,
@@ -241,6 +256,8 @@ def main():
                        "surface_summary": p2_surface_summary,
                        "tournament_record": p2_tournament_rec,
                        "avg_opp_elo": p2_avg_opp_elo,
+                       "tournament_path": p2_tourn_path,
+                       "form_trend": p2_trend,
                        }
 
             matches_with_data.append({
@@ -372,6 +389,59 @@ def _count_sets_last_n_days(matches: list, n: int) -> int:
         except Exception:
             pass
     return total_sets
+
+
+def _tournament_path(form_matches: list, tournament_id: str) -> str:
+    """Summarize player's current tournament run — sets/score context for fatigue."""
+    current = [m for m in form_matches if str(m.get("tournament_id", "")) == str(tournament_id)]
+    if not current:
+        return "N/A (not yet tracked this tournament)"
+    wins = sum(1 for m in current if m.get("won"))
+    losses = sum(1 for m in current if not m.get("won"))
+    total_sets = sum(m.get("sets_played", 0) or 0 for m in current)
+    scores = [m.get("score", "") for m in current if m.get("score")]
+    score_str = " | ".join(scores) if scores else "scores N/A"
+    return f"{wins}W/{losses}L, {total_sets} sets played | Scores: {score_str}"
+
+
+def _form_trend(matches: list) -> str:
+    """Compare last 3 vs matches 4-10 to detect improving/declining form."""
+    if len(matches) < 4:
+        return "N/A"
+    recent3 = matches[:3]
+    older = matches[3:10]
+    r_wins = sum(1 for m in recent3 if m.get("won"))
+    o_wins = sum(1 for m in older if m.get("won"))
+    o_total = len(older)
+    r_rate = r_wins / 3
+    o_rate = o_wins / o_total if o_total else 0
+    if r_rate > o_rate + 0.2:
+        trend = "IMPROVING"
+    elif r_rate < o_rate - 0.2:
+        trend = "DECLINING"
+    else:
+        trend = "STABLE"
+    return f"Last 3: {r_wins}/3 | Prev {o_total}: {o_wins}/{o_total} → {trend}"
+
+
+# High-altitude tournaments — affects ball speed, serve dominance, endurance
+_ALTITUDE_M = {
+    "bogota": 2638, "quito": 2850, "mexico city": 2240,
+    "mexico": 2240, "monterrey": 538, "lima": 154,
+    "johannesburg": 1753, "santiago": 520,
+}
+
+
+def _altitude_context(tournament_name: str) -> str:
+    """Returns altitude context if tournament city is at significant altitude (>1000m)."""
+    city = _city_for_weather(tournament_name).lower()
+    for key, alt in _ALTITUDE_M.items():
+        if key in city:
+            if alt >= 1500:
+                return f"HIGH ALTITUDE ({alt}m) — ball flies faster, serve dominates more, endurance harder"
+            elif alt >= 800:
+                return f"MODERATE ALTITUDE ({alt}m) — slight effect on ball speed and stamina"
+    return ""
 
 
 def _last_match_date(matches: list) -> str:
