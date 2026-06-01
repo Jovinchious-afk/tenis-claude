@@ -772,21 +772,55 @@ def get_player_tournament_record(player_id: str, tournament_id: str) -> dict:
     return result
 
 
-def get_weather_for_tournament(city: str) -> dict:
+def get_weather_for_tournament(city: str, forecast_date: str = None) -> dict:
+    """
+    Fetch weather for a tournament city.
+    - forecast_date=None or today → current weather (/data/2.5/weather)
+    - forecast_date=tomorrow     → forecast API (/data/2.5/forecast), picks midday entry
+    """
     if not WEATHER_KEY or not city:
         return {}
+    import datetime as _dt
+    today_str = _dt.date.today().isoformat()
+    use_forecast = forecast_date and forecast_date != today_str
+
     try:
-        data = _get_external(
-            "https://api.openweathermap.org/data/2.5/weather",
-            params={"q": city, "appid": WEATHER_KEY, "units": "metric"}
-        )
-        if data:
+        if use_forecast:
+            data = _get_external(
+                "https://api.openweathermap.org/data/2.5/forecast",
+                params={"q": city, "appid": WEATHER_KEY, "units": "metric", "cnt": 16}
+            )
+            if not data:
+                return {}
+            # Find the forecast entry closest to target date at midday (12:00)
+            target = f"{forecast_date} 12:00:00"
+            entries = data.get("list", [])
+            entry = None
+            for e in entries:
+                if e.get("dt_txt", "").startswith(forecast_date):
+                    entry = e
+                    if "12:00" in e.get("dt_txt", ""):
+                        break
+            if not entry:
+                return {}
             return {
-                "temp_c":    data.get("main", {}).get("temp"),
-                "humidity":  data.get("main", {}).get("humidity"),
-                "wind_kmh":  round(safe_float(data.get("wind", {}).get("speed", 0)) * 3.6, 1),
-                "condition": data.get("weather", [{}])[0].get("main", ""),
+                "temp_c":    entry.get("main", {}).get("temp"),
+                "humidity":  entry.get("main", {}).get("humidity"),
+                "wind_kmh":  round(safe_float(entry.get("wind", {}).get("speed", 0)) * 3.6, 1),
+                "condition": entry.get("weather", [{}])[0].get("main", ""),
             }
+        else:
+            data = _get_external(
+                "https://api.openweathermap.org/data/2.5/weather",
+                params={"q": city, "appid": WEATHER_KEY, "units": "metric"}
+            )
+            if data:
+                return {
+                    "temp_c":    data.get("main", {}).get("temp"),
+                    "humidity":  data.get("main", {}).get("humidity"),
+                    "wind_kmh":  round(safe_float(data.get("wind", {}).get("speed", 0)) * 3.6, 1),
+                    "condition": data.get("weather", [{}])[0].get("main", ""),
+                }
     except Exception:
         pass
     return {}

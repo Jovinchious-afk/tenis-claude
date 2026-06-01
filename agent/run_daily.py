@@ -151,22 +151,30 @@ def main():
 
     # 6b. Dohvati vremenske uvjete za svaki turnir (jednom po gradu)
     print("Dohvaćam vremenske uvjete...")
+    # Cache by (city, date) so today and tomorrow get separate weather
     weather_cache = {}
+    today_str = format_date(today)
+    tomorrow_str = format_date(tomorrow)
     for match in all_matches:
         city = _city_for_weather(match.get("tournament", ""))
-        if city and city not in weather_cache:
-            w = df.get_weather_for_tournament(city)
+        match_date = match.get("date", today_str)
+        cache_key = (city, match_date)
+        if city and cache_key not in weather_cache:
+            w = df.get_weather_for_tournament(city, forecast_date=match_date)
             if w:
-                weather_cache[city] = (
+                label = "forecast" if match_date != today_str else "current"
+                weather_str = (
                     f"{w['temp_c']}°C, {w['condition']}, "
-                    f"Vjetar: {w['wind_kmh']} km/h, Vlaga: {w['humidity']}%"
+                    f"Wind: {w['wind_kmh']} km/h, Humidity: {w['humidity']}% ({label})"
                 )
-                print(f"  {city}: {weather_cache[city]}")
+                weather_cache[cache_key] = weather_str
+                print(f"  {city} ({match_date}): {weather_str}")
             else:
-                weather_cache[city] = "N/A"
+                weather_cache[cache_key] = "N/A"
     for match in all_matches:
         city = _city_for_weather(match.get("tournament", ""))
-        match["weather"] = weather_cache.get(city, "N/A")
+        match_date = match.get("date", today_str)
+        match["weather"] = weather_cache.get((city, match_date), "N/A")
 
     # 7. Za svaki meč dohvati podatke o igračima
     print(f"\nDohvaćam podatke za {len(all_matches)} mečeva...")
