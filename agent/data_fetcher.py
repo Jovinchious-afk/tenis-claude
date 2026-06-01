@@ -291,6 +291,27 @@ def get_h2h(player1_id: str, player2_id: str) -> dict:
     }
 
 
+def _get_age(p: dict) -> int:
+    """Extract age from API response. Tries direct age field first,
+    then calculates from dateOfBirth if age is missing."""
+    age = safe_int(p.get("age") or p.get("playerAge") or p.get("currentAge"))
+    if age and 14 <= age <= 45:
+        return age
+    # Try calculating from date of birth
+    dob_raw = (p.get("dateOfBirth") or p.get("dob") or
+               p.get("birthDate") or p.get("born") or "")
+    if dob_raw:
+        try:
+            import datetime as _dt
+            dob_str = str(dob_raw)[:10]  # take YYYY-MM-DD part
+            dob = _dt.date.fromisoformat(dob_str)
+            today = _dt.date.today()
+            return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+        except Exception:
+            pass
+    return None
+
+
 def get_player_info(player_id: str) -> dict:
     """
     Endpoint: GET /atp/player/profile/{player_id}
@@ -314,7 +335,7 @@ def get_player_info(player_id: str) -> dict:
                                    or p.get("ranking") or p.get("atp_rank") or p.get("currentRank")),
         "ranking_points": safe_int(ranking_data.get("singles_points") or ranking_data.get("singlesPoints")
                                    or p.get("ranking_points") or p.get("rankingPoints")),
-        "age":            safe_int(p.get("age")),
+        "age":            _get_age(p),
         "height":         str(p.get("height", "") or p.get("heightCm", "")),
         "hand":           p.get("hand", "") or p.get("plays", "") or p.get("playingHand", ""),
     }
