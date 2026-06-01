@@ -87,7 +87,7 @@ Total serve points won: {p1_serve_pts_won}% | Hold % (est.): {p1_hold_pct}%
 BP saved: {p1_bp_saved} | BP converted: {p1_break_conv}
 Return pts won: {p1_return_won}% (break proxy)
 --- Physical condition ---
-Matches last 7 days: {p1_matches_7d} | Days rest: {p1_days_rest} | Age: {p1_age}
+Matches last 7 days: {p1_matches_7d} | Sets last 7 days: {p1_sets_7d} | Days rest: {p1_days_rest} | Age: {p1_age}
 Known injuries/news: {p1_news}
 
 === {player2} ===
@@ -106,7 +106,7 @@ Total serve points won: {p2_serve_pts_won}% | Hold % (est.): {p2_hold_pct}%
 BP saved: {p2_bp_saved} | BP converted: {p2_break_conv}
 Return pts won: {p2_return_won}% (break proxy)
 --- Physical condition ---
-Matches last 7 days: {p2_matches_7d} | Days rest: {p2_days_rest} | Age: {p2_age}
+Matches last 7 days: {p2_matches_7d} | Sets last 7 days: {p2_sets_7d} | Days rest: {p2_days_rest} | Age: {p2_age}
 Known injuries/news: {p2_news}
 
 === H2H ===
@@ -215,6 +215,7 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         p1_break_conv=p1.get("break_points_converted", "N/A"),
         p1_return_won=p1.get("return_points_won", "N/A"),
         p1_matches_7d=p1.get("matches_7d", 0),
+        p1_sets_7d=p1.get("sets_7d", 0) or "N/A",
         p1_last_match=p1.get("last_match_date", "N/A"),
         p1_days_rest=p1_days_rest,
         p1_news=p1.get("news", "No news") or "No news",
@@ -235,6 +236,7 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         p2_break_conv=p2.get("break_points_converted", "N/A"),
         p2_return_won=p2.get("return_points_won", "N/A"),
         p2_matches_7d=p2.get("matches_7d", 0),
+        p2_sets_7d=p2.get("sets_7d", 0) or "N/A",
         p2_last_match=p2.get("last_match_date", "N/A"),
         p2_days_rest=p2_days_rest,
         p2_news=p2.get("news", "No news") or "No news",

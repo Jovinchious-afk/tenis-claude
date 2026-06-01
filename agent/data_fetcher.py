@@ -241,12 +241,25 @@ def get_recent_form(player_id: str, n: int = 10) -> dict:
         else:
             losses += 1
         tid = str(g.get("tournamentId", ""))
+
+        # Extract sets played — use direct field or count from score string
+        sets_played = safe_int(g.get("sets") or g.get("totalSets") or g.get("setsPlayed"))
+        if not sets_played:
+            score_str = str(g.get("score") or g.get("result") or g.get("matchScore") or "")
+            if score_str:
+                # Count sets from score like "6-4 7-5" or "6-4 4-6 7-5"
+                sets_played = len([s for s in score_str.split() if "-" in s and len(s) <= 5])
+        if not sets_played:
+            sets_played = 0
+
         result_matches.append({
             "date":       str(g.get("date", ""))[:10],
             "won":        won,
             "opponent":   opp,
             "tournament_id": tid,
-            "surface":    "",  # surface fetched separately via tournament calendar
+            "surface":    "",
+            "sets_played": sets_played,
+            "score":      str(g.get("score") or g.get("result") or ""),
         })
     return {"wins": wins, "losses": losses, "matches": result_matches}
 

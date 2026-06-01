@@ -218,6 +218,7 @@ def main():
                        "elo_hard": p1_elo.get("elo_hard", 1500),
                        "elo_grass": p1_elo.get("elo_grass", 1500),
                        "matches_7d": _count_matches_last_n_days(p1_form.get("matches", []), 7),
+                       "sets_7d": _count_sets_last_n_days(p1_form.get("matches", []), 7),
                        "last_match_date": _last_match_date(p1_form.get("matches", [])),
                        "ranking": p1_info.get("ranking") or atp_rankings.get(match["player1"], 999),
                        "news": _extract_player_news(match["player1"], injury_news),
@@ -233,6 +234,7 @@ def main():
                        "elo_hard": p2_elo.get("elo_hard", 1500),
                        "elo_grass": p2_elo.get("elo_grass", 1500),
                        "matches_7d": _count_matches_last_n_days(p2_form.get("matches", []), 7),
+                       "sets_7d": _count_sets_last_n_days(p2_form.get("matches", []), 7),
                        "last_match_date": _last_match_date(p2_form.get("matches", [])),
                        "ranking": p2_info.get("ranking") or atp_rankings.get(match["player2"], 999),
                        "news": _extract_player_news(match["player2"], injury_news),
@@ -353,6 +355,23 @@ def _count_matches_last_n_days(matches: list, n: int) -> int:
         except Exception:
             pass
     return count
+
+
+def _count_sets_last_n_days(matches: list, n: int) -> int:
+    """Total sets played in last n days — better fatigue indicator than match count."""
+    from utils.helpers import today_zagreb
+    cutoff = today_zagreb() - datetime.timedelta(days=n)
+    total_sets = 0
+    for m in matches:
+        try:
+            d = datetime.date.fromisoformat(m.get("date", "")[:10])
+            if d >= cutoff:
+                sets = m.get("sets_played", 0) or 0
+                # If no set data, estimate: assume avg 2.5 sets per match (between straight sets and full distance)
+                total_sets += sets if sets > 0 else 0
+        except Exception:
+            pass
+    return total_sets
 
 
 def _last_match_date(matches: list) -> str:
