@@ -186,8 +186,9 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
     p1_surface_record = _format_surface_record(p1.get("surface_summary", {}), surface)
     p2_surface_record = _format_surface_record(p2.get("surface_summary", {}), surface)
 
-    p1_days_rest = _days_since(p1.get("last_match_date", ""))
-    p2_days_rest = _days_since(p2.get("last_match_date", ""))
+    match_date = match.get("date", "")
+    p1_days_rest = _days_since(p1.get("last_match_date", ""), reference_date=match_date)
+    p2_days_rest = _days_since(p2.get("last_match_date", ""), reference_date=match_date)
 
     h2h_surface_key = surface.lower().split()[0]
     h2h_surface_data = h2h.get(h2h_surface_key, {})
@@ -396,15 +397,18 @@ def _odds_alert(odds_p1: float, odds_p2: float, name_p1: str, name_p2: str) -> s
     return ""
 
 
-def _days_since(date_str: str) -> str:
-    """Broj dana od zadnjeg meča do danas."""
+def _days_since(date_str: str, reference_date: str = None) -> str:
+    """Days of rest = match_date - last_match_date.
+    Uses actual match date so tomorrow's matches correctly get +1 day of rest."""
     if not date_str or date_str == "N/A":
         return "N/A"
     try:
         import datetime
-        d = datetime.date.fromisoformat(str(date_str)[:10])
-        days = (datetime.date.today() - d).days
-        return f"{days} dana"
+        last = datetime.date.fromisoformat(str(date_str)[:10])
+        ref = (datetime.date.fromisoformat(str(reference_date)[:10])
+               if reference_date else datetime.date.today())
+        days = (ref - last).days
+        return f"{days} days"
     except Exception:
         return "N/A"
 
