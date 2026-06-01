@@ -169,6 +169,9 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
         "stake": cfg["stake"],
         "matches_count": len(ticket_matches),
         "ticket_summary": summary,
+        "reviewer_decision": _last_reviewer_notes.get("decision", ""),
+        "reviewer_changes": _last_reviewer_notes.get("changes", ""),
+        "reviewer_warning": _last_reviewer_notes.get("warning", ""),
         "status": "pending",
         "matches": ticket_matches,
     }
@@ -270,6 +273,9 @@ def _pick_odds(pred: dict) -> float:
     return float(m.get("odds_p2", 1.5) or 1.5)
 
 
+_last_reviewer_notes: dict = {}  # module-level cache for reviewer output
+
+
 def _review_ticket(proposed: list, rejected: list, cfg: dict) -> list:
     """
     Claude Sonnet reviews the mathematically selected ticket holistically.
@@ -356,6 +362,14 @@ Respond ONLY in this JSON format:
         final_names = result.get("final_picks", [])
         changes = result.get("changes", "")
         warning = result.get("warning", "")
+
+        # Store reviewer notes for inclusion in ticket
+        _last_reviewer_notes.clear()
+        _last_reviewer_notes.update({
+            "decision": decision,
+            "changes": changes,
+            "warning": warning,
+        })
 
         if changes and changes != "No changes made.":
             print(f"  Reviewer [{decision}]: {changes}")

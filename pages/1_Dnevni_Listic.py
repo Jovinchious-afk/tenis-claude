@@ -71,6 +71,21 @@ if ticket.get("ticket_summary"):
     with st.expander("📝 Ticket write-up", expanded=True):
         st.markdown(ticket["ticket_summary"])
 
+        # Reviewer notes — always show if available
+        rev_decision = ticket.get("reviewer_decision", "")
+        rev_changes = ticket.get("reviewer_changes", "")
+        rev_warning = ticket.get("reviewer_warning", "")
+
+        if rev_decision or rev_changes or rev_warning:
+            st.markdown("---")
+            st.markdown("**🤖 Analyst Reviewer:**")
+            if rev_decision and rev_decision != "CONFIRM":
+                st.info(f"**Decision: {rev_decision}** — {rev_changes}")
+            elif rev_changes and rev_changes != "No changes made.":
+                st.info(f"**Decision: {rev_decision}** — {rev_changes}")
+            if rev_warning:
+                st.warning(f"⚠️ {rev_warning}")
+
 st.markdown("---")
 
 # Parovi
