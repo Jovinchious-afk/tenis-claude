@@ -338,7 +338,7 @@ Pay particular attention to:
 - Is fatigue/form or ELO/ranking consistently underestimated?
 
 CONSTRAINTS:
-- Max change ±{WEIGHT_ADJUSTMENT['step']}% per factor
+- Max change ±{WEIGHT_ADJUSTMENT['step']}% per factor (use 0.5-1% for weak/unclear patterns, 2-3% for very consistent patterns across 5+ losses)
 - Total must remain 100%
 - Min weight per factor: {WEIGHT_ADJUSTMENT['min_weight']}%
 - Max weight per factor: {WEIGHT_ADJUSTMENT['max_weight']}%

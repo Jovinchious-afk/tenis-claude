@@ -53,10 +53,10 @@ DAILY_MATCH_LIMITS = {
 }
 
 WEIGHT_ADJUSTMENT = {
-    "step": 0.5,        # % po korekciji
-    "max_shift": 3.0,   # max ukupna promjena od početka
-    "min_weight": 1.0,  # nijedna težina ne može ići ispod 1%
-    "max_weight": 35.0, # nijedna težina ne može ići iznad 35%
+    "step": 3.0,        # max % per correction (Claude decides 0.5-3 based on pattern strength)
+    "max_shift": 8.0,   # max total shift from starting point
+    "min_weight": 1.0,  # no factor can drop below 1%
+    "max_weight": 35.0, # no factor can exceed 35%
 }
 
 CLAUDE_MODELS = {

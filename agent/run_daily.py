@@ -100,6 +100,9 @@ def main():
 
     print(f"Found {len(matches_today)} today + {len(matches_tomorrow)} tomorrow → {len(all_matches)} main-tour scheduled")
 
+    # Fix unreliable round labels using match count per tournament per day
+    all_matches = _infer_rounds(all_matches)
+
     # Sortiraj po razini turnira: GS > Masters > 500 > 250 > Challenger
     from config.model_config import TOURNAMENT_LEVELS
     all_matches.sort(key=lambda m: (
@@ -386,6 +389,70 @@ def _city_for_weather(tournament_name: str) -> str:
         if tournament_name.endswith(suffix):
             return tournament_name[:-len(suffix)].strip()
     return tournament_name.strip()
+
+
+def _infer_rounds(matches: list) -> list:
+    """
+    Fix unreliable round labels from the API by counting matches per
+    (tournament, date). The API often returns roundId=7 ('F') for non-final
+    rounds. We override when multiple matches from the same GS/Masters are
+    labeled 'F' on the same day — which is impossible for a real final.
+
+    Grand Slam per-day counts → round:
+      ≥ 16 → R128/R64 (1st/2nd round)
+      8-15 → R32 (3rd round)
+      5-7  → R16 (4th round / osmina finala)
+      4    → QF (četvrtfinale)
+      2-3  → SF (polufinale)
+      1    → F  (finale)
+
+    Masters 1000 per-day counts → round:
+      ≥ 8  → early rounds
+      4    → QF
+      2    → SF
+      1    → F
+    """
+    from collections import defaultdict
+
+    _ROUND_ID = {"R128": 1, "R64": 2, "R32": 3, "R16": 4, "QF": 5, "SF": 6, "F": 7}
+
+    # Count all scheduled matches per (tournament, date) — before any cap
+    counts: dict = defaultdict(list)
+    for m in matches:
+        key = (m.get("tournament", ""), m.get("date", ""))
+        counts[key].append(m)
+
+    for (tournament, date), group in counts.items():
+        n = len(group)
+        level = group[0].get("level", "")
+
+        if "Grand Slam" in level:
+            if n >= 16:   inferred = "R64"
+            elif n >= 8:  inferred = "R32"
+            elif n >= 5:  inferred = "R16"
+            elif n == 4:  inferred = "QF"
+            elif n in (2, 3): inferred = "SF"
+            else:         inferred = "F"   # n == 1 → genuine final
+        elif "Masters 1000" in level:
+            if n >= 8:    inferred = "R32"
+            elif n >= 5:  inferred = "R16"
+            elif n == 4:  inferred = "QF"
+            elif n in (2, 3): inferred = "SF"
+            else:         inferred = "F"
+        else:
+            # ATP 500/250 — smaller draws, less strict inference
+            if n >= 4:    inferred = "QF"
+            elif n in (2, 3): inferred = "SF"
+            else:         inferred = "F"
+
+        current_round = group[0].get("round", "")
+        if current_round != inferred:
+            print(f"  Round fix: {tournament} ({date}) — {current_round} → {inferred} ({n} matches)")
+            for m in group:
+                m["round"] = inferred
+                m["round_id"] = _ROUND_ID.get(inferred, 0)
+
+    return matches
 
 
 def _extract_player_news(player_name: str, all_news: str) -> str:
