@@ -129,9 +129,27 @@ def run_evening_update() -> dict:
 
     # 3. Analiziraj izgubljene parove
     lost_matches = db.get_lost_matches_needing_analysis()
+
+    # Build lookup of already-analyzed matches so duplicates can reuse the analysis
+    already_analyzed = db.get_analyzed_lost_matches(limit=100)
+    analysis_cache: dict[tuple, str] = {}
+    for am in already_analyzed:
+        key = (am.get("player1","").lower().strip(), am.get("player2","").lower().strip(), am.get("match_date",""))
+        if key not in analysis_cache and am.get("loss_analysis"):
+            analysis_cache[key] = am["loss_analysis"]
+
     for lm in lost_matches[:5]:
         p1_key = lm.get("player1", "").lower().strip()
         p2_key = lm.get("player2", "").lower().strip()
+        match_key = (p1_key, p2_key, lm.get("match_date",""))
+
+        # Reuse existing analysis for duplicate tickets (same match, different ticket date)
+        if match_key in analysis_cache:
+            db.save_loss_analysis(lm["id"], analysis_cache[match_key])
+            summary["analyzed"] += 1
+            print(f"  Kopirano: {lm.get('player1')} vs {lm.get('player2')} (isti meč, drugi tiket)")
+            continue
+
         p1_id = name_to_id.get(p1_key, "")
         p2_id = name_to_id.get(p2_key, "")
         tournament_id = match_to_tournament.get((p1_key, p2_key), "")
@@ -139,6 +157,7 @@ def run_evening_update() -> dict:
         analysis = _analyze_lost_match(lm, stats)
         if analysis:
             db.save_loss_analysis(lm["id"], analysis)
+            analysis_cache[match_key] = analysis
             summary["analyzed"] += 1
 
     # 4. Ažuriraj performance log
@@ -269,8 +288,25 @@ def _maybe_update_weights(lost_matches: list) -> bool:
     # This ensures we correct the current model, not a previous version.
     weights_active_since = db.get_active_weight_version_date()
     all_analyzed_raw = db.get_analyzed_lost_matches(limit=40)
-    all_analyzed = [m for m in all_analyzed_raw
-                    if (m.get("match_date") or "") >= weights_active_since]
+    all_analyzed_filtered = [m for m in all_analyzed_raw
+                              if (m.get("match_date") or "") >= weights_active_since]
+
+    # Deduplicate by (player1, player2, match_date): same match on multiple tickets = 1 loss.
+    # If both tickets have an analysis, combine them for a richer learning signal.
+    seen: dict[tuple, dict] = {}
+    for m in all_analyzed_filtered:
+        key = (m.get("player1","").lower().strip(), m.get("player2","").lower().strip(), m.get("match_date",""))
+        if key not in seen:
+            seen[key] = dict(m)
+        else:
+            existing = seen[key]
+            if m.get("loss_analysis") and existing.get("loss_analysis") and m["loss_analysis"] != existing["loss_analysis"]:
+                existing["loss_analysis"] = (
+                    existing["loss_analysis"]
+                    + f"\n\n[Analysis from ticket {m.get('ticket_date','?')}:]\n"
+                    + m["loss_analysis"]
+                )
+    all_analyzed = list(seen.values())
 
     if len(all_analyzed) < 5:
         print(f"  Not enough losses under current weights ({len(all_analyzed)}/5, "
@@ -382,7 +418,7 @@ If there is no clear pattern requiring change, return the same weights with reas
             print("Nema potrebe za promjenom težina.")
             return False
 
-        db.save_new_weights(new_weights, reason, f"Auto-feedback na {len(analysis_texts)} analiza")
+        db.save_new_weights(new_weights, reason, f"Auto-feedback na {len(matches_with_analysis)} analiza")
         print(f"Težine ažurirane: {reason}")
         return True
 
