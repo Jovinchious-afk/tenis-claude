@@ -15,18 +15,20 @@ st.title("🔍 Loss Analysis")
 st.markdown("Detailed analysis of incorrect predictions — what went wrong and what to change.")
 
 tickets = db.get_tickets(limit=100)
-lost_tickets = [t for t in tickets if t.get("status") == "lost"]
+# Include analysis-only tickets — their matches are tracked and can lose
+relevant_tickets = [t for t in tickets if t.get("status") in ("lost", "analysis_only")]
 
-if not lost_tickets:
-    st.success("No lost tickets in archive. Excellent!")
+if not relevant_tickets:
+    st.success("No lost picks in archive. Excellent!")
     st.stop()
 
 # Sve izgubljene parove s analizom
 all_lost_matches = []
-for t in lost_tickets:
+for t in relevant_tickets:
     for m in t.get("ticket_matches", []):
         if m.get("result") == "lost":
             m["ticket_date"] = t.get("ticket_date", "")
+            m["from_analysis_only"] = t.get("status") == "analysis_only"
             all_lost_matches.append(m)
 
 analyzed = [m for m in all_lost_matches if m.get("loss_analysis")]
@@ -121,9 +123,10 @@ for m in filtered:
     merged_dates = m.get("ticket_dates_merged")
     date_label = " & ".join(merged_dates) if merged_dates else m.get("ticket_date", "")
     repeat_badge = " 🔁" if merged_dates else ""
+    analysis_badge = " 📊" if m.get("from_analysis_only") else ""
 
     with st.expander(
-        f"❌ {m.get('pick','')} — {m.get('player1','')} vs {m.get('player2','')} ({date_label}){repeat_badge}",
+        f"❌ {m.get('pick','')} — {m.get('player1','')} vs {m.get('player2','')} ({date_label}){repeat_badge}{analysis_badge}",
         expanded=False
     ):
         col1, col2, col3 = st.columns(3)

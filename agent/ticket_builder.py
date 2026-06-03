@@ -447,6 +447,98 @@ Be specific — mention surface, form, H2H, fatigue where relevant."""
         return f"Tiket s {len(matches)} parova. Ukupna kvota: {total_odds:.2f}, potencijalni dobitak: €{pot_win:.2f}."
 
 
+def build_analysis_only_ticket(predictions: list) -> dict:
+    """
+    Builds an analysis-only entry when there aren't enough matches for a full ticket.
+    No minimum match count, no odds constraints. Uses Haiku for write-up.
+    Status = 'analysis_only' so the evening job tracks results but never marks ticket won/lost.
+    """
+    valid = [p for p in predictions if not p.get("skip_reason") and _is_main_tour(p)]
+    valid.sort(key=lambda p: (p.get("confidence") or 0), reverse=True)
+
+    ticket_matches = []
+    for pred in valid:
+        m = pred.get("match", {})
+        ticket_matches.append({
+            "player1": m.get("player1", ""),
+            "player2": m.get("player2", ""),
+            "pick": pred.get("pick", ""),
+            "odds": _pick_odds(pred),
+            "match_date": m.get("date", ""),
+            "match_time": m.get("time", ""),
+            "tournament": m.get("tournament", ""),
+            "tournament_level": m.get("level", ""),
+            "surface": m.get("surface", ""),
+            "round": m.get("round", ""),
+            "confidence": pred.get("confidence", 0),
+            "fair_odds": pred.get("fair_odds"),
+            "value_bet": pred.get("value", False),
+            "risk_level": pred.get("risk_level", "srednji"),
+            "risk_notes": pred.get("risk_notes", ""),
+            "handicap_option": pred.get("handicap_option"),
+            "key_factors": pred.get("key_factors", []),
+            "external_match_id": m.get("external_id", ""),
+            "result": "pending",
+        })
+
+    summary = _generate_analysis_only_summary(ticket_matches)
+
+    return {
+        "total_odds": 0.0,
+        "potential_win": 0.0,
+        "stake": 0,
+        "matches_count": len(ticket_matches),
+        "ticket_summary": summary,
+        "reviewer_decision": "",
+        "reviewer_changes": "",
+        "reviewer_warning": "",
+        "status": "analysis_only",
+        "matches": ticket_matches,
+    }
+
+
+def _generate_analysis_only_summary(matches: list) -> str:
+    """Haiku write-up for analysis-only days — late rounds with too few matches for a ticket."""
+    if not matches:
+        return "No main-tour matches available for analysis today."
+
+    picks_text = "\n".join([
+        f"{i+1}. {m['pick']} to win — {m['player1']} vs {m['player2']} "
+        f"({m['tournament']}, {m['surface']}, {m.get('round','')}) — "
+        f"odds: {m['odds']:.2f}, confidence: {m['confidence']:.0f}%\n"
+        f"   Key factors: {', '.join(m.get('key_factors', []))}"
+        for i, m in enumerate(matches)
+    ])
+
+    prompt = f"""You are an expert tennis analyst. Today there {'is only 1 main-tour match' if len(matches) == 1 else f'are only {len(matches)} main-tour matches'} available — not enough to build a full accumulator ticket.
+
+AVAILABLE MATCHES:
+{picks_text}
+
+Write a brief analysis (max 150 words):
+1. One sentence: why no ticket was formed (too few matches for a valid accumulator)
+2. For each match: one sentence — your pick and the single strongest reason
+3. One closing sentence on overall confidence
+
+Be direct and specific. Frame it as: "if I had to bet on these matches..." This entry is tracked for model learning."""
+
+    try:
+        client = _get_client()
+        response = client.messages.create(
+            model=CLAUDE_MODELS["analysis"],
+            max_tokens=400,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.content[0].text.strip()
+    except Exception as e:
+        print(f"Greška analysis-only write-upa: {e}")
+        picks_str = ", ".join(f"{m['pick']} ({m['confidence']:.0f}%)" for m in matches)
+        return (
+            f"Analysis only — {len(matches)} match(es) available today, "
+            f"insufficient for a full ticket. Predictions: {picks_str}."
+        )
+
+
 def _apply_daily_limits(candidates: list) -> list:
     """
     Pre-filtrira kandidate: max N po (turniru, datum) prema DAILY_MATCH_LIMITS.

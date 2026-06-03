@@ -14,8 +14,8 @@ st.title("🎾 Daily Ticket")
 
 
 def _status_badge(status: str) -> str:
-    colors = {"won": "#22c55e", "lost": "#ef4444", "pending": "#f59e0b", "void": "#9ca3af"}
-    labels = {"won": "✅ WON", "lost": "❌ LOST", "pending": "⏳ PENDING", "void": "⚪ VOID"}
+    colors = {"won": "#22c55e", "lost": "#ef4444", "pending": "#f59e0b", "void": "#9ca3af", "analysis_only": "#6366f1"}
+    labels = {"won": "✅ WON", "lost": "❌ LOST", "pending": "⏳ PENDING", "void": "⚪ VOID", "analysis_only": "📊 ANALYSIS ONLY"}
     c = colors.get(status, "#9ca3af")
     l = labels.get(status, status.upper())
     return f'<span style="background:{c};color:white;padding:3px 10px;border-radius:12px;font-size:13px;font-weight:bold;">{l}</span>'
@@ -50,9 +50,16 @@ with col1:
     st.subheader(f"Tiket — {format_date_hr(today_zagreb()) if ticket_date == today_str else ticket_date}")
     st.markdown(_status_badge(status), unsafe_allow_html=True)
 with col2:
-    st.metric("Combined odds", f"{ticket.get('total_odds', 0):.2f}")
+    if status == "analysis_only":
+        st.metric("Matches analysed", len(matches))
+    else:
+        st.metric("Combined odds", f"{ticket.get('total_odds', 0):.2f}")
 with col3:
-    st.metric("Potential return", f"€{ticket.get('potential_win', 0):.2f}")
+    if status == "analysis_only":
+        best_conf = max((m.get("confidence", 0) for m in matches), default=0)
+        st.metric("Best confidence", f"{best_conf:.0f}%")
+    else:
+        st.metric("Potential return", f"€{ticket.get('potential_win', 0):.2f}")
 with col4:
     won_count = sum(1 for m in matches if m.get("result") == "won")
     st.metric("Correct picks", f"{won_count}/{len(matches)}")
@@ -64,11 +71,18 @@ with col5:
         else:
             st.error("Error deleting ticket.")
 
+if status == "analysis_only":
+    st.info(
+        "📊 **Analysis only** — insufficient main-tour matches for a full accumulator today. "
+        "Predictions below are tracked for model learning. Results and loss analysis run automatically."
+    )
+
 st.markdown("---")
 
 # Summary
 if ticket.get("ticket_summary"):
-    with st.expander("📝 Ticket write-up", expanded=True):
+    expander_label = "📊 Analysis write-up" if status == "analysis_only" else "📝 Ticket write-up"
+    with st.expander(expander_label, expanded=True):
         st.markdown(ticket["ticket_summary"])
 
         # Reviewer notes — always show if available
@@ -138,11 +152,12 @@ for i, m in enumerate(matches):
                 st.write(f"• {factor}")
 
 st.markdown("---")
-col1, col2 = st.columns(2)
-with col1:
-    st.markdown(f"**Stake:** €{ticket.get('stake', 50):.0f}")
-    st.markdown(f"**Combined odds:** {ticket.get('total_odds', 0):.2f}")
-with col2:
-    st.markdown(f"**Potential return:** €{ticket.get('potential_win', 0):.2f}")
-    if status == "won":
-        st.markdown(f"**Actual return:** €{ticket.get('actual_win', 0):.2f}")
+if status != "analysis_only":
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown(f"**Stake:** €{ticket.get('stake', 50):.0f}")
+        st.markdown(f"**Combined odds:** {ticket.get('total_odds', 0):.2f}")
+    with col2:
+        st.markdown(f"**Potential return:** €{ticket.get('potential_win', 0):.2f}")
+        if status == "won":
+            st.markdown(f"**Actual return:** €{ticket.get('actual_win', 0):.2f}")

@@ -23,10 +23,10 @@ load_dotenv()
 
 from agent import data_fetcher as df
 from agent.predictor import analyze_matches_batch
-from agent.ticket_builder import build_ticket
+from agent.ticket_builder import build_ticket, build_analysis_only_ticket
 from agent.feedback_analyzer import run_evening_update
 from database import supabase_client as db
-from utils.email_sender import send_daily_ticket_email
+from utils.email_sender import send_daily_ticket_email, send_analysis_only_email
 from utils.helpers import today_zagreb, tomorrow_zagreb, format_date, format_date_hr
 
 DRY_RUN = "--dry-run" in sys.argv
@@ -120,12 +120,12 @@ def main():
         print("Nema mečeva za analizu. Završavam.")
         return
 
-    # Prilagodi min odds prema broju dostupnih mečeva
+    # Odredi mode: analysis-only (< 4 mečeva) ili puni tiket
     total_matches = len(all_matches)
-    if total_matches <= 3:
-        print(f"Samo {total_matches} meča dostupno — premalo za tiket. Završavam.")
-        _send_no_ticket_email(today, [])
-        return
+    analysis_only_mode = total_matches < 4
+    if analysis_only_mode:
+        print(f"Samo {total_matches} meča — analysis-only mode (QF/SF/F faza). Tiket neće biti kreiran.")
+        min_odds_override = None
     elif total_matches == 4:
         min_odds_override = 6.0
         print(f"Točno 4 meča — spuštam min kvotu na {min_odds_override} (QF/mali dan).")
@@ -285,14 +285,16 @@ def main():
     valid_predictions = [p for p in predictions if not p.get("skip_reason")]
     print(f"Valjane predikcije: {len(valid_predictions)}/{len(predictions)}")
 
-    # 8. Generiraj tiket
-    print("\nGeneriram optimalni tiket...")
-    ticket = build_ticket(predictions, weights, min_odds_override=min_odds_override)
-
-    if not ticket:
-        # build_ticket ima kaskadni fallback i ne bi smio vratiti None
-        print("KRITIČNA GREŠKA: Nema valjanih predikcija. Završavam.")
-        return
+    # 8. Generiraj tiket ili analysis-only zapis
+    print("\nGeneriram tiket...")
+    if analysis_only_mode or len(valid_predictions) < 4:
+        ticket = build_analysis_only_ticket(valid_predictions)
+        print(f"Analysis-only: {ticket['matches_count']} mečeva analizirano, tiket nije kreiran.")
+    else:
+        ticket = build_ticket(predictions, weights, min_odds_override=min_odds_override)
+        if not ticket:
+            print("Kaskadni fallback nije uspio — prelazim u analysis-only mode.")
+            ticket = build_analysis_only_ticket(valid_predictions)
 
     print(f"\n=== TIKET GENERIRAN ===")
     print(f"Mečevi: {ticket['matches_count']}")
@@ -302,6 +304,7 @@ def main():
         print(f"  {m['pick']} ({m['tournament']}, {m['surface']}) — kvota: {m['odds']:.2f}, conf: {m['confidence']:.0f}%")
 
     # 9. Spremi u Supabase
+    is_analysis_only = ticket.get("status") == "analysis_only"
     if not DRY_RUN:
         try:
             # Ako tiket za danas već postoji, obriši ga (sprječava duplikate)
@@ -312,19 +315,23 @@ def main():
 
             saved_ticket = db.save_ticket({
                 "ticket_date": format_date(today),
-                "status": "pending",
+                "status": ticket.get("status", "pending"),
                 "stake": ticket["stake"],
                 "total_odds": ticket["total_odds"],
                 "potential_win": ticket["potential_win"],
                 "matches_count": ticket["matches_count"],
                 "ticket_summary": ticket.get("ticket_summary", ""),
+                "reviewer_decision": ticket.get("reviewer_decision", ""),
+                "reviewer_changes": ticket.get("reviewer_changes", ""),
+                "reviewer_warning": ticket.get("reviewer_warning", ""),
             })
             ticket_id = saved_ticket.get("id")
             if ticket_id:
                 for m in ticket["matches"]:
                     m["ticket_id"] = ticket_id
                 db.save_ticket_matches(ticket["matches"])
-            print(f"Tiket spremljen u Supabase (ID: {ticket_id})")
+            label = "Analiza" if is_analysis_only else "Tiket"
+            print(f"{label} spremljen u Supabase (ID: {ticket_id})")
 
             # Spremi i analizirane mečeve
             for pred in predictions:
@@ -357,7 +364,13 @@ def main():
 
         # 10. Pošalji email
         try:
-            send_daily_ticket_email(ticket, ticket["matches"])
+            if is_analysis_only:
+                send_analysis_only_email(
+                    {"ticket_date": format_date(today), **ticket},
+                    ticket["matches"]
+                )
+            else:
+                send_daily_ticket_email(ticket, ticket["matches"])
         except Exception as e:
             print(f"Greška slanja emaila: {e}")
     else:
