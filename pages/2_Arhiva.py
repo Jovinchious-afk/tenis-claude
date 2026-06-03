@@ -29,6 +29,7 @@ if not tickets:
 won = [t for t in tickets if t.get("status") == "won"]
 lost = [t for t in tickets if t.get("status") == "lost"]
 pending = [t for t in tickets if t.get("status") == "pending"]
+analysis_only = [t for t in tickets if t.get("status") == "analysis_only"]
 resolved = won + lost
 
 total_staked = len(resolved) * 50.0
@@ -36,7 +37,7 @@ total_returned = sum(t.get("actual_win", 0) or 0 for t in won)
 roi = ((total_returned - total_staked) / total_staked * 100) if total_staked > 0 else 0
 balance = total_returned - total_staked
 
-col1, col2, col3, col4, col5 = st.columns(5)
+col1, col2, col3, col4, col5, col6 = st.columns(6)
 with col1:
     st.metric("Total tickets", len(resolved))
 with col2:
@@ -55,31 +56,37 @@ with col4:
     """, unsafe_allow_html=True)
 with col5:
     st.metric("Pending", len(pending))
+with col6:
+    st.metric("Analysis days", len(analysis_only))
 
 if pending:
     st.info(f"{len(pending)} ticket(s) still waiting for results.")
 
 st.markdown("---")
 
-# Tablica
+# Tablica — resolved + analysis_only, sortirani po datumu
 rows = []
 running_balance = 0.0
+table_tickets = sorted(resolved + analysis_only, key=lambda t: t.get("ticket_date", ""))
 
-for t in reversed(resolved):
-    won_t = t.get("status") == "won"
+for t in table_tickets:
+    status = t.get("status", "")
+    won_t = status == "won"
+    is_ao = status == "analysis_only"
     actual_win = t.get("actual_win", 0) or 0
-    running_balance += (actual_win - 50) if won_t else -50
+    if not is_ao:
+        running_balance += (actual_win - 50) if won_t else -50
     matches = t.get("ticket_matches", [])
     picked = [m.get("pick", "") for m in matches]
 
     rows.append({
         "Date": t.get("ticket_date", ""),
-        "Status": "✅ WON" if won_t else "❌ LOST",
+        "Status": "✅ WON" if won_t else ("📊 ANALYSIS" if is_ao else "❌ LOST"),
         "Picks": len(matches),
-        "Combined odds": f"{t.get('total_odds', 0):.2f}",
-        "Pot. return": f"€{t.get('potential_win', 0):.2f}",
+        "Combined odds": "—" if is_ao else f"{t.get('total_odds', 0):.2f}",
+        "Pot. return": "—" if is_ao else f"€{t.get('potential_win', 0):.2f}",
         "Returned": f"€{actual_win:.2f}" if won_t else "—",
-        "Running balance": f"€{running_balance:.2f}",
+        "Running balance": "—" if is_ao else f"€{running_balance:.2f}",
         "Selections": ", ".join(picked),
     })
 
@@ -90,6 +97,8 @@ def _color_row(row):
         return ["background-color: #f0fdf4"] * len(row)
     if "LOST" in str(row.get("Status", "")):
         return ["background-color: #fef2f2"] * len(row)
+    if "ANALYSIS" in str(row.get("Status", "")):
+        return ["background-color: #f5f3ff"] * len(row)
     return [""] * len(row)
 
 st.dataframe(
@@ -112,7 +121,8 @@ if selected:
     status = selected.get("status", "pending")
 
     if selected.get("ticket_summary"):
-        with st.expander("📝 Ticket write-up", expanded=True):
+        label = "📊 Analysis write-up" if selected.get("status") == "analysis_only" else "📝 Ticket write-up"
+        with st.expander(label, expanded=True):
             st.markdown(selected["ticket_summary"])
         st.markdown("---")
 
