@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS elo_cache (
 CREATE TABLE IF NOT EXISTS tickets (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     ticket_date DATE NOT NULL,
-    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'won', 'lost', 'void')),
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'won', 'lost', 'void', 'analysis_only')),
     stake DECIMAL(10,2) DEFAULT 50.00,
     total_odds DECIMAL(10,4),
     potential_win DECIMAL(10,2),
@@ -26,7 +26,10 @@ CREATE TABLE IF NOT EXISTS tickets (
     matches_count INTEGER,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     resolved_at TIMESTAMP WITH TIME ZONE,
-    ticket_summary TEXT
+    ticket_summary TEXT,
+    reviewer_decision VARCHAR(20),
+    reviewer_changes TEXT,
+    reviewer_warning TEXT
 );
 
 -- Mečevi na tiketu
