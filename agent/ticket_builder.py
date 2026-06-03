@@ -28,6 +28,15 @@ def _get_client() -> anthropic.Anthropic:
 _NON_TICKET_LEVELS = {"ATP Challenger", "ATP Qualifying"}
 
 
+def _is_main_tour(p) -> bool:
+    """Challengers, ITF, Qualifying se nikad ne stavljaju na tiket niti u analysis-only."""
+    level = p.get("match", {}).get("level", "")
+    low = level.lower()
+    if any(kw in low for kw in ["challenger", "qualifying", "itf", "future"]):
+        return False
+    return True
+
+
 def build_ticket(predictions: list, weights: dict, min_odds_override: float = None) -> Optional[dict]:
     """
     Ulaz: lista predikcija iz predictor.analyze_match()
@@ -48,15 +57,6 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
         if not allow_challengers and level in _NON_TICKET_LEVELS:
             return False
         return not p.get("skip_reason") and (p.get("confidence") or 0) >= conf_threshold
-
-    # Challengeri i Qualifying NIKAD ne idu na tiket — hard filter
-    def _is_main_tour(p) -> bool:
-        level = p.get("match", {}).get("level", "")
-        # Reject anything that looks like a Challenger/ITF/Qualifying
-        low = level.lower()
-        if any(kw in low for kw in ["challenger", "qualifying", "itf", "future"]):
-            return False
-        return True
 
     # Kaskadni fallback: 63% → 58% → 55% — Challengeri nikad
     thresholds = [
