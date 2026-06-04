@@ -313,8 +313,16 @@ def _maybe_update_weights(lost_matches: list) -> bool:
               f"weights active since {weights_active_since}).")
         return False
 
-    current_weights = db.get_active_weights()
-    matches_with_analysis = [m for m in all_analyzed[:10] if m.get("loss_analysis")]
+    # Determine dominant surface among recent losses
+    from collections import Counter
+    surface_counts = Counter(db._surface_key(m.get("surface", "hard")) for m in all_analyzed)
+    dominant_surface = surface_counts.most_common(1)[0][0] if surface_counts else "hard"
+    # Filter to that surface for a cleaner signal (min 3 losses, else use all)
+    surface_losses = [m for m in all_analyzed if db._surface_key(m.get("surface", "hard")) == dominant_surface]
+    analysis_pool = surface_losses if len(surface_losses) >= 3 else all_analyzed
+
+    current_weights = db.get_active_weights(dominant_surface)
+    matches_with_analysis = [m for m in analysis_pool[:10] if m.get("loss_analysis")]
 
     if len(matches_with_analysis) < 5:
         return False
@@ -418,7 +426,7 @@ If there is no clear pattern requiring change, return the same weights with reas
             print("Nema potrebe za promjenom težina.")
             return False
 
-        db.save_new_weights(new_weights, reason, f"Auto-feedback na {len(matches_with_analysis)} analiza")
+        db.save_new_weights(new_weights, reason, f"Auto-feedback na {len(matches_with_analysis)} analiza", surface=dominant_surface)
         print(f"Težine ažurirane: {reason}")
         return True
 
@@ -457,10 +465,13 @@ def _update_performance_log() -> None:
 def _validate_weights(weights: dict) -> bool:
     if not weights:
         return False
-    total = sum(weights.values())
+    numeric = {k: v for k, v in weights.items() if isinstance(v, (int, float))}
+    total = sum(numeric.values())
     if abs(total - 100.0) > 0.5:
         return False
-    for v in weights.values():
+    for k, v in weights.items():
+        if not isinstance(v, (int, float)):
+            continue  # skip "surface" string key
         if v < WEIGHT_ADJUSTMENT["min_weight"] or v > WEIGHT_ADJUSTMENT["max_weight"]:
             return False
     return True

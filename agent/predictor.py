@@ -293,15 +293,27 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
 
 
 def analyze_matches_batch(matches_with_data: list, weights: dict, all_news: str = "") -> list:
-    """Analizira listu mečeva sekvencijalno."""
+    """Analizira listu mečeva sekvencijalno.
+    weights may be a flat dict (legacy) or a surface-keyed dict {"clay": {...}, "grass": {...}, "hard": {...}}.
+    Per-match weights stored in item["weights"] always take priority.
+    """
+    is_surface_dict = bool(weights) and any(k in weights for k in ("clay", "grass", "hard"))
     results = []
     for item in matches_with_data:
+        if item.get("weights"):
+            match_weights = item["weights"]
+        elif is_surface_dict:
+            from database.supabase_client import _surface_key
+            sk = _surface_key(item["match"].get("surface", "hard"))
+            match_weights = weights.get(sk) or weights.get("hard") or next(iter(weights.values()))
+        else:
+            match_weights = weights
         result = analyze_match(
             match=item["match"],
             p1_data=item["p1_data"],
             p2_data=item["p2_data"],
             h2h=item.get("h2h", {}),
-            weights=weights,
+            weights=match_weights,
             all_news=all_news
         )
         if result.get("skip_reason"):

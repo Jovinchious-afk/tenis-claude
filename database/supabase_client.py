@@ -200,32 +200,58 @@ def get_analyzed_lost_matches(limit: int = 20) -> list:
 
 # ── Model Weights ─────────────────────────────────────────────────────────────
 
-def get_active_weight_version_date() -> str:
-    """Returns the created_at date of the currently active model weights version."""
-    results = _select("model_weights", select="created_at", filters={"is_active": "eq.true"}, order="version.desc", limit=1)
+def _surface_key(surface: str) -> str:
+    """Normalise surface string to 'clay' | 'grass' | 'hard'."""
+    s = surface.lower().strip()
+    if "clay" in s:       return "clay"
+    if "grass" in s:      return "grass"
+    return "hard"  # hard, indoor hard, default
+
+
+def get_active_weights(surface: str = "hard") -> dict:
+    """Load active weights for the given surface. Falls back to hard if not found."""
+    sk = _surface_key(surface)
+    # Try surface-specific record first (surface stored inside weights JSON)
+    results = _select("model_weights", filters={"is_active": "eq.true", "weights->>surface": f"eq.{sk}"}, order="version.desc", limit=1)
+    if not results:
+        # Fallback: any active record without surface key (legacy v1-v3)
+        results = _select("model_weights", filters={"is_active": "eq.true"}, order="version.desc", limit=1)
+    if results:
+        raw = results[0].get("weights", {})
+        w = json.loads(raw) if isinstance(raw, str) else dict(raw)
+        w.pop("surface", None)  # remove surface tag before returning numeric weights
+        return w
+    from config.model_config import DEFAULT_WEIGHTS
+    return DEFAULT_WEIGHTS
+
+
+def get_active_weight_version_date(surface: str = "hard") -> str:
+    """Returns the created_at date of the active weights for a given surface."""
+    sk = _surface_key(surface)
+    results = _select("model_weights", select="created_at",
+                      filters={"is_active": "eq.true", "weights->>surface": f"eq.{sk}"},
+                      order="version.desc", limit=1)
+    if not results:
+        results = _select("model_weights", select="created_at",
+                          filters={"is_active": "eq.true"}, order="version.desc", limit=1)
     if results:
         return (results[0].get("created_at") or "")[:10]
     return "2000-01-01"
 
 
-def get_active_weights() -> dict:
-    results = _select("model_weights", filters={"is_active": "eq.true"}, order="version.desc", limit=1)
-    if results:
-        raw = results[0].get("weights", {})
-        if isinstance(raw, str):
-            return json.loads(raw)
-        return raw
-    from config.model_config import DEFAULT_WEIGHTS
-    return DEFAULT_WEIGHTS
-
-
-def save_new_weights(weights: dict, reason: str, triggered_by: str) -> None:
+def save_new_weights(weights: dict, reason: str, triggered_by: str, surface: str = "hard") -> None:
+    """Save new surface-specific weights. Deactivates only the previous record for that surface."""
+    sk = _surface_key(surface)
+    weights_to_save = {"surface": sk, **{k: v for k, v in weights.items() if k != "surface"}}
+    # Deactivate only same-surface active weights
+    old = _select("model_weights", select="id", filters={"is_active": "eq.true", "weights->>surface": f"eq.{sk}"})
+    for row in old:
+        _update("model_weights", {"is_active": False}, {"id": f"eq.{row['id']}"})
     current = _select("model_weights", select="version", order="version.desc", limit=1)
     next_version = (current[0]["version"] + 1) if current else 2
-    _update("model_weights", {"is_active": False}, {"is_active": "eq.true"})
     _insert("model_weights", {
         "version": next_version,
-        "weights": weights,
+        "weights": weights_to_save,
         "is_active": True,
         "update_reason": reason,
         "triggered_by": triggered_by
