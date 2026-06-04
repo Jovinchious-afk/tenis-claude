@@ -16,6 +16,22 @@ def _names_match(a: str, b: str) -> bool:
     a, b = a.lower().strip(), b.lower().strip()
     return a == b or a.split()[-1] == b.split()[-1]
 
+
+def _recompute_ticket_status(ticket: dict) -> None:
+    updated = db.get_ticket_by_date(ticket.get("ticket_date", ""))
+    if not updated:
+        return
+    matches = updated.get("ticket_matches", [])
+    lost_count = sum(1 for m in matches if m.get("result") == "lost")
+    pending_count = sum(1 for m in matches if m.get("result") == "pending")
+    if lost_count > 0:
+        db.update_ticket_status(updated["id"], "lost", 0)
+    elif pending_count == 0:
+        actual_win = updated.get("stake", 50) * updated.get("total_odds", 1)
+        db.update_ticket_status(updated["id"], "won", actual_win)
+    else:
+        db.update_ticket_status(updated["id"], "pending")
+
 st.set_page_config(page_title="Archive | Tennis Agent", page_icon="🎾", layout="wide")
 st.title("📋 Ticket Archive")
 
@@ -154,28 +170,32 @@ if selected:
                 if m.get("actual_winner"):
                     st.write(f"**Winner:** {m.get('actual_winner','')}")
 
-            # Manual result override for pending matches
-            if m_result == "pending":
+            # Manual result override (pending or correct a wrong resolved result)
+            if m_result != "void":
                 st.markdown("---")
-                st.caption("Manually set result:")
+                label = "Manually set result:" if m_result == "pending" else "Override result (correct error):"
+                st.caption(label)
                 col_w, col_l, col_v = st.columns(3)
                 match_id = m.get("id", "")
                 pick = m.get("pick", "")
                 p1 = m.get("player1", "")
                 p2 = m.get("player2", "")
                 with col_w:
-                    if st.button("✅ Won", key=f"won_{match_id}"):
+                    if st.button("✅ Won", key=f"won_{match_id}", disabled=(m_result == "won")):
                         db.update_match_result(match_id, "won", pick)
+                        _recompute_ticket_status(selected)
                         st.success("Marked as won")
                         st.rerun()
                 with col_l:
-                    if st.button("❌ Lost", key=f"lost_{match_id}"):
+                    if st.button("❌ Lost", key=f"lost_{match_id}", disabled=(m_result == "lost")):
                         actual = p2 if _names_match(pick, p1) else p1
                         db.update_match_result(match_id, "lost", actual)
+                        _recompute_ticket_status(selected)
                         st.success("Marked as lost")
                         st.rerun()
                 with col_v:
                     if st.button("🟡 Void", key=f"void_{match_id}"):
                         db.update_match_result(match_id, "void", "Walkover / Postponed")
+                        _recompute_ticket_status(selected)
                         st.success("Marked as void")
                         st.rerun()
