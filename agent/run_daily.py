@@ -179,7 +179,11 @@ def main():
     for match in all_matches:
         city = _city_for_weather(match.get("tournament", ""))
         match_date = match.get("date", today_str)
-        match["weather"] = weather_cache.get((city, match_date), "N/A")
+        base_weather = weather_cache.get((city, match_date), "N/A")
+        if base_weather != "N/A" and "indoor" in match.get("surface", "").lower():
+            match["weather"] = base_weather + " — indoor venue (weather not a factor for play)"
+        else:
+            match["weather"] = base_weather
 
     # 7. Za svaki meč dohvati podatke o igračima
     print(f"\nDohvaćam podatke za {len(all_matches)} mečeva...")
