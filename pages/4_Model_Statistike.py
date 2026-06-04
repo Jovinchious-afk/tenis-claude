@@ -126,28 +126,38 @@ st.markdown("---")
 # ── Trenutne težine modela ────────────────────────────────────────────────────
 
 st.subheader("⚙️ Current model weights")
-current_weights = db.get_active_weights()
 
-if current_weights:
-    labels = {
-        "elo_ranking": "ELO + Ranking trend",
-        "surface_style": "Surface + Style matchup",
-        "serve_return": "Serve + Return",
-        "recent_form": "Form (5-10 matches)",
-        "fatigue_injuries": "Fatigue + Injuries",
-        "h2h_context": "H2H + Context",
-    }
-    weight_rows = [{"Factor": labels.get(k, k), "Weight (%)": v} for k, v in current_weights.items() if k != "odds_movement"]
-    df_weights = pd.DataFrame(weight_rows).sort_values("Weight (%)", ascending=False)
+labels = {
+    "elo_ranking":       "ELO + Ranking trend",
+    "surface_style":     "Surface + Style matchup",
+    "serve_return":      "Serve + Return",
+    "recent_form":       "Form (5-10 matches)",
+    "fatigue_injuries":  "Fatigue + Injuries",
+    "h2h_context":       "H2H + Context",
+}
+SURFACE_ICONS = {"clay": "🟤 Clay", "grass": "🟢 Grass", "hard": "🔵 Hard"}
+SURFACE_COLORS = {
+    "clay":  ["#c2410c","#ea580c","#fb923c","#fed7aa","#7c3aed","#a78bfa"],
+    "grass": ["#15803d","#16a34a","#4ade80","#bbf7d0","#0369a1","#7dd3fc"],
+    "hard":  ["#1d4ed8","#2563eb","#60a5fa","#bfdbfe","#6d28d9","#c4b5fd"],
+}
 
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        st.dataframe(df_weights, hide_index=True, use_container_width=True)
-    with col2:
-        fig3 = px.pie(df_weights, values="Weight (%)", names="Factor",
-                      color_discrete_sequence=px.colors.qualitative.Set3)
-        fig3.update_layout(height=300, margin=dict(l=0, r=0, t=20, b=0), showlegend=True)
-        st.plotly_chart(fig3, use_container_width=True)
+tab_clay, tab_grass, tab_hard = st.tabs(["🟤 Clay", "🟢 Grass", "🔵 Hard"])
+for tab, surface in [(tab_clay, "clay"), (tab_grass, "grass"), (tab_hard, "hard")]:
+    with tab:
+        w = db.get_active_weights(surface)
+        if w:
+            rows = [{"Factor": labels.get(k, k), "Weight (%)": v}
+                    for k, v in w.items() if isinstance(v, (int, float)) and k != "odds_movement"]
+            df_w = pd.DataFrame(rows).sort_values("Weight (%)", ascending=False)
+            c1, c2 = st.columns([1, 1])
+            with c1:
+                st.dataframe(df_w, hide_index=True, use_container_width=True)
+            with c2:
+                fig_pie = px.pie(df_w, values="Weight (%)", names="Factor",
+                                 color_discrete_sequence=SURFACE_COLORS[surface])
+                fig_pie.update_layout(height=300, margin=dict(l=0, r=0, t=10, b=0), showlegend=True)
+                st.plotly_chart(fig_pie, use_container_width=True)
 
 # ── Weight history ────────────────────────────────────────────────────────────
 
