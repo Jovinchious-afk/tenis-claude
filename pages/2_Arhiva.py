@@ -18,6 +18,8 @@ def _names_match(a: str, b: str) -> bool:
 
 
 def _recompute_ticket_status(ticket: dict) -> None:
+    if ticket.get("status") == "analysis_only":
+        return
     updated = db.get_ticket_by_date(ticket.get("ticket_date", ""))
     if not updated:
         return
@@ -31,6 +33,16 @@ def _recompute_ticket_status(ticket: dict) -> None:
         db.update_ticket_status(updated["id"], "won", actual_win)
     else:
         db.update_ticket_status(updated["id"], "pending")
+
+
+def _analysis_outcome(t: dict) -> str:
+    matches = t.get("ticket_matches", [])
+    non_void = [m.get("result", "pending") for m in matches if m.get("result") != "void"]
+    if not non_void or any(r == "pending" for r in non_void):
+        return "📊 ANALYSIS"
+    if any(r == "lost" for r in non_void):
+        return "❌ LOST ANALYSIS"
+    return "✅ WON ANALYSIS"
 
 st.set_page_config(page_title="Archive | Tennis Agent", page_icon="🎾", layout="wide")
 st.title("📋 Ticket Archive")
@@ -97,7 +109,7 @@ for t in table_tickets:
 
     rows.append({
         "Date": t.get("ticket_date", ""),
-        "Status": "✅ WON" if won_t else ("📊 ANALYSIS" if is_ao else "❌ LOST"),
+        "Status": "✅ WON" if won_t else (_analysis_outcome(t) if is_ao else "❌ LOST"),
         "Picks": len(matches),
         "Combined odds": "—" if is_ao else f"{t.get('total_odds', 0):.2f}",
         "Pot. return": "—" if is_ao else f"€{t.get('potential_win', 0):.2f}",
@@ -109,12 +121,17 @@ for t in table_tickets:
 df_tickets = pd.DataFrame(rows)
 
 def _color_row(row):
-    if "WON" in str(row.get("Status", "")):
+    status = str(row.get("Status", ""))
+    if "LOST ANALYSIS" in status:
+        return ["background-color: #fed7aa; color: #7c2d12"] * len(row)
+    if "WON ANALYSIS" in status:
         return ["background-color: #bbf7d0; color: #14532d"] * len(row)
-    if "LOST" in str(row.get("Status", "")):
-        return ["background-color: #fca5a5; color: #7f1d1d"] * len(row)
-    if "ANALYSIS" in str(row.get("Status", "")):
+    if "ANALYSIS" in status:
         return ["background-color: #ddd6fe; color: #3b0764"] * len(row)
+    if "WON" in status:
+        return ["background-color: #bbf7d0; color: #14532d"] * len(row)
+    if "LOST" in status:
+        return ["background-color: #fca5a5; color: #7f1d1d"] * len(row)
     return [""] * len(row)
 
 st.dataframe(

@@ -167,6 +167,11 @@ def main():
                     f"{w['temp_c']}°C, {w['condition']}, "
                     f"Wind: {w['wind_kmh']} km/h, Humidity: {w['humidity']}% ({label})"
                 )
+                city_lower = city.lower()
+                if any(v in city_lower for v in _ROOF_VENUES):
+                    rain_conds = {"rain", "drizzle", "thunderstorm", "shower"}
+                    if any(c in w.get("condition", "").lower() for c in rain_conds):
+                        weather_str += " — retractable roof venue (roof closed if rain: conditions indoor, rain/wind irrelevant for play)"
                 weather_cache[cache_key] = weather_str
                 print(f"  {city} ({match_date}): {weather_str}")
             else:
@@ -444,6 +449,9 @@ def _form_trend(matches: list) -> str:
         trend = "STABLE"
     return f"Last 3: {r_wins}/3 | Prev {o_total}: {o_wins}/{o_total} → {trend}"
 
+
+# Outdoor tournaments with retractable roofs on main courts — rain/wind don't affect play when roof is closed
+_ROOF_VENUES = {"paris", "melbourne", "london", "new york", "flushing"}
 
 # High-altitude tournaments — affects ball speed, serve dominance, endurance
 _ALTITUDE_M = {
