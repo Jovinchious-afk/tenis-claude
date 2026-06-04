@@ -167,11 +167,6 @@ def main():
                     f"{w['temp_c']}°C, {w['condition']}, "
                     f"Wind: {w['wind_kmh']} km/h, Humidity: {w['humidity']}% ({label})"
                 )
-                city_lower = city.lower()
-                if any(v in city_lower for v in _ROOF_VENUES):
-                    rain_conds = {"rain", "drizzle", "thunderstorm", "shower"}
-                    if any(c in w.get("condition", "").lower() for c in rain_conds):
-                        weather_str += " — retractable roof venue (roof closed if rain: conditions indoor, rain/wind irrelevant for play)"
                 weather_cache[cache_key] = weather_str
                 print(f"  {city} ({match_date}): {weather_str}")
             else:
@@ -180,8 +175,16 @@ def main():
         city = _city_for_weather(match.get("tournament", ""))
         match_date = match.get("date", today_str)
         base_weather = weather_cache.get((city, match_date), "N/A")
-        if base_weather != "N/A" and "indoor" in match.get("surface", "").lower():
+        if base_weather == "N/A":
+            match["weather"] = base_weather
+        elif "indoor" in match.get("surface", "").lower():
             match["weather"] = base_weather + " — indoor venue (weather not a factor for play)"
+        elif _has_retractable_roof(match.get("tournament", ""), city):
+            rain_conds = {"rain", "drizzle", "thunderstorm", "shower"}
+            if any(rc in base_weather.lower() for rc in rain_conds):
+                match["weather"] = base_weather + " — retractable roof venue (roof closed if rain: conditions indoor, rain/wind irrelevant for play)"
+            else:
+                match["weather"] = base_weather
         else:
             match["weather"] = base_weather
 
@@ -454,8 +457,26 @@ def _form_trend(matches: list) -> str:
     return f"Last 3: {r_wins}/3 | Prev {o_total}: {o_wins}/{o_total} → {trend}"
 
 
-# Outdoor tournaments with retractable roofs on main courts — rain/wind don't affect play when roof is closed
-_ROOF_VENUES = {"paris", "melbourne", "london", "new york", "flushing"}
+def _has_retractable_roof(tournament_name: str, city: str) -> bool:
+    """Returns True if the tournament's main court has a retractable roof (rain → roof closed → weather irrelevant)."""
+    t = tournament_name.lower()
+    c = city.lower()
+    # Grand Slams — check by tournament name to avoid same-city conflicts (e.g. Wimbledon vs Queen's in London)
+    if any(k in t for k in ["australian open", "roland", "french open", "roland-garros",
+                             "wimbledon", "the championships", "us open"]):
+        return True
+    # Masters 1000 with confirmed retractable roofs
+    if "madrid" in c:    return True   # Caja Mágica — all 3 courts have hydraulic retractable roofs
+    if "shanghai" in c:  return True   # Qizhong Forest — 8-petal sliding roof
+    # ATP 500 with confirmed retractable roofs
+    if "hamburg" in c:   return True   # Am Rothenbaum — retractable membrane roof since 1997
+    if "halle" in c:     return True   # OWL Arena — closes in 88 seconds
+    if "tokyo" in c:     return True   # Ariake Coliseum — horizontal sliding roof
+    if "beijing" in c:   return True   # National Tennis Center Diamond Court
+    if "dubai" in c:     return True   # Aviation Club centre court
+    # ATP 250
+    if "hangzhou" in c:  return True   # Olympic Sports Expo Center centre court
+    return False
 
 # High-altitude tournaments — affects ball speed, serve dominance, endurance
 _ALTITUDE_M = {
