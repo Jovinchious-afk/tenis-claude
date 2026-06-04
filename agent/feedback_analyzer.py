@@ -370,9 +370,10 @@ WHAT EACH WEIGHT COVERS:
 - elo_ranking: ELO rating, ATP ranking, ranking trend, opponent quality
 - surface_style: surface + playing style matchup (clay/hard/grass specialist)
 - serve_return: serve%, return%, aces, break points
-- recent_form: form over last 5-10 matches (W/L ratio, opponent quality)
+- recent_form: form over last 5-10 matches across the season (W/L ratio, opponent quality)
 - fatigue_injuries: fatigue, injuries, match schedule, travel, days of rest
 - h2h_context: H2H record, tournament context, motivation, mental factors
+- tournament_trajectory: in-tournament W/L momentum (current run in THIS tournament), hot-hand signal, quality of opponents beaten this week
 
 INSTRUCTIONS:
 Analyse error patterns across all losses. Look for factors that were CONSISTENTLY underweighted or overweighted.

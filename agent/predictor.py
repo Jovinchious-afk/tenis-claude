@@ -134,6 +134,7 @@ Serve + return stats: {w_serve_return}%
 Recent form (last 5-10 matches): {w_recent_form}%
 Fatigue + injuries + schedule: {w_fatigue_injuries}%
 H2H + tournament context: {w_h2h_context}%
+Tournament trajectory (in-tournament W/L run, current momentum, hot-hand): {w_tournament_trajectory}%
 
 === INSTRUCTIONS ===
 Form your prediction based exclusively on statistical factors and model weights — independent of bookmaker odds.
@@ -263,12 +264,13 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         p2_tournament_history=_format_tournament_record(p2.get("tournament_record", {})),
         odds_alert=_odds_alert(odds_p1, odds_p2, match["player1"], match["player2"]),
 
-        w_elo_ranking=weights.get("elo_ranking", 20),
-        w_surface_style=weights.get("surface_style", 23),
-        w_serve_return=weights.get("serve_return", 18),
-        w_recent_form=weights.get("recent_form", 20),
-        w_fatigue_injuries=weights.get("fatigue_injuries", 14),
-        w_h2h_context=weights.get("h2h_context", 5),
+        w_elo_ranking=weights.get("elo_ranking", 22),
+        w_surface_style=weights.get("surface_style", 20),
+        w_serve_return=weights.get("serve_return", 22),
+        w_recent_form=weights.get("recent_form", 17),
+        w_fatigue_injuries=weights.get("fatigue_injuries", 11),
+        w_h2h_context=weights.get("h2h_context", 4),
+        w_tournament_trajectory=weights.get("tournament_trajectory", 4),
     )
 
     try:
