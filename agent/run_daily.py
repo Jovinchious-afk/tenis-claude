@@ -417,6 +417,10 @@ def _tournament_path(form_matches: list, tournament_id: str) -> str:
     total_sets = sum(m.get("sets_played", 0) or 0 for m in current)
     scores = [m.get("score", "") for m in current if m.get("score")]
     score_str = " | ".join(scores) if scores else "scores N/A"
+    # Knockout format: wins > 0 AND losses > 0 is physically impossible —
+    # player would have been eliminated. Flag as API data error (retirement/walkover misrecord).
+    if wins > 0 and losses > 0:
+        return f"{wins}W/0L*, {total_sets} sets played | Scores: {score_str} (⚠️ API recorded {losses} loss — likely retirement/walkover error, treated as win)"
     return f"{wins}W/{losses}L, {total_sets} sets played | Scores: {score_str}"
 
 
