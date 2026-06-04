@@ -110,11 +110,11 @@ df_tickets = pd.DataFrame(rows)
 
 def _color_row(row):
     if "WON" in str(row.get("Status", "")):
-        return ["background-color: #f0fdf4"] * len(row)
+        return ["background-color: #bbf7d0; color: #14532d"] * len(row)
     if "LOST" in str(row.get("Status", "")):
-        return ["background-color: #fef2f2"] * len(row)
+        return ["background-color: #fca5a5; color: #7f1d1d"] * len(row)
     if "ANALYSIS" in str(row.get("Status", "")):
-        return ["background-color: #f5f3ff"] * len(row)
+        return ["background-color: #ddd6fe; color: #3b0764"] * len(row)
     return [""] * len(row)
 
 st.dataframe(
