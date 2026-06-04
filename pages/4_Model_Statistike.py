@@ -135,11 +135,14 @@ labels = {
     "fatigue_injuries":  "Fatigue + Injuries",
     "h2h_context":       "H2H + Context",
 }
-SURFACE_ICONS = {"clay": "🟤 Clay", "grass": "🟢 Grass", "hard": "🔵 Hard"}
-SURFACE_COLORS = {
-    "clay":  ["#c2410c","#ea580c","#fb923c","#fed7aa","#7c3aed","#a78bfa"],
-    "grass": ["#15803d","#16a34a","#4ade80","#bbf7d0","#0369a1","#7dd3fc"],
-    "hard":  ["#1d4ed8","#2563eb","#60a5fa","#bfdbfe","#6d28d9","#c4b5fd"],
+# Fixed color per factor — consistent across all 3 surface tabs
+FACTOR_COLORS = {
+    "ELO + Ranking trend":    "#2563eb",
+    "Serve + Return":         "#16a34a",
+    "Surface + Style matchup":"#ea580c",
+    "Form (5-10 matches)":    "#dc2626",
+    "Fatigue + Injuries":     "#7c3aed",
+    "H2H + Context":          "#ca8a04",
 }
 
 tab_clay, tab_grass, tab_hard = st.tabs(["🟤 Clay", "🟢 Grass", "🔵 Hard"])
@@ -150,12 +153,16 @@ for tab, surface in [(tab_clay, "clay"), (tab_grass, "grass"), (tab_hard, "hard"
             rows = [{"Factor": labels.get(k, k), "Weight (%)": v}
                     for k, v in w.items() if isinstance(v, (int, float)) and k != "odds_movement"]
             df_w = pd.DataFrame(rows).sort_values("Weight (%)", ascending=False)
+            colors = [FACTOR_COLORS.get(r["Factor"], "#94a3b8") for r in rows]
+            df_w_sorted = df_w.reset_index(drop=True)
+            colors_sorted = [FACTOR_COLORS.get(f, "#94a3b8") for f in df_w_sorted["Factor"]]
             c1, c2 = st.columns([1, 1])
             with c1:
-                st.dataframe(df_w, hide_index=True, use_container_width=True)
+                st.dataframe(df_w_sorted, hide_index=True, use_container_width=True)
             with c2:
-                fig_pie = px.pie(df_w, values="Weight (%)", names="Factor",
-                                 color_discrete_sequence=SURFACE_COLORS[surface])
+                fig_pie = px.pie(df_w_sorted, values="Weight (%)", names="Factor",
+                                 color="Factor",
+                                 color_discrete_map=FACTOR_COLORS)
                 fig_pie.update_layout(height=300, margin=dict(l=0, r=0, t=10, b=0), showlegend=True)
                 st.plotly_chart(fig_pie, use_container_width=True)
 
