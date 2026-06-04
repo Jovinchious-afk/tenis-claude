@@ -39,7 +39,7 @@ TICKET_CONFIG = {
     "max_combined_odds": 40.0,
     "min_confidence": 63.0,
     "fallback_confidence": 58.0,
-    "last_resort_confidence": 55.0,  # zadnji fallback — uvijek generiraj tiket
+    "last_resort_confidence": 55.0,
 }
 
 # Max kandidata po turniru po danu (danas vs sutra)

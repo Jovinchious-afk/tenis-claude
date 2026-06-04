@@ -128,12 +128,13 @@ st.markdown("---")
 st.subheader("⚙️ Current model weights")
 
 labels = {
-    "elo_ranking":       "ELO + Ranking trend",
-    "surface_style":     "Surface + Style matchup",
-    "serve_return":      "Serve + Return",
-    "recent_form":       "Form (5-10 matches)",
-    "fatigue_injuries":  "Fatigue + Injuries",
-    "h2h_context":       "H2H + Context",
+    "elo_ranking":            "ELO + Ranking trend",
+    "surface_style":          "Surface + Style matchup",
+    "serve_return":           "Serve + Return",
+    "recent_form":            "Form (5-10 matches)",
+    "fatigue_injuries":       "Fatigue + Injuries",
+    "h2h_context":            "H2H + Context",
+    "tournament_trajectory":  "Tournament Trajectory",
 }
 # Fixed color per factor — consistent across all 3 surface tabs
 FACTOR_COLORS = {
@@ -143,6 +144,7 @@ FACTOR_COLORS = {
     "Form (5-10 matches)":    "#dc2626",
     "Fatigue + Injuries":     "#7c3aed",
     "H2H + Context":          "#ca8a04",
+    "Tournament Trajectory":  "#0891b2",
 }
 
 tab_clay, tab_grass, tab_hard = st.tabs(["🟤 Clay", "🟢 Grass", "🔵 Hard"])
