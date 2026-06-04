@@ -153,6 +153,15 @@ if selected:
     matches = selected.get("ticket_matches", [])
     status = selected.get("status", "pending")
 
+    # Ticket-level status override
+    if status in ("won", "lost"):
+        with st.expander("⚙️ Ticket status override", expanded=False):
+            st.caption("Correct ticket type if it was misclassified:")
+            if st.button("📊 Mark as Analysis Only", key=f"ao_{selected['id']}"):
+                db.update_ticket_status(selected["id"], "analysis_only", 0)
+                st.success("Ticket marked as analysis_only")
+                st.rerun()
+
     if selected.get("ticket_summary"):
         label = "📊 Analysis write-up" if selected.get("status") == "analysis_only" else "📝 Ticket write-up"
         with st.expander(label, expanded=True):
