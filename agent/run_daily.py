@@ -126,7 +126,11 @@ def main():
 
     # 5. Dohvati odds za sve mečeve
     print("Dohvaćam bookmaker kvote...")
+    # The Odds API (pokriva Grand Slamove kad su aktivni)
     all_odds = df.get_tennis_odds([m["player1"] for m in all_matches])
+    # Manual odds override — za ATP 250/500 koji nisu u The Odds API
+    manual_odds = df.get_manual_odds()
+    print(f"  Ukupno API kvota: {len(all_odds)} mečeva")
 
     # 6. Dohvati novosti o ozljedama
     print("Dohvaćam vijesti o ozljedama...")
@@ -220,11 +224,15 @@ def main():
             # H2H
             h2h = df.get_h2h(p1_id, p2_id) if p1_id and p2_id else {}
 
-            # Kvote
+            # Kvote — API, pa manual fallback
             odds = df.find_match_odds(match["player1"], match["player2"], all_odds)
+            if not odds and manual_odds:
+                odds = df.find_manual_odds(match["player1"], match["player2"], manual_odds)
+                if odds:
+                    print(f"    Manual odds: {match['player1']} vs {match['player2']}")
             match["odds_p1"] = odds.get("p1_odds", 0)
             match["odds_p2"] = odds.get("p2_odds", 0)
-            match["odds_available"] = bool(odds)  # False = kvote nisu nađene u Odds API
+            match["odds_available"] = bool(odds)
 
             # Kompajliraj p1_data i p2_data
             p1_data = {**p1_info, **p1_stats,

@@ -25,6 +25,8 @@ WEATHER_KEY   = os.environ.get("OPENWEATHER_KEY", "")
 API_BASE   = "https://tennis-api-atp-wta-itf.p.rapidapi.com/tennis/v2"
 ODDS_BASE  = "https://api.the-odds-api.com/v4"
 
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 HEADERS = {
     "x-rapidapi-key":  RAPID_API_KEY,
     "x-rapidapi-host": "tennis-api-atp-wta-itf.p.rapidapi.com",
@@ -505,11 +507,70 @@ def find_match_odds(player1: str, player2: str, all_odds: dict) -> dict:
 
 
 def _name_match(a: str, b: str) -> bool:
+    """Matches player names regardless of First/Last vs Last/First order."""
     a, b = a.lower().strip(), b.lower().strip()
     if a == b:
         return True
-    ap, bp = a.split(), b.split()
-    return bool(ap and bp and ap[-1] == bp[-1])
+    ap, bp = set(a.split()), set(b.split())
+    # Match if any word longer than 3 chars is shared (avoids false positives on "de", "van")
+    return bool(ap & bp and any(len(w) > 3 for w in ap & bp))
+
+
+def get_manual_odds() -> dict:
+    """
+    Čita ručno unesene kvote iz manual_odds.json u root projekta.
+    Format: {"Prezime": kvota, ...}  npr. {"Sonego": 1.13, "Alkaya": 6.00}
+    Koristi se kada The Odds API ne pokriva turnir (ATP 250/500 izvan Grand Slama).
+    """
+    path = os.path.join(_PROJECT_ROOT, "manual_odds.json")
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        # Provjeri datum — ne koristi stare kvote
+        file_date = data.get("_date", "")
+        today_str = format_date(datetime.date.today())
+        if file_date and file_date != today_str:
+            print(f"  manual_odds.json: stale date ({file_date} != {today_str}), skipping")
+            return {}
+        result = {}
+        for k, v in data.items():
+            if k.startswith("_"):
+                continue
+            try:
+                result[k.lower().strip()] = float(v)
+            except (TypeError, ValueError):
+                pass
+        print(f"  manual_odds.json: {len(result)} unosa za {today_str}")
+        return result
+    except Exception as e:
+        print(f"  manual_odds.json: read error — {e}")
+        return {}
+
+
+def find_manual_odds(player1: str, player2: str, manual: dict) -> dict:
+    """
+    Lookup kvota iz manual_odds flat dict {surname_lower: odds}.
+    Vraća {"p1_odds": x, "p2_odds": y} ako oboje nađeni, inače {}.
+    """
+    if not manual:
+        return {}
+
+    def lookup(player: str) -> float:
+        pl = player.lower().strip()
+        parts = pl.split()
+        for name, odds in manual.items():
+            n = name.lower().strip()
+            if n == pl or n in parts or (parts and parts[-1] == n):
+                return float(odds)
+        return 0.0
+
+    o1 = lookup(player1)
+    o2 = lookup(player2)
+    if o1 > 1.01 and o2 > 1.01:
+        return {"p1_odds": o1, "p2_odds": o2}
+    return {}
 
 
 # ── Tennis Abstract ELO ───────────────────────────────────────────────────────
