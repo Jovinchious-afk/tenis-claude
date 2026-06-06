@@ -267,11 +267,10 @@ def _pick_odds(pred: dict) -> float:
     m = pred.get("match", {})
     pick = pred.get("pick", "")
     p1 = m.get("player1", "")
+    # Matchanje picka s igračem
     if pick.lower() in p1.lower() or p1.lower() in pick.lower():
-        val = m.get("odds_p1") or 0
-        return float(val) if float(val) > 1.01 else 1.5
-    val = m.get("odds_p2") or 0
-    return float(val) if float(val) > 1.01 else 1.5
+        return float(m.get("odds_p1", 1.5) or 1.5)
+    return float(m.get("odds_p2", 1.5) or 1.5)
 
 
 _last_reviewer_notes: dict = {}  # module-level cache for reviewer output
