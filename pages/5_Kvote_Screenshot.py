@@ -18,7 +18,7 @@ st.set_page_config(page_title="Kvote sa Screenshota | Tennis Agent", page_icon="
 st.title("📸 Kvote sa Screenshota")
 
 st.markdown(
-    "Uploadaj screenshot kvota kladionice za **službeno prvo kolo (main draw)** — "
+    "Uploadaj screenshot kvota kladionice za **službeni turnir** — "
     "**bez kvalifikacijskih mečeva**. Claude će pročitati parove i kvote, "
     "ti ih provjeriš, pa se spreme za daily ticket."
 )
