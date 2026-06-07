@@ -531,28 +531,26 @@ def _city_for_weather(tournament_name: str) -> str:
 
 def _infer_rounds(matches: list) -> list:
     """
-    Fix unreliable round labels from the API by counting matches per
-    (tournament, date). The API often returns roundId=7 ('F') for non-final
-    rounds. We override when multiple matches from the same GS/Masters are
-    labeled 'F' on the same day — which is impossible for a real final.
+    Ispravlja NEPRAVILNE oznake runda s API-ja — ali samo kad su nemoguće ili
+    neprepoznate, jer rundu ne određuje samo broj mečeva u danu (rundа se
+    često proteže kroz više dana — npr. R32 prelijeva iz subote u nedjelju,
+    pa dan s 2-3 R32 meča NE znači da je to zapravo SF).
 
-    Grand Slam per-day counts → round:
-      ≥ 16 → R128/R64 (1st/2nd round)
-      8-15 → R32 (3rd round)
-      5-7  → R16 (4th round / osmina finala)
-      4    → QF (četvrtfinale)
-      2-3  → SF (polufinale)
-      1    → F  (finale)
-
-    Masters 1000 per-day counts → round:
-      ≥ 8  → early rounds
-      4    → QF
-      2    → SF
-      1    → F
+    API ponekad vrati neprepoznat roundId (npr. 'R12' umjesto 'F') ili
+    label koji je fizički nemoguć za broj mečeva tog dana (npr. 'F' uz
+    3 meča — finale je uvijek točno 1 meč). U tim slučajevima procjenjujemo
+    rundu iz broja mečeva; inače VJERUJEMO API-jevoj oznaci.
     """
     from collections import defaultdict
 
     _ROUND_ID = {"R128": 1, "R64": 2, "R32": 3, "R16": 4, "QF": 5, "SF": 6, "F": 7}
+
+    # Maksimalan broj mečeva koji ta runda fizički može imati (jedan turnir, jedan dan).
+    # Ako je stvarni broj manji ili jednak, API-jeva oznaka je vjerodostojna —
+    # runda se mogla protegnuti kroz više dana pa dio mečeva nedostaje.
+    _MAX_MATCHES = {"F": 1, "SF": 2, "QF": 4, "R16": 8, "R32": 16, "R64": 32, "R128": 64}
+    # Kvalifikacije i round-robin imaju nepravilne/varijabilne brojeve — ne diraj ih
+    _TRUST_ALWAYS = {"RR", "Q1", "Q2"}
 
     # Count all scheduled matches per (tournament, date) — before any cap
     counts: dict = defaultdict(list)
@@ -563,6 +561,13 @@ def _infer_rounds(matches: list) -> list:
     for (tournament, date), group in counts.items():
         n = len(group)
         level = group[0].get("level", "")
+        current_round = group[0].get("round", "")
+
+        if current_round in _TRUST_ALWAYS:
+            continue
+        max_for_current = _MAX_MATCHES.get(current_round)
+        if max_for_current is not None and n <= max_for_current:
+            continue  # API-jeva oznaka je fizički moguća — vjeruj joj
 
         if "Grand Slam" in level:
             if n >= 16:   inferred = "R64"
@@ -578,12 +583,12 @@ def _infer_rounds(matches: list) -> list:
             elif n in (2, 3): inferred = "SF"
             else:         inferred = "F"
         else:
-            # ATP 500/250 — smaller draws, less strict inference
-            if n >= 4:    inferred = "QF"
+            # ATP 500/250 — manji ždrijebi (28-32), ali R16 svejedno ima 7-8 mečeva
+            if n >= 8:    inferred = "R16"
+            elif n >= 4:  inferred = "QF"
             elif n in (2, 3): inferred = "SF"
             else:         inferred = "F"
 
-        current_round = group[0].get("round", "")
         if current_round != inferred:
             print(f"  Round fix: {tournament} ({date}) — {current_round} → {inferred} ({n} matches)")
             for m in group:
