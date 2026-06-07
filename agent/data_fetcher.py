@@ -10,6 +10,7 @@ import os
 import json
 import time
 import datetime
+import unicodedata
 import requests
 from bs4 import BeautifulSoup
 from typing import Optional
@@ -504,12 +505,30 @@ def find_match_odds(player1: str, player2: str, all_odds: dict) -> dict:
     return {}
 
 
+def _strip_diacritics(s: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFKD", s) if not unicodedata.combining(c))
+
+
 def _name_match(a: str, b: str) -> bool:
-    a, b = a.lower().strip(), b.lower().strip()
+    """Usporedba imena otporna na dijakritike i različit redoslijed (RapidAPI daje
+    "Ime Prezime", a screenshot kladionice često "Prezime Ime")."""
+    a = _strip_diacritics(a.lower().strip())
+    b = _strip_diacritics(b.lower().strip())
     if a == b:
         return True
-    ap, bp = a.split(), b.split()
-    return bool(ap and bp and ap[-1] == bp[-1])
+    aw, bw = a.split(), b.split()
+    if not aw or not bw:
+        return False
+    # Isti redoslijed (oba "Ime Prezime" ili oba "Prezime Ime") — zadnja riječ se poklapa
+    if aw[-1] == bw[-1]:
+        return True
+    # Obrnut redoslijed — jedan je "Ime Prezime", drugi "Prezime Ime"
+    if aw[-1] == bw[0] and aw[0] == bw[-1]:
+        return True
+    # Višerječna prezimena u bilo kojem redoslijedu — sve riječi se podudaraju kao skup
+    if set(aw) == set(bw):
+        return True
+    return False
 
 
 # ── Screenshot Odds (Claude vision ekstrakcija) ───────────────────────────────

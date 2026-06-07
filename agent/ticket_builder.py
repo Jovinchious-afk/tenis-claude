@@ -127,12 +127,17 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
         # Kaskadni fallback za odds: smanji min_conf i traži par s višom kvotom
         # koji će gurnuti kombiniranu kvotu u raspon 6-20
         print("Standardni raspon nije dostignut — tražim riskantnije pickove s višom kvotom.")
-        all_valid = [p for p in predictions if not p.get("skip_reason")]
+        all_valid = [p for p in predictions
+                     if not p.get("skip_reason") and _is_main_tour(p) and _has_odds(p)]
         all_valid.sort(key=lambda p: _pick_odds(p), reverse=True)  # najviše kvote prvo
         combined_pool = candidates + [p for p in all_valid if p not in candidates]
         best_combo = _find_best_combination(combined_pool, cfg)
         if best_combo:
             print("Tiket složen s riskantijim pickovima — prihvaćamo veći rizik.")
+
+    if not best_combo:
+        print("Nema dovoljno mečeva sa stvarnim kvotama za valjan tiket.")
+        return None
 
     # Final holistic review by Claude Sonnet before ticket is confirmed
     rejected_candidates = [p for p in candidates if p not in best_combo]
