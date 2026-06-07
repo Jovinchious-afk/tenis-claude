@@ -203,6 +203,15 @@ def main():
             p2_elo = df.find_player_elo(match["player2"], elo_data)
             p2_surface_summary = df.get_player_surface_summary(p2_id) if p2_id else {}
 
+            # Isključi meč ako bilo koji igrač nema pravi ELO — 1500 je fallback default
+            # za igrače koji nisu u elo_cache (~521 igrača), pa bi analiza bila zasnovana
+            # na izmišljenom broju umjesto stvarnoj procjeni snage
+            if p1_elo.get("elo_overall") == 1500 or p2_elo.get("elo_overall") == 1500:
+                missing = match["player1"] if p1_elo.get("elo_overall") == 1500 else match["player2"]
+                print(f"  Preskačem (nema ELO u cacheu): {match['player1']} vs {match['player2']} — "
+                      f"'{missing}' nema stvarnu ELO ocjenu (fallback 1500)")
+                continue
+
             # Tournament record (cached — isti igrač ne zove API više puta)
             tournament_id = match.get("tournament_id", "")
             p1_tournament_rec = df.get_player_tournament_record(p1_id, tournament_id) if p1_id and tournament_id else {}
