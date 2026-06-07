@@ -307,3 +307,24 @@ def upsert_elo_cache(entries: list) -> None:
         _rest("POST", "elo_cache", body=batch,
               prefer="return=minimal,resolution=merge-duplicates",
               params={"on_conflict": "player_name"})
+
+
+# ── Screenshot Odds (ručno unesene kvote sa screenshotova kladionice) ─────────
+
+def save_screenshot_odds(match_date: str, odds_dict: dict) -> None:
+    """
+    Sprema/dopunjuje kvote izvučene iz screenshota za dani datum (YYYY-MM-DD).
+    Mergira s postojećim zapisom za taj dan (više uploada istog dana se akumuliraju),
+    pa upserta preko on_conflict=match_date.
+    """
+    existing = get_screenshot_odds(match_date)
+    merged = {**existing, **odds_dict}
+    _upsert("screenshot_odds", {"match_date": match_date, "odds_data": merged}, on_conflict="match_date")
+
+
+def get_screenshot_odds(match_date: str) -> dict:
+    """Dohvat kvota sa screenshota za dani datum (YYYY-MM-DD). Vraća {} ako ne postoji."""
+    results = _select("screenshot_odds", filters={"match_date": f"eq.{match_date}"}, limit=1)
+    if results:
+        return results[0].get("odds_data") or {}
+    return {}

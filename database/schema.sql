@@ -112,6 +112,15 @@ CREATE TABLE IF NOT EXISTS performance_log (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Ručno unesene kvote sa screenshotova kladionice (Streamlit upload, Claude vision ekstrakcija)
+CREATE TABLE IF NOT EXISTS screenshot_odds (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    match_date DATE UNIQUE,
+    odds_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Insert initial model weights
 INSERT INTO model_weights (version, weights, is_active, update_reason)
 VALUES (

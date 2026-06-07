@@ -37,6 +37,11 @@ def _is_main_tour(p) -> bool:
     return True
 
 
+def _has_odds(p) -> bool:
+    """Meč mora imati stvarnu kvotu (Odds API ili screenshot) — bez nje se nikad ne stavlja na tiket."""
+    return bool(p.get("match", {}).get("odds_available"))
+
+
 def build_ticket(predictions: list, weights: dict, min_odds_override: float = None) -> Optional[dict]:
     """
     Ulaz: lista predikcija iz predictor.analyze_match()
@@ -70,7 +75,8 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
         candidates = [p for p in predictions
                       if not p.get("skip_reason")
                       and (p.get("confidence") or 0) >= conf_threshold
-                      and _is_main_tour(p)]
+                      and _is_main_tour(p)
+                      and _has_odds(p)]
         if len(candidates) >= cfg["min_matches"]:
             if conf_threshold < cfg["min_confidence"]:
                 print(f"Fallback: using conf >= {conf_threshold}% (no Challengers)")
@@ -79,7 +85,7 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
     # Zadnji resort: svi main-tour bez obzira na conf, ali NIKAD Challenger
     if len(candidates) < cfg["min_matches"]:
         candidates = [p for p in predictions
-                      if not p.get("skip_reason") and _is_main_tour(p)]
+                      if not p.get("skip_reason") and _is_main_tour(p) and _has_odds(p)]
         candidates.sort(key=lambda p: (p.get("confidence") or 0), reverse=True)
         candidates = candidates[:cfg["max_matches"]]
         print(f"Last resort: top {len(candidates)} main-tour picks by confidence")
@@ -97,7 +103,7 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
             if fair > 0 and bookmaker > 0:
                 edge = (1.0 / fair - 1.0 / bookmaker) * 100
                 if edge >= 8.0:
-                    if _is_main_tour(p):
+                    if _is_main_tour(p) and _has_odds(p):
                         edge_overrides.append(p)
                         print(f"  Edge override: {p.get('pick','')} conf={conf}% edge={edge:.1f}pp")
 

@@ -512,6 +512,82 @@ def _name_match(a: str, b: str) -> bool:
     return bool(ap and bp and ap[-1] == bp[-1])
 
 
+# ── Screenshot Odds (Claude vision ekstrakcija) ───────────────────────────────
+
+_ODDS_EXTRACTION_PROMPT = """Ovo je screenshot kvota kladionice za teniske mečeve (npr. SuperSport).
+Izvuci SVAKI par igrača i njihove decimalne kvote (1X2 / pobjednik meča, ne setovi/gemovi).
+
+Vrati ISKLJUČIVO JSON listu, bez ikakvog drugog teksta, u ovom formatu:
+[{"player1": "Prezime Ime", "odds1": 1.85, "player2": "Prezime Ime", "odds2": 1.95}, ...]
+
+Pravila:
+- Koristi imena igrača točno onako kako su napisana na slici (ne skraćuj, ne prevodi).
+- "odds1"/"odds2" su decimalne kvote za pobjedu tog igrača u meču (ne setovi, ne handikep).
+- Ako kvota nije čitljiva ili nedostaje, preskoči taj par.
+- Ne uključuj kvalifikacijske mečeve ako su posebno označeni (npr. "Kvalifikacije", "Quali", "Q1", "Q2")."""
+
+
+def extract_odds_from_screenshot(image_bytes: bytes, media_type: str = "image/png") -> dict:
+    """
+    Šalje screenshot kvota Claude vision API-ju i parsira odgovor u format
+    identičan onome koji vraća get_tennis_odds(): {"player1|player2": {p1_odds, p2_odds, p1, p2}}.
+    """
+    import base64
+    import anthropic
+    from config.model_config import CLAUDE_MODELS
+
+    client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+    b64 = base64.b64encode(image_bytes).decode("ascii")
+
+    response = client.messages.create(
+        model=CLAUDE_MODELS["odds_extraction"],
+        max_tokens=2000,
+        messages=[{
+            "role": "user",
+            "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": b64}},
+                {"type": "text", "text": _ODDS_EXTRACTION_PROMPT},
+            ],
+        }],
+    )
+    text = "".join(block.text for block in response.content if hasattr(block, "text")).strip()
+    if text.startswith("```"):
+        text = text.strip("`")
+        if text.startswith("json"):
+            text = text[4:]
+        text = text.strip()
+
+    try:
+        pairs = json.loads(text)
+    except (json.JSONDecodeError, ValueError):
+        print(f"Greška pri parsiranju odgovora za ekstrakciju kvota: {text[:200]}")
+        return {}
+
+    result = {}
+    for pair in pairs:
+        try:
+            p1, p2 = pair["player1"], pair["player2"]
+            o1, o2 = safe_float(pair["odds1"]), safe_float(pair["odds2"])
+        except (KeyError, TypeError):
+            continue
+        if not p1 or not p2 or o1 <= 1.0 or o2 <= 1.0:
+            continue
+        result[f"{p1}|{p2}"] = {"p1_odds": o1, "p2_odds": o2, "p1": p1, "p2": p2}
+    return result
+
+
+def get_screenshot_odds(date_str: str) -> dict:
+    """
+    Dohvat ručno unesenih kvota (sa screenshotova, uploadanih kroz Streamlit) za dani dan.
+    Format identičan get_tennis_odds(): {"player1|player2": {p1_odds, p2_odds, p1, p2}}.
+    """
+    from database import supabase_client as _db
+    odds = _db.get_screenshot_odds(date_str)
+    if odds:
+        print(f"Screenshot kvote: učitano {len(odds)} parova za {date_str}.")
+    return odds
+
+
 # ── Tennis Abstract ELO ───────────────────────────────────────────────────────
 
 def get_tennis_abstract_elo() -> dict:
@@ -897,6 +973,8 @@ def _get_tournament_level(name: str, category: str = "") -> str:
     #            "Finals", "Challenger 125/100/75/50", "Future"
     cat = category.lower()
     n   = name.lower()
+    if any(x in cat for x in ["qual", "quali"]) or any(x in n for x in ["qualif", "quali"]):
+        return "ATP Qualifying"
     if "grand slam" in cat or any(x in n for x in ["roland garros", "french open", "wimbledon",
                                                      "us open", "australian open"]):
         return "Grand Slam"

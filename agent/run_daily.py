@@ -128,6 +128,14 @@ def main():
     print("Dohvaćam bookmaker kvote...")
     all_odds = df.get_tennis_odds([m["player1"] for m in all_matches])
 
+    # Ručno unesene kvote sa screenshotova (Streamlit upload) imaju prednost —
+    # pokrivaju turnire (ATP 250/500) koje The Odds API ne vidi.
+    screenshot_odds = {}
+    screenshot_odds.update(df.get_screenshot_odds(format_date(today)))
+    screenshot_odds.update(df.get_screenshot_odds(format_date(tomorrow)))
+    if screenshot_odds:
+        all_odds = {**all_odds, **screenshot_odds}
+
     # 6. Dohvati novosti o ozljedama
     print("Dohvaćam vijesti o ozljedama...")
     injury_news = df.get_atp_injury_news()

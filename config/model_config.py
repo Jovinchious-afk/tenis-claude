@@ -64,4 +64,5 @@ CLAUDE_MODELS = {
     "analysis": "claude-haiku-4-5-20251001",
     "ticket_writer": "claude-sonnet-4-6",
     "feedback": "claude-haiku-4-5-20251001",
+    "odds_extraction": "claude-sonnet-4-6",
 }
