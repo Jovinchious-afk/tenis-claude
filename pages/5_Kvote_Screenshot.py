@@ -91,5 +91,9 @@ for label, d in date_options.items():
                  for v in saved.values()],
                 use_container_width=True, hide_index=True,
             )
+            if st.button("🗑️ Obriši sve", key=f"delete_{d}"):
+                db.delete_screenshot_odds(d)
+                st.success(f"Obrisane sve kvote za {label.split('—')[1].strip()}.")
+                st.rerun()
         else:
             st.caption("Nema spremljenih kvota za ovaj dan.")

@@ -128,6 +128,12 @@ def main():
     print("Dohvaćam bookmaker kvote...")
     all_odds = df.get_tennis_odds([m["player1"] for m in all_matches])
 
+    # Očisti zastarjele screenshot kvote — zapisi za dane koji su već prošli više
+    # nikad neće biti korišteni (mečevi su odigrani), pa se ne nakupljaju zauvijek
+    n_cleaned = db.cleanup_old_screenshot_odds(format_date(today))
+    if n_cleaned:
+        print(f"  Očišćeno {n_cleaned} zastarjelih zapisa screenshot kvota.")
+
     # Ručno unesene kvote sa screenshotova (Streamlit upload) imaju prednost —
     # pokrivaju turnire (ATP 250/500) koje The Odds API ne vidi.
     screenshot_odds = {}

@@ -328,3 +328,27 @@ def get_screenshot_odds(match_date: str) -> dict:
     if results:
         return results[0].get("odds_data") or {}
     return {}
+
+
+def delete_screenshot_odds(match_date: str) -> bool:
+    """Briše sve spremljene screenshot kvote za dani datum (YYYY-MM-DD)."""
+    try:
+        _rest("DELETE", "screenshot_odds", params={"match_date": f"eq.{match_date}"})
+        return True
+    except Exception as e:
+        print(f"Greška brisanja screenshot kvota za {match_date}: {e}")
+        return False
+
+
+def cleanup_old_screenshot_odds(keep_from_date: str) -> int:
+    """
+    Briše screenshot kvote čiji je match_date prošao (stariji od keep_from_date, YYYY-MM-DD).
+    Sprječava nakupljanje zastarjelih uploada — pozvati jednom dnevno (npr. iz run_daily.py).
+    """
+    try:
+        deleted = _rest("DELETE", "screenshot_odds", params={"match_date": f"lt.{keep_from_date}"},
+                        prefer="return=representation")
+        return len(deleted)
+    except Exception as e:
+        print(f"Greška čišćenja starih screenshot kvota: {e}")
+        return 0
