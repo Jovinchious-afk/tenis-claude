@@ -360,9 +360,12 @@ def save_tournament_history(records: list) -> int:
     """Batch upsert draw rezultata turnira. Vraća broj stvarno upsertanih redaka."""
     if not records:
         return 0
+    _DB_COLS = {"tournament_name", "season_id", "season_year", "round_name",
+                "winner_name", "loser_name", "score"}
+    clean = [{k: v for k, v in r.items() if k in _DB_COLS} for r in records]
     saved = 0
-    for i in range(0, len(records), 50):
-        batch = records[i:i + 50]
+    for i in range(0, len(clean), 50):
+        batch = clean[i:i + 50]
         result = _rest(
             "POST", "tournament_history", body=batch,
             prefer="return=representation,resolution=merge-duplicates",
