@@ -186,6 +186,28 @@ def main():
         else:
             match["weather"] = base_weather
 
+    # 6c. Dohvati/cachaj draw povijest za sve unikatne turnire (lazy — samo jednom po turniru).
+    # Sprema F/SF/QF/R16 rezultate zadnje 3 sezone u Supabase; subsequent pozivi čitaju cache.
+    print("Dohvaćam tournament draw povijest (za anti-halucinacijski kontekst)...")
+    tournament_draw_cache: dict = {}
+    _fetched_this_run: set = set()
+    for _m in all_matches:
+        _tid = _m.get("tournament_id", "")
+        _tname = _m.get("tournament", "")
+        _base = _tname.split(" - ")[0].strip()
+        if _base and _base not in tournament_draw_cache:
+            if _base not in _fetched_this_run:
+                _fetched_this_run.add(_base)
+                if not db.has_tournament_history(_tname):
+                    _records = df.get_tournament_draw_history(_tid, _tname, years=3)
+                    if _records:
+                        _n = db.save_tournament_history(_records)
+                        print(f"  Spremljeno {_n} draw zapisa za {_base}.")
+            _min_yr = datetime.date.today().year - 3
+            tournament_draw_cache[_base] = db.get_tournament_draw(_tname, _min_yr)
+    _total_draw = sum(len(v) for v in tournament_draw_cache.values())
+    print(f"  Draw cache: {_total_draw} zapisa za {len(tournament_draw_cache)} turnira.")
+
     # 7. Za svaki meč dohvati podatke o igračima
     print(f"\nDohvaćam podatke za {len(all_matches)} mečeva...")
     matches_with_data = []
@@ -287,6 +309,9 @@ def main():
                        "tournament_path": p2_tourn_path,
                        "form_trend": p2_trend,
                        }
+
+            _base_tname = match.get("tournament", "").split(" - ")[0].strip()
+            match["draw_history"] = tournament_draw_cache.get(_base_tname, [])
 
             matches_with_data.append({
                 "match": match,

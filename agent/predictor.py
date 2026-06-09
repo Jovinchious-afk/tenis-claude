@@ -123,8 +123,11 @@ H2H reliability: {h2h_reliability}
 === CONTEXT ===
 Conditions: {weather}
 Altitude: {altitude}
-Tournament history {player1}: {p1_tournament_history}
-Tournament history {player2}: {p2_tournament_history}
+Tournament draw history — champions & finalists, last 3 seasons (verified API data):
+{tournament_draw_history}
+STRICT ANTI-HALLUCINATION RULE: Do NOT write "title defence", "defending champion", "winner last year", or any historical tournament claim unless that player is explicitly listed as Final winner (F:) in the draw history above. If draw data shows "Nema podataka" — make zero historical tournament claims.
+Tournament record {player1}: {p1_tournament_history}
+Tournament record {player2}: {p2_tournament_history}
 {odds_alert}
 
 === MODEL WEIGHTS ===
@@ -262,6 +265,9 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
 
         weather=match.get("weather", "N/A"),
         altitude=match.get("altitude", "Normal altitude"),
+        tournament_draw_history=_format_draw_history(
+            match.get("draw_history", []), match["player1"], match["player2"]
+        ),
         p1_tournament_history=_format_tournament_record(p1.get("tournament_record", {})),
         p2_tournament_history=_format_tournament_record(p2.get("tournament_record", {})),
         odds_alert=_odds_alert(odds_p1, odds_p2, match["player1"], match["player2"]),
@@ -485,6 +491,62 @@ def _format_tournament_record(record: dict) -> str:
         f"Najbolje: {record['best_round']} ({record['best_year']}) | "
         f"Zadnje: {record['recent']}"
     )
+
+
+def _norm_name(s: str) -> str:
+    """Normalizacija imena: bez dijakritika, lowercase, spojnice → razmaci."""
+    import unicodedata
+    s = unicodedata.normalize("NFKD", s.lower().strip())
+    return "".join(c for c in s if unicodedata.category(c) != "Mn").replace("-", " ")
+
+
+def _format_draw_history(draw_rows: list, player1: str, player2: str) -> str:
+    """
+    Formatira stvarne draw podatke zadnjih 3 sezone za Claude prompt.
+    Prikazuje tko je pobijedio turnir, tko je igrao final, SF, QF.
+    Sprječava halucinacije jer Claude vidi STVARNA imena pobjednika.
+    """
+    if not draw_rows:
+        return "Nema podataka (API greška ili turnir nije prethodno igran)."
+
+    from collections import defaultdict
+    by_year: dict = defaultdict(lambda: defaultdict(list))
+    for row in draw_rows:
+        yr = row.get("season_year", 0)
+        rn = row.get("round_name", "")
+        w = row.get("winner_name", "")
+        l = row.get("loser_name", "")
+        if w and l and yr and rn:
+            by_year[yr][rn].append(f"{w} def. {l}")
+
+    lines = []
+    for yr in sorted(by_year.keys(), reverse=True):
+        rounds = by_year[yr]
+        parts = []
+        for rn in ["F", "SF", "QF", "R16"]:
+            if rn in rounds:
+                parts.append(f"{rn}: {' | '.join(rounds[rn])}")
+        if parts:
+            lines.append(f"  {yr}: " + "  /  ".join(parts))
+
+    p1_norm = _norm_name(player1)
+    p2_norm = _norm_name(player2)
+
+    for pnorm, pname in [(p1_norm, player1), (p2_norm, player2)]:
+        appearances = []
+        for row in sorted(draw_rows, key=lambda r: r.get("season_year", 0), reverse=True):
+            wnorm = _norm_name(row.get("winner_name", ""))
+            lnorm = _norm_name(row.get("loser_name", ""))
+            rn = row.get("round_name", "")
+            yr = row.get("season_year", "")
+            if pnorm in wnorm or wnorm in pnorm:
+                appearances.append(f"{yr} {rn}W")
+            elif pnorm in lnorm or lnorm in pnorm:
+                appearances.append(f"{yr} {rn}L")
+        if appearances:
+            lines.append(f"  {pname}: {', '.join(appearances[:6])}")
+
+    return "\n".join(lines) if lines else "Nema podataka."
 
 
 def _last_h2h_result(h2h: dict) -> str:

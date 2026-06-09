@@ -1016,3 +1016,130 @@ def _get_tournament_level(name: str, category: str = "") -> str:
     if "250" in cat or "atp 250" in cat:
         return "ATP 250"
     return "ATP 250"
+
+
+# ── Tournament Draw History (F/SF/QF/R16, zadnje 3 sezone) ────────────────────
+
+def get_tournament_seasons(tournament_id: str) -> list:
+    """
+    Dohvat liste sezona za turnir.
+    Endpoint: GET /atp/tournament/seasons/{tournamentId}
+    Vraća: [{season_id, year, name}] sortirano od najnovijih.
+    """
+    data = _get(f"/atp/tournament/seasons/{tournament_id}")
+    if not data:
+        return []
+    raw = data.get("data", [])
+    if not isinstance(raw, list):
+        return []
+    seasons = []
+    for s in raw:
+        try:
+            date_str = s.get("date") or s.get("startDate") or ""
+            year = int(date_str[:4]) if len(date_str) >= 4 else 0
+            sid = s.get("id")
+            if year and sid:
+                seasons.append({"season_id": int(sid), "year": year, "name": s.get("name", "")})
+        except (ValueError, TypeError):
+            continue
+    return sorted(seasons, key=lambda x: x["year"], reverse=True)
+
+
+def _label_draw_rounds(matches: list) -> list:
+    """
+    Dodjeljuje oznake rundi (F/SF/QF/R16) na temelju pozicije od kraja turnira.
+    Pozicija 0 (najviši roundId) = Finale, 1 = Polufinale, 2 = Četvrtfinale, 3 = R16.
+    Radi za bilo koju veličinu draw-a (GS 128, ATP 250 32/48 itd.).
+    """
+    from collections import defaultdict
+    by_round: dict = defaultdict(list)
+    for m in matches:
+        if m.get("result_type") in ("completed", "retired"):
+            by_round[m.get("roundId", 0)].append(m)
+
+    sorted_rounds = sorted(by_round.keys(), reverse=True)
+    label_map = {0: "F", 1: "SF", 2: "QF", 3: "R16"}
+
+    labeled = []
+    for pos, rid in enumerate(sorted_rounds):
+        label = label_map.get(pos)
+        if label:
+            for m in by_round[rid]:
+                labeled.append({**m, "round_name": label})
+    return labeled
+
+
+def get_tournament_draw_history(tournament_id: str, tournament_name: str, years: int = 3) -> list:
+    """
+    Dohvaća F/SF/QF/R16 rezultate za zadnje N završenih sezona turnira.
+
+    Koristi:
+      1. GET /atp/tournament/seasons/{tournamentId} → lista sezona s ID-ovima
+      2. GET /atp/tournament/results/{seasonId}     → mečevi te sezone
+
+    Vraća: [{tournament_name, season_id, season_year, round_name,
+              winner_name, winner_id, loser_name, loser_id, score}]
+    """
+    current_year = datetime.date.today().year
+
+    seasons = get_tournament_seasons(tournament_id)
+    if not seasons:
+        print(f"  Nema sezona za {tournament_name} (ID: {tournament_id}) — preskačem.")
+        return []
+
+    past_seasons = [s for s in seasons if s["year"] < current_year][:years]
+    if not past_seasons:
+        return []
+
+    base_name = tournament_name.split(" - ")[0].strip()
+    all_results = []
+
+    for season in past_seasons:
+        season_id = season["season_id"]
+        year = season["year"]
+
+        data = _get(f"/atp/tournament/results/{season_id}")
+        if not data:
+            print(f"  Nema rezultata za {base_name} {year} (season_id={season_id}).")
+            continue
+
+        raw = data.get("data", {})
+        matches = raw.get("singles", []) if isinstance(raw, dict) else (raw if isinstance(raw, list) else [])
+        if not matches:
+            continue
+
+        labeled = _label_draw_rounds(matches)
+
+        for m in labeled:
+            winner_id_str = str(m.get("match_winner", ""))
+            p1 = m.get("player1") or {}
+            p2 = m.get("player2") or {}
+            p1_id = str(m.get("player1Id", p1.get("id", "")))
+            p2_id = str(m.get("player2Id", p2.get("id", "")))
+
+            if p1_id == winner_id_str:
+                winner, loser, w_id, l_id = p1, p2, p1_id, p2_id
+            else:
+                winner, loser, w_id, l_id = p2, p1, p2_id, p1_id
+
+            winner_name = winner.get("name", "")
+            loser_name = loser.get("name", "")
+            if not winner_name or not loser_name:
+                continue
+
+            all_results.append({
+                "tournament_name": base_name,
+                "season_id": season_id,
+                "season_year": year,
+                "round_name": m["round_name"],
+                "winner_name": winner_name,
+                "winner_id": w_id,
+                "loser_name": loser_name,
+                "loser_id": l_id,
+                "score": m.get("result", ""),
+            })
+
+        n_this_year = sum(1 for r in all_results if r["season_year"] == year)
+        print(f"  {base_name} {year}: {n_this_year} draw rezultata (F/SF/QF/R16)")
+
+    return all_results

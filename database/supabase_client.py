@@ -352,3 +352,58 @@ def cleanup_old_screenshot_odds(keep_from_date: str) -> int:
     except Exception as e:
         print(f"Greška čišćenja starih screenshot kvota: {e}")
         return 0
+
+
+# ── Tournament History (draw results — F/SF/QF/R16, zadnje 3 sezone) ─────────
+
+def save_tournament_history(records: list) -> int:
+    """Batch upsert draw rezultata turnira. Vraća broj stvarno upsertanih redaka."""
+    if not records:
+        return 0
+    saved = 0
+    for i in range(0, len(records), 50):
+        batch = records[i:i + 50]
+        result = _rest(
+            "POST", "tournament_history", body=batch,
+            prefer="return=representation,resolution=merge-duplicates",
+            params={"on_conflict": "season_id,winner_name,loser_name,round_name"},
+        )
+        saved += len(result)
+    return saved
+
+
+def get_tournament_draw(tournament_name: str, min_year: int) -> list:
+    """
+    Dohvat cachiranih draw rezultata (F/SF/QF/R16) za zadani turnir od min_year.
+    Radi case-insensitive match na base imenu (npr. "Wimbledon" matchira "Wimbledon - London").
+    Vraća [] ako tablica ne postoji ili nema podataka.
+    """
+    base_name = tournament_name.split(" - ")[0].strip()
+    try:
+        return _select(
+            "tournament_history",
+            filters={
+                "tournament_name": f"ilike.%{base_name}%",
+                "season_year": f"gte.{min_year}",
+            },
+            order="season_year.desc",
+            limit=120,
+        )
+    except Exception as e:
+        print(f"Greška dohvata tournament_history za {tournament_name}: {e}")
+        return []
+
+
+def has_tournament_history(tournament_name: str) -> bool:
+    """Provjeri postoje li draw podaci za ovaj turnir u cacheu."""
+    base_name = tournament_name.split(" - ")[0].strip()
+    try:
+        rows = _select(
+            "tournament_history",
+            select="id",
+            filters={"tournament_name": f"ilike.%{base_name}%"},
+            limit=1,
+        )
+        return bool(rows)
+    except Exception:
+        return False
