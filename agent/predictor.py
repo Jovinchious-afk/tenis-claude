@@ -123,11 +123,17 @@ H2H reliability: {h2h_reliability}
 === CONTEXT ===
 Conditions: {weather}
 Altitude: {altitude}
-Tournament draw history — champions & finalists, last 3 seasons (verified API data):
+Tournament draw history — verified API data, last 3 seasons (F/SF/QF/R16):
 {tournament_draw_history}
-STRICT ANTI-HALLUCINATION RULE: Do NOT write "title defence", "defending champion", "winner last year", or any historical tournament claim unless that player is explicitly listed as Final winner (F:) in the draw history above. If draw data shows "Nema podataka" — make zero historical tournament claims.
-Tournament record {player1}: {p1_tournament_history}
-Tournament record {player2}: {p2_tournament_history}
+STRICT ANTI-HALLUCINATION RULE:
+- Draw history above is the ONLY authoritative source for past champions, finalists, and semifinalists.
+- Tournament records below show ONLY aggregate match win/loss COUNTS — the underlying API endpoint is known to contain round-label errors (e.g. labelling a player "Winner" when they did not win the title). Do NOT use them to make any historical claims about who won or reached which round.
+- Do NOT write "title defence", "defending champion", "winner last year", "finalist last year", or ANY historical tournament achievement for either player unless they are explicitly listed in the draw history above (e.g. "F: PlayerName def. ...").
+- If draw history shows "Nema podataka" — make ZERO historical tournament claims.
+Tournament record {player1} (aggregate W/L COUNTS ONLY — do not infer round achievements):
+{p1_tournament_history}
+Tournament record {player2} (aggregate W/L COUNTS ONLY — do not infer round achievements):
+{p2_tournament_history}
 {odds_alert}
 
 === MODEL WEIGHTS ===
@@ -480,16 +486,17 @@ def _h2h_trend(h2h: dict) -> str:
 
 
 def _format_tournament_record(record: dict) -> str:
-    """Formatira turnirsku historiju za Claude prompt."""
+    """Formatira turnirsku historiju — SAMO agregatni W/L brojevi.
+    best_round i recent su namjerno izostavljeni: taj API endpoint vraća pogrešne
+    round labele (npr. Winner za igrača koji nije pobijedio turnir), što uzrokuje
+    halucinacije. Za točne podatke o prošlim pobjednicima koristi draw_history."""
     if not record or not record.get("appearances"):
         return "Nikad nije igrao ovaj turnir"
     total = record["total_wins"] + record["total_losses"]
     win_pct = round(record["total_wins"] / total * 100, 1) if total > 0 else 0
     return (
         f"{record['total_wins']}W/{record['total_losses']}L ({win_pct}%) "
-        f"u {record['appearances']} nastupa | "
-        f"Najbolje: {record['best_round']} ({record['best_year']}) | "
-        f"Zadnje: {record['recent']}"
+        f"across {record['appearances']} edition(s)"
     )
 
 
