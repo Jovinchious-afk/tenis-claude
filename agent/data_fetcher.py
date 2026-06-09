@@ -519,10 +519,11 @@ def _strip_diacritics(s: str) -> str:
 
 
 def _name_match(a: str, b: str) -> bool:
-    """Usporedba imena otporna na dijakritike i različit redoslijed (RapidAPI daje
-    "Ime Prezime", a screenshot kladionice često "Prezime Ime")."""
-    a = _strip_diacritics(a.lower().strip())
-    b = _strip_diacritics(b.lower().strip())
+    """Usporedba imena otporna na dijakritike, različit redoslijed i spojnice.
+    RapidAPI zna skratiti složena prezimena: "Diego Dedura" umjesto "Diego Dedura-Palomero" —
+    normalizacija spojnica na razmake omogućava da word-set provjera to uhvati."""
+    a = _strip_diacritics(a.lower().strip()).replace("-", " ")
+    b = _strip_diacritics(b.lower().strip()).replace("-", " ")
     if a == b:
         return True
     aw, bw = a.split(), b.split()
