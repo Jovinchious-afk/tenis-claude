@@ -134,13 +134,14 @@ def main():
     if n_cleaned:
         print(f"  Očišćeno {n_cleaned} zastarjelih zapisa screenshot kvota.")
 
-    # Ručno unesene kvote sa screenshotova (Streamlit upload) imaju prednost —
-    # pokrivaju turnire (ATP 250/500) koje The Odds API ne vidi.
+    # Ručno unesene kvote sa screenshotova — drže se ODVOJENO od Odds API podataka
+    # kako bi find_match_odds mogao uvijek provjeriti screenshot PRVI (prioritet),
+    # a tek tada pasti na The Odds API kao fallback.
     screenshot_odds = {}
     screenshot_odds.update(df.get_screenshot_odds(format_date(today)))
     screenshot_odds.update(df.get_screenshot_odds(format_date(tomorrow)))
     if screenshot_odds:
-        all_odds = {**all_odds, **screenshot_odds}
+        print(f"  Učitano {len(screenshot_odds)} screenshot kvota (imaju prioritet nad Odds API).")
 
     # 6. Dohvati novosti o ozljedama
     print("Dohvaćam vijesti o ozljedama...")
@@ -244,7 +245,8 @@ def main():
             h2h = df.get_h2h(p1_id, p2_id) if p1_id and p2_id else {}
 
             # Kvote
-            odds = df.find_match_odds(match["player1"], match["player2"], all_odds)
+            odds = df.find_match_odds(match["player1"], match["player2"], all_odds,
+                                      screenshot_odds=screenshot_odds)
             match["odds_p1"] = odds.get("p1_odds", 0)
             match["odds_p2"] = odds.get("p2_odds", 0)
             match["odds_available"] = bool(odds)  # False = kvote nisu nađene u Odds API

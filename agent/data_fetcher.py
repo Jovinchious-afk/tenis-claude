@@ -496,13 +496,22 @@ def get_tennis_odds(match_names: list) -> dict:
     return all_odds
 
 
-def find_match_odds(player1: str, player2: str, all_odds: dict) -> dict:
-    for key, val in all_odds.items():
-        if _name_match(player1, val["p1"]) and _name_match(player2, val["p2"]):
-            return {"p1_odds": val["p1_odds"], "p2_odds": val["p2_odds"]}
-        if _name_match(player1, val["p2"]) and _name_match(player2, val["p1"]):
-            return {"p1_odds": val["p2_odds"], "p2_odds": val["p1_odds"]}
-    return {}
+def find_match_odds(player1: str, player2: str, all_odds: dict, screenshot_odds: dict = None) -> dict:
+    """Screenshot kvote imaju strogi prioritet — provjeravaju se prve.
+    Tek ako tamo nema podudaranja, traži se u all_odds (The Odds API)."""
+    def _search(odds: dict) -> dict:
+        for val in odds.values():
+            if _name_match(player1, val["p1"]) and _name_match(player2, val["p2"]):
+                return {"p1_odds": val["p1_odds"], "p2_odds": val["p2_odds"]}
+            if _name_match(player1, val["p2"]) and _name_match(player2, val["p1"]):
+                return {"p1_odds": val["p2_odds"], "p2_odds": val["p1_odds"]}
+        return {}
+
+    if screenshot_odds:
+        result = _search(screenshot_odds)
+        if result:
+            return result
+    return _search(all_odds)
 
 
 def _strip_diacritics(s: str) -> str:
