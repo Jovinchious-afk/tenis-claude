@@ -398,13 +398,19 @@ def get_tournament_draw(tournament_name: str, min_year: int) -> list:
 
 
 def has_tournament_history(tournament_name: str) -> bool:
-    """Provjeri postoje li draw podaci za ovaj turnir u cacheu."""
+    """Provjeri postoje li draw podaci za prošlu godinu — ako ne, treba re-fetch.
+    Koristi (current_year - 1) kao provjeru svježine: kad nova sezona završi,
+    idući run automatski dohvaća i sprema nove podatke bez ručne intervencije."""
     base_name = tournament_name.split(" - ")[0].strip()
+    last_year = datetime.date.today().year - 1
     try:
         rows = _select(
             "tournament_history",
             select="id",
-            filters={"tournament_name": f"ilike.%{base_name}%"},
+            filters={
+                "tournament_name": f"ilike.%{base_name}%",
+                "season_year": f"eq.{last_year}",
+            },
             limit=1,
         )
         return bool(rows)
