@@ -265,6 +265,9 @@ def main():
 
             # H2H
             h2h = df.get_h2h(p1_id, p2_id) if p1_id and p2_id else {}
+            h2h_stats = df.get_h2h_stats(p1_id, p2_id) if p1_id and p2_id else {}
+            if h2h_stats:
+                h2h["stats"] = h2h_stats
 
             # Kvote
             odds = df.find_match_odds(match["player1"], match["player2"], all_odds,

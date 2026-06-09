@@ -305,6 +305,57 @@ def get_h2h(player1_id: str, player2_id: str) -> dict:
     }
 
 
+def get_h2h_stats(player1_id: str, player2_id: str) -> dict:
+    """
+    Endpoint: GET /atp/h2h/stats/{player1_id}/{player2_id}
+    Vraća bogate H2H statistike: tiebreak %, deciding set %, BO3/BO5 record.
+    Format: {"p1": {tb_won, tb_total, tb_pct, ds_won, ds_total, ds_pct, bo3_won, ...}, "p2": {...}}
+    """
+    if not player1_id or not player2_id:
+        return {}
+    data = _get(f"/atp/h2h/stats/{player1_id}/{player2_id}")
+    if not data:
+        return {}
+    raw = data.get("data", {})
+    if not raw or raw.get("error"):
+        return {}
+    p1s = raw.get("player1Stats", {}) or {}
+    p2s = raw.get("player2Stats", {}) or {}
+    if not p1s and not p2s:
+        return {}
+
+    def _s(d, k):
+        v = d.get(k)
+        return v if v is not None else 0
+
+    return {
+        "p1": {
+            "tb_won":    _s(p1s, "tiebreakWon"),
+            "tb_total":  _s(p1s, "tiebreakCount"),
+            "tb_pct":    _s(p1s, "totalTBWinPercentage"),
+            "ds_won":    _s(p1s, "decidingSetWin"),
+            "ds_total":  _s(p1s, "decidingSetCount"),
+            "ds_pct":    _s(p1s, "decidingSetWinPercentage"),
+            "bo3_won":   _s(p1s, "bestOfThreeWon"),
+            "bo3_total": _s(p1s, "bestOfThreeCount"),
+            "bo5_won":   _s(p1s, "bestOfFiveWon"),
+            "bo5_total": _s(p1s, "bestOfFiveCount"),
+        },
+        "p2": {
+            "tb_won":    _s(p2s, "tiebreakWon"),
+            "tb_total":  _s(p2s, "tiebreakCount"),
+            "tb_pct":    _s(p2s, "totalTBWinPercentage"),
+            "ds_won":    _s(p2s, "decidingSetWin"),
+            "ds_total":  _s(p2s, "decidingSetCount"),
+            "ds_pct":    _s(p2s, "decidingSetWinPercentage"),
+            "bo3_won":   _s(p2s, "bestOfThreeWon"),
+            "bo3_total": _s(p2s, "bestOfThreeCount"),
+            "bo5_won":   _s(p2s, "bestOfFiveWon"),
+            "bo5_total": _s(p2s, "bestOfFiveCount"),
+        },
+    }
+
+
 def _get_age(p: dict) -> int:
     """Extract age from API response. Tries direct age field first,
     then calculates from dateOfBirth if age is missing."""
@@ -808,8 +859,10 @@ def get_player_surface_summary(player_id: str) -> dict:
             losses = s.get("courtLosses", 0) or 0
             if court == "Clay":
                 key = "clay"
-            elif court in ("Hard", "I.hard"):
+            elif court == "Hard":
                 key = "hard"
+            elif court == "I.hard":
+                key = "indoor_hard"
             elif court == "Grass":
                 key = "grass"
             else:

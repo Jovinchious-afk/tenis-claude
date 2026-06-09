@@ -119,6 +119,7 @@ On {surface}: {h2h_surface}
 Last meeting: {h2h_last}
 Recent trend (last 3): {h2h_trend}
 H2H reliability: {h2h_reliability}
+{h2h_detailed_stats}
 
 === CONTEXT ===
 Conditions: {weather}
@@ -268,6 +269,7 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         h2h_last=_last_h2h_result(h2h),
         h2h_trend=h2h_trend,
         h2h_reliability=_h2h_reliability(h2h),
+        h2h_detailed_stats=_format_h2h_stats(h2h, match["player1"], match["player2"]),
 
         weather=match.get("weather", "N/A"),
         altitude=match.get("altitude", "Normal altitude"),
@@ -366,14 +368,25 @@ def _surface_form(matches: list, surface: str) -> str:
 
 
 def _format_surface_record(surface_summary: dict, surface: str) -> str:
-    """Formatira career win% na podlozi iz surface_summary dicta."""
-    key = surface.lower().split()[0]  # "Clay" → "clay", "Hard" → "hard", "Grass" → "grass"
+    """Formatira career win% na podlozi. Za hard prikazuje outdoor i indoor odvojeno."""
+    key = surface.lower().split()[0]
     if key == "indoor":
-        key = "hard"
+        key = "indoor_hard"
+
+    if key == "hard":
+        outdoor = surface_summary.get("hard", {})
+        indoor = surface_summary.get("indoor_hard", {})
+        parts = []
+        if outdoor and outdoor.get("matches"):
+            parts.append(f"Outdoor {outdoor['wins']}W/{outdoor['losses']}L ({outdoor['win_pct']}%) — {outdoor['matches']} matches")
+        if indoor and indoor.get("matches"):
+            parts.append(f"Indoor {indoor['wins']}W/{indoor['losses']}L ({indoor['win_pct']}%) — {indoor['matches']} matches")
+        return " | ".join(parts) if parts else "N/A"
+
     data = surface_summary.get(key, {})
     if not data or not data.get("matches"):
         return "N/A"
-    return f"{data['wins']}W/{data['losses']}L ({data['win_pct']}%) u {data['matches']} mečeva"
+    return f"{data['wins']}W/{data['losses']}L ({data['win_pct']}%) — {data['matches']} matches"
 
 
 def _round_context(round_str: str, level: str, round_id: int = 0) -> str:
@@ -483,6 +496,42 @@ def _h2h_trend(h2h: dict) -> str:
     if not winners:
         return "N/A"
     return " → ".join(winners) if len(winners) > 1 else winners[0]
+
+
+def _format_h2h_stats(h2h: dict, player1: str, player2: str) -> str:
+    """Format bogatih H2H statistika: tiebreak %, deciding set %, BO3/BO5 split."""
+    stats = h2h.get("stats", {})
+    if not stats:
+        return "N/A"
+    p1s = stats.get("p1", {})
+    p2s = stats.get("p2", {})
+
+    lines = []
+
+    tb_total = p1s.get("tb_total", 0)
+    if tb_total:
+        p1_pct = p1s.get("tb_pct") or (round(p1s["tb_won"] / tb_total * 100) if tb_total else 0)
+        p2_pct = p2s.get("tb_pct") or (round(p2s["tb_won"] / tb_total * 100) if tb_total else 0)
+        lines.append(f"Tiebreaks ({tb_total} played): {player1} {p1_pct}% | {player2} {p2_pct}%")
+
+    ds_total = p1s.get("ds_total", 0)
+    if ds_total:
+        lines.append(
+            f"Deciding sets ({ds_total} played): "
+            f"{player1} {p1s.get('ds_pct', 0)}% | {player2} {p2s.get('ds_pct', 0)}%"
+        )
+
+    bo3 = p1s.get("bo3_total", 0)
+    bo5 = p1s.get("bo5_total", 0)
+    if bo3 or bo5:
+        parts = []
+        if bo3:
+            parts.append(f"BO3: {p1s['bo3_won']}-{p2s['bo3_won']}")
+        if bo5:
+            parts.append(f"BO5: {p1s['bo5_won']}-{p2s['bo5_won']}")
+        lines.append("Format split: " + " | ".join(parts))
+
+    return "\n".join(lines) if lines else "N/A"
 
 
 def _format_tournament_record(record: dict) -> str:
