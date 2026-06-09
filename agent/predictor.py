@@ -124,6 +124,7 @@ H2H reliability: {h2h_reliability}
 === CONTEXT ===
 Conditions: {weather}
 Altitude: {altitude}
+Venue type: {venue_type}
 Tournament draw history — verified API data, last 3 seasons (F/SF/QF/R16):
 {tournament_draw_history}
 STRICT ANTI-HALLUCINATION RULE:
@@ -186,7 +187,15 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
     p1 = p1_data
     p2 = p2_data
     surface = match.get("surface", "Hard")
-    elo_key = f"elo_{surface.lower().replace(' ', '_')}"
+    _surf_lower = surface.lower()
+    if "hard" in _surf_lower:
+        elo_key = "elo_hard"
+    elif "clay" in _surf_lower:
+        elo_key = "elo_clay"
+    elif "grass" in _surf_lower:
+        elo_key = "elo_grass"
+    else:
+        elo_key = "elo_hard"
 
     p1_form5 = _format_form(p1.get("form_recent", {}).get("matches", [])[:5])
     p1_form10 = _form_summary(p1.get("form_recent", {}))
@@ -273,6 +282,11 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
 
         weather=match.get("weather", "N/A"),
         altitude=match.get("altitude", "Normal altitude"),
+        venue_type=(
+            "Indoor hard court" if "indoor" in surface.lower()
+            else "Outdoor hard court" if surface.lower() == "hard"
+            else "N/A"
+        ),
         tournament_draw_history=_format_draw_history(
             match.get("draw_history", []), match["player1"], match["player2"]
         ),
