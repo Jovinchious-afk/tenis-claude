@@ -411,6 +411,15 @@ Respond ONLY in this JSON format:
         else:
             print(f"  Reviewer returned {len(final_combo)} picks — keeping original.")
 
+        # Reviewer's change was rejected by validation — original ticket kept as-is.
+        # Update notes so the displayed decision matches reality (avoid showing a
+        # "removed X" claim for a pick that is still in the final ticket).
+        _last_reviewer_notes["decision"] = "CONFIRM"
+        _last_reviewer_notes["changes"] = (
+            f"Reviewer proposed {decision} ({changes}) but this was reverted to keep "
+            f"combined odds within the required range ({cfg['min_combined_odds']}-{cfg['max_combined_odds']}). "
+            f"Original ticket retained — see warning for the highest-risk pick."
+        )
         return proposed
 
     except Exception as e:
@@ -443,7 +452,9 @@ Write:
 2. For each pick: one sentence explaining why it is a good selection (focus on key factors)
 3. One closing sentence with overall assessment
 
-Be specific — mention surface, form, H2H, fatigue where relevant."""
+Be specific — mention surface, form, H2H, fatigue where relevant.
+
+Refer to players by name (or surname) only — do not use nationality/demonyms (e.g. "the Croatian", "the Czech") as a stand-in for a player's name, since this is a frequent source of mix-ups when a ticket contains multiple players."""
 
     try:
         client = _get_client()
