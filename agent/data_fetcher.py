@@ -137,7 +137,7 @@ def get_matches_for_date(date: datetime.date) -> list:
     all_entries = []
     seen_ids: set = set()
     page = 1
-    while page <= 5:
+    while page <= 25:
         params = {"pageNo": page} if page > 1 else None
         data = _get(f"/atp/fixtures/{date_str}", params=params)
         if not data:
