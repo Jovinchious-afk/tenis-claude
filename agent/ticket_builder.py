@@ -349,7 +349,7 @@ Respond ONLY in this JSON format:
   "decision": "CONFIRM|MODIFY|REDUCE|FORCE",
   "final_picks": ["exact player name as given above", ...],
   "changes": "No changes made. / Removed X, added Y because: ... (1-2 clean sentences, final answer only — no reasoning steps, hesitations, or self-corrections like 'wait, ...')",
-  "warning": "One sentence on the biggest risk to this ticket."
+  "warning": "One sentence naming the SINGLE pick (by player name) that carries the most risk on the PROPOSED ticket above, and why. Avoid referring to counts of picks (e.g. 'all four picks') since your proposed changes may be reverted and the original ticket shown instead — focus on the specific pick/risk, not the ticket size."
 }}"""
 
     try:
