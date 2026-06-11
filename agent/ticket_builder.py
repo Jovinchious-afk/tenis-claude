@@ -348,7 +348,7 @@ Respond ONLY in this JSON format:
 {{
   "decision": "CONFIRM|MODIFY|REDUCE|FORCE",
   "final_picks": ["exact player name as given above", ...],
-  "changes": "No changes made. / Removed X, added Y because: ...",
+  "changes": "No changes made. / Removed X, added Y because: ... (1-2 clean sentences, final answer only — no reasoning steps, hesitations, or self-corrections like 'wait, ...')",
   "warning": "One sentence on the biggest risk to this ticket."
 }}"""
 
@@ -413,12 +413,20 @@ Respond ONLY in this JSON format:
 
         # Reviewer's change was rejected by validation — original ticket kept as-is.
         # Update notes so the displayed decision matches reality (avoid showing a
-        # "removed X" claim for a pick that is still in the final ticket).
+        # "removed X" claim for a pick that is still in the final ticket), and avoid
+        # echoing the reviewer's raw "changes" text which can contain messy
+        # mid-reasoning artifacts (e.g. "wait, ...").
+        if final_combo and len(final_combo) < len(proposed):
+            removed_names = [p.get("pick", "") for p in proposed if p not in final_combo]
+            detail = f"remove {', '.join(removed_names)}"
+        else:
+            detail = f"reduce to {len(final_combo)} pick(s)"
+
         _last_reviewer_notes["decision"] = "CONFIRM"
         _last_reviewer_notes["changes"] = (
-            f"Reviewer proposed {decision} ({changes}) but this was reverted to keep "
-            f"combined odds within the required range ({cfg['min_combined_odds']}-{cfg['max_combined_odds']}). "
-            f"Original ticket retained — see warning for the highest-risk pick."
+            f"Reviewer proposed to {detail}, but this was reverted to keep combined odds "
+            f"within the required range ({cfg['min_combined_odds']}-{cfg['max_combined_odds']}). "
+            f"Original ticket retained — see warning below for the highest-risk pick."
         )
         return proposed
 
