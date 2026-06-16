@@ -161,6 +161,7 @@ Key analytical priorities:
 - Tournament trajectory: only meaningful from R3 onwards (2+ wins tracked in this tournament). For R1/R2 or when tournament path shows "N/A", this factor has no data — redistribute its 4% weight mentally to recent_form. Never penalise a player for having no tournament path data.
 - Fatigue compounds across rounds: a player who played a 3-hour match yesterday is not the same as one who had 2 days rest, especially in BoF5.
 - Confidence calibration (CRITICAL): Historical data shows the model is systematically overconfident. Apply these strict rules: only reach 68% when 4+ independent factors clearly favour the same pick. Only exceed 70% when the edge is overwhelming across ALL factor categories. If 1-2 factors favour the pick but others are neutral or mixed — cap at 64%. A well-calibrated 68% pick should genuinely win ~68% of the time; if unsure, go lower.
+{surface_specific_rules}
 
 Respond ONLY in the following JSON format (no additional text):
 {{
@@ -177,6 +178,45 @@ Respond ONLY in the following JSON format (no additional text):
 }}
 
 If the match should be skipped (too much uncertainty, injury, insufficient data), set "skip_reason" to a string with the reason and all other fields to null."""
+
+
+def _surface_specific_rules(surface: str) -> str:
+    """Returns surface-specific calibration rules for the analysis prompt.
+    Grass rules derived from post-analysis of 12 documented losses (June 2026 season)."""
+    if "grass" not in surface.lower():
+        return ""
+    return """
+=== GRASS-SPECIFIC CALIBRATION RULES (apply these over the general rules above) ===
+These rules are derived from documented grass prediction errors this season:
+
+1. ELO gap cap: Grass ELO is based on a short 3-4 week season and goes stale quickly.
+   Cap the effective ELO advantage at 100 pts regardless of the actual gap.
+   A +200 grass ELO edge should be treated with the same weight as a +100 edge.
+   Never make a pick solely on a large ELO gap — it has failed repeatedly on grass.
+
+2. Form is the primary signal on grass: A player with 2/3 or 3/3 recent wins can
+   beat an opponent with a 150+ ELO advantage. Prioritise form over static ELO.
+   If the underdog has clearly better recent form, the ELO edge is neutralised.
+
+3. Grass surface records under 20 career matches: treat as informational only,
+   not a primary confidence driver. Small sample records (e.g. 6-2 in 8 matches)
+   carry wide uncertainty intervals — do not use them to justify high confidence.
+
+4. Rest paradox on grass: More rest is NOT always better on grass.
+   >7 days rest = neutral or slightly negative (rhythm and feel for the surface lost).
+   Optimal grass rest is 1-3 days. Do NOT reward a player with 10+ days layoff.
+   A player coming from a QF match (1-2 days rest) may be sharper than one rested 2 weeks.
+
+5. Fatigue + momentum interaction: Fatigue is only a reliable negative signal when
+   the fatigued player's form is ALSO declining (0/3, 1/4 recent).
+   A fatigued player who is actively winning matches (2/3, 3/3 recent form) has
+   demonstrated they can perform through match load — reduce their fatigue penalty by half.
+   Do NOT assume high match load = underperformance if recent form is positive.
+
+6. Confidence cap on grass: Given the volatility documented this season,
+   cap grass confidence at 67% unless 5+ independent factors ALL clearly align.
+   A 65% grass pick is well-calibrated; reaching 68% requires exceptional evidence.
+=== END GRASS-SPECIFIC RULES ==="""
 
 
 def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights: dict, all_news: str = "") -> dict:
@@ -301,6 +341,7 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         w_fatigue_injuries=weights.get("fatigue_injuries", 11),
         w_h2h_context=weights.get("h2h_context", 4),
         w_tournament_trajectory=weights.get("tournament_trajectory", 4),
+        surface_specific_rules=_surface_specific_rules(surface),
     )
 
     try:
