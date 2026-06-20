@@ -45,10 +45,10 @@ TICKET_CONFIG = {
 # Max kandidata po turniru po danu (danas vs sutra)
 # Ovo je pre-filter PRIJE kombinatorike — ne limit na tiketu
 DAILY_MATCH_LIMITS = {
-    "Grand Slam":       {"today": 5, "tomorrow": 4},
-    "ATP Masters 1000": {"today": 4, "tomorrow": 3},
-    "ATP 500":          {"today": 4, "tomorrow": 3},
-    "ATP 250":          {"today": 4, "tomorrow": 3},
+    "Grand Slam":       {"today": 7, "tomorrow": 6},
+    "ATP Masters 1000": {"today": 6, "tomorrow": 5},
+    "ATP 500":          {"today": 6, "tomorrow": 5},
+    "ATP 250":          {"today": 6, "tomorrow": 5},
     "ATP Challenger":   {"today": 0, "tomorrow": 0},
     "ATP Qualifying":   {"today": 0, "tomorrow": 0},
 }
