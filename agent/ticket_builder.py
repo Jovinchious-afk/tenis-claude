@@ -337,6 +337,13 @@ D. FORCE — if ticket is weak, build the best possible 4-7 pick ticket from all
 
 CHECK FOR: hidden fatigue, false recent form (weak opponents), surface/style mismatch, overlapping risk (too many picks with same vulnerability), data gaps (ELO 1500), BoF5 stamina implications, H2H small sample overweighting.
 
+GRASS-SPECIFIC CHECKS (apply when any pick is on Grass surface):
+- FLAG and consider removing: any grass pick at confidence ≥65% — this season's data shows systematic overconfidence at that level; confidence 65%+ on grass has lost repeatedly.
+- FLAG: grass picks where the player has 4+ matches in 7 days with only 1-2 days rest — fatigue on grass is decisive and cannot be offset by form.
+- FLAG: grass picks driven primarily by ELO when opponent has equal or better recent in-tournament results (tournament trajectory). ELO alone on grass has failed in 5+ documented cases.
+- FLAG: grass picks where the favoured player entered via bye and opponent has 2+ in-tournament wins this week — the bye is a disadvantage on grass, not neutral.
+- If 2+ grass picks share the same vulnerability (both relying on ELO edge, both with fatigued favourites), treat this as overlapping risk and consider REDUCING to 1 grass pick.
+
 HARD CONSTRAINTS:
 - Final ticket: 4-7 picks, combined odds 9-40 (or 6-40 if only 4 matches available)
 - Max 2 replacements

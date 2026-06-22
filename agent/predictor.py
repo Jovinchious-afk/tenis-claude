@@ -182,41 +182,72 @@ If the match should be skipped (too much uncertainty, injury, insufficient data)
 
 def _surface_specific_rules(surface: str) -> str:
     """Returns surface-specific calibration rules for the analysis prompt.
-    Grass rules derived from post-analysis of 12 documented losses (June 2026 season)."""
+    Grass rules derived from post-analysis of 14+ documented losses (June 2026 season).
+    Version 2: updated after 6 consecutive losing tickets on grass (June 16-22, 2026)."""
     if "grass" not in surface.lower():
         return ""
     return """
-=== GRASS-SPECIFIC CALIBRATION RULES (apply these over the general rules above) ===
-These rules are derived from documented grass prediction errors this season:
+=== GRASS-SPECIFIC CALIBRATION RULES v2 (apply these STRICTLY over the general rules above) ===
+These rules are derived from 14 documented grass prediction errors this season (June 2026).
+Every rule below was broken in at least one loss — treat them as hard constraints, not guidelines.
 
-1. ELO gap cap: Grass ELO is based on a short 3-4 week season and goes stale quickly.
-   Cap the effective ELO advantage at 100 pts regardless of the actual gap.
-   A +200 grass ELO edge should be treated with the same weight as a +100 edge.
-   Never make a pick solely on a large ELO gap — it has failed repeatedly on grass.
+1. ELO gap cap + ELO isolation rule:
+   Cap effective ELO advantage at 100 pts regardless of the actual gap.
+   CRITICAL: If ELO is the PRIMARY or ONLY differentiating factor (form, serve, fatigue
+   are comparable or the opponent has 2/3+ recent form), cap confidence at 61%.
+   ELO alone has driven picks at 65-68% that lost. A 200pt ELO gap on grass is NOT a
+   reliable predictor without corroborating evidence from form and serve.
 
-2. Form is the primary signal on grass: A player with 2/3 or 3/3 recent wins can
-   beat an opponent with a 150+ ELO advantage. Prioritise form over static ELO.
-   If the underdog has clearly better recent form, the ELO edge is neutralised.
+2. Surface-weighted form (NEW):
+   Recent form MUST be surface-weighted. Hard-court wins do NOT transfer directly to grass.
+   A 5-match streak built on hard courts = effective grass form of ~3/5.
+   A grass specialist with 2/3 recent form often beats a player who is 5/5 on other surfaces.
+   Before citing a hot streak as the primary confidence driver, ask: on which surface were
+   those wins? If they are mostly hard-court wins, treat the form signal as moderate, not strong.
 
-3. Grass surface records under 20 career matches: treat as informational only,
-   not a primary confidence driver. Small sample records (e.g. 6-2 in 8 matches)
-   carry wide uncertainty intervals — do not use them to justify high confidence.
+3. Grass specialist threshold (REVISED):
+   Under 20 career grass matches: informational only, not a primary confidence driver.
+   20-24 matches: moderate signal only.
+   25+ matches AND 70%+ win rate: PROVEN SPECIALIST — surface record is a PRIMARY signal.
+   Do not classify 30+ matches at 80%+ as a "small sample" — that is the strongest
+   grass-specific evidence available. A genuine specialist overrides general form momentum.
 
-4. Rest paradox on grass: More rest is NOT always better on grass.
+4. Rest paradox on grass (unchanged):
    >7 days rest = neutral or slightly negative (rhythm and feel for the surface lost).
-   Optimal grass rest is 1-3 days. Do NOT reward a player with 10+ days layoff.
-   A player coming from a QF match (1-2 days rest) may be sharper than one rested 2 weeks.
+   Optimal rest is 1-3 days. Do NOT reward a player with 10+ days layoff.
+   A player coming from a recent match (1-2 days rest) may be sharper than one rested 2 weeks.
 
-5. Fatigue + momentum interaction: Fatigue is only a reliable negative signal when
-   the fatigued player's form is ALSO declining (0/3, 1/4 recent).
-   A fatigued player who is actively winning matches (2/3, 3/3 recent form) has
-   demonstrated they can perform through match load — reduce their fatigue penalty by half.
-   Do NOT assume high match load = underperformance if recent form is positive.
+5. Fatigue rule — TIGHTENED (v2 change):
+   The previous rule halved fatigue penalty for players with positive recent form.
+   This has been removed for extreme load cases.
+   Apply fatigue penalty IN FULL when: 4+ matches in 7 days AND 1-2 days rest.
+   Improving form does NOT offset severe physical fatigue on grass — grass demands
+   explosive lateral movement and recover, which degrades under sustained load.
+   Only halve the fatigue penalty when the player has BOTH: 3 or fewer matches in 7 days
+   AND 2+ days rest AND 2/3 or better recent form. All three conditions must hold.
 
-6. Confidence cap on grass: Given the volatility documented this season,
-   cap grass confidence at 67% unless 5+ independent factors ALL clearly align.
-   A 65% grass pick is well-calibrated; reaching 68% requires exceptional evidence.
-=== END GRASS-SPECIFIC RULES ==="""
+6. In-tournament match sharpness vs. rest/bye (NEW):
+   On grass, active tournament wins carry more weight than raw rest days or ATP ranking.
+   A player who has won 2-3 matches this week has rhythm, timing, and ball feel.
+   A player entering via bye/walkover lacks grass match rhythm — this is a disadvantage,
+   NOT a neutral factor. When tournament_trajectory shows "N/A" or the player has a bye:
+   flag this as a risk. When opponent has 3/3 in-tournament wins this week, weight
+   tournament_trajectory as a PRIMARY signal for the current match, not a minor add-on.
+
+7. Both-players-in-declining-form rule (NEW):
+   When BOTH players show 1/3 or worse in their last 3 matches:
+   Cap confidence at 60% regardless of ELO, surface record, or other factors.
+   Do NOT assess one player's 1/3 as "stable" and the other's as "declining" — they are
+   in the same uncertainty category. Apply the same assessment to both sides.
+
+8. Confidence cap on grass (LOWERED from v1):
+   Hard cap: 64% maximum unless 5+ independent factors ALL clearly align.
+   63% is the well-calibrated ceiling for a strong grass pick this season.
+   Reaching 64% requires: superior grass ELO + better grass-relevant form + serve advantage
+   + favourable rest/fatigue + tournament trajectory all pointing the same direction.
+   If form data is mixed, conflicting, or asymmetric — stay at 62% or below.
+   The season data shows picks at 65-68% have been wrong repeatedly — do not exceed 64%.
+=== END GRASS-SPECIFIC RULES v2 ==="""
 
 
 def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights: dict, all_news: str = "") -> dict:
