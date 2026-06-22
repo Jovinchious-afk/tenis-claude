@@ -93,11 +93,32 @@ def main():
         m.get("date", ""),
     ))
 
-    # Cap na 35 mečeva — GS/Masters uvijek unutar limita, Challengeri se režu ako ima previše
-    MAX_MATCHES = 35
-    if len(all_matches) > MAX_MATCHES:
-        print(f"Reduciram na {MAX_MATCHES} mečeva (izbačeno {len(all_matches) - MAX_MATCHES} nižih turnira).")
-        all_matches = all_matches[:MAX_MATCHES]
+    # Cap na 40 mečeva s pametnom alokacijom za R128/R64 Grand Slam dane.
+    # Kada GS ima >20 mečeva (R128 ili R64), Wimbledon/AO/RG bi pojeo svih 40 mjesta
+    # i ostali turniri (ATP 250/500) ne bi ušli u analizu niti na tiket.
+    # Rješenje: rezerviraj 10 mjesta za ne-GS turnire, a GS uzima random 30.
+    MAX_MATCHES = 40
+    GS_LARGE_ROUND_THRESHOLD = 20   # >20 GS mečeva = R128 ili R64 u tijeku
+    GS_LARGE_ROUND_CAP = 30         # max GS mečeva u tom slučaju
+    OTHER_TOUR_RESERVE = 10         # uvijek rezervirano za ATP 250/500/Masters
+
+    gs_matches = [m for m in all_matches if m.get("level") == "Grand Slam"]
+    other_matches = [m for m in all_matches if m.get("level") != "Grand Slam"]
+
+    if len(gs_matches) > GS_LARGE_ROUND_THRESHOLD:
+        import random as _random
+        selected_gs = _random.sample(gs_matches, min(GS_LARGE_ROUND_CAP, len(gs_matches)))
+        selected_other = other_matches[:OTHER_TOUR_RESERVE]
+        print(
+            f"Grand Slam R128/R64 detektiran ({len(gs_matches)} GS mečeva): "
+            f"uzimam {len(selected_gs)} random GS + {len(selected_other)} ostalih "
+            f"({', '.join(sorted({m.get('tournament','').split(' - ')[0] for m in selected_other}))})."
+        )
+        all_matches = selected_gs + selected_other
+    else:
+        if len(all_matches) > MAX_MATCHES:
+            print(f"Reduciram na {MAX_MATCHES} mečeva (izbačeno {len(all_matches) - MAX_MATCHES} nižih turnira).")
+            all_matches = all_matches[:MAX_MATCHES]
 
     if not all_matches:
         print("Nema mečeva za analizu. Završavam.")
