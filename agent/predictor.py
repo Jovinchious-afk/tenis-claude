@@ -247,6 +247,20 @@ Every rule below was broken in at least one loss — treat them as hard constrai
    + favourable rest/fatigue + tournament trajectory all pointing the same direction.
    If form data is mixed, conflicting, or asymmetric — stay at 62% or below.
    The season data shows picks at 65-68% have been wrong repeatedly — do not exceed 64%.
+
+9. Confidence floor honesty (SELECTION-CRITICAL):
+   Our tickets only ever use picks at 63%+ confidence — anything below is excluded.
+   Therefore be HONEST, not optimistic: if this match is a genuine coin-flip, score it
+   BELOW 63% (e.g. 60%) so it is correctly dropped. Do NOT inflate a marginal pick to
+   63-64% just to make it ticket-eligible. A falsely-confident 63% is worse than an
+   honest 60%, because it puts a coin-flip onto a real-money accumulator.
+   Score the pick BELOW 63% whenever ANY of these holds:
+   - both players have fewer than 15 career grass matches (thin-sample / qualifying);
+   - both players are in 1/3-or-worse recent form;
+   - your pick rests mainly on a SINGLE factor (ELO alone, or form alone) while the
+     other factors are neutral or mixed;
+   - you cannot list at least 3 concrete, grass-specific advantages for your pick.
+   Only score 63%+ when you can genuinely name 3+ independent grass advantages.
 === END GRASS-SPECIFIC RULES v2 ==="""
 
 

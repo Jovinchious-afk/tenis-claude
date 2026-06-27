@@ -42,6 +42,11 @@ def _has_odds(p) -> bool:
     return bool(p.get("match", {}).get("odds_available"))
 
 
+def _is_grass(p) -> bool:
+    """True ako se par igra na travi."""
+    return "grass" in (p.get("match", {}).get("surface", "") or "").lower()
+
+
 def build_ticket(predictions: list, weights: dict, min_odds_override: float = None) -> Optional[dict]:
     """
     Ulaz: lista predikcija iz predictor.analyze_match()
@@ -56,6 +61,22 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
     cfg = dict(TICKET_CONFIG)
     if min_odds_override is not None:
         cfg["min_combined_odds"] = min_odds_override
+
+    # ── Grass selekcijska disciplina ────────────────────────────────────────
+    # Bookmaker kvote služe ISKLJUČIVO za konstrukciju tiketa (combined 9-40),
+    # NIKAD za odabir mečeva. Na travi se selekcija oslanja samo na modelov
+    # VLASTITI confidence: svaki grass pick ispod 63% izbacuje se prije selekcije.
+    # Time se gase i odds-driven mehanizmi (edge-override, fallback po najvišoj
+    # kvoti) za travu — jer su upravo oni uvlačili gubitnike (n=73, lipanj 2026:
+    # grass pickovi ispod 63% confidence pobjeđivali su ~40%).
+    grass_floor = cfg["min_confidence"]
+    n_before = len(predictions)
+    predictions = [p for p in predictions
+                   if not _is_grass(p) or (p.get("confidence") or 0) >= grass_floor]
+    n_dropped = n_before - len(predictions)
+    if n_dropped:
+        print(f"  Grass disciplina: izbačeno {n_dropped} grass pickova ispod {grass_floor}% "
+              f"(modelov confidence, ne kvota).")
 
     def _eligible(p, conf_threshold, allow_challengers=False):
         level = p.get("match", {}).get("level", "")
