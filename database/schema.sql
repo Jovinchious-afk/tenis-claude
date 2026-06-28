@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS ticket_matches (
     result VARCHAR(20) DEFAULT 'pending' CHECK (result IN ('pending', 'won', 'lost', 'void')),
     actual_winner VARCHAR(150),
     actual_score VARCHAR(100),
+    match_stats JSONB,
     analysis_done BOOLEAN DEFAULT FALSE,
     loss_analysis TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

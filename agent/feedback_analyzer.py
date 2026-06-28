@@ -87,12 +87,12 @@ def run_evening_update() -> dict:
             continue
 
         # Pokušaj via past-matches (normalno) — probaj s oba igrača
-        actual_winner = ""
+        actual_winner, actual_score = "", ""
         if p1_id:
-            actual_winner = _check_result_via_form(pm, p1_id)
+            actual_winner, actual_score = _check_result_via_form(pm, p1_id)
         if not actual_winner and p2_id:
             pm_alt = {**pm, "player1": p2_name, "player2": p1_name}
-            actual_winner = _check_result_via_form(pm_alt, p2_id)
+            actual_winner, actual_score = _check_result_via_form(pm_alt, p2_id)
 
         # Fallback: walkover/predaja — fixture direktno zna pobjednika
         if not actual_winner:
@@ -119,10 +119,26 @@ def run_evening_update() -> dict:
 
         pick = pm.get("pick", "")
         result = "won" if _names_match(pick, actual_winner) else "lost"
-        db.update_match_result(pm["id"], result, actual_winner)
+
+        # Dohvati i trajno spremi statistike meča (sve podloge, pobjeda I poraz) —
+        # gradi se korpus "hipoteza prije meča vs stvarni ishod + brojke" za buduće učenje.
+        tournament_id = match_to_tournament.get((p1_name.lower().strip(), p2_name.lower().strip()), "")
+        match_stats = {}
+        if tournament_id and p1_id and p2_id:
+            try:
+                match_stats = get_match_stats(tournament_id, p1_id, p2_id) or {}
+            except Exception as e:
+                print(f"  Greska dohvata statistike {p1_name} vs {p2_name}: {e}")
+
+        db.update_match_result(pm["id"], result, actual_winner,
+                               actual_score=actual_score or None)
+        # Statistike zasebno (best-effort) — ne smiju srušiti upis rezultata
+        if match_stats:
+            db.save_match_stats(pm["id"], match_stats)
         summary["resolved"] += 1
         summary["won" if result == "won" else "lost"] += 1
-        print(f"  Azuriran: {p1_name} vs {p2_name} -> {result} ({actual_winner})")
+        score_str = f" {actual_score}" if actual_score else ""
+        print(f"  Azuriran: {p1_name} vs {p2_name} -> {result} ({actual_winner}{score_str})")
 
     # 2. Ažuriraj statuseve tiketa
     _update_ticket_statuses()
@@ -358,10 +374,50 @@ def _maybe_update_weights(lost_matches: list) -> bool:
 
     matches_section = "\n\n".join(match_blocks)
 
-    prompt = f"""You are an expert in tennis prediction model analysis. Based on {len(matches_with_analysis)} documented incorrect predictions, suggest adjustments to the model weights.
+    # ── Učenje iz DOBITAKA (isti period, ista podloga) ──────────────────────────
+    # Daje modelu kontrast: koji su faktorski obrasci proizveli TOČNE tipove, a koji
+    # pogrešne. Bez ovoga petlja uči samo iz pogrešaka i vidi pola slike.
+    won_raw = db.get_won_matches(limit=60)
+    won_filtered = [m for m in won_raw
+                    if (m.get("match_date") or "") >= weights_active_since
+                    and db._surface_key(m.get("surface", "hard")) == dominant_surface]
+    won_seen: dict = {}
+    for m in won_filtered:
+        k = (m.get("player1", "").lower().strip(), m.get("player2", "").lower().strip(), m.get("match_date", ""))
+        if k not in won_seen:
+            won_seen[k] = m
+    winning_sample = list(won_seen.values())[:10]
+
+    win_blocks = []
+    for i, m in enumerate(winning_sample):
+        p1 = m.get("player1", "?")
+        p2 = m.get("player2", "?")
+        pick = m.get("pick", "?")
+        conf = m.get("confidence", 0)
+        odds = m.get("odds", 0) or 0
+        surface = m.get("surface", "?")
+        runda = m.get("round", "?")
+        tournament = m.get("tournament", "?")
+        level = m.get("tournament_level", "")
+        fmt = "BoF5" if "Grand Slam" in level else "BoF3"
+        score = m.get("actual_score", "") or "N/A"
+        factors = m.get("key_factors", [])
+        factors_str = "; ".join(factors) if factors else "N/A"
+        win_blocks.append(
+            f"--- WIN {i+1} ---\n"
+            f"Match: {p1} vs {p2} | {tournament} | {surface} | {runda} | {fmt}\n"
+            f"Pick: {pick} (confidence: {conf}%, odds: {odds:.2f}) — CORRECT | Score: {score}\n"
+            f"Key factors that drove the pick: {factors_str}"
+        )
+    wins_section = "\n\n".join(win_blocks) if win_blocks else "No resolved wins on this surface under current weights yet."
+
+    prompt = f"""You are an expert in tennis prediction model analysis. Based on {len(matches_with_analysis)} incorrect predictions AND {len(winning_sample)} correct predictions on {dominant_surface}, suggest adjustments to the model weights. Learn from BOTH: identify which factor patterns separate the winning picks from the losing ones.
 
 LOSSES WITH FULL CONTEXT:
 {matches_section}
+
+WINNING PREDICTIONS (same surface, same period — what worked):
+{wins_section}
 
 CURRENT MODEL WEIGHTS:
 {json.dumps(current_weights, indent=2)}
@@ -376,11 +432,13 @@ WHAT EACH WEIGHT COVERS:
 - tournament_trajectory: in-tournament W/L momentum (current run in THIS tournament), hot-hand signal, quality of opponents beaten this week
 
 INSTRUCTIONS:
-Analyse error patterns across all losses. Look for factors that were CONSISTENTLY underweighted or overweighted.
+Compare the LOSSES against the WINNING PREDICTIONS. Look for factors that CONSISTENTLY separate correct picks from incorrect ones — not just what failed in losses, but what was present in wins.
 Pay particular attention to:
-- Does the same factor appear as an error in 3+ cases?
+- Does the same factor appear as an error in 3+ losses while being sound in the wins?
+- Is there a factor pattern common to the wins that the losses lacked (or vice versa)?
 - Is there a difference in performance between BoF3 and BoF5 formats?
-- Is fatigue/form or ELO/ranking consistently underestimated?
+- Is fatigue/form or ELO/ranking consistently mis-weighted?
+- Do NOT overfit: if the wins and losses show the same factor pattern, that factor is NOT the differentiator — leave it unchanged.
 
 CONSTRAINTS:
 - Max change ±{WEIGHT_ADJUSTMENT['step']}% per factor (use 0.5-1% for weak/unclear patterns, 2-3% for very consistent patterns across 5+ losses)
@@ -478,10 +536,10 @@ def _validate_weights(weights: dict) -> bool:
     return True
 
 
-def _check_result_via_form(pm: dict, player1_id: str) -> str:
+def _check_result_via_form(pm: dict, player1_id: str) -> tuple:
     """
     Koristi past-matches endpoint (ima match_winner) za provjeru rezultata.
-    Vraća ime pobjednika ako je meč završen, inače ''.
+    Vraća (ime_pobjednika, rezultat_u_setovima) ako je meč završen, inače ('', '').
     """
     p1_name = pm.get("player1", "")
     p2_name = pm.get("player2", "")
@@ -493,10 +551,11 @@ def _check_result_via_form(pm: dict, player1_id: str) -> str:
                 continue
             if not _names_match(m.get("opponent", ""), p2_name):
                 continue
-            return p1_name if m.get("won") else p2_name
+            winner = p1_name if m.get("won") else p2_name
+            return winner, (m.get("score", "") or "")
     except Exception as e:
         print(f"  Greska provjere {p1_name} vs {p2_name}: {e}")
-    return ""
+    return "", ""
 
 
 def _names_match(a: str, b: str) -> bool:

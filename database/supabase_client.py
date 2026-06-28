@@ -150,7 +150,8 @@ def save_ticket_matches(matches: list) -> None:
         _insert("ticket_matches", matches)
 
 
-def update_match_result(match_id: str, result: str, actual_winner: str, actual_score: str = None) -> None:
+def update_match_result(match_id: str, result: str, actual_winner: str,
+                        actual_score: str = None) -> None:
     data = {
         "result": result,
         "actual_winner": actual_winner,
@@ -159,6 +160,15 @@ def update_match_result(match_id: str, result: str, actual_winner: str, actual_s
     if actual_score:
         data["actual_score"] = actual_score
     _update("ticket_matches", data, {"id": f"eq.{match_id}"})
+
+
+def save_match_stats(match_id: str, match_stats: dict) -> None:
+    """Best-effort: sprema sirove post-match statistike u match_stats (JSONB).
+    Namjerno ODVOJENO od update_match_result — ako stupac match_stats još ne
+    postoji u bazi, ovo tiho padne, ali upis rezultata (won/lost) ostaje siguran."""
+    if not match_stats:
+        return
+    _update("ticket_matches", {"match_stats": match_stats}, {"id": f"eq.{match_id}"})
 
 
 def save_loss_analysis(match_id: str, analysis: str) -> None:
@@ -195,6 +205,14 @@ def get_analyzed_lost_matches(limit: int = 20) -> list:
     return _select("ticket_matches", filters={
         "result": "eq.lost",
         "analysis_done": "eq.true"
+    }, order="resolved_at.desc", limit=limit)
+
+
+def get_won_matches(limit: int = 40) -> list:
+    """Razriješeni dobitni parovi — koristi se za učenje iz uspješnih tipova
+    (kontrast naspram gubitaka pri korekciji težina)."""
+    return _select("ticket_matches", filters={
+        "result": "eq.won"
     }, order="resolved_at.desc", limit=limit)
 
 
