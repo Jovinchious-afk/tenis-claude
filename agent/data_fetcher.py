@@ -256,6 +256,7 @@ def get_recent_form(player_id: str, n: int = 10) -> dict:
         result_matches.append({
             "date":       str(g.get("date", ""))[:10],
             "won":        won,
+            "finished":   bool(winner_id),   # False = live/neodigran (nema pobjednika)
             "opponent":   opp,
             "tournament_id": tid,
             "surface":    "",

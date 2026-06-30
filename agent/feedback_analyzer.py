@@ -538,19 +538,37 @@ def _validate_weights(weights: dict) -> bool:
 
 def _check_result_via_form(pm: dict, player1_id: str) -> tuple:
     """
-    Koristi past-matches endpoint (ima match_winner) za provjeru rezultata.
-    Vraća (ime_pobjednika, rezultat_u_setovima) ako je meč završen, inače ('', '').
+    Koristi past-matches endpoint za provjeru rezultata.
+    Vraća (ime_pobjednika, rezultat_u_setovima) ako je meč ZAVRŠEN, inače ('', '').
+
+    Rezultat se prihvaća SAMO ako je nađen završen meč protiv tog protivnika na
+    DATUM tog tipa (ili +1 dan za kasni/odgođeni završetak). Time se izbjegavaju
+    dvije greške:
+      1) LIVE meč se ne smije označiti kao gotov — mora imati pobjednika (finished).
+      2) Kad isti par igra dvaput u kratkom roku (npr. finale prije 2 dana pa opet
+         na Grand Slamu), ne smije se uhvatiti RANIJI susret — datum mora odgovarati.
     """
     p1_name = pm.get("player1", "")
     p2_name = pm.get("player2", "")
-    cutoff = (datetime.date.today() - datetime.timedelta(days=7)).isoformat()
+    try:
+        md = datetime.date.fromisoformat((pm.get("match_date", "") or "")[:10])
+    except Exception:
+        md = None
     try:
         form = get_recent_form(player1_id, 10)
         for m in form.get("matches", []):
-            if m.get("date", "") < cutoff:
-                continue
+            if not m.get("finished"):
+                continue  # live/neodigran meč — nije rezultat
             if not _names_match(m.get("opponent", ""), p2_name):
                 continue
+            if md is not None:
+                try:
+                    m_date = datetime.date.fromisoformat((m.get("date", "") or "")[:10])
+                except Exception:
+                    continue
+                # Prihvati samo meč na dan tipa (ili +1 dan za kasni/odgođeni završetak)
+                if not (md <= m_date <= md + datetime.timedelta(days=1)):
+                    continue
             winner = p1_name if m.get("won") else p2_name
             return winner, (m.get("score", "") or "")
     except Exception as e:
