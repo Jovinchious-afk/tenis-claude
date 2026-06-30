@@ -645,9 +645,10 @@ Write the analysis as:
 
 Keep each sentence short, but you MUST include all {len(matches)} picks. Be direct and specific. Frame it as: "if I had to bet on these matches..." This entry is tracked for model learning."""
 
-    # Token budget skalira s brojem mečeva (1 rečenica po picku) — sprječava
-    # rezanje write-upa na danima s puno mečeva (npr. Wimbledon 18 parova).
-    max_tok = min(2000, 350 + len(matches) * 75)
+    # Token budget skalira s brojem mečeva (1 rečenica po picku). Analysis-only je
+    # sada ograničen na max 12 mečeva, pa je strop ~13 mečeva (ranije 18) — dovoljno
+    # da ništa ne reže, bez nepotrebnog trošenja tokena.
+    max_tok = min(1300, 350 + len(matches) * 75)
 
     try:
         client = _get_client()
