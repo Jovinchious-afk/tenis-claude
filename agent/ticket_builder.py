@@ -573,18 +573,22 @@ def _generate_analysis_only_summary(matches: list) -> str:
 AVAILABLE MATCHES:
 {picks_text}
 
-Write a brief analysis (max 150 words):
+Write the analysis as:
 1. One sentence: why no ticket was formed (too few matches for a valid accumulator)
-2. For each match: one sentence — your pick and the single strongest reason
+2. For EACH of the {len(matches)} matches: exactly one concise sentence — your pick and the single strongest reason. Cover ALL {len(matches)} matches, do not stop early.
 3. One closing sentence on overall confidence
 
-Be direct and specific. Frame it as: "if I had to bet on these matches..." This entry is tracked for model learning."""
+Keep each sentence short, but you MUST include all {len(matches)} picks. Be direct and specific. Frame it as: "if I had to bet on these matches..." This entry is tracked for model learning."""
+
+    # Token budget skalira s brojem mečeva (1 rečenica po picku) — sprječava
+    # rezanje write-upa na danima s puno mečeva (npr. Wimbledon 18 parova).
+    max_tok = min(2000, 350 + len(matches) * 75)
 
     try:
         client = _get_client()
         response = client.messages.create(
             model=CLAUDE_MODELS["analysis"],
-            max_tokens=400,
+            max_tokens=max_tok,
             messages=[{"role": "user", "content": prompt}]
         )
         return response.content[0].text.strip()
