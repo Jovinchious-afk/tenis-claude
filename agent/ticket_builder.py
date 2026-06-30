@@ -505,14 +505,24 @@ Refer to players by name (or surname) only — do not use nationality/demonyms (
         return f"Tiket s {len(matches)} parova. Ukupna kvota: {total_odds:.2f}, potencijalni dobitak: €{pot_win:.2f}."
 
 
+_ANALYSIS_ONLY_MAX_PICKS = 12     # max mečeva u analysis-only prikazu
+_ANALYSIS_ONLY_MIN_ODDS = 1.06    # ispod ove kvote nema smisla pratiti pick
+
+
 def build_analysis_only_ticket(predictions: list) -> dict:
     """
     Builds an analysis-only entry when there aren't enough matches for a full ticket.
-    No minimum match count, no odds constraints. Uses Haiku for write-up.
-    Status = 'analysis_only' so the evening job tracks results but never marks ticket won/lost.
+    Max 12 picks, sorted by odds descending (higher-odds matches make the cut),
+    picks below 1.06 excluded. Tracks results, never marks won/lost.
+    Also computes a HYPOTHETICAL "forced risk" ticket (4-7 picks, combined 9-40) for the
+    EMAIL ONLY — what we'd play if we absolutely had to bet today. Not saved to DB.
     """
-    valid = [p for p in predictions if not p.get("skip_reason") and _is_main_tour(p)]
-    valid.sort(key=lambda p: (p.get("confidence") or 0), reverse=True)
+    valid = [p for p in predictions
+             if not p.get("skip_reason") and _is_main_tour(p)
+             and _pick_odds(p) >= _ANALYSIS_ONLY_MIN_ODDS]
+    # Sortiraj po kvoti silazno pa ograniči na 12 — veće kvote uđu unutar tih 12.
+    valid.sort(key=lambda p: _pick_odds(p), reverse=True)
+    valid = valid[:_ANALYSIS_ONLY_MAX_PICKS]
 
     ticket_matches = []
     for pred in valid:
@@ -541,18 +551,73 @@ def build_analysis_only_ticket(predictions: list) -> dict:
 
     summary = _generate_analysis_only_summary(ticket_matches)
 
+    # Hipotetski "kad bih baš morao riskirati" tiket: najbolja kombinacija 4-7 parova,
+    # kombinirana kvota 9-40, iz tih 12 (ignorira grass floor — forsirani scenarij).
+    # _find_best_combination boduje po KVALITETI (joint prob + edge), ne po najvišoj kvoti.
+    # Samo za email, NE sprema se u bazu (app ostaje čist).
+    cfg = dict(TICKET_CONFIG)
+    hypo_combo = _find_best_combination(valid, cfg)
+    hypothetical_summary = _generate_hypothetical_summary(hypo_combo, cfg)
+
     return {
         "total_odds": 0.0,
         "potential_win": 0.0,
         "stake": 0,
         "matches_count": len(ticket_matches),
         "ticket_summary": summary,
+        "hypothetical_summary": hypothetical_summary,
         "reviewer_decision": "",
         "reviewer_changes": "",
         "reviewer_warning": "",
         "status": "analysis_only",
         "matches": ticket_matches,
     }
+
+
+def _generate_hypothetical_summary(combo: Optional[list], cfg: dict) -> str:
+    """Email-only: par rečenica u glasu 'lovca na rizik' o tiketu koji bismo odigrali KAD
+    bismo baš morali (4-7 parova, kombinirana 9-40). Pošten 'preskočio bih' ako nije moguće."""
+    if not combo:
+        return (
+            "Even forcing it, today's slate can't reach the minimum combined odds of "
+            f"{cfg['min_combined_odds']:.0f} with a {cfg['min_matches']}-{cfg['max_matches']} pick "
+            "ticket — the confident picks are too short-priced. If I truly had to, I'd sit this one out."
+        )
+
+    total_odds = combined_odds([_pick_odds(p) for p in combo])
+    pot = potential_win(cfg["stake"], total_odds)
+    picks_text = "\n".join(
+        f"- {p.get('pick','')} to win ({p.get('match',{}).get('player1','')} vs "
+        f"{p.get('match',{}).get('player2','')}, {p.get('match',{}).get('tournament','')}, "
+        f"{p.get('match',{}).get('round','')}) — odds {_pick_odds(p):.2f}, conf {p.get('confidence',0):.0f}%"
+        for p in combo
+    )
+    prompt = f"""You are a sharp, opportunistic tennis bettor — a hunter of value and calculated risk.
+No real ticket was placed today (discipline says the slate is too thin or too short-priced), but the reader
+wants to know: IF you absolutely HAD to play a {cfg['min_matches']}-{cfg['max_matches']} pick accumulator at
+combined odds {cfg['min_combined_odds']:.0f}-{cfg['max_combined_odds']:.0f}, what would you risk?
+
+YOUR FORCED TICKET ({len(combo)} picks | combined odds {total_odds:.2f} | €{pot:.0f} return on €{cfg['stake']:.0f} stake):
+{picks_text}
+
+Write 2-4 punchy sentences, first person, in the voice of a risk hunter: name the picks you'd back and the
+outcomes you predict, and one honest line on the biggest risk. Be concise and specific. Open with something
+like "If I had to risk it today...". Refer to players by surname only."""
+    try:
+        client = _get_client()
+        response = client.messages.create(
+            model=CLAUDE_MODELS["analysis"],   # Haiku — jeftino
+            max_tokens=300,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.content[0].text.strip()
+    except Exception as e:
+        print(f"Greška hipotetskog write-upa: {e}")
+        names = ", ".join(p.get("pick", "") for p in combo)
+        return (
+            f"If I had to risk it today: {len(combo)} picks at combined odds {total_odds:.2f} "
+            f"(€{pot:.0f} on €{cfg['stake']:.0f}) — {names}."
+        )
 
 
 def _generate_analysis_only_summary(matches: list) -> str:

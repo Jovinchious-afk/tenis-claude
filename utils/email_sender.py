@@ -142,6 +142,14 @@ def _build_analysis_only_html(ticket: dict, matches: list) -> str:
           <span style="color:#374151;">{ticket['ticket_summary']}</span>
         </div>"""
 
+    hypo_html = ""
+    if ticket.get("hypothetical_summary"):
+        hypo_html = f"""
+        <div style="background:#fff7ed;border-left:4px solid #f59e0b;padding:15px;margin:20px 0;border-radius:4px;">
+          <strong>🎯 If I had to risk it...</strong><br>
+          <span style="color:#374151;">{ticket['hypothetical_summary']}</span>
+        </div>"""
+
     return f"""
     <html><body style="font-family:Arial,sans-serif;max-width:700px;margin:0 auto;padding:20px;">
       <h2 style="color:#6366f1;">📊 Tennis Analysis — {date_str}</h2>
@@ -159,6 +167,7 @@ def _build_analysis_only_html(ticket: dict, matches: list) -> str:
         </tr>
         {rows}
       </table>
+      {hypo_html}
       <p style="color:#6b7280;font-size:12px;margin-top:20px;">
         Results will be tracked automatically. Loss analysis will run in the evening if any pick is incorrect.
       </p>
