@@ -35,7 +35,7 @@ TICKET_CONFIG = {
     "stake": 50.0,
     "min_matches": 4,
     "max_matches": 7,
-    "min_combined_odds": 9.0,
+    "min_combined_odds": 6.5,
     "max_combined_odds": 40.0,
     "min_confidence": 63.0,
     "fallback_confidence": 58.0,

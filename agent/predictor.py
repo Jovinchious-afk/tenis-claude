@@ -182,13 +182,14 @@ If the match should be skipped (too much uncertainty, injury, insufficient data)
 
 def _surface_specific_rules(surface: str) -> str:
     """Returns surface-specific calibration rules for the analysis prompt.
-    Grass rules derived from post-analysis of 14+ documented losses (June 2026 season).
-    Version 2: updated after 6 consecutive losing tickets on grass (June 16-22, 2026)."""
+    Grass rules derived from post-analysis of documented losses (June-July 2026 season).
+    Version 3: after Wimbledon post-analysis — un-flatten confidence (remove hard 64% cap),
+    strengthen surface-weighted form, add tiebreak/serve-hold as decision drivers."""
     if "grass" not in surface.lower():
         return ""
     return """
-=== GRASS-SPECIFIC CALIBRATION RULES v2 (apply these STRICTLY over the general rules above) ===
-These rules are derived from 14 documented grass prediction errors this season (June 2026).
+=== GRASS-SPECIFIC CALIBRATION RULES v3 (apply these STRICTLY over the general rules above) ===
+These rules are derived from documented grass prediction errors this season (June-July 2026).
 Every rule below was broken in at least one loss — treat them as hard constraints, not guidelines.
 
 1. ELO gap cap + ELO isolation rule:
@@ -198,12 +199,14 @@ Every rule below was broken in at least one loss — treat them as hard constrai
    ELO alone has driven picks at 65-68% that lost. A 200pt ELO gap on grass is NOT a
    reliable predictor without corroborating evidence from form and serve.
 
-2. Surface-weighted form (NEW):
-   Recent form MUST be surface-weighted. Hard-court wins do NOT transfer directly to grass.
-   A 5-match streak built on hard courts = effective grass form of ~3/5.
-   A grass specialist with 2/3 recent form often beats a player who is 5/5 on other surfaces.
-   Before citing a hot streak as the primary confidence driver, ask: on which surface were
-   those wins? If they are mostly hard-court wins, treat the form signal as moderate, not strong.
+2. Surface-weighted form (STRENGTHENED v3 — this rule keeps failing, enforce it hard):
+   Recent form MUST be surface-weighted. Hard-court or clay wins do NOT transfer to grass.
+   A 5/5 streak built OFF grass counts as ~2-3/5 effective grass form and must NOT be a
+   primary confidence driver. Documented losses came exactly from this error:
+   Cerundolo (5/5 on hard) lost to Munar; hot-streak picks repeatedly lost on grass.
+   Before using ANY hot streak as a driver, verify the SURFACE of those wins. If they are not
+   on grass, downgrade the form signal to "moderate at best" and do NOT let it push confidence
+   above 63% on its own. A grass specialist with 2/3 grass form beats a 5/5 hard-court streak.
 
 3. Grass specialist threshold (REVISED):
    Under 20 career grass matches: informational only, not a primary confidence driver.
@@ -240,13 +243,22 @@ Every rule below was broken in at least one loss — treat them as hard constrai
    Do NOT assess one player's 1/3 as "stable" and the other's as "declining" — they are
    in the same uncertainty category. Apply the same assessment to both sides.
 
-8. Confidence cap on grass (LOWERED from v1):
-   Hard cap: 64% maximum unless 5+ independent factors ALL clearly align.
-   63% is the well-calibrated ceiling for a strong grass pick this season.
-   Reaching 64% requires: superior grass ELO + better grass-relevant form + serve advantage
-   + favourable rest/fatigue + tournament trajectory all pointing the same direction.
-   If form data is mixed, conflicting, or asymmetric — stay at 62% or below.
-   The season data shows picks at 65-68% have been wrong repeatedly — do not exceed 64%.
+8. Confidence CALIBRATION — spread honestly (v3, REPLACES the old flat 64% cap):
+   The previous hard 64% cap flattened every pick to 62-64% and destroyed the model's ability
+   to rank locks vs coin-flips (it rated a 1.01 near-certainty and a 1.50 coin-flip both at 63%).
+   That cap is REMOVED. Confidence must now SPREAD to reflect the true win probability, anchored
+   to this season's grass outcomes:
+   - Dominant pick — clear edge in serve/hold AND surface ELO AND grass-relevant form AND a
+     proven grass record, with few or no live risks → 72-80%.
+   - Solid favourite — edge in most factors, one minor risk → 66-71%.
+   - Slight favourite — edge in a couple of factors, others neutral/mixed → 60-65%.
+   - Coin-flip / conflicting signals / thin samples → below 60% (excluded by the selection floor).
+   CALIBRATION HONESTY (critical): a 75% pick MUST genuinely win ~75% of the time — do NOT
+   inflate. But equally, do NOT hedge a genuine dominant favourite down to 63%: commit to it.
+   Season data: dominant favourites (all factors aligned) win ~80%; marginal favourites (only
+   1-2 factors, others level) win ~35%. Grade accordingly — reserve 70%+ for genuine locks and
+   push marginal-favourite matches into the 55-62% band where they belong. A WIDE, honest spread
+   is the goal, NOT everything clustered near 63%.
 
 9. Confidence floor honesty (SELECTION-CRITICAL):
    Our tickets only ever use picks at 63%+ confidence — anything below is excluded.
@@ -261,7 +273,20 @@ Every rule below was broken in at least one loss — treat them as hard constrai
      other factors are neutral or mixed;
    - you cannot list at least 3 concrete, grass-specific advantages for your pick.
    Only score 63%+ when you can genuinely name 3+ independent grass advantages.
-=== END GRASS-SPECIFIC RULES v2 ==="""
+
+10. Tiebreaks & serve-hold under pressure — DECISION DRIVERS on grass (NEW v3):
+   Grass matches are decided by service holds and tiebreaks far more than any other surface.
+   Multiple losses (Paul lost to Hurkacz in a tiebreak; Nakashima lost to Struff 3/4 tiebreaks)
+   were decided in tiebreaks the model flagged only as a "risk". Treat these as DECISION drivers,
+   not side-notes:
+   - Hold% (service games held), NOT raw serve-points-won%, is the key serve metric on grass.
+     A player holding 85%+ is very hard to break — weight this heavily toward that player.
+   - If the opponent has a strong tiebreak record (from H2H tiebreak stats or a high hold%),
+     the match will likely hinge on 1-2 tiebreaks — that is effectively a coin-flip, so LOWER
+     confidence rather than backing your pick strongly.
+   - Do NOT make a confident pick whose main edge is "better return" while the opponent has
+     dominant hold%. On grass, HOLDING beats returning — serve-hold wins tight matches.
+=== END GRASS-SPECIFIC RULES v3 ==="""
 
 
 def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights: dict, all_news: str = "") -> dict:

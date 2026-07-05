@@ -129,12 +129,9 @@ def main():
     analysis_only_mode = total_matches < 4
     if analysis_only_mode:
         print(f"Samo {total_matches} meča — analysis-only mode (QF/SF/F faza). Tiket neće biti kreiran.")
-        min_odds_override = None
-    elif total_matches == 4:
-        min_odds_override = 6.0
-        print(f"Točno 4 meča — spuštam min kvotu na {min_odds_override} (QF/mali dan).")
-    else:
-        min_odds_override = None  # standardnih 9.0
+    # Jedinstvena, stabilna tvrda granica kombinirane kvote: 6.5-40 (iz TICKET_CONFIG).
+    # Nema više posebnog spuštanja za 4 meča — granica je uvijek ista.
+    min_odds_override = None
 
     # 3. Dohvati ELO ratings jednom za sve (batch)
     print("\nDohvaćam ELO ratingse s Tennis Abstract...")
