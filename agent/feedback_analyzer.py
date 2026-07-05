@@ -274,7 +274,7 @@ ACTUAL RESULT: {actual} won | Score: {score}
 STATED RISKS: {risk_notes}
 KEY FACTORS THAT DROVE THE PICK: {', '.join(key_factors) if key_factors else 'N/A'}
 {stats_block}
-Write a concise analysis (max 150 words) explaining:
+Write a concise but COMPLETE analysis (aim for ~200 words, never leave a sentence unfinished) explaining:
 1. Which factor was incorrectly assessed?
 2. What actually decided the match?
 3. What should change in the prediction algorithm?
@@ -285,7 +285,7 @@ Be specific and concrete. Focus on model factors (ELO, surface, form, fatigue, H
         client = _get_client()
         response = client.messages.create(
             model=CLAUDE_MODELS["feedback"],
-            max_tokens=300,
+            max_tokens=700,   # dovoljno da se cijela analiza (3 sekcije + promjene) ne reže
             messages=[{"role": "user", "content": prompt}]
         )
         return response.content[0].text.strip()
