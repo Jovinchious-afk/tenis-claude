@@ -62,21 +62,43 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
     if min_odds_override is not None:
         cfg["min_combined_odds"] = min_odds_override
 
-    # ── Grass selekcijska disciplina ────────────────────────────────────────
-    # Bookmaker kvote služe ISKLJUČIVO za konstrukciju tiketa (combined 9-40),
-    # NIKAD za odabir mečeva. Na travi se selekcija oslanja samo na modelov
-    # VLASTITI confidence: svaki grass pick ispod 63% izbacuje se prije selekcije.
-    # Time se gase i odds-driven mehanizmi (edge-override, fallback po najvišoj
-    # kvoti) za travu — jer su upravo oni uvlačili gubitnike (n=73, lipanj 2026:
-    # grass pickovi ispod 63% confidence pobjeđivali su ~40%).
-    grass_floor = cfg["min_confidence"]
+    # ── Grass selekcijska disciplina + value-override ───────────────────────
+    # Osnovno: grass pick prolazi samo ako je modelov VLASTITI confidence >= 63%.
+    # Time se filtriraju coinflipovi (n=73, lipanj 2026: grass <63% pobjeđivali ~40%).
+    #
+    # IZNIMKA (value-override, dodano 2026-07-05): naša filozofija je VALUE, ne lov na
+    # niske kvote. Standout value oklada (model se JAKO ne slaže s tržištem) smije proći
+    # i ispod floora: confidence >= 58% I edge >= 12pp, ali najviše 2 takve (top po edge-u).
+    # Value = usporedba s tržištem, pa je edge legitimna upotreba kvote — različito od
+    # "biranja niske kvote". Ovo omogućuje povremeni opravdani 15-25 listić.
+    # Visok prag (12pp) + kap na 2 + min 58% drže rizik pod kontrolom (edge ovisi o
+    # kalibraciji fair_odds, koja je nova od grass v3 — krećemo oprezno).
+    grass_floor = cfg["min_confidence"]           # 63
+    VALUE_MIN_CONF = 58.0
+    VALUE_MIN_EDGE = 12.0
+    VALUE_MAX_PICKS = 2
+
+    grass_below = [p for p in predictions
+                   if _is_grass(p) and (p.get("confidence") or 0) < grass_floor]
+    value_candidates = [p for p in grass_below
+                        if (p.get("confidence") or 0) >= VALUE_MIN_CONF
+                        and _pick_edge(p) >= VALUE_MIN_EDGE
+                        and _is_main_tour(p) and _has_odds(p)]
+    value_candidates.sort(key=lambda p: _pick_edge(p), reverse=True)
+    value_keep = {id(p) for p in value_candidates[:VALUE_MAX_PICKS]}
+
     n_before = len(predictions)
     predictions = [p for p in predictions
-                   if not _is_grass(p) or (p.get("confidence") or 0) >= grass_floor]
+                   if not _is_grass(p)
+                   or (p.get("confidence") or 0) >= grass_floor
+                   or id(p) in value_keep]
     n_dropped = n_before - len(predictions)
     if n_dropped:
         print(f"  Grass disciplina: izbačeno {n_dropped} grass pickova ispod {grass_floor}% "
               f"(modelov confidence, ne kvota).")
+    for p in value_candidates[:VALUE_MAX_PICKS]:
+        print(f"  Value-override (grass): {p.get('pick','')} conf={p.get('confidence',0):.0f}% "
+              f"edge={_pick_edge(p):.1f}pp — zadržan ispod floora zbog izraženog value-a.")
 
     def _eligible(p, conf_threshold, allow_challengers=False):
         level = p.get("match", {}).get("level", "")
@@ -285,14 +307,19 @@ def _score_combo(combo: tuple) -> float:
             - extra_penalty)
 
 
-def _is_value_pick(pred: dict) -> bool:
-    """Value pick: edge >= 3pp between our fair probability and bookmaker implied probability."""
+def _pick_edge(pred: dict) -> float:
+    """Edge u postotnim bodovima (pp): modelova vjerojatnost (iz fair_odds) minus
+    tržišna vjerojatnost (iz bookmaker kvote). Pozitivno = value u našu korist."""
     fair = pred.get("fair_odds") or 0
     bookmaker = _pick_odds(pred)
     if fair <= 0 or bookmaker <= 0:
-        return False
-    edge = (1.0 / fair - 1.0 / bookmaker) * 100
-    return edge >= 3.0
+        return 0.0
+    return (1.0 / fair - 1.0 / bookmaker) * 100
+
+
+def _is_value_pick(pred: dict) -> bool:
+    """Value pick: edge >= 3pp between our fair probability and bookmaker implied probability."""
+    return _pick_edge(pred) >= 3.0
 
 
 def _pick_odds(pred: dict) -> float:

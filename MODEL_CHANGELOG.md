@@ -9,6 +9,23 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-07-05 — Grass value-override (value smije proći ispod floora)
+
+**Što:** Grass floor (≥63% confidence) dobio iznimku za **standout value** oklade: grass pick
+ispod 63% prolazi ako je confidence ≥58% I edge ≥12pp, najviše 2 takve po listiću (top po edge-u).
+
+**Zašto:** Osnovna filozofija je VALUE, ne lov na niske kvote. Apsolutni floor od 63% odbacivao je
+odlične value oklade (npr. model 61% vs tržište 42%, edge 19pp, kvota 2.35 = +43% EV) samo zbog
+niskog apsolutnog confidence-a. Edge = usporedba s tržištem → legitimna upotreba kvote, različito
+od "biranja niske kvote". Omogućuje povremeni opravdani 15-25 listić.
+
+**Rizik:** edge ovisi o kalibraciji `fair_odds` (nova od v3). Zato oprezan start: prag 12pp, kap 2,
+min conf 58%. Ako se pokaže presuho → spustiti prag. Prati se.
+
+**Ishod:** prati se.
+
+---
+
 ## 2026-07-05 — Grass prompt v3 + spuštanje floora na 6.5
 
 **Što:**
