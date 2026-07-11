@@ -9,6 +9,48 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-07-11 — Clay revizija: pravila v1 + težine v8 + selekcijska disciplina (prije Gstaad/Umag)
+
+**Povod:** kompletna revizija clay modela na 32 razriješena picka (28 RG BO5 + 4 ATP 250
+kvalifikacije): 17W-15L (53%) uz prosječni confidence 69% (prekalibracija −16pp), **svih 7
+čistih clay tiketa izgubljeno**. Dominantan uzrok gubitaka: fade igrača s in-tournament
+momentumom (8/15 — Menšik 3×, Arnaldi 2×, Fonseca 2×, Svajda). Dead zone kvota 1.50-1.90
+na clayu 3/11 (27%), ista strukturna bolest kao grass. Zona confidence 66-70% pobjeđivala 38%.
+
+**Što (potvrdio korisnik):**
+- **CLAY-SPECIFIC RULES v1** u predictor promptu (clay dosad NIJE imao nijedno surface
+  pravilo): dvostruka potvrda (2 od 3: clay record / hold% / quality-adjusted forma),
+  hot-hand veto s elitnom iznimkom (clay ELO ≥1850 ili hold ≥85%), oba-u-padu cap 60%,
+  rest differential −4pp (BO5 −6pp), ranking-gap deflacija, underdog disciplina,
+  home-crowd pravilo (asimetrično: domaći protivnik −3pp / skip; naš domaći bez bonusa),
+  qualifying guard, clay kalibracijski spread, BP-conversion preko aseva.
+- **Ticket builder:** confidence floor 63% + value-override (58%/12pp/max 2) prošireni
+  s grassa na clay; **clay raspon kombinirane kvote 6.5-30 i max 6 parova** (korisnikova
+  odluka; global ostaje 6.5-40/7); max 1 clay pick u dead zoni 1.50-1.90 po tiketu;
+  R128/Q na ATP 250/500 = kvalifikacije → nikad na tiket (11.07. su 4 kvalifikacijska
+  meča ušla kao "ATP 250 R128", 2/4 pala); edge >20pp ne dobiva score bonus (umišljeni
+  edge = naša greška, ne value — Collignon @2.82 lekcija); reviewer dobio clay checkove.
+- **fair_odds popravak (sve podloge):** LLM-ov fair_odds gravitirao na ~1.52 neovisno o
+  meču (12/15 clay gubitaka fair 1.51-1.54 na kvotama 1.28-2.82) → sada fair_odds =
+  100/confidence u postprocessingu, value = edge ≥3pp prema stvarnoj kvoti. Edge/value
+  mehanika prvi put stoji na konzistentnoj osnovi.
+- **Težine v8 clay** (Supabase): elo 22→18, form 20→18, fatigue 11→12, trajectory 4→9;
+  surface 20, serve 19, h2h 4 nepromijenjeni.
+- **Podaci:** Country u analysis promptu (za home pravilo — nationality je već bila u
+  fetchu); altitude tablica + Gstaad 1050 m i Kitzbühel 762 m, pragovi 1500/800 → 1000/600
+  (Gstaad se dosad analizirao kao razina mora).
+
+**Zašto:** vidi analizu u sesiji 11.07. — retroaktivno bi pravila eliminirala/degradirala
+9-10 od 15 gubitaka uz gubitak 0-1 od 17 dobitaka. Oprez: korpus je malen (n=32) i 87%
+s jednog kaotičnog RG-a — pravila su pisana kao mehanizmi (veto/cap/dvostruka potvrda),
+brojčani pragovi (1850, 85%, 5pp) su početni i revidiraju se nakon Gstaad/Umag/Båstad
+ciklusa. Strukturni nalazi (dead zone, overconfidence 66-70, hot-hand) neovisno potvrđeni
+na grass korpusu (n=177).
+
+**Ishod:** prati se.
+
+---
+
 ## 2026-07-05 — Grass value-override (value smije proći ispod floora)
 
 **Što:** Grass floor (≥63% confidence) dobio iznimku za **standout value** oklade: grass pick

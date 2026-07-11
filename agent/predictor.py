@@ -72,7 +72,7 @@ Date: {date} | Format: {format}
 Round context: {round_context}
 
 === {player1} ===
-Age: {p1_age} | Playing hand: {p1_hand}
+Age: {p1_age} | Playing hand: {p1_hand} | Country: {p1_country}
 ATP Ranking: #{p1_ranking} | Ranking trend: {p1_ranking_trend}
 ELO (overall): {p1_elo_overall} | ELO ({surface}): {p1_elo_surface}
 NOTE: Surface-specific ELO is more predictive than ATP ranking for this match.
@@ -93,7 +93,7 @@ Form trend: {p1_form_trend}
 Known injuries/news: {p1_news}
 
 === {player2} ===
-Age: {p2_age} | Playing hand: {p2_hand}
+Age: {p2_age} | Playing hand: {p2_hand} | Country: {p2_country}
 ATP Ranking: #{p2_ranking} | Ranking trend: {p2_ranking_trend}
 ELO (overall): {p2_elo_overall} | ELO ({surface}): {p2_elo_surface}
 NOTE: Surface-specific ELO is more predictive than ATP ranking for this match.
@@ -184,8 +184,14 @@ def _surface_specific_rules(surface: str) -> str:
     """Returns surface-specific calibration rules for the analysis prompt.
     Grass rules derived from post-analysis of documented losses (June-July 2026 season).
     Version 3: after Wimbledon post-analysis — un-flatten confidence (remove hard 64% cap),
-    strengthen surface-weighted form, add tiebreak/serve-hold as decision drivers."""
-    if "grass" not in surface.lower():
+    strengthen surface-weighted form, add tiebreak/serve-hold as decision drivers.
+    Clay rules v1 (2026-07-11): derived from full clay revision — 32 resolved picks
+    (28 Roland Garros BO5 + 4 ATP 250 qualifying), 7/7 pure clay tickets lost.
+    Dominant loss cause: fading opponents with in-tournament momentum (8/15 losses)."""
+    s = surface.lower()
+    if "clay" in s:
+        return _CLAY_RULES_V1
+    if "grass" not in s:
         return ""
     return """
 === GRASS-SPECIFIC CALIBRATION RULES v3 (apply these STRICTLY over the general rules above) ===
@@ -289,6 +295,98 @@ Every rule below was broken in at least one loss — treat them as hard constrai
 === END GRASS-SPECIFIC RULES v3 ==="""
 
 
+# Clay pravila v1 — izvedena iz clay revizije 2026-07-11 (prije Gstaad/Umag):
+# 32 razriješena picka, 17W-15L (53%) uz prosječni confidence 69% (prekalibracija -16pp);
+# dead zone kvota 1.50-1.90 pobjeđivala 3/11 (27%); svih 7 čistih clay tiketa izgubljeno.
+# Svako pravilo dolje slomljeno je u barem jednom dokumentiranom gubitku.
+_CLAY_RULES_V1 = """
+=== CLAY-SPECIFIC CALIBRATION RULES v1 (apply these STRICTLY over the general rules above) ===
+These rules are derived from documented clay prediction errors this season (Roland Garros +
+ATP 250 clay, May-July 2026). Every rule was broken in at least one documented loss —
+treat them as hard constraints, not guidelines.
+
+1. DOUBLE-CONFIRMATION RULE (the core clay rule):
+   A pick may only reach 66%+ confidence with a clear edge in AT LEAST TWO of these three
+   categories: (a) clay ELO / clay W-L record (3y), (b) serve-hold% on clay, (c) recent form
+   adjusted for opponent quality (avg opponent ELO).
+   If the OPPONENT leads in two of the three categories, score the pick BELOW 61% regardless
+   of ATP ranking or overall ELO. Documented losses (Khachanov-De Jong, FAA-Cobolli,
+   Brancaccio-Gomez): our pick had a ranking/ELO edge while the opponent had BOTH the better
+   clay record AND the better hold% — the opponent won all three matches.
+   Every winning pick in the corpus with edges in 2+ categories won.
+
+2. HOT-HAND VETO (the #1 documented loss cause — 8 of 15 clay losses):
+   If the opponent has 3+ wins in THIS tournament, or 2+ wins over seeded/higher-ranked
+   players this tournament, they are IN A RUN. Do NOT fade a player in a run with a
+   marginal favourite. The pick against them is only allowed if our player is a genuinely
+   ELITE clay player: clay ELO >= 1850, or hold% >= 85% combined with the better clay record.
+   Otherwise cap confidence at 61%.
+   Documented: Mensik eliminated 3 of our picks in a row, Arnaldi 2, Fonseca 2, Svajda 1 —
+   the model saw them as "weaker on paper" EVERY following day and kept losing.
+   The elite exemption is proven: Zverev (clay ELO 2021) beat in-form Jodar and Mensik;
+   Berrettini (hold 90.5%) beat a 5/5 J.M. Cerundolo.
+   NEVER fade the same in-form player two days in a row after he already beat one of our picks.
+
+3. BOTH-PLAYERS-DECLINING CAP (same as grass rule — proven on clay too):
+   When BOTH players are 1/3 or worse in their last 3 matches: cap confidence at 60%.
+   Do not use rest-days or minor stats to "differentiate" two out-of-form players
+   (documented: Butvilas-Huesler, both 0/3, we still gave 66% — lost).
+
+4. REST & FATIGUE DIFFERENTIAL (strong filter):
+   If our pick played 2+ matches in the last 7 days AND has 2+ fewer rest days than the
+   opponent: subtract 4pp from confidence (6pp in Best-of-5). Clay rallies are the longest
+   in tennis — freshness converts directly to legs in sets 3-5.
+   Symmetrically, a genuine rest edge for our pick (2+ more rest days, no over-rest beyond
+   10+ days) is a legitimate PLUS signal (documented wins: Tabilo 4v2 days, Hemery 7v2).
+
+5. RANKING-GAP DEFLATION:
+   ATP ranking gaps (even 40+ positions) are NOT a primary clay argument — ranking reflects
+   all surfaces. Clay-specific evidence outranks it. A surface ELO gap under 30 points is
+   NOISE — treat such matches as even on that factor and look at the other categories.
+   Documented losses driven by ranking-gap seduction: Darderi #17 vs #102, Khachanov #15
+   vs #106, Faria — all lost to the "worse-ranked" player.
+
+6. UNDERDOG PICK DISCIPLINE (picks against market favourites):
+   Backing an underdog is allowed ONLY when supported by clay-specific evidence:
+   better clay W-L record over 40+ matches AND better return/break-point numbers AND the
+   opponent is NOT in an active tournament run. Small samples (e.g. a 77% Grand Slam win
+   rate over 9 matches) must be regressed hard, never cited as a primary driver.
+   Documented: value underdogs WITH clay evidence went 4/6 (Tiafoe 2.3, Collignon 2.79 with
+   a 79% clay record); underdogs built on small samples or against in-form opponents lost.
+
+7. HOME-CROWD RULE (asymmetric — from cross-surface analysis of 31 home-player matches):
+   If the OPPONENT of our pick plays in his own country (check Country vs tournament host
+   country): subtract 3pp from confidence. If that home opponent ALSO has in-tournament
+   momentum (2+ wins this week) or the match is otherwise close, score the pick below 63%
+   so it drops out — home underdogs in rhythm repeatedly destroyed marginal favourites
+   (Fery eliminated 5 of our picks at his home events; Huesler beat our pick in Gstaad).
+   If OUR pick is the home player: NO bonus — home picks won at exactly the baseline rate.
+
+8. QUALIFYING / THIN-DATA GUARD:
+   "R128" at an ATP 250/500 event means QUALIFYING (250 draws have no R128) — players ranked
+   150-300, thin data, high variance. Never score qualifying-level matches above 62%.
+   If both players have fewer than 30 career clay matches, treat all surface stats as
+   weak signals and stay below 63%.
+
+9. CONFIDENCE CALIBRATION — clay reality check (SELECTION-CRITICAL):
+   This season's clay outcomes by stated confidence: 63-66% → 75% actual; 66-70% → 38%
+   actual (!); 70-75% → 67% actual. The 66-70% band is where overconfident "solid favourite"
+   picks go to die. Before scoring 66-70%, ask: does this pick genuinely deserve 70%+?
+   If not, it almost certainly belongs BELOW 63% — commit one way or the other.
+   Best-of-3 at ATP 250 level carries MORE upset variance than Grand Slam BO5:
+   cap confidence 2-3pp lower than you would for the same edge at a Slam.
+   Only picks at 63%+ enter tickets — be honest, not optimistic: a falsely-confident 63%
+   puts a coin-flip onto a real-money accumulator.
+
+10. CLAY DECIDERS — break-point conversion over aces:
+   On clay, return quality and break-point CONVERSION decide matches; aces and raw
+   serve-points-won matter less than on any other surface. When serve stats conflict with
+   return/BP stats, weight the return side. EXCEPTION: a hold% gap of 5pp+ is decisive on
+   any surface (documented: Gomez 77.8% vs Brancaccio 72.3% decided the match) — never back
+   the clearly weaker server just because of a surface ELO edge.
+=== END CLAY-SPECIFIC RULES v1 ==="""
+
+
 def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights: dict, all_news: str = "") -> dict:
     """
     Analizira jedan meč i vraća predikciju.
@@ -338,6 +436,7 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         round_context=_round_context(match.get("round", ""), match.get("level", ""), match.get("round_id", 0)),
 
         p1_age=p1.get("age", "N/A"), p1_hand=_format_hand(p1.get("hand", "")),
+        p1_country=p1.get("nationality") or "N/A",
         p1_ranking=p1.get("ranking", "N/A"), p1_ranking_trend=p1.get("ranking_trend", "N/A"),
         p1_elo_overall=p1.get("elo_overall", 1500), p1_elo_surface=p1.get(elo_key, 1500),
         p1_surface_record=p1_surface_record,
@@ -361,6 +460,7 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         p1_news=p1.get("news", "No news") or "No news",
 
         p2_age=p2.get("age", "N/A"), p2_hand=_format_hand(p2.get("hand", "")),
+        p2_country=p2.get("nationality") or "N/A",
         p2_ranking=p2.get("ranking", "N/A"), p2_ranking_trend=p2.get("ranking_trend", "N/A"),
         p2_elo_overall=p2.get("elo_overall", 1500), p2_elo_surface=p2.get(elo_key, 1500),
         p2_surface_record=p2_surface_record,
@@ -424,6 +524,7 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         raw = response.content[0].text.strip()
         result = _safe_json_parse(raw)
         result["match"] = match
+        _normalize_fair_odds(result, match)
         return result
     except Exception as e:
         print(f"Greška analize {match.get('player1')} vs {match.get('player2')}: {e}")
@@ -469,6 +570,34 @@ def analyze_matches_batch(matches_with_data: list, weights: dict, all_news: str 
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _normalize_fair_odds(result: dict, match: dict) -> None:
+    """Veže fair_odds uz confidence i value uz stvarnu kvotu (clay revizija 2026-07-11).
+
+    LLM je fair_odds generirao kao nezavisnu brojku koja je gravitirala na ~1.52 bez
+    obzira na kvotu picka (12/15 clay gubitaka imalo fair 1.51-1.54 na kvotama 1.28-2.82),
+    pa je edge/value mehanika bila besmislena: value=True nije razlikovao dobitke od
+    gubitaka (15W-14L). Sada: fair_odds = 100/confidence (jedna izvorna procjena, ne
+    dvije nepovezane), a value = edge >= 3pp prema stvarnoj tržišnoj kvoti picka.
+    LLM kvote ionako ne vidi (model misli neovisno o tržištu), pa njegov value flag
+    nije imao informacijsku osnovu."""
+    conf = safe_float(result.get("confidence") or 0)
+    if conf <= 0 or not result.get("pick"):
+        return
+    result["fair_odds"] = round(100.0 / conf, 2)
+
+    pick = str(result.get("pick", "")).lower()
+    p1 = str(match.get("player1", "")).lower()
+    if pick and p1 and (pick in p1 or p1 in pick):
+        book = safe_float(match.get("odds_p1", 0))
+    else:
+        book = safe_float(match.get("odds_p2", 0))
+    if book and book > 1.0:
+        edge_pp = conf - (100.0 / book)
+        result["value"] = edge_pp >= 3.0
+    else:
+        result["value"] = False
+
 
 def _format_form(matches: list) -> str:
     if not matches:

@@ -536,22 +536,28 @@ def _has_retractable_roof(tournament_name: str, city: str) -> bool:
     if "hangzhou" in c:  return True   # Olympic Sports Expo Center centre court
     return False
 
-# High-altitude tournaments — affects ball speed, serve dominance, endurance
+# High-altitude tournaments — affects ball speed, serve dominance, endurance.
+# Gstaad/Kitzbühel dodani u clay reviziji 2026-07-11: model je najviši europski clay
+# turnir (Gstaad, ~1050m — brži servis, niži odskok spina) analizirao kao razinu mora.
 _ALTITUDE_M = {
     "bogota": 2638, "quito": 2850, "mexico city": 2240,
     "mexico": 2240, "monterrey": 538, "lima": 154,
     "johannesburg": 1753, "santiago": 520,
+    "gstaad": 1050, "kitzbuhel": 762, "kitzbühel": 762,
 }
 
 
 def _altitude_context(tournament_name: str) -> str:
-    """Returns altitude context if tournament city is at significant altitude (>1000m)."""
+    """Returns altitude context if tournament city is at significant altitude (>600m).
+    Pragovi spušteni 1500/800 → 1000/600 (2026-07-11) da Gstaad (1050m) uđe u HIGH:
+    na 1000m+ zrak je dovoljno rjeđi da servis mjerljivo dominira više, a clay-spin
+    manje grize — teniski konsenzus za Gstaad. Santiago/Monterrey (<600) i dalje bez efekta."""
     city = _city_for_weather(tournament_name).lower()
     for key, alt in _ALTITUDE_M.items():
         if key in city:
-            if alt >= 1500:
+            if alt >= 1000:
                 return f"HIGH ALTITUDE ({alt}m) — ball flies faster, serve dominates more, endurance harder"
-            elif alt >= 800:
+            elif alt >= 600:
                 return f"MODERATE ALTITUDE ({alt}m) — slight effect on ball speed and stamina"
     return ""
 

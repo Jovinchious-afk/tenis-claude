@@ -42,6 +42,14 @@ TICKET_CONFIG = {
     "last_resort_confidence": 55.0,
 }
 
+# Surface-specifični overridi TICKET_CONFIG-a — primjenjuju se kad su SVI kandidati
+# tiketa na toj podlozi (clay revizija 2026-07-11, n=32 pickova / 7 tiketa 0/7):
+# clay 6.5-30 umjesto 6.5-40 i max 6 parova umjesto 7 — visoke kombinirane kvote
+# na clayu su se gradile gomilanjem dead-zone (1.50-1.90) pickova koji pobjeđuju 27%.
+SURFACE_TICKET_OVERRIDES = {
+    "clay": {"max_combined_odds": 30.0, "max_matches": 6},
+}
+
 # Max kandidata po turniru po danu (danas vs sutra)
 # Ovo je pre-filter PRIJE kombinatorike — ne limit na tiketu
 DAILY_MATCH_LIMITS = {

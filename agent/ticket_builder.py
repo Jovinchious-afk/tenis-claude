@@ -30,9 +30,16 @@ _NON_TICKET_LEVELS = {"ATP Challenger", "ATP Qualifying"}
 
 def _is_main_tour(p) -> bool:
     """Challengers, ITF, Qualifying se nikad ne stavljaju na tiket niti u analysis-only."""
-    level = p.get("match", {}).get("level", "")
+    m = p.get("match", {})
+    level = m.get("level", "")
     low = level.lower()
     if any(kw in low for kw in ["challenger", "qualifying", "itf", "future"]):
+        return False
+    # Qualifying guard (clay revizija 2026-07-11): ATP 250/500 nemaju R128 u main drawu —
+    # "R128" na tim razinama su kvalifikacije koje API krivo označi kao main draw.
+    # 11.07. su tako 4 kvalifikacijska meča (igrači ranga 150-300) ušla na tiket i 2/4 pala.
+    rnd = str(m.get("round", "")).upper().strip()
+    if ("250" in level or "500" in level) and (rnd == "R128" or rnd.startswith("Q")):
         return False
     return True
 
@@ -45,6 +52,18 @@ def _has_odds(p) -> bool:
 def _is_grass(p) -> bool:
     """True ako se par igra na travi."""
     return "grass" in (p.get("match", {}).get("surface", "") or "").lower()
+
+
+def _is_clay(p) -> bool:
+    """True ako se par igra na zemlji."""
+    return "clay" in (p.get("match", {}).get("surface", "") or "").lower()
+
+
+def _needs_conf_floor(p) -> bool:
+    """Podloge s confidence floorom u selekciji: grass (od 22.06.) + clay (revizija 11.07.).
+    Clay dokaz: pickovi ispod 63% nisu ni ulazili u clay korpus, ali zona 66-70% pobjeđivala
+    je 38% — floor + poštena kalibracija (clay rule 9) zajedno tjeraju coinflipove ispod 63."""
+    return _is_grass(p) or _is_clay(p)
 
 
 def build_ticket(predictions: list, weights: dict, min_odds_override: float = None) -> Optional[dict]:
@@ -62,25 +81,27 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
     if min_odds_override is not None:
         cfg["min_combined_odds"] = min_odds_override
 
-    # ── Grass selekcijska disciplina + value-override ───────────────────────
-    # Osnovno: grass pick prolazi samo ako je modelov VLASTITI confidence >= 63%.
-    # Time se filtriraju coinflipovi (n=73, lipanj 2026: grass <63% pobjeđivali ~40%).
+    # ── Grass + clay selekcijska disciplina + value-override ────────────────
+    # Osnovno: grass/clay pick prolazi samo ako je modelov VLASTITI confidence >= 63%.
+    # Grass: filtrira coinflipove (n=73, lipanj 2026: grass <63% pobjeđivali ~40%).
+    # Clay (revizija 2026-07-11): prošireno s grassa — ista strukturna bolest, gora
+    # kalibracija (66-70% zona pobjeđivala 38%, prosjek conf 69% vs stvarnih 53%).
     #
     # IZNIMKA (value-override, dodano 2026-07-05): naša filozofija je VALUE, ne lov na
     # niske kvote. Standout value oklada (model se JAKO ne slaže s tržištem) smije proći
     # i ispod floora: confidence >= 58% I edge >= 12pp, ali najviše 2 takve (top po edge-u).
     # Value = usporedba s tržištem, pa je edge legitimna upotreba kvote — različito od
     # "biranja niske kvote". Ovo omogućuje povremeni opravdani 15-25 listić.
-    # Visok prag (12pp) + kap na 2 + min 58% drže rizik pod kontrolom (edge ovisi o
-    # kalibraciji fair_odds, koja je nova od grass v3 — krećemo oprezno).
-    grass_floor = cfg["min_confidence"]           # 63
+    # Od 11.07. edge se računa iz fair_odds = 100/confidence (predictor normalizacija),
+    # pa je override konzistentan: prolaze samo kvote 2.0+ uz pošten confidence 58-62.
+    conf_floor = cfg["min_confidence"]            # 63
     VALUE_MIN_CONF = 58.0
     VALUE_MIN_EDGE = 12.0
     VALUE_MAX_PICKS = 2
 
-    grass_below = [p for p in predictions
-                   if _is_grass(p) and (p.get("confidence") or 0) < grass_floor]
-    value_candidates = [p for p in grass_below
+    floor_below = [p for p in predictions
+                   if _needs_conf_floor(p) and (p.get("confidence") or 0) < conf_floor]
+    value_candidates = [p for p in floor_below
                         if (p.get("confidence") or 0) >= VALUE_MIN_CONF
                         and _pick_edge(p) >= VALUE_MIN_EDGE
                         and _is_main_tour(p) and _has_odds(p)]
@@ -89,15 +110,16 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
 
     n_before = len(predictions)
     predictions = [p for p in predictions
-                   if not _is_grass(p)
-                   or (p.get("confidence") or 0) >= grass_floor
+                   if not _needs_conf_floor(p)
+                   or (p.get("confidence") or 0) >= conf_floor
                    or id(p) in value_keep]
     n_dropped = n_before - len(predictions)
     if n_dropped:
-        print(f"  Grass disciplina: izbačeno {n_dropped} grass pickova ispod {grass_floor}% "
+        print(f"  Grass/clay disciplina: izbačeno {n_dropped} pickova ispod {conf_floor}% "
               f"(modelov confidence, ne kvota).")
     for p in value_candidates[:VALUE_MAX_PICKS]:
-        print(f"  Value-override (grass): {p.get('pick','')} conf={p.get('confidence',0):.0f}% "
+        surf = "clay" if _is_clay(p) else "grass"
+        print(f"  Value-override ({surf}): {p.get('pick','')} conf={p.get('confidence',0):.0f}% "
               f"edge={_pick_edge(p):.1f}pp — zadržan ispod floora zbog izraženog value-a.")
 
     def _eligible(p, conf_threshold, allow_challengers=False):
@@ -164,6 +186,7 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
     ), reverse=True)
 
     candidates = _apply_daily_limits(candidates)
+    cfg = _apply_surface_overrides(cfg, candidates)
     best_combo = _find_best_combination(candidates, cfg)
 
     if not best_combo:
@@ -231,6 +254,35 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
     }
 
 
+def _apply_surface_overrides(cfg: dict, candidates: list) -> dict:
+    """Primijeni surface-specifične ticket limite kad su SVI kandidati na istoj podlozi.
+    Clay (revizija 2026-07-11, potvrdio korisnik): kombinirana kvota 6.5-30 i max 6 parova
+    — kvote 30+ na clayu su se dosezale samo gomilanjem dead-zone/underdog pickova."""
+    from config.model_config import SURFACE_TICKET_OVERRIDES
+    if not candidates:
+        return cfg
+    for surface, overrides in SURFACE_TICKET_OVERRIDES.items():
+        if all(surface in (p.get("match", {}).get("surface", "") or "").lower()
+               for p in candidates):
+            cfg = {**cfg, **overrides}
+            print(f"  Surface override ({surface}): kombinirana kvota "
+                  f"{cfg['min_combined_odds']}-{cfg['max_combined_odds']}, "
+                  f"max {cfg['max_matches']} parova.")
+            break
+    return cfg
+
+
+# Mrtva zona kvota na clayu: 1.50-1.90 pobjeđivala 3/11 (27%) u clay korpusu
+# (na grassu ista zona 20%). Marginalni favoriti bez informacijskog edga.
+_CLAY_DEAD_ZONE = (1.50, 1.90)
+_CLAY_DEAD_ZONE_MAX = 1  # max toliko clay pickova iz mrtve zone po tiketu
+
+
+def _clay_dead_zone_count(combo) -> int:
+    return sum(1 for p in combo
+               if _is_clay(p) and _CLAY_DEAD_ZONE[0] <= _pick_odds(p) < _CLAY_DEAD_ZONE[1])
+
+
 def _find_best_combination(candidates: list, cfg: dict) -> Optional[list]:
     """
     Quality-first scoring using joint probability as primary metric.
@@ -240,7 +292,8 @@ def _find_best_combination(candidates: list, cfg: dict) -> Optional[list]:
             + high_conf_count × 2     (confidence >= 72%)
             - weakest_pick_penalty    (max(0, 68 - min_conf) × 1.5)
             - extra_pick_penalty      ((n_picks - 4) × 3)
-    Combined odds 9-40 is a hard filter, not a target.
+    Combined odds range is a hard filter, not a target.
+    Clay disciplina: max 1 clay pick u mrtvoj zoni kvota 1.50-1.90 po kombinaciji.
     """
     min_n = cfg["min_matches"]
     max_n = cfg["max_matches"]
@@ -261,6 +314,9 @@ def _find_best_combination(candidates: list, cfg: dict) -> Optional[list]:
             if odds < min_odds or odds > max_odds:
                 continue
 
+            if _clay_dead_zone_count(combo) > _CLAY_DEAD_ZONE_MAX:
+                continue
+
             score = _score_combo(combo)
             if score > best_score:
                 best_score = score
@@ -278,7 +334,10 @@ def _score_combo(combo: tuple) -> float:
     for c in confs:
         joint_prob *= c / 100.0
 
-    # Edge bonus: proportional, only if edge >= 3pp, cap 10 per pick
+    # Edge bonus: proportional, only if edge >= 3pp, cap 10 per pick.
+    # Edge-sanity (clay revizija 2026-07-11): edge > 20pp znači da model tvrdi da tržište
+    # griješi za 20+ postotnih bodova — povijesno je to bio signal NAŠE greške, ne value-a
+    # (Collignon @2.82 s umišljenih 18pp edga izgubio). Takav pick ne dobiva bonus.
     edge_total = 0.0
     for p in combo:
         fair = p.get("fair_odds") or 0
@@ -287,7 +346,7 @@ def _score_combo(combo: tuple) -> float:
             model_prob = 1.0 / fair * 100
             implied_prob = 1.0 / bookmaker * 100
             edge = model_prob - implied_prob
-            if edge >= 3.0:
+            if 3.0 <= edge <= 20.0:
                 edge_total += min(10.0, edge)
 
     # High confidence bonus
@@ -392,8 +451,16 @@ GRASS-SPECIFIC CHECKS (apply when any pick is on Grass surface):
 - FLAG: grass picks where the favoured player entered via bye and opponent has 2+ in-tournament wins this week — the bye is a disadvantage on grass, not neutral.
 - If 2+ grass picks share the same vulnerability (both relying on ELO edge, both with fatigued favourites), treat this as overlapping risk and consider REDUCING to 1 grass pick.
 
+CLAY-SPECIFIC CHECKS (apply when any pick is on Clay surface — derived from 15 documented clay losses, 7/7 lost clay tickets):
+- FLAG and consider removing: any clay pick whose opponent has 3+ wins in this tournament or 2+ wins over seeded players, unless our pick is an elite clay player (clay ELO ≥1850 or hold ≥85%). Fading in-form players caused 8 of 15 clay losses (Mensik beat 3 of our picks, Arnaldi 2, Fonseca 2). NEVER keep a pick against a player who already eliminated one of our picks earlier in the same tournament.
+- FLAG: clay picks where the opponent has BOTH the better clay W-L record AND the better hold% — our pick's ranking/ELO edge lost all such documented matches (Khachanov, FAA, Brancaccio).
+- FLAG: clay picks at odds 1.50-1.90 (dead zone: 27% win rate this season) that lack edges in at least two of: clay record, serve-hold, quality-adjusted form.
+- FLAG: clay picks where the OPPONENT plays in his own country (home crowd) and is in rhythm — home underdogs destroyed marginal favourites repeatedly (Fery 5x, Huesler in Gstaad).
+- FLAG: clay picks where our player has 2+ matches in last 7 days and 2+ fewer rest days than the opponent — clay rallies punish tired legs hardest.
+- If 2+ clay picks share the same vulnerability, treat as overlapping risk and consider REDUCING.
+
 HARD CONSTRAINTS:
-- Final ticket: 4-7 picks, combined odds 9-40 (or 6-40 if only 4 matches available)
+- Final ticket: {cfg["min_matches"]}-{cfg["max_matches"]} picks, combined odds {cfg["min_combined_odds"]:g}-{cfg["max_combined_odds"]:g}
 - Max 2 replacements
 - Never remove a strong pick just because odds are low
 - Never add a pick just to increase odds
@@ -578,11 +645,11 @@ def build_analysis_only_ticket(predictions: list) -> dict:
 
     summary = _generate_analysis_only_summary(ticket_matches)
 
-    # Hipotetski "kad bih baš morao riskirati" tiket: najbolja kombinacija 4-7 parova,
-    # kombinirana kvota 9-40, iz tih 12 (ignorira grass floor — forsirani scenarij).
-    # _find_best_combination boduje po KVALITETI (joint prob + edge), ne po najvišoj kvoti.
+    # Hipotetski "kad bih baš morao riskirati" tiket: najbolja kombinacija 4-7 parova
+    # (clay: 4-6, kvota 6.5-30 — surface override), iz tih 12 (ignorira conf floor —
+    # forsirani scenarij). _find_best_combination boduje po KVALITETI, ne po najvišoj kvoti.
     # Samo za email, NE sprema se u bazu (app ostaje čist).
-    cfg = dict(TICKET_CONFIG)
+    cfg = _apply_surface_overrides(dict(TICKET_CONFIG), valid)
     hypo_combo = _find_best_combination(valid, cfg)
     hypothetical_summary = _generate_hypothetical_summary(hypo_combo, cfg)
 
