@@ -38,8 +38,12 @@ def _is_main_tour(p) -> bool:
     # Qualifying guard (clay revizija 2026-07-11): ATP 250/500 nemaju R128 u main drawu —
     # "R128" na tim razinama su kvalifikacije koje API krivo označi kao main draw.
     # 11.07. su tako 4 kvalifikacijska meča (igrači ranga 150-300) ušla na tiket i 2/4 pala.
+    # Fix 2026-07-16: kvalifikacije su "Q1"/"Q2" — raniji startswith("Q") hvatao je i "QF"
+    # (četvrtfinale!), pa je QF dan na ATP 250 (Båstad/Gstaad/Umag, četvrtak 16.07.)
+    # izbacio SVE mečeve i s tiketa i iz analysis-only prikaza → prazan email.
     rnd = str(m.get("round", "")).upper().strip()
-    if ("250" in level or "500" in level) and (rnd == "R128" or rnd.startswith("Q")):
+    is_quali_round = rnd.startswith("Q") and rnd != "QF"
+    if ("250" in level or "500" in level) and (rnd == "R128" or is_quali_round):
         return False
     return True
 

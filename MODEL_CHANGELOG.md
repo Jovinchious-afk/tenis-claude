@@ -9,6 +9,27 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-07-16 — Bugfix: qualifying guard izbacivao četvrtfinala ("QF" počinje s "Q")
+
+**Povod:** 16.07. ujutro (četvrtak, QF dan na Båstad/Gstaad/Umag) Daily tiket vratio prazan
+analysis-only email ("No main-tour matches available") iako je 13+3 mečeva prošlo filter
+turnira, kvote sa screenshotova bile učitane i Claude analizirao mečeve (potvrđeno u
+`analyzed_matches`). Oba jutarnja runa (07:01 i 08:38) "success" — program nije pukao,
+nego je selekcija tiho izbacila sve.
+
+**Uzrok:** qualifying guard iz clay revizije 11.07. u `_is_main_tour()` koristio je
+`rnd.startswith("Q")` za detekciju kvalifikacija — a **"QF" (četvrtfinale) također počinje
+s "Q"**. Na ATP 250/500 su zato SVA četvrtfinala tretirana kao kvalifikacije → nikad na
+tiket, a isti filter prazni i analysis-only prikaz. R32/R16 dane (pon-sri) guard ne dira,
+pa se bug pokazao tek na prvom QF danu nakon uvođenja.
+
+**Što:** `ticket_builder._is_main_tour()` — kvalifikacija je sada `startswith("Q") and
+rnd != "QF"` (Q1/Q2 i dalje blokirani, R128 guard nepromijenjen).
+
+**Ishod:** verificirano lokalnim dry-runom na stvarnim QF mečevima 16.07.
+
+---
+
 ## 2026-07-11 — Clay revizija: pravila v1 + težine v8 + selekcijska disciplina (prije Gstaad/Umag)
 
 **Povod:** kompletna revizija clay modela na 32 razriješena picka (28 RG BO5 + 4 ATP 250
