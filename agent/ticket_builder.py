@@ -35,6 +35,14 @@ def _is_main_tour(p) -> bool:
     low = level.lower()
     if any(kw in low for kw in ["challenger", "qualifying", "itf", "future"]):
         return False
+    # Screenshot override (2026-07-16): ako je korisnik ručno unio kvotu za ovaj meč,
+    # to je potvrda glavnog ždrijeba (kvalifikacije nikad ne screenshota) → propusti
+    # ga bez obzira na API-jev round-tag. Namjerno IZA level-provjere: screenshot ne
+    # smije progurati Challenger/ITF (to je policy isključenje, ne API greška),
+    # nego samo zaobići round-based qualifying guard ispod. _infer_rounds obično već
+    # ispravi Q→prava runda uzvodno; ovo je pojas-i-tregeri za rubne slučajeve.
+    if m.get("has_screenshot_odds"):
+        return True
     # Qualifying guard (clay revizija 2026-07-11): ATP 250/500 nemaju R128 u main drawu —
     # "R128" na tim razinama su kvalifikacije koje API krivo označi kao main draw.
     # 11.07. su tako 4 kvalifikacijska meča (igrači ranga 150-300) ušla na tiket i 2/4 pala.

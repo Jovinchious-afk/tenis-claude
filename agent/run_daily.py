@@ -83,8 +83,21 @@ def main():
 
     print(f"Found {len(matches_today)} today + {len(matches_tomorrow)} tomorrow → {len(all_matches)} main-tour scheduled")
 
+    # Ručno unesene kvote sa screenshotova — drže se ODVOJENO od Odds API podataka
+    # kako bi find_match_odds mogao uvijek provjeriti screenshot PRVI (prioritet),
+    # a tek tada pasti na The Odds API kao fallback.
+    # Učitava se OVDJE (prije _infer_rounds) jer je screenshot izvor istine da meč
+    # NIJE kvalifikacija: korisnik screenshota samo mečeve glavnog ždrijeba, nikad
+    # kvalifikacije. _infer_rounds to koristi da prepozna API-jev pogrešan Q-tag
+    # (npr. Umag QF označen kao Q2) i izvede pravu rundu iz broja mečeva.
+    screenshot_odds = {}
+    screenshot_odds.update(df.get_screenshot_odds(format_date(today)))
+    screenshot_odds.update(df.get_screenshot_odds(format_date(tomorrow)))
+    if screenshot_odds:
+        print(f"  Učitano {len(screenshot_odds)} screenshot kvota (imaju prioritet nad Odds API).")
+
     # Fix unreliable round labels using match count per tournament per day
-    all_matches = _infer_rounds(all_matches)
+    all_matches = _infer_rounds(all_matches, screenshot_odds)
 
     # Sortiraj po razini turnira: GS > Masters > 500 > 250 > Challenger
     from config.model_config import TOURNAMENT_LEVELS
@@ -147,19 +160,11 @@ def main():
     all_odds = df.get_tennis_odds([m["player1"] for m in all_matches])
 
     # Očisti zastarjele screenshot kvote — zapisi za dane koji su već prošli više
-    # nikad neće biti korišteni (mečevi su odigrani), pa se ne nakupljaju zauvijek
+    # nikad neće biti korišteni (mečevi su odigrani), pa se ne nakupljaju zauvijek.
+    # (screenshot_odds su već učitane gore, prije _infer_rounds.)
     n_cleaned = db.cleanup_old_screenshot_odds(format_date(today))
     if n_cleaned:
         print(f"  Očišćeno {n_cleaned} zastarjelih zapisa screenshot kvota.")
-
-    # Ručno unesene kvote sa screenshotova — drže se ODVOJENO od Odds API podataka
-    # kako bi find_match_odds mogao uvijek provjeriti screenshot PRVI (prioritet),
-    # a tek tada pasti na The Odds API kao fallback.
-    screenshot_odds = {}
-    screenshot_odds.update(df.get_screenshot_odds(format_date(today)))
-    screenshot_odds.update(df.get_screenshot_odds(format_date(tomorrow)))
-    if screenshot_odds:
-        print(f"  Učitano {len(screenshot_odds)} screenshot kvota (imaju prioritet nad Odds API).")
 
     # 6. Dohvati novosti o ozljedama
     print("Dohvaćam vijesti o ozljedama...")
@@ -293,6 +298,12 @@ def main():
             match["odds_p1"] = odds.get("p1_odds", 0)
             match["odds_p2"] = odds.get("p2_odds", 0)
             match["odds_available"] = bool(odds)  # False = kvote nisu nađene u Odds API
+            # Screenshot = korisnikova potvrda glavnog ždrijeba (izvor istine da meč
+            # NIJE kvalifikacija). _is_main_tour koristi ovu zastavicu da propusti meč
+            # čak i ako je API ostavio Q/R128 oznaku. Provjera samo protiv screenshota.
+            ss = df.find_match_odds(match["player1"], match["player2"], {},
+                                    screenshot_odds=screenshot_odds)
+            match["has_screenshot_odds"] = bool(ss)
 
             # Kompajliraj p1_data i p2_data
             p1_data = {**p1_info, **p1_stats,
@@ -598,7 +609,7 @@ def _city_for_weather(tournament_name: str) -> str:
     return tournament_name.strip()
 
 
-def _infer_rounds(matches: list) -> list:
+def _infer_rounds(matches: list, screenshot_odds: dict = None) -> list:
     """
     Ispravlja NEPRAVILNE oznake runda s API-ja — ali samo kad su nemoguće ili
     neprepoznate, jer rundu ne određuje samo broj mečeva u danu (rundа se
@@ -609,16 +620,31 @@ def _infer_rounds(matches: list) -> list:
     label koji je fizički nemoguć za broj mečeva tog dana (npr. 'F' uz
     3 meča — finale je uvijek točno 1 meč). U tim slučajevima procjenjujemo
     rundu iz broja mečeva; inače VJERUJEMO API-jevoj oznaci.
+
+    Q-tag iznimka (2026-07-16): API zna glavni ždrijeb označiti kao kvalifikacije
+    (npr. Umag QF vraćen kao roundId=9/Q2). Kvalifikacije se inače nikad ne diraju,
+    ALI ako meč iz Q-grupe ima ručno unesenu screenshot kvotu, korisnik je potvrdio
+    da je to glavni ždrijeb (kvalifikacije nikad ne screenshota) — tada ne vjerujemo
+    Q-oznaci i izvodimo pravu rundu iz broja mečeva. Bez screenshota Q ostaje Q.
     """
     from collections import defaultdict
 
+    screenshot_odds = screenshot_odds or {}
     _ROUND_ID = {"R128": 1, "R64": 2, "R32": 3, "R16": 4, "QF": 5, "SF": 6, "F": 7}
+
+    def _has_screenshot(m: dict) -> bool:
+        if not screenshot_odds:
+            return False
+        res = df.find_match_odds(m.get("player1", ""), m.get("player2", ""),
+                                 {}, screenshot_odds=screenshot_odds)
+        return bool(res)
 
     # Maksimalan broj mečeva koji ta runda fizički može imati (jedan turnir, jedan dan).
     # Ako je stvarni broj manji ili jednak, API-jeva oznaka je vjerodostojna —
     # runda se mogla protegnuti kroz više dana pa dio mečeva nedostaje.
     _MAX_MATCHES = {"F": 1, "SF": 2, "QF": 4, "R16": 8, "R32": 16, "R64": 32, "R128": 64}
-    # Kvalifikacije i round-robin imaju nepravilne/varijabilne brojeve — ne diraj ih
+    # Round-robin uvijek ima nepravilne brojeve — nikad ne diraj.
+    # Q1/Q2 se ne diraju OSIM kad grupa ima screenshot (vidi Q-tag iznimku gore).
     _TRUST_ALWAYS = {"RR", "Q1", "Q2"}
 
     # Count all scheduled matches per (tournament, date) — before any cap
@@ -633,7 +659,17 @@ def _infer_rounds(matches: list) -> list:
         current_round = group[0].get("round", "")
 
         if current_round in _TRUST_ALWAYS:
-            continue
+            # Q-tag iznimka: ako je BILO KOJI meč iz ove grupe screenshotan, API je
+            # krivo označio glavni ždrijeb kao kvalifikacije → padni na re-inference.
+            # RR ostaje uvijek netaknut. Kvalifikacije bez screenshota isto.
+            group_is_mislabelled_quali = (
+                current_round in ("Q1", "Q2")
+                and any(_has_screenshot(m) for m in group)
+            )
+            if not group_is_mislabelled_quali:
+                continue
+            print(f"  Q-tag override: {tournament} ({date}) — '{current_round}' ima "
+                  f"screenshot kvotu, tretiram kao glavni ždrijeb i izvodim rundu iz broja mečeva.")
         max_for_current = _MAX_MATCHES.get(current_round)
         if max_for_current is not None and n <= max_for_current:
             continue  # API-jeva oznaka je fizički moguća — vjeruj joj

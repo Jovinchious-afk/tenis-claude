@@ -9,6 +9,48 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-07-16 — Screenshot = izvor istine za glavni ždrijeb + Q-tag korekcija runde
+
+**Povod:** nastavak istrage praznog tiketa 16.07. Nakon QF fixa (dolje), Gstaad/Båstad QF
+prolaze, ali **Umag i dalje ispada** — iz drugog razloga: API je Umagova četvrtfinala
+(16.07.) vratio kao `roundId=9 → Q2` (kvalifikacije), iako je to glavni ždrijeb (potvrđeno
+u korisnikovom screenshotu ždrijeba, kolona ČETVRTFINALE). Krivi Q2 tag radio je dvije
+štete: (1) quali-guard ga izbacuje sa selekcije, (2) analiza ga dobiva kao "Round: Q2"
+(round_id 9 nije u `_round_context` mapi 1–7 → fallback ispiše doslovno "Q2"), pa bi agent
+QF analizirao kao kvalifikacije — točno zagađenje round-signala koji inače koristi ispravno.
+
+**Dizajn (potvrdio korisnik — A + B1):** korisnik svaki dan screenshota SVOJE mečeve
+(danas + sutra) u "kvote screenshot", a kvalifikacije prije turnira NIKAD ne screenshota,
+ne stavlja na Streamlit niti pokreće daily. Zato je prisutnost screenshot kvote pouzdan,
+determinístički dokaz da meč **nije** kvalifikacija.
+
+**Što:**
+- **A — selekcija (`ticket_builder._is_main_tour`):** ako meč ima screenshot kvotu
+  (`has_screenshot_odds`), propušta se bez obzira na API round-tag. Namjerno IZA
+  level-provjere: screenshot NE progura Challenger/ITF/Future (to je policy isključenje,
+  ne API greška), nego samo zaobiđe round-based qualifying guard (R128/Q na 250/500).
+- **B1 — runda (`run_daily._infer_rounds`):** Q1/Q2 grupa se i dalje ne dira OSIM ako bilo
+  koji meč u njoj ima screenshot → tada se ne vjeruje Q-oznaci i runda se izvodi iz broja
+  mečeva po `(turnir, dan)` (postojeći mehanizam: 4=QF, 2=SF, 1=F). Ispravlja se i `round`
+  i `round_id`, pa analiza dobiva točan round-context. RR i prave kvalifikacije (bez
+  screenshota) ostaju netaknute — nula regresije na ispravno označene runde.
+- **Preraspodjela:** `screenshot_odds` se sada učitavaju PRIJE `_infer_rounds` (bile su
+  učitane tek kasnije), i prosljeđuju u brojalicu. Svaki meč dobiva `has_screenshot_odds`
+  zastavicu tijekom obrade (poseban lookup samo protiv screenshota).
+
+**Zašto A i B1 zajedno:** B1 ispravlja rundu uzvodno (rješava i krivu analizu i selekciju
+u jednom potezu), A je pojas-i-tregeri za selekciju ako Q-oznaka iz bilo kojeg razloga
+preživi. Brojalica broji po turniru **i danu** odvojeno (danas QF, sutra SF se ne miješaju).
+
+**Ograničenje:** brojalica broji samo `scheduled` mečeve — jutarnji run (svi scheduled)
+daje točnu rundu; popodnevni re-run nakon što dio QF-a završi mogao bi podbrojati. Daily
+ide ujutro pa je u praksi bez utjecaja. Za 100% pouzdanost budući korak = live draw endpoint.
+
+**Ishod:** unit-testovi (6 scenarija) + end-to-end dry-run na stvarnom 16.07. — Umag QF
+ulazi s ispravnom rundom.
+
+---
+
 ## 2026-07-16 — Bugfix: qualifying guard izbacivao četvrtfinala ("QF" počinje s "Q")
 
 **Povod:** 16.07. ujutro (četvrtak, QF dan na Båstad/Gstaad/Umag) Daily tiket vratio prazan
