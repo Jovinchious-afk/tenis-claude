@@ -49,10 +49,20 @@ _tournament_record_cache: dict = {}
 _last_api_call_time: float = 0.0
 _MIN_CALL_INTERVAL: float = 0.67
 
+# Prolazne server-side greške na koje ima smisla ponoviti pokušaj (privremeni blip):
+#  405 = "Method Not Allowed" — u praksi kratkotrajni RapidAPI routing blip; endpoint
+#        je ispravan i proradi za par sekundi (17.07.2026 jedan takav 405 oborio je
+#        cijeli daily run jer je pao na dohvatu mečeva — prvom i kritičnom pozivu).
+#  5xx = server preopterećen/pukao/timeout — isto privremeno.
+# Trajne greške (401 kriv ključ, 403 kvota, 404 ne postoji) NAMJERNO se ne ponavljaju.
+_RETRYABLE_STATUS = {405, 500, 502, 503, 504}
+_TRANSIENT_RETRY_WAIT = 3      # sekundi pauze između pokušaja na prolaznu grešku
+_MAX_ATTEMPTS = 3
+
 
 def _get(path: str, params: dict = None, timeout: int = 15) -> Optional[dict]:
     global _last_api_call_time
-    for attempt in range(3):
+    for attempt in range(_MAX_ATTEMPTS):
         elapsed = time.time() - _last_api_call_time
         if elapsed < _MIN_CALL_INTERVAL:
             time.sleep(_MIN_CALL_INTERVAL - elapsed)
@@ -65,9 +75,25 @@ def _get(path: str, params: dict = None, timeout: int = 15) -> Optional[dict]:
                 time.sleep(wait)
                 _last_api_call_time = time.time()
                 continue
+            # Prolazna server-side greška (405/5xx): pauza pa ponovni pokušaj.
+            if r.status_code in _RETRYABLE_STATUS and attempt < _MAX_ATTEMPTS - 1:
+                print(f"API prolazna greška {r.status_code} [{path}] — pokušaj "
+                      f"{attempt + 1}/{_MAX_ATTEMPTS}, čekam {_TRANSIENT_RETRY_WAIT}s...")
+                time.sleep(_TRANSIENT_RETRY_WAIT)
+                continue
             r.raise_for_status()
             return r.json()
         except requests.exceptions.HTTPError as e:
+            # Trajne greške (401/403/404 ili zadnji pokušaj na 405/5xx) — ne ponavljamo.
+            print(f"API greška [{path}]: {e}")
+            return None
+        except requests.exceptions.RequestException as e:
+            # Mrežni blip / timeout (ConnectionError, Timeout...) — prolazno, pokušaj ponovno.
+            if attempt < _MAX_ATTEMPTS - 1:
+                print(f"API mrežna greška [{path}]: {e} — pokušaj "
+                      f"{attempt + 1}/{_MAX_ATTEMPTS}, čekam {_TRANSIENT_RETRY_WAIT}s...")
+                time.sleep(_TRANSIENT_RETRY_WAIT)
+                continue
             print(f"API greška [{path}]: {e}")
             return None
         except Exception as e:
@@ -589,6 +615,13 @@ def _name_match(a: str, b: str) -> bool:
         return True
     # Višerječna prezimena u bilo kojem redoslijedu — sve riječi se podudaraju kao skup
     if set(aw) == set(bw):
+        return True
+    # Podskup imena — kladionica zna izbaciti dio složenog prezimena / srednje ime
+    # (API "Daniel Merida Aguilar" vs screenshot "Merida Daniel", 17.07.2026). Ako su
+    # SVE riječi kraćeg imena sadržane u dužem i dijele >=2 riječi, isti je igrač.
+    # Prag >=2 sprječava lažno poklapanje na samo zajedničko ime/prezime.
+    short, long_ = (set(aw), set(bw)) if len(aw) <= len(bw) else (set(bw), set(aw))
+    if len(short) >= 2 and short.issubset(long_):
         return True
     return False
 

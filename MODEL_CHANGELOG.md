@@ -9,6 +9,43 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-07-17 — Otpornost API-ja (retry) + poklapanje skraćenih imena kladionice
+
+**Povod:** jutarnji daily run 17.07. pao je nakon 38s bez emaila. Log: `405 Client Error`
+na `/atp/fixtures/2026-07-17` (prvi i kritični poziv) → 0 mečeva → tihi izlaz. Ponovni
+(popodnevni) run onda je izbacio čudan analysis-only: odigrani/live mečevi u prikazu i
+kvote 1.50 na većini pickova. Sve dijagnosticirano na stvarnim podacima.
+
+**Uzroci (oba postojeća, nevezana uz izmjene od 16.07.):**
+1. **Prolazni ispad API-ja rušio je cijeli run.** `_get` je ponavljao pokušaj SAMO na 429
+   (rate limit); na 405/5xx je odmah vraćao None. 405 je bio kratkotrajni RapidAPI blip
+   (isti endpoint vraća 200 par sekundi kasnije), ali je oborio dohvat mečeva.
+2. **Skraćeno ime kladionice se nije poklapalo.** API "Daniel Merida Aguilar" (3 riječi) vs
+   screenshot "Merida Daniel" (2 riječi) — `_name_match` je znao obrnut redoslijed i
+   višerječna prezimena istog broja riječi, ali ne i podskup → Meridina kvota (1.55) se
+   nije našla → fallback 1.50 → meč izgubi odds_available.
+
+**Što (Fix 1 + Fix 2; Fix 3 svjesno odgođen):**
+- **Fix 1 — retry na prolazne greške (`data_fetcher._get`):** 405/500/502/503/504 i mrežni
+  blipovi (ConnectionError/Timeout) sada se ponavljaju do 3× uz 3s pauzu. Trajne greške
+  (401 ključ, 403 kvota, 404 ne postoji) NAMJERNO fail-fast (bez retryja). Da je ovo
+  postojalo, jutrošnji run bi preživio 405.
+- **Fix 2 — podskup imena (`data_fetcher._name_match`):** ako su sve riječi kraćeg imena
+  sadržane u dužem i dijele >=2 riječi → isti igrač. Prag >=2 sprječava lažno poklapanje.
+  Postojeće prezime-pravilo (aw[-1]==bw[-1]) nepromijenjeno.
+
+**Napomena — Problem 1 (odigrani/live mečevi u analizi) NIJE riješen ovdje:** uzrok je što
+tennis API kasni (odigrane mečeve još vodi `match_winner=None, live=None` → naš filter ih
+vidi kao `scheduled`). Grize samo kod popodnevnog re-runa. Korisnikovo rješenje (Fix 3:
+"uzmi samo mečeve koji su na kvote-screenshotu") svjesno odgođeno — vidi [[daily-ticket-workflow]].
+Fix 1 neizravno gasi korijen: ako jutarnji run preživi, nema potrebe za popodnevnim re-runom.
+
+**Ishod:** 15 unit-testova (retry: 405→200, 5xx→200, 405×3 odustaje, 404/403 fail-fast,
+ConnectionError retry; name-match: Merida podskup + negativni) + stvarna provjera da
+Burruchaga–Merida sada vraća 1.55.
+
+---
+
 ## 2026-07-16 — Screenshot = izvor istine za glavni ždrijeb + Q-tag korekcija runde
 
 **Povod:** nastavak istrage praznog tiketa 16.07. Nakon QF fixa (dolje), Gstaad/Båstad QF
