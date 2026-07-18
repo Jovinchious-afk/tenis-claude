@@ -671,13 +671,19 @@ def _last_match_date(matches: list) -> str:
 
 
 def _is_declining(matches: list) -> bool:
-    """Igrač je '1/3 ili lošije' u zadnja 3 meča — otvrdnuti dio pravila 'BOTH-PLAYERS-DECLINING
-    CAP' (grass rule 7 / clay rule 3: 'cap confidence at 60% regardless of ELO...'). Traži
+    """Igrač je izgubio SVA 3 zadnja meča (0/3) — prag KOREKCIJA 20.07.2026 (korisnik uočio
+    na stvarnim ponedjeljkovim mečevima da širi prag "1/3 ili lošije" isključuje 43% ATP
+    250/500 prvokolaških parova, gotovo sve 1/3-vs-1/3, umjesto samo pravi rijedak slučaj).
+    Originalni dokumentirani dokaz (Butvilas-Huesler, clay rules v1) bio je baš 0/3-vs-0/3
+    — "1/3 ili lošije" bio je NEPROVJERENA generalizacija u deterministički filter (kod), ne
+    dokazan prag. Prompt-tekst (Claudeova vlastita procjena, grass rule 7 / clay rule 3)
+    NAMJERNO ostaje širi ("1/3 ili lošije") — Claude i dalje smije biti oprezan kod 1/3-vs-1/3
+    kroz vlastiti confidence, samo to više nije automatski tvrdi izbačaj iz tiketa. Traži
     barem 3 odigrana meča da bi tvrdnja bila pouzdana (isti prag kao _form_trend)."""
     last3 = matches[:3]
     if len(last3) < 3:
         return False
-    return sum(1 for m in last3 if m.get("won")) <= 1
+    return sum(1 for m in last3 if m.get("won")) == 0
 
 
 def _rest_days(last_match_date: str, reference_date: str) -> int:

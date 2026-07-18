@@ -177,10 +177,13 @@ def _both_declining_ok(p) -> bool:
     """BOTH-PLAYERS-DECLINING CAP otvrdnuto u kod (18.07., korisnikova preporuka C).
     Pravilo je postojalo samo u promptu (grass rule 7, clay rule 3: 'cap confidence at 60%
     regardless of ELO, surface record, or other factors') — deterministički backstop je
-    stroži i pouzdaniji: ako su OBA igrača 1/3 ili lošija u zadnja 3 meča, pick se isključuje
-    iz selekcije u potpunosti (60% < 63% tiketni prag, pa svejedno ne bi prošao — ovo samo
-    jamči da ne prođe zbog eventualno preoptimistične procjene). Univerzalno, sve podloge —
-    logika je surface-neutralna (dva neizvjesna igrača = neizvjestan meč, bez obzira na
+    stroži i pouzdaniji: ako su OBA igrača izgubila SVA 3 zadnja meča (0/3 — vidi
+    run_daily._is_declining za prag-korekciju 20.07.2026), pick se isključuje iz selekcije
+    u potpunosti (60% < 63% tiketni prag, pa svejedno ne bi prošao — ovo samo jamči da ne
+    prođe zbog eventualno preoptimistične procjene). PRAG NIJE isti kao u promptu — kod
+    traži strogo 0/3 (dokazan slučaj, Butvilas-Huesler), prompt i dalje savjetuje oprez i
+    kod 1/3-vs-1/3 (Claudeova vlastita procjena, ne tvrdi izbačaj). Univerzalno, sve podloge
+    — logika je surface-neutralna (dva neizvjesna igrača = neizvjestan meč, bez obzira na
     podlogu), i hard pravila to već eksplicitno traže ('surface-independent, MUST be enforced
     from day one'), samo tekst pravila dosad nije bio napisan za hard."""
     m = p.get("match", {})

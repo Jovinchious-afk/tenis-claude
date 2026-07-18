@@ -9,6 +9,34 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-07-20 — Korekcija praga: both-declining cap zategnut s "1/3 ili lošije" na strogo "0/3"
+
+**Povod:** korisnik, gledajući stvarne ponedjeljkove (20.07.) ATP 250/500 prvokolaške
+mečeve (Estoril, Kitzbühel), primijetio da bi mnogi parovi imali oba igrača na 1/3 u
+zadnja 3 meča — brinuo se da će both-players-declining pravilo (jučer otvrdnuto u kod)
+isključiti previše mečeva i onemogućiti sastavljanje tiketa. Predložio strožu granicu
+(samo 0/3, ne "1/3 ili lošije").
+
+**Provjera na stvarnim podacima PRIJE odluke:** od 14 main-tour mečeva 20.07., **6 (43%)**
+palo bi na starom pragu — od toga samo 1 (Muller-Navone) stvarni 0/3-vs-0/3 slučaj, ostalih
+5 su 1/3-vs-1/3 ili 0/3-vs-1/3 kombinacije. Dodatno: originalni dokumentirani dokaz koji je
+uopće pokrenuo ovo pravilo (Butvilas-Huesler, clay rules v1) bio je baš 0/3-vs-0/3 — "1/3 ili
+lošije" je bila NEPROVJERENA generalizacija u kodu, ne dokazan prag.
+
+**Što:** `run_daily._is_declining()`: `sum(...) <= 1` → `sum(...) == 0`. Prompt-tekst
+(grass rule 7, clay rule 3 — Claudeova vlastita procjena) NAMJERNO ostaje širi ("1/3 ili
+lošije") — Claude i dalje smije biti oprezan kod 1/3-vs-1/3 kroz vlastiti confidence, samo
+to više nije automatski tvrdi izbačaj iz tiketa. Kod i prompt sada namjerno NISU identični
+(kod = dokazan slučaj, prompt = šira preporuka).
+
+**Ishod:** ista provjera na istim 14 mečeva 20.07. nakon izmjene: samo 1/14 (7%) i dalje
+pada (Muller-Navone, jedini dokazan tip slučaja) — pad s 43% na 7% isključenih. Novi
+regresijski test (test_c_deterministic.py, 3b) direktno kodira ovaj scenarij (Van De
+Zandschulp-Faria tip 1/3-vs-1/3 prolazi, Muller-Navone tip 0/3-vs-0/3 i dalje pada).
+Regresija hard v1 + universal logging suita prošla.
+
+---
+
 ## 2026-07-18 (osmi put) — Preporuke C, F, D iz stručnog komentara: otvrdnuta 2 pravila, kalibracijska tablica, hard okidač
 
 **Povod:** korisnik pročitao stručni komentar + preporuke A-F iz dokumentacije sustava,
