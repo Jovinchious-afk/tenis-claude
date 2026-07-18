@@ -596,6 +596,24 @@ def _strip_diacritics(s: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFKD", s) if not unicodedata.combining(c))
 
 
+def _tokens_covered(short_toks: list, long_toks: list) -> bool:
+    """Svaki token kraće liste ima JEDINSTVEN kompatibilan par u duljoj listi.
+    Kompatibilno = jednako ILI je jedan token inicijal (prefiks) drugog ("m" ~ "manuel").
+    Hvata skraćena imena kladionice: podskup ("Merida Daniel" ⊂ "Daniel Merida Aguilar")
+    i skraćene komponente ("Cerundolo Juan M." = "Juan Manuel Cerundolo")."""
+    remaining = list(long_toks)
+    for t in short_toks:
+        hit = None
+        for u in remaining:
+            if t == u or (len(t) == 1 and u.startswith(t)) or (len(u) == 1 and t.startswith(u)):
+                hit = u
+                break
+        if hit is None:
+            return False
+        remaining.remove(hit)
+    return True
+
+
 def _name_match(a: str, b: str) -> bool:
     """Usporedba imena otporna na dijakritike, različit redoslijed i spojnice.
     RapidAPI zna skratiti složena prezimena: "Diego Dedura" umjesto "Diego Dedura-Palomero" —
@@ -604,7 +622,9 @@ def _name_match(a: str, b: str) -> bool:
     b = _strip_diacritics(b.lower().strip()).replace("-", " ")
     if a == b:
         return True
-    aw, bw = a.split(), b.split()
+    # Ukloni točke s inicijala ("m." → "m") pa izbaci prazne tokene
+    aw = [t for t in (w.rstrip(".") for w in a.split()) if t]
+    bw = [t for t in (w.rstrip(".") for w in b.split()) if t]
     if not aw or not bw:
         return False
     # Isti redoslijed (oba "Ime Prezime" ili oba "Prezime Ime") — zadnja riječ se poklapa
@@ -616,12 +636,12 @@ def _name_match(a: str, b: str) -> bool:
     # Višerječna prezimena u bilo kojem redoslijedu — sve riječi se podudaraju kao skup
     if set(aw) == set(bw):
         return True
-    # Podskup imena — kladionica zna izbaciti dio složenog prezimena / srednje ime
-    # (API "Daniel Merida Aguilar" vs screenshot "Merida Daniel", 17.07.2026). Ako su
-    # SVE riječi kraćeg imena sadržane u dužem i dijele >=2 riječi, isti je igrač.
-    # Prag >=2 sprječava lažno poklapanje na samo zajedničko ime/prezime.
-    short, long_ = (set(aw), set(bw)) if len(aw) <= len(bw) else (set(bw), set(aw))
-    if len(short) >= 2 and short.issubset(long_):
+    # Pokrivenost s inicijalima — svaki token kraćeg imena ima par u dužem (jednak ili
+    # inicijal-prefiks). Hvata podskup (Merida, 17.07.) I skraćene komponente kladionice
+    # (API "Juan Manuel Cerundolo" vs screenshot "Cerundolo Juan M.", 18.07.). Prag >=2
+    # poravnate riječi sprječava lažno poklapanje na samo zajedničko ime/prezime.
+    sa, sb = (aw, bw) if len(aw) <= len(bw) else (bw, aw)
+    if len(sa) >= 2 and _tokens_covered(sa, sb):
         return True
     return False
 

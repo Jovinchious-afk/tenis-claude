@@ -9,6 +9,33 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-07-18 — Poklapanje inicijala kladionice ("Juan M." = "Juan Manuel")
+
+**Povod:** daily tiket 18.07. sve kvote povukao točno OSIM Collignona (1.50 fallback umjesto
+1.65). Izmjereno: Collignonovo ime se savršeno poklopilo, ali `find_match_odds` traži da se
+poklope OBA igrača, a **protivnik Cerundolo nije** — kladionica je skratila srednje ime:
+API "Juan Manuel Cerundolo" (3 riječi) vs screenshot "Cerundolo Juan M." ("Manuel" → "M.").
+Zbog toga cijeli par propao → Collignon dobio fallback 1.50.
+
+**Zašto Fix 2 (17.07.) to nije uhvatio:** Fix 2 je hvatao PODSKUP (screenshot ima manje
+riječi, sve sadržane). Ovdje "m." ≠ "manuel" — to je INICIJAL, ne podskup.
+
+**Što (`data_fetcher._name_match` + novi `_tokens_covered`):**
+- Tokeni se čiste od točaka ("m." → "m").
+- Nova pokrivenost s inicijalima: svaki token kraćeg imena mora imati jedinstven par u dužem
+  — jednak ILI inicijal-prefiks ("m" ~ "manuel"). Zamjenjuje raniji čisti podskup-rule
+  (podskup je sad poseban slučaj s egzaktnim poklapanjem). Prag >=2 poravnate riječi.
+
+**Sigurnost (provjereno testovima):** braća Cerundolo se NE miješaju u stvarnom smjeru
+usporedbe (API "Francisco Cerundolo" vs screenshot "Cerundolo Juan M." → False, jer nema
+"juan"). Isto-prezime preko postojećeg pravila ostaje kakvo je bilo; find_match_odds ionako
+traži poklapanje OBA igrača.
+
+**Ishod:** 14 unit-testova (Cerundolo/FAA inicijali + braća-negativni + regresija Merida/
+Burruchaga/Tsitsipas/Dedura) + stvarna provjera: Collignon–Cerundolo sada vraća 1.65.
+
+---
+
 ## 2026-07-17 — Otpornost API-ja (retry) + poklapanje skraćenih imena kladionice
 
 **Povod:** jutarnji daily run 17.07. pao je nakon 38s bez emaila. Log: `405 Client Error`
