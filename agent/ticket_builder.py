@@ -93,8 +93,6 @@ _HARD_DEAD_ZONE = (1.43, 1.60)      # uključivo — nikad na tiket
 _HARD_MID_ZONE = (1.61, 1.90)       # max 1 po tiketu (vidi _find_best_combination)
 _HARD_MID_ZONE_MAX = 1
 _HARD_GS_MIN_CONF = 65.0
-_HARD_ELITE_ELO = 1900.0            # elite iznimka hot-hand veta (početni prag)
-_HARD_ELITE_HOLD = 88.0             # elite iznimka hot-hand veta (početni prag)
 
 
 def _hard_bands_ok(p) -> bool:
@@ -132,37 +130,19 @@ def _opponent_beat_us(p) -> bool:
     return bool(m.get("p1_beat_us"))
 
 
-def _pick_side_is_p1(p) -> bool:
-    """True ako je pick prvi igrač (isti mehanizam kao _pick_odds)."""
-    pick = (p.get("pick") or "").lower()
-    p1 = (p.get("match", {}).get("player1") or "").lower()
-    return bool(pick) and (pick in p1 or p1 in pick)
-
-
-def _hard_hot_hand_ok(p) -> bool:
-    """Deterministički hot-hand veto na hardu (M1, revizija 2026-07-18): protivnik s 2+
-    pobjede u OVOM turniru → pick blokiran, OSIM ako je pick elite (hard ELO >= 1900 ili
-    hold% >= 88 — početni pragovi). Dry-run 18.07. dokazao zašto prompt nije dovoljan:
-    Haiku je dao 64% Meridi protiv Džumhura na 4W/0L runu, reviewer ga izbacio, ali je
-    kvota-guard poništio reviewera — samo builder-veto garantirano provodi pravilo.
-    Zastavice p1/p2_tourn_wins + elite podatke postavlja run_daily."""
-    if not _is_hard(p):
-        return True
-    m = p.get("match", {})
-    is_p1 = _pick_side_is_p1(p)
-    opp_wins = (m.get("p2_tourn_wins") if is_p1 else m.get("p1_tourn_wins")) or 0
-    if opp_wins < 2:
-        return True
-    elo_h = (m.get("p1_elo_hard_val") if is_p1 else m.get("p2_elo_hard_val")) or 0
-    hold = (m.get("p1_hold_pct_val") if is_p1 else m.get("p2_hold_pct_val")) or 0
-    return float(elo_h) >= _HARD_ELITE_ELO or float(hold) >= _HARD_ELITE_HOLD
+# NAPOMENA: deterministički hot-hand veto po BROJU pobjeda u turniru je UKINUT na
+# korisnikov zahtjev 2026-07-18. Razlog (korisnik ispravno uočio): do četvrtfinala SVI
+# igrači imaju 2+ pobjede (R32→R16→QF), do finala 4 — prag "2+ pobjede" bi okinuo veto na
+# svaki meč završnice i onemogućio tiket. Broj pobjeda mjeri krivu stvar (napredovanje ≠
+# iznenađenje). Hot-hand oprez sada živi CILJANO u promptu (HARD RULES v1 pravilo 1: samo
+# pravi UPSET nalet niže rangiranog igrača), a deterministički ostaje samo Fery-veto
+# (_opponent_beat_us — igrač koji nas je STVARNO srušio, ne puko brojanje pobjeda).
 
 
 def _selection_ok(p) -> bool:
     """Zajednički mandatory filter za sve kandidatske liste tiketa."""
     return (_is_main_tour(p) and _has_odds(p) and _hard_bands_ok(p)
-            and _hard_gs_conf_ok(p) and _hard_hot_hand_ok(p)
-            and not _opponent_beat_us(p))
+            and _hard_gs_conf_ok(p) and not _opponent_beat_us(p))
 
 
 def build_ticket(predictions: list, weights: dict, min_odds_override: float = None) -> Optional[dict]:

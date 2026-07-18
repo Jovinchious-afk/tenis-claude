@@ -81,27 +81,9 @@ def main():
         print(f"Filtered out {excluded} non-main-tour matches (Challenger/ITF/Qualifying).")
     all_matches = main_tour
 
-    # 2b. Duplikat pravilo (revizija 2026-07-18): isti meč nikad na 2 uzastopna tiketa.
-    # Jučerašnji tiket sadrži i "sutrašnje" mečeve (= današnje) — bez ovog filtera isti
-    # meč završi na 2 tiketa i jedan poraz ruši oba (u korpusu 42 duplikata; Fery je tako
-    # jednim porazom rušio 2 tiketa odjednom). Analysis-only se ne broji (nije bilo novca).
-    yesterday = today - datetime.timedelta(days=1)
-    try:
-        y_ticket = db.get_ticket_by_date(format_date(yesterday))
-    except Exception as e:
-        print(f"  Duplikat pravilo: greška dohvata jučerašnjeg tiketa ({e}) — preskačem filter.")
-        y_ticket = None
-    if y_ticket and y_ticket.get("status") != "analysis_only":
-        y_ids = {str(m.get("external_match_id") or "") for m in (y_ticket.get("ticket_matches") or [])}
-        y_pairs = {(m.get("player1"), m.get("player2")) for m in (y_ticket.get("ticket_matches") or [])}
-        before = len(all_matches)
-        all_matches = [m for m in all_matches
-                       if str(m.get("external_id") or "") not in y_ids
-                       and (m.get("player1"), m.get("player2")) not in y_pairs]
-        removed = before - len(all_matches)
-        if removed:
-            print(f"Duplikat pravilo: izbačeno {removed} mečeva koji su već na jučerašnjem tiketu.")
-
+    # NAPOMENA: duplikat pravilo (isti meč na 2 uzastopna tiketa) je UKINUTO na
+    # korisnikov zahtjev 2026-07-18 — tiket pokriva danas+sutra, i legitimno je isti
+    # dobar meč ponoviti sutra; ne želimo izbacivati kvalitetne mečeve zbog ponavljanja.
     print(f"Found {len(matches_today)} today + {len(matches_tomorrow)} tomorrow → {len(all_matches)} main-tour scheduled")
 
     # Ručno unesene kvote sa screenshotova — drže se ODVOJENO od Odds API podataka
@@ -319,22 +301,6 @@ def main():
             # Current tournament path — sets/scores dropped this week
             p1_tourn_path = _tournament_path(p1_form.get("matches", []), tournament_id)
             p2_tourn_path = _tournament_path(p2_form.get("matches", []), tournament_id)
-
-            # Hard hot-hand veto podaci (revizija 2026-07-18): broj pobjeda u OVOM turniru
-            # + elite podaci picka. ticket_builder._hard_hot_hand_ok deterministički blokira
-            # hard pick protiv igrača s 2+ pobjede (osim elite iznimke) — lekcija revizije:
-            # prompt/reviewer rizik registriraju, ali samo builder ga garantirano PROVODI.
-            def _twins(form):
-                return sum(1 for fm in form.get("matches", [])
-                           if str(fm.get("tournament_id", "")) == str(tournament_id)
-                           and fm.get("won") and fm.get("finished"))
-            match["p1_tourn_wins"] = _twins(p1_form)
-            match["p2_tourn_wins"] = _twins(p2_form)
-            from utils.helpers import safe_float as _sf
-            match["p1_elo_hard_val"] = _sf(p1_elo.get("elo_hard"), 0)
-            match["p2_elo_hard_val"] = _sf(p2_elo.get("elo_hard"), 0)
-            match["p1_hold_pct_val"] = _sf(p1_stats.get("hold_pct"), 0)
-            match["p2_hold_pct_val"] = _sf(p2_stats.get("hold_pct"), 0)
 
             # Form trend — last 3 vs previous 7
             p1_trend = _form_trend(p1_form.get("matches", []))

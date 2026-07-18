@@ -404,13 +404,23 @@ overall ELO/ranking is MORE reliable here than on clay or grass, but our documen
 modes (hot-hand fades, dead-zone marginal favourites, +7pp overconfidence) are surface-independent
 and MUST be enforced from day one.
 
-1. HOT-HAND VETO (MANDATORY SKIP — our #1 documented loss cause across surfaces):
-   If the OPPONENT of your intended pick has 2+ wins in THIS tournament, DO NOT make the pick —
-   set skip_reason instead. The only exemption: your pick is genuinely ELITE on hard
-   (hard ELO >= 1900, or hold% >= 88% with the better hard record). One player (Fery) eliminated
-   SIX of our picks in three weeks because the model re-faded him every day. Related: NEVER pick
-   against a player who already eliminated one of our picks earlier in the same tournament —
-   assume he is in a run until he actually loses.
+1. HOT-HAND CAUTION — target genuine UPSET runs, NOT normal advancement (#1 loss cause):
+   IMPORTANT: reaching the QF/SF/F normally is NOT a hot hand — by the quarterfinal every
+   player already has 2+ tournament wins, so raw win-count means nothing. Do NOT penalise a
+   player just for being deep in the draw. The real danger is a LOWER-RANKED / unseeded player
+   on a genuine upset run. Apply a strong caution (lower confidence toward 60, or skip a
+   marginal favourite) ONLY when ALL of these hold:
+   - the opponent of your pick is clearly LOWER-ranked / worse-ELO than your pick (the "weaker
+     on paper" player), AND
+   - he has beaten a SEEDED or higher-ranked player this week (a real upset, not just wins over
+     peers), AND
+   - your pick is only a MARGINAL favourite (no double-confirmation edge).
+   In that exact profile, do not fade him unless your pick is genuinely ELITE on hard
+   (hard ELO >= 1900, or hold% >= 88% with the better hard record). Documented: Fery (low-ranked)
+   eliminated SIX of our higher-ranked picks in three weeks. Two proven favourites at the SF/F
+   who both advanced normally are a normal match — judge them on the usual factors, do NOT auto-skip.
+   (Deterministic backstop: a player who already ELIMINATED one of our picks in this same
+   tournament is auto-vetoed by the ticket builder, so you need not model that case.)
 
 2. DOUBLE-CONFIRMATION for 66%+ (calibration deflator):
    Season data: our stated confidence ran ~7pp above reality (63-70% picks won 55-60%).

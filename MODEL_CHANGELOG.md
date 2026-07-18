@@ -9,6 +9,34 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-07-18 (kasnije) — Korekcija hard revizije: ukinut duplikat + hot-hand win-count veto
+
+**Povod:** korisnik uočio dvije greške u istodnevnoj hard reviziji (dolje):
+1. **Duplikat pravilo** izbacivalo dobre mečeve — tiket legitimno pokriva danas+sutra i isti
+   dobar meč se SMIJE ponoviti sljedeći dan. Ne želi to.
+2. **Hot-hand veto po BROJU pobjeda je logički pogrešan**: do QF-a SVI igrači imaju 2+ pobjede
+   (R32→R16→QF), do finala 4 — prag "2+ pobjede" okinuo bi veto na svaki meč završnice i
+   onemogućio tiket. Broj pobjeda mjeri napredovanje, ne "vrući nalet". (Čak i motivirajući
+   slučaj Merida vs Džumhur bio je FINALE — oba finalista imaju ~4 pobjede, veto ih ne razlikuje.)
+
+**Što (potvrdio korisnik — opcija "ciljano na iznenađenja"):**
+- **Duplikat pravilo UKINUTO** (`run_daily`) — vraćeno na staro, isti meč smije na uzastopne tikete.
+- **Deterministički hard hot-hand veto UKINUT** (`_hard_hot_hand_ok` obrisan iz ticket_buildera;
+  uklonjene i p1/p2_tourn_wins + elo/hold zastavice iz run_daily koje su ga hranile).
+- **HARD RULES v1 pravilo 1 prepisano** iz "HOT-HAND VETO (2+ pobjede → skip)" u
+  **"HOT-HAND CAUTION"** ciljano na PRAVI upset nalet: oprez/skip SAMO kad je protivnik
+  (a) jasno niže rangiran/slabiji ELO od našeg picka, (b) pobijedio SEEDED/više rangiranog
+  igrača ovaj tjedan, i (c) naš pick je tek marginalni favorit. Dva legitimna favorita u
+  finalu koji su normalno napredovali = normalan meč, ne auto-skip.
+- **Fery-veto OSTAJE** (`_opponent_beat_us`) — jedini deterministički hot-hand backstop,
+  temeljen na STVARNOM porazu (igrač koji nas je već srušio u istom turniru), ne na brojanju.
+
+**Ishod:** 34 unit-testa (ažurirani: hot-hand win-count veto uklonjen, potvrđeno da finalist
+s 4W više ne pada automatski) + end-to-end dry-run. Sve ostale hard promjene (dead-zone ban,
+mid-zona, GS 65, težine v14, evening→analyzed_matches, surface-switch) ostaju netaknute.
+
+---
+
 ## 2026-07-18 — HARD REVIZIJA: pravila v1 + težine + selekcijska disciplina (PRIJE prvog hard picka)
 
 **Povod:** potpuna revizija grass+clay korpusa po korisnikovoj metodologiji ("Prompt za
