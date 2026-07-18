@@ -84,6 +84,11 @@ CREATE TABLE IF NOT EXISTS analyzed_matches (
     actual_winner VARCHAR(150),
     prediction_correct BOOLEAN,
     full_analysis JSONB,
+    -- Sirov kontekst (dob, nacionalnost, vrijeme meča, Bo3 decider record, razina prethodnog
+    -- turnira) za buduću korelacijsku analizu — korisnikov prijedlog 2026-07-18. Ne utječe na
+    -- pick/confidence, samo se bilježi dok se ne skupi dovoljan uzorak. Vidi context_version
+    -- unutar JSON-a za oblik sheme.
+    context_snapshot JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

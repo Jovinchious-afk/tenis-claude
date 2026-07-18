@@ -313,6 +313,13 @@ def main():
             p1_trend = _form_trend(p1_form.get("matches", []))
             p2_trend = _form_trend(p2_form.get("matches", []))
 
+            # Sirove varijable za buduću analizu (korisnikov prijedlog 2026-07-18) — NE ulaze
+            # u prompt niti u odluku, samo se bilježe u context_snapshot dok se ne skupi uzorak.
+            p1_decider = _decider_record(p1_form.get("matches", []))
+            p2_decider = _decider_record(p2_form.get("matches", []))
+            p1_prev_tourn_level = _previous_tournament_level(p1_form.get("matches", []))
+            p2_prev_tourn_level = _previous_tournament_level(p2_form.get("matches", []))
+
             # Altitude context
             altitude = _altitude_context(match.get("tournament", ""))
             if altitude:
@@ -362,6 +369,8 @@ def main():
                        "avg_opp_elo": p1_avg_opp_elo,
                        "tournament_path": p1_tourn_path,
                        "form_trend": p1_trend,
+                       "decider_record": p1_decider,
+                       "previous_tournament_level": p1_prev_tourn_level,
                        }
 
             p2_data = {**p2_info, **p2_stats,
@@ -380,6 +389,8 @@ def main():
                        "avg_opp_elo": p2_avg_opp_elo,
                        "tournament_path": p2_tourn_path,
                        "form_trend": p2_trend,
+                       "decider_record": p2_decider,
+                       "previous_tournament_level": p2_prev_tourn_level,
                        }
 
             _base_tname = match.get("tournament", "").split(" - ")[0].strip()
@@ -474,7 +485,12 @@ def main():
                             "key_factors": pred.get("key_factors"),
                             "analysis": pred.get("analysis"),
                             "handicap_option": pred.get("handicap_option"),
-                        }
+                        },
+                        # Sirovi kontekst za buduću analizu (korisnikov prijedlog 2026-07-18,
+                        # točke 1/2/4/7) — dob, nacionalnost, vrijeme meča, Bo3 decider record,
+                        # razina prethodnog turnira. Univerzalno za sve podloge. Ne utječe na
+                        # pick/confidence — čeka se uzorak prije bilo kakve analize/pravila.
+                        "context_snapshot": pred.get("context_snapshot", {}),
                     })
         except Exception as e:
             print(f"Greška spremanja u Supabase: {e}")
@@ -617,6 +633,31 @@ def _last_match_date(matches: list) -> str:
     if not matches:
         return "N/A"
     return matches[0].get("date", "N/A")[:10]
+
+
+def _decider_record(matches: list) -> dict:
+    """Bo3 decider-set (2-1) win/loss tally iz zadnjih odigranih mečeva — sirova varijabla,
+    NE ulazi u prompt niti u odluku, samo se bilježi za buduću analizu kad se skupi uzorak
+    (korisnikov prijedlog 2026-07-18, točka 2: 'koliko puta je igrač dobio/izgubio 2-1').
+    Napomena: obuhvaća samo Bo3 (sets_played==3); Bo5 deciderи (5 setova, Grand Slam) su
+    namjerno izostavljeni jer bez podatka o formatu prošle utakmice ne možemo razlikovati
+    čisti 3-0 sweep od pravog decidera u Bo5."""
+    won = sum(1 for m in matches if m.get("sets_played") == 3 and m.get("won"))
+    lost = sum(1 for m in matches if m.get("sets_played") == 3 and not m.get("won"))
+    return {"won": won, "lost": lost}
+
+
+def _previous_tournament_level(matches: list) -> str:
+    """Razina (tier) igračevog POSLJEDNJEG odigranog turnira prije trenutnog — sirova varijabla
+    za buduću analizu (korisnikov prijedlog 2026-07-18, točka 7: umor/motivacija nakon velikog
+    turnira, npr. Wimbledon → mali ATP 250). NE ulazi u prompt niti u odluku.
+    matches su već sortirani najnoviji-prvi (ista pretpostavka kao _form_trend/_tournament_path)."""
+    if not matches:
+        return "N/A"
+    prev_tid = matches[0].get("tournament_id", "")
+    if not prev_tid:
+        return "N/A"
+    return df.get_tournament_tier(prev_tid) or "N/A"
 
 
 def _avg_opponent_elo(matches: list, elo_data: dict) -> str:

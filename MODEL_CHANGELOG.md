@@ -9,6 +9,61 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-07-18 (peti put) — 9 korisnikovih prijedloga: pregled + univerzalni fixevi + context logging
+
+**Povod:** korisnik predložio 9 ideja za poboljšanje modela (doba dana, 3-set decider record,
+ranking gap, ista nacionalnost, tiebreak favorit/outsider, brzina servisa, umor/motivacija
+nakon velikog turnira, geografska greška "Molcan/Slovačka", turnirska povijest). Prije bilo
+kakve implementacije napravljen je pregled po točkama kroz stvarni kod (ne pretpostavke) —
+9 vs 9 kod: 1 je već potpuno implementiran (turnirska povijest, `tournament_history`), 1 je
+odmah analizabilan iz postojećih podataka (tiebreak), 1 je jeftin prompt-fix (geo-greška),
+1 je već testiran sa suprotnim zaključkom (ranking gap na clayu), 4 zahtijevaju novo
+prikupljanje podataka prije analize (doba dana, decider record, nacionalnost, prethodni
+turnir), 1 nije dostupan u trenutnom API-ju (brzina servisa km/h — nijedan endpoint koji
+koristimo to ne vraća, ni live ni post-match).
+
+**Što (korisnik odobrio cijeli paket, "univerzalno za sve podloge"):**
+- **Anti-halucinacijski fix (univerzalan, shared prompt template):** nova STRICT
+  ANTI-HALLUCINATION bullet zabranjuje izmišljanje geografskih/nacionalnih tvrdnji izvan
+  doslovnog Country polja (npr. "susjedna država", "domaći navijači preko granice").
+  Root cause NIJE bug u kodu — nema tablice granica nigdje — nego LLM slobodna asocijacija
+  (Claude je u analizi tvrdio da Slovačka graniči s Hrvatskom radi "home crowd" narativa;
+  ne graniči). Isti princip kao postojeća zabrana izmišljanja "title defence" (linija 131-133).
+- **HOME-CROWD pravilo — parity gap otkriven i popravljen:** pravilo je već bilo izvedeno iz
+  cross-surface analize (31 meč, sve podloge), ali tekst je postojao SAMO u clay promptu.
+  Propagirano identično u grass i hard pravila (ista evidencija, ista formula −3pp/ispod 63%).
+- **RANKING-GAP DEFLATION — grass dobiva, hard namjerno NE:** grass dobiva isti princip kao
+  clay (ranking odražava SVE podloge, manje pouzdan od surface-specific ELO na specijaliziranim
+  podlogama), ali iskreno označeno kao "provisional" — nema grass-specifičnih dokumentiranih
+  gubitaka kao kod claya (Darderi/Khachanov/Faria). Hard NAMJERNO ne dobiva ovo pravilo — hard
+  već ima suprotan, dokazan zaključak (rule 7 RANKING RELIABILITY: na hardu je ranking/ELO
+  gap legitimno pouzdaniji jer je podloga neutralna) — dodavanje deflacije bilo bi
+  kontradiktorno vlastitom dokazu.
+- **context_snapshot logging (nova JSONB kolona, `analyzed_matches`, univerzalno sve podloge):**
+  počinje se bilježiti dob, nacionalnost, vrijeme meča (već se dohvaćaju uživo, sad se i
+  spremaju), plus dvije NOVE izvedene varijable — `decider_record` (Bo3 2-1 win/loss tally iz
+  zadnjih odigranih mečeva, Bo5 namjerno izostavljen jer se ne može razlikovati od 3-0 sweepa
+  bez podatka o formatu) i `previous_tournament_level` (tier igračevog zadnjeg odigranog
+  turnira, preko novog `get_tournament_tier()` wrappera, cache-irano). Sve NE ulazi u prompt
+  niti utječe na pick/confidence — čisto bilježenje dok se ne skupi uzorak za analizu.
+  `context_version: 1` u JSON-u radi budućih izmjena sheme.
+- **Analiza #5 (tiebreak favorit/outsider) — odmah izvedena iz postojećih podataka:**
+  71 od 229 resolved ticket_matches sadrži tiebreak set. Favoriti (kvota ≤1.70) u tim mečevima:
+  60.7% WR (n=61) — gotovo identično njihovom baznom WR (63.1%, n=160), nema odstupanja.
+  Outsideri (kvota ≥2.00): 75.0% WR ali n=4 — statistički beznačajno, NE citirati kao nalaz.
+  Zaključak: trenutno nema iskoristivog signala; treba čekati veći uzorak, posebno u
+  outsider+tiebreak kutu.
+
+**Ishod:** 27 novih unit-testova (anti-halucinacijski tekst, HOME-CROWD/ranking-gap parity,
+`get_tournament_tier`, `_decider_record`/`_previous_tournament_level`, `context_snapshot`
+end-to-end s mockiranim Claude odgovorom) + regresija starih 18 hard-revizijskih testova
+(svi prošli) + end-to-end dry-run. **Korisnička akcija potrebna:** `context_snapshot` kolona
+dodana u `schema.sql` za buduće instalacije, ali postojeća Supabase tablica treba ručni
+`ALTER TABLE analyzed_matches ADD COLUMN IF NOT EXISTS context_snapshot JSONB DEFAULT '{}'::jsonb;`
+u SQL Editoru prije nego se novi podaci počnu stvarno spremati.
+
+---
+
 ## 2026-07-18 (četvrti put) — Cross-surface parity: clay hot-hand popravak + grass dead-zone + clay GS
 
 **Povod:** korisnik pitao koja su od hard-revizijskih pravila zapravo univerzalna, ne samo

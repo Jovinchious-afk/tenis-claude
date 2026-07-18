@@ -132,6 +132,7 @@ STRICT ANTI-HALLUCINATION RULE:
 - Tournament records below show ONLY aggregate match win/loss COUNTS — the underlying API endpoint is known to contain round-label errors (e.g. labelling a player "Winner" when they did not win the title). Do NOT use them to make any historical claims about who won or reached which round.
 - Do NOT write "title defence", "defending champion", "winner last year", "finalist last year", or ANY historical tournament achievement for either player unless they are explicitly listed in the draw history above (e.g. "F: PlayerName def. ...").
 - If draw history shows "Nema podataka" — make ZERO historical tournament claims.
+- Do NOT invent geographic, political, or biographical claims beyond the literal Country value given above (e.g. "his home country borders the host nation", "he grew up nearby", "fans from the neighbouring country"). Documented error: the model claimed Slovakia borders Croatia to justify a "home crowd" narrative for a Slovak player at a Croatian tournament — Slovakia does not border Croatia. Use the Country field exactly as given; do not reason about geography, borders, or regional ties beyond it.
 Tournament record {player1} (aggregate W/L COUNTS ONLY — do not infer round achievements):
 {p1_tournament_history}
 Tournament record {player2} (aggregate W/L COUNTS ONLY — do not infer round achievements):
@@ -297,6 +298,24 @@ Every rule below was broken in at least one loss — treat them as hard constrai
      confidence rather than backing your pick strongly.
    - Do NOT make a confident pick whose main edge is "better return" while the opponent has
      dominant hold%. On grass, HOLDING beats returning — serve-hold wins tight matches.
+
+11. HOME-CROWD RULE (asymmetric — from cross-surface analysis of 31 home-player matches;
+   same rule as clay, added here for parity 2026-07-18 — the underlying evidence was already
+   cross-surface, only the rule text had not been propagated to grass):
+   If the OPPONENT of our pick plays in his own country (check Country vs tournament host
+   country): subtract 3pp from confidence. If that home opponent ALSO has in-tournament
+   momentum (2+ wins this week) or the match is otherwise close, score the pick below 63%
+   so it drops out — home underdogs in rhythm repeatedly destroyed marginal favourites
+   (Fery eliminated 5 of our picks at his home events; Huesler beat our pick in Gstaad).
+   If OUR pick is the home player: NO bonus — home picks won at exactly the baseline rate.
+
+12. RANKING-GAP DEFLATION (principle transfer from clay — NO grass-specific incidents
+   documented yet, treat as provisional until grass evidence accumulates):
+   ATP ranking gaps are NOT a primary grass argument — ranking reflects all surfaces, and
+   grass is the most specialised surface on tour. Surface-specific evidence (grass ELO,
+   grass W-L record, hold% on grass) outranks raw ranking gap. A grass ELO gap under 30
+   points is NOISE — treat such matches as even on that factor and look at the other
+   categories instead of leaning on the ranking number.
 === END GRASS-SPECIFIC RULES v3 ==="""
 
 
@@ -488,6 +507,19 @@ and MUST be enforced from day one.
    Solid favourite with one risk → 64-69%. Marginal/conflicting/thin data → below 63%, commit
    to dropping it. A falsely-confident 64% puts a coin-flip onto a real-money accumulator —
    that error, repeated, is exactly why 31 of our 33 tickets lost.
+
+11. HOME-CROWD RULE (asymmetric — from cross-surface analysis of 31 home-player matches;
+   same rule as clay, added here for parity 2026-07-18 — the underlying evidence was already
+   cross-surface, only the rule text had not been propagated to hard):
+   If the OPPONENT of our pick plays in his own country (check Country vs tournament host
+   country): subtract 3pp from confidence. If that home opponent ALSO has in-tournament
+   momentum (2+ wins this week) or the match is otherwise close, score the pick below 63%
+   so it drops out — home underdogs in rhythm repeatedly destroyed marginal favourites
+   (Fery eliminated 5 of our picks at his home events; Huesler beat our pick in Gstaad).
+   If OUR pick is the home player: NO bonus — home picks won at exactly the baseline rate.
+   NOTE: unlike clay/grass, rule 7 above (RANKING RELIABILITY) means hard does NOT get a
+   ranking-gap-deflation rule — on hard, ranking/ELO gaps are legitimately more predictive,
+   so deflating them here would contradict our own documented hard-specific evidence.
 === END HARD-SPECIFIC RULES v1 ==="""
 
 
@@ -628,6 +660,19 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         raw = response.content[0].text.strip()
         result = _safe_json_parse(raw)
         result["match"] = match
+        # Sirovi kontekst za buduću analizu (korisnikov prijedlog 2026-07-18) — namjerno NE
+        # ulazi u prompt niti utječe na pick/confidence, samo se sprema u analyzed_matches.
+        # context_snapshot.context_version bilježi verziju oblika radi budućih izmjena sheme.
+        result["context_snapshot"] = {
+            "context_version": 1,
+            "p1_age": p1.get("age"), "p2_age": p2.get("age"),
+            "p1_nationality": p1.get("nationality"), "p2_nationality": p2.get("nationality"),
+            "match_time": match.get("time", ""),
+            "p1_decider_record": p1.get("decider_record"),
+            "p2_decider_record": p2.get("decider_record"),
+            "p1_previous_tournament_level": p1.get("previous_tournament_level"),
+            "p2_previous_tournament_level": p2.get("previous_tournament_level"),
+        }
         _normalize_fair_odds(result, match)
         return result
     except Exception as e:

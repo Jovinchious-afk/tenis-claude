@@ -142,6 +142,15 @@ def _get_tournament_info(tournament_id: str) -> dict:
     return info
 
 
+def get_tournament_tier(tournament_id: str) -> str:
+    """Public wrapper oko _get_tournament_info — vraća samo tier ("ATP 250", "Grand Slam"...),
+    cache-irano. Koristi se za bilježenje razine igračevog PRETHODNOG turnira (context_snapshot,
+    korisnikov prijedlog 2026-07-18 točka 7 — umor/motivacija nakon velikog turnira)."""
+    if not tournament_id:
+        return ""
+    return _get_tournament_info(tournament_id).get("category", "")
+
+
 def _round_from_id(round_id) -> str:
     if round_id is None:
         return ""
