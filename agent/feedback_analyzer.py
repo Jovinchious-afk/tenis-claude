@@ -307,7 +307,8 @@ Be specific and concrete. Focus on model factors (ELO, surface, form, fatigue, H
         client = _get_client()
         response = client.messages.create(
             model=CLAUDE_MODELS["feedback"],
-            max_tokens=700,   # dovoljno da se cijela analiza (3 sekcije + promjene) ne reže
+            max_tokens=1200,  # margin za Sonnet high effort (bilo 700 na Haiku)
+            output_config={"effort": "high"},  # 18.07.2026
             messages=[{"role": "user", "content": prompt}]
         )
         return response.content[0].text.strip()
@@ -489,7 +490,8 @@ If there is no clear pattern requiring change, return the same weights with reas
         client = _get_client()
         response = client.messages.create(
             model=CLAUDE_MODELS["feedback"],
-            max_tokens=500,
+            max_tokens=900,  # margin za Sonnet high effort (bilo 500 na Haiku)
+            output_config={"effort": "high"},  # 18.07.2026 — mijenja žive težine, najviši utjecaj
             messages=[{"role": "user", "content": prompt}]
         )
         raw = response.content[0].text.strip().replace("```json", "").replace("```", "").strip()

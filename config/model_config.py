@@ -72,14 +72,22 @@ WEIGHT_ADJUSTMENT = {
     "max_weight": 35.0, # no factor can exceed 35%
 }
 
-# "analysis" (18.07.2026, korisnikova odluka): Haiku -> Sonnet, uz output_config effort=xhigh
-# na samom analyze_match pozivu (vidi predictor.py). Razlog: jezgra predikcije (pick/confidence/
+# "analysis" (18.07.2026, korisnikova odluka): Haiku -> Sonnet, uz output_config effort="high"
+# na samom analyze_match pozivu (vidi predictor.py; "xhigh" NIJE podržan za ovaj model — API
+# 400 "Supported levels: high, low, max, medium"). Razlog: jezgra predikcije (pick/confidence/
 # fair_odds) je najvažnija odluka u cijelom pipelineu — sve nizvodno (filteri, kombinatorika)
 # samo radi s brojkama koje ovaj poziv već odluči. Povod: precjenjivanje pouzdanosti (~7-16pp)
 # otkriveno NEOVISNO na sve tri podloge — sumnja da je riječ o svojstvu modela, ne podloge.
+#
+# "feedback" (18.07.2026, isti dan): Haiku -> Sonnet, isti output_config effort="high" na oba
+# poziva u feedback_analyzer.py (analiza gubitka + prijedlog korekcije težina). Drugi od ta dva
+# poziva izravno mijenja žive težine za sve buduće predikcije — najveći utjecaj po pozivu u
+# cijelom večernjem jobu. Volumen je nizak (max 5 loss-analiza + povremeni weight-prijedlog tek
+# nakon 5+ novih analiza), pa je dodatni trošak trivijalan; očekivana dobit manja nego kod
+# "analysis" jer je ovo slobodno pisanje objašnjenja, ne kalibrirana brojčana procjena.
 CLAUDE_MODELS = {
     "analysis": "claude-sonnet-4-6",
     "ticket_writer": "claude-sonnet-4-6",
-    "feedback": "claude-haiku-4-5-20251001",
+    "feedback": "claude-sonnet-4-6",
     "odds_extraction": "claude-sonnet-4-6",
 }

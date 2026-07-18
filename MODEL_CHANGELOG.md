@@ -9,6 +9,37 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-07-18 (sedmi put) — Feedback model: Haiku → Sonnet, output_config effort=high
+
+**Povod:** korisnik pitao, nakon prelaska "analysis" koraka na Sonnet, vrijedi li isto napraviti
+i za večernji feedback job. Objašnjeno prije implementacije: evening posao ima dva Claude
+poziva (analiza zašto smo izgubili konkretan meč, i prijedlog korekcije težina), oba tada
+na Haiku, oba niskog volumena (max 5 loss-analiza + povremeni prijedlog težina tek nakon 5+
+novih analiza) — pa je dodatni trošak trivijalan bez obzira na odluku. Očekivana dobit
+procijenjena manjom nego kod "analysis" koraka (slobodno pisanje objašnjenja, ne kalibrirana
+brojčana procjena), ali `_maybe_update_weights` izravno mijenja žive težine za sve buduće
+predikcije — najveći utjecaj po pozivu u cijelom večernjem jobu. Korisnik odobrio: "moze da".
+
+**Što:**
+- `CLAUDE_MODELS["feedback"]`: `claude-haiku-4-5-20251001` → `claude-sonnet-4-6`.
+- `feedback_analyzer.py` `_analyze_lost_match()`: `output_config={"effort":"high"}` dodan,
+  `max_tokens` 700→1200 (margin).
+- `feedback_analyzer.py` `_maybe_update_weights()`: `output_config={"effort":"high"}` dodan,
+  `max_tokens` 500→900 (margin).
+- `"analysis"`/`"ticket_writer"`/`"odds_extraction"` nisu dirani ovim krugom (već riješeni ili
+  nepromijenjeni).
+
+**Ishod:** mock test potvrđuje kwargs (model/effort/max_tokens) na `_analyze_lost_match`.
+STVARNI (ne-mock) pozivi za OBA feedback poziva uspjeli — `_analyze_lost_match` vratio
+strukturiranu analizu; `_maybe_update_weights` (DB slojevi monkeypatchani sa 6 sintetičkih
+gubitaka, `save_new_weights` presretnut kao no-op da NIKAD ne dirne produkcijske težine)
+proizveo koherentan, dobro obrazložen prijedlog korekcije (elo_ranking −3.0%, recent_form
++3.0%, s jasnim obrazloženjem po gubitku). Regresija sva tri ranija test suita (hard v1,
+universal logging, sonnet analysis — potonji ažuriran jer je stara asercija "feedback ostaje
+Haiku" sad zastarjela) prošla bez padova.
+
+---
+
 ## 2026-07-18 (šesti put) — Analysis model: Haiku → Sonnet, output_config effort=high
 
 **Povod:** korisnik primijetio da jezgru predikcije (pick/confidence/fair_odds po meču) radi
