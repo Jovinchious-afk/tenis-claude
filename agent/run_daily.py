@@ -81,6 +81,27 @@ def main():
         print(f"Filtered out {excluded} non-main-tour matches (Challenger/ITF/Qualifying).")
     all_matches = main_tour
 
+    # 2b. Duplikat pravilo (revizija 2026-07-18): isti meč nikad na 2 uzastopna tiketa.
+    # Jučerašnji tiket sadrži i "sutrašnje" mečeve (= današnje) — bez ovog filtera isti
+    # meč završi na 2 tiketa i jedan poraz ruši oba (u korpusu 42 duplikata; Fery je tako
+    # jednim porazom rušio 2 tiketa odjednom). Analysis-only se ne broji (nije bilo novca).
+    yesterday = today - datetime.timedelta(days=1)
+    try:
+        y_ticket = db.get_ticket_by_date(format_date(yesterday))
+    except Exception as e:
+        print(f"  Duplikat pravilo: greška dohvata jučerašnjeg tiketa ({e}) — preskačem filter.")
+        y_ticket = None
+    if y_ticket and y_ticket.get("status") != "analysis_only":
+        y_ids = {str(m.get("external_match_id") or "") for m in (y_ticket.get("ticket_matches") or [])}
+        y_pairs = {(m.get("player1"), m.get("player2")) for m in (y_ticket.get("ticket_matches") or [])}
+        before = len(all_matches)
+        all_matches = [m for m in all_matches
+                       if str(m.get("external_id") or "") not in y_ids
+                       and (m.get("player1"), m.get("player2")) not in y_pairs]
+        removed = before - len(all_matches)
+        if removed:
+            print(f"Duplikat pravilo: izbačeno {removed} mečeva koji su već na jučerašnjem tiketu.")
+
     print(f"Found {len(matches_today)} today + {len(matches_tomorrow)} tomorrow → {len(all_matches)} main-tour scheduled")
 
     # Ručno unesene kvote sa screenshotova — drže se ODVOJENO od Odds API podataka
@@ -231,6 +252,28 @@ def main():
     _total_draw = sum(len(v) for v in tournament_draw_cache.values())
     print(f"  Draw cache: {_total_draw} zapisa za {len(tournament_draw_cache)} turnira.")
 
+    # 6d. Fery veto podaci (revizija 2026-07-18): igrači koji su srušili naš pick zadnjih
+    # 21 dan, po turniru. Ticket builder kroz zastavice p1_beat_us/p2_beat_us NIKAD ne
+    # dopušta ponovni fade istog igrača u istom turniru (Fery nas je srušio 6× u 3 tjedna —
+    # pravila su rizik zapisivala u risk_notes, ali ga nisu provodila).
+    beaten_us = set()   # {(winner_name_lower, tournament_base_lower)}
+    try:
+        for lost in db.get_recent_lost_matches(21):
+            w = (lost.get("actual_winner") or "").strip()
+            t = (lost.get("tournament") or "").split(" - ")[0].strip().lower()
+            if w and t:
+                beaten_us.add((w.lower(), t))
+        if beaten_us:
+            print(f"  Fery veto: {len(beaten_us)} igrač(a) koji su nas nedavno srušili "
+                  f"({', '.join(sorted(w for w, _ in beaten_us))}).")
+    except Exception as e:
+        print(f"  Fery veto: greška dohvata izgubljenih pickova ({e}) — nastavljam bez veta.")
+
+    def _beat_us(player_name: str, tournament: str) -> bool:
+        t_base = (tournament or "").split(" - ")[0].strip().lower()
+        pl = (player_name or "").lower()
+        return any(w == pl and t == t_base for w, t in beaten_us)
+
     # 7. Za svaki meč dohvati podatke o igračima
     print(f"\nDohvaćam podatke za {len(all_matches)} mečeva...")
     matches_with_data = []
@@ -277,6 +320,22 @@ def main():
             p1_tourn_path = _tournament_path(p1_form.get("matches", []), tournament_id)
             p2_tourn_path = _tournament_path(p2_form.get("matches", []), tournament_id)
 
+            # Hard hot-hand veto podaci (revizija 2026-07-18): broj pobjeda u OVOM turniru
+            # + elite podaci picka. ticket_builder._hard_hot_hand_ok deterministički blokira
+            # hard pick protiv igrača s 2+ pobjede (osim elite iznimke) — lekcija revizije:
+            # prompt/reviewer rizik registriraju, ali samo builder ga garantirano PROVODI.
+            def _twins(form):
+                return sum(1 for fm in form.get("matches", [])
+                           if str(fm.get("tournament_id", "")) == str(tournament_id)
+                           and fm.get("won") and fm.get("finished"))
+            match["p1_tourn_wins"] = _twins(p1_form)
+            match["p2_tourn_wins"] = _twins(p2_form)
+            from utils.helpers import safe_float as _sf
+            match["p1_elo_hard_val"] = _sf(p1_elo.get("elo_hard"), 0)
+            match["p2_elo_hard_val"] = _sf(p2_elo.get("elo_hard"), 0)
+            match["p1_hold_pct_val"] = _sf(p1_stats.get("hold_pct"), 0)
+            match["p2_hold_pct_val"] = _sf(p2_stats.get("hold_pct"), 0)
+
             # Form trend — last 3 vs previous 7
             p1_trend = _form_trend(p1_form.get("matches", []))
             p2_trend = _form_trend(p2_form.get("matches", []))
@@ -304,6 +363,14 @@ def main():
             ss = df.find_match_odds(match["player1"], match["player2"], {},
                                     screenshot_odds=screenshot_odds)
             match["has_screenshot_odds"] = bool(ss)
+
+            # Fery veto zastavice — ticket_builder._opponent_beat_us ih čita
+            match["p1_beat_us"] = _beat_us(match["player1"], match.get("tournament", ""))
+            match["p2_beat_us"] = _beat_us(match["player2"], match.get("tournament", ""))
+            if match["p1_beat_us"] or match["p2_beat_us"]:
+                who = match["player1"] if match["p1_beat_us"] else match["player2"]
+                print(f"    ⚠ Fery veto aktivan: {who} nas je već srušio u ovom turniru — "
+                      f"pick protiv njega neće ući na tiket.")
 
             # Kompajliraj p1_data i p2_data
             p1_data = {**p1_info, **p1_stats,

@@ -216,6 +216,16 @@ def get_won_matches(limit: int = 40) -> list:
     }, order="resolved_at.desc", limit=limit)
 
 
+def get_recent_lost_matches(days: int = 21) -> list:
+    """Izgubljeni pickovi zadnjih N dana — za Fery veto (hard revizija 2026-07-18):
+    igrač koji je srušio naš pick (actual_winner) ne smije se više fade-ati u istom
+    turniru. Vraća player1/player2/pick/actual_winner/tournament/match_date."""
+    since = (datetime.date.today() - datetime.timedelta(days=days)).isoformat()
+    return _select("ticket_matches",
+                   select="player1,player2,pick,actual_winner,tournament,match_date",
+                   filters={"result": "eq.lost", "match_date": f"gte.{since}"})
+
+
 # ── Model Weights ─────────────────────────────────────────────────────────────
 
 def _surface_key(surface: str) -> str:
@@ -295,6 +305,23 @@ def get_performance_history(days: int = 60) -> list:
 
 def save_analyzed_match(match_data: dict) -> None:
     _upsert("analyzed_matches", match_data, on_conflict="external_match_id")
+
+
+def get_unresolved_analyzed_matches(days: int = 8) -> list:
+    """Analize bez ishoda (actual_winner NULL) zadnjih N dana — evening update ih
+    razrješava (hard revizija 2026-07-18). Prije toga je 419/419 analiza stajalo bez
+    rezultata pa je feedback petlja učila samo na uskom, selektiranom uzorku tiketa."""
+    since = (datetime.date.today() - datetime.timedelta(days=days)).isoformat()
+    return _select("analyzed_matches",
+                   select="id,external_match_id,match_date,player1,player2,predicted_winner",
+                   filters={"actual_winner": "is.null", "match_date": f"gte.{since}"})
+
+
+def update_analyzed_match_result(row_id: str, actual_winner: str, prediction_correct) -> None:
+    """Upis ishoda u analyzed_matches (prediction_correct može biti None za void)."""
+    _update("analyzed_matches",
+            {"actual_winner": actual_winner, "prediction_correct": prediction_correct},
+            {"id": f"eq.{row_id}"})
 
 
 # ── ELO Cache ─────────────────────────────────────────────────────────────────

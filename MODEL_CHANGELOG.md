@@ -9,6 +9,72 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-07-18 — HARD REVIZIJA: pravila v1 + težine + selekcijska disciplina (PRIJE prvog hard picka)
+
+**Povod:** potpuna revizija grass+clay korpusa po korisnikovoj metodologiji ("Prompt za
+poboljšanje modela"), kao priprema za hard sezonu (Washington 27.07. → US Open). Korpus:
+**187 unikatnih razriješenih pickova** (grass 84W-54L 61%, clay 29W-20L 59%), **33 prava
+tiketa 2W-31L (ROI ≈ -28%)**, single-pick ROI grass -6.4% / clay -9.4%. Hard: **0 pickova
+ikad** — v9 težine nikad testirane.
+
+**Glavni nalazi (dedupe, isti meč na 2 tiketa brojan jednom):**
+- Model zarađuje SAMO na ekstremima: teški favoriti ≤1.20 (93% grass, +3.1% ROI) i value
+  underdozi >2.30 (7W-7L, +28% ROI). Sredina sustavno gubi: **1.43-1.60 najgori band
+  (50% WR, ROI -24%)**, 1.91-2.30 41% WR.
+- **Hot-hand fade = #1 uzrok gubitaka cross-surface**: Fery nas srušio 6× u 3 tjedna;
+  sva 3 clay poraza POSLIJE revizije 11.07. imala su "opponent in run / home" u risk_notes
+  — pravila su rizik registrirala ali ga NISU provodila.
+- Kalibracija: deklarirani conf 63-70% vraća 55-60% (optimizam ~+7pp).
+- Akumulator matematika: uz naše WR-ove **nijedan band nema EV ≥ 1.0 na kombiniranoj 6.5+**
+  (najbolji ≤1.20: EV 0.70-0.83). Korisnikova odluka: struktura OSTAJE 6.5-40, hard 4-6 parova.
+- GS podbacuje vs ATP 250 (clay 54% vs 67%); 42 duplikata = isti poraz rušio 2 tiketa;
+  9/31 tiketa palo na točno 1 promašaju; `analyzed_matches` 419/419 bez ishoda.
+- Clay post-revizija 11.07.: **8W-3L (73%), +5.9% ROI** — prvi pozitivan period (n=11, oprez).
+
+**Što (sve implementirano 18.07., aktivno od sljedećeg runa):**
+- **HARD RULES v1** u predictor promptu (10 pravila): hot-hand VETO kao mandatory skip
+  (elite iznimka hard ELO ≥1900 / hold ≥88%), dvostruka potvrda za 66%+ (a/b/c hard
+  kategorije), marginal-favourite reality check (1.43-1.60), TB-lutrija cap 62 (oba hold
+  ≥85%), **surface-switch penalty** (clay SF/F u zadnjih 7 dana → -3pp prva 2 hard turnira;
+  svježi hard specijalist → plus), heat/retirement guard (retirement zadnjih 14 dana ili
+  injury news → skip), ranking-reliability (na hardu ELO/ranking legitiman uz 1 potvrdu),
+  US Open prag 65%, indoor amplifikacija servisa, confidence spread honesty.
+- **Ticket builder (deterministička PROVEDBA, ne samo prompt):**
+  - hard dead-zone **1.43-1.60 = zabranjen na tiketu** (`_hard_bands_ok`);
+  - hard mid-zona 1.61-1.90 **max 1 po tiketu** (`_hard_mid_zone_count`);
+  - hard GS pick traži **conf ≥65** (`_hard_gs_conf_ok`);
+  - conf floor 63 + value-override (58/12pp/max 2) **prošireni na hard**;
+  - **FERY VETO (sve podloge)**: pick protiv igrača koji je nama srušio pick u istom
+    turniru zadnjih 21 dan = automatski isključen (`_opponent_beat_us`; zastavice
+    p1/p2_beat_us postavlja run_daily iz `ticket_matches` gubitaka).
+  - **DETERMINISTIČKI HOT-HAND VETO (hard)**: protivnik s 2+ pobjede u OVOM turniru →
+    pick isključen iz selekcije, osim elite iznimke (pick hard ELO ≥1900 ili hold ≥88%)
+    (`_hard_hot_hand_ok`; p1/p2_tourn_wins + elite podaci iz run_daily). Dokaz potrebe iz
+    dry-runa 18.07.: Haiku dao 64% Meridi protiv Džumhura na 4W/0L runu, reviewer pick
+    izbacio, ali je kvota-guard (6.5 min) poništio reviewera i vratio original — prompt i
+    reviewer registriraju, samo builder-veto garantirano PROVODI.
+- **Duplikat pravilo (sve podloge, run_daily):** meč koji je već na jučerašnjem PRAVOM
+  tiketu (ne analysis-only) ne ulazi u današnji pool — isti meč nikad na 2 tiketa.
+- **Struktura (korisnikova odluka):** hard kombinirana OSTAJE 6.5-40, **4-6 parova**
+  (`SURFACE_TICKET_OVERRIDES["hard"]`; "hard" substring hvata i Indoor Hard).
+- **Težine hard v14** (Supabase, aktivne): elo 22, serve 22, **surface 20→17** (hard
+  najmanje surface-specifičan), form 17→16, **fatigue 11→13** (US vrućina, 9 voidova u
+  korpusu), h2h 4, **trajectory 4→6** (hot-hand lekcija). PROVIZORNE — prva kalibracija
+  nakon Washington/Montreal tjedana.
+- **Evening update sada upisuje ishode u `analyzed_matches`** (zadnjih 8 dana, 0 dodatnih
+  API poziva — reuse fixture_winner lookupa): širi korpus za buduće revizije umjesto samo
+  selektiranih tiket pickova.
+- **Indoor Hard:** potvrđeno — isti hard model/težine (surface match "hard" substring),
+  odvojeno praćenje u Loss Analysis ostaje.
+
+**Ograde (protiv overfittinga):** hard n=0 — SVI pragovi (1900/88%, bandovi, 65 GS) su
+prijenos s grass/clay i početni; >2.30 value nalaz je n=14 (ne širiti value cap); post-
+revizija clay +5.9% je n=11. Prva hard revalidacija: nakon Washington/Los Cabos/Montreal.
+
+**Ishod:** 34 unit-testa + end-to-end dry-run. Prati se.
+
+---
+
 ## 2026-07-18 — Poklapanje inicijala kladionice ("Juan M." = "Juan Manuel")
 
 **Povod:** daily tiket 18.07. sve kvote povukao točno OSIM Collignona (1.50 fallback umjesto

@@ -187,10 +187,15 @@ def _surface_specific_rules(surface: str) -> str:
     strengthen surface-weighted form, add tiebreak/serve-hold as decision drivers.
     Clay rules v1 (2026-07-11): derived from full clay revision — 32 resolved picks
     (28 Roland Garros BO5 + 4 ATP 250 qualifying), 7/7 pure clay tickets lost.
-    Dominant loss cause: fading opponents with in-tournament momentum (8/15 losses)."""
+    Dominant loss cause: fading opponents with in-tournament momentum (8/15 losses).
+    Hard rules v1 (2026-07-18): written BEFORE any hard match was ever picked (0 hard
+    picks in corpus) — rules are cross-surface lessons from 187 unique resolved
+    grass+clay picks, marked provisional until validated on real hard data."""
     s = surface.lower()
     if "clay" in s:
         return _CLAY_RULES_V1
+    if "hard" in s:      # pokriva "Hard" i "Indoor Hard" — isti model po dogovoru
+        return _HARD_RULES_V1
     if "grass" not in s:
         return ""
     return """
@@ -385,6 +390,84 @@ treat them as hard constraints, not guidelines.
    any surface (documented: Gomez 77.8% vs Brancaccio 72.3% decided the match) — never back
    the clearly weaker server just because of a surface ELO edge.
 === END CLAY-SPECIFIC RULES v1 ==="""
+
+
+# Hard pravila v1 — pisana 2026-07-18 PRIJE prvog hard picka (korpus: 0 hard mečeva).
+# Izvor: revizija 187 unikatnih grass+clay pickova (33 tiketa, 2W-31L) + poznate
+# razlike podloga. Svi pragovi su POČETNI i revidiraju se nakon prvih hard tjedana
+# (Washington/Los Cabos/Montreal). Struktura tiketa (korisnikova odluka): 6.5-40, 4-6 parova.
+_HARD_RULES_V1 = """
+=== HARD-SPECIFIC CALIBRATION RULES v1 (apply these STRICTLY over the general rules above) ===
+These rules are transferred from a full audit of 187 resolved grass+clay picks (our model has
+ZERO hard-court history — be humble). Hard is the most neutral, most predictable surface:
+overall ELO/ranking is MORE reliable here than on clay or grass, but our documented failure
+modes (hot-hand fades, dead-zone marginal favourites, +7pp overconfidence) are surface-independent
+and MUST be enforced from day one.
+
+1. HOT-HAND VETO (MANDATORY SKIP — our #1 documented loss cause across surfaces):
+   If the OPPONENT of your intended pick has 2+ wins in THIS tournament, DO NOT make the pick —
+   set skip_reason instead. The only exemption: your pick is genuinely ELITE on hard
+   (hard ELO >= 1900, or hold% >= 88% with the better hard record). One player (Fery) eliminated
+   SIX of our picks in three weeks because the model re-faded him every day. Related: NEVER pick
+   against a player who already eliminated one of our picks earlier in the same tournament —
+   assume he is in a run until he actually loses.
+
+2. DOUBLE-CONFIRMATION for 66%+ (calibration deflator):
+   Season data: our stated confidence ran ~7pp above reality (63-70% picks won 55-60%).
+   A pick may only reach 66%+ confidence with a clear edge in AT LEAST TWO of:
+   (a) hard ELO / hard W-L record (3y), (b) serve quality on hard (hold% + tiebreak record),
+   (c) recent form adjusted for opponent quality. If the OPPONENT leads two of the three,
+   score BELOW 61% regardless of ATP ranking. Be honest: a marginal favourite belongs at
+   58-62%, not 64%.
+
+3. MARGINAL-FAVOURITE REALITY CHECK (dead-zone discipline):
+   Market odds 1.43-1.60 was our WORST segment all season (50% win rate, -24% ROI) — these are
+   matches where the bookmaker sees a coin-flip that our model dressed up as a favourite.
+   When your pick's market odds are in that region, demand double-confirmation (rule 2) AND
+   at least one decisive hard-specific edge; otherwise score below 63% so selection drops it.
+
+4. TIEBREAK LOTTERY RULE (transferred from grass — hard has the 2nd-highest TB rate):
+   If BOTH players hold >= 85% on hard, the match will likely hinge on 1-2 tiebreaks — that is
+   a coin-flip. Cap confidence at 62% unless your pick has a clearly superior H2H/tiebreak
+   record (use the tiebreak stats provided). First-strike quality (1st-serve points won,
+   return-points-won gap) outranks break-point conversion on hard — the serve+1 pattern
+   decides points before rallies develop.
+
+5. SURFACE-SWITCH PENALTY (US summer swing — NEW, no precedent in our data):
+   In the first two hard tournaments after the clay block (Washington, Los Cabos, Montreal):
+   a player who played a clay SF/F within the last 7 days arrives tired and unadapted —
+   subtract 3pp and flag it; do not treat his clay wins as transferable form (surface-weighted
+   form rule applies — clay wins count ~half toward hard form). Conversely a hard-court
+   specialist who SKIPPED the clay block arrives fresh and adapted — small legitimate plus.
+
+6. HEAT / RETIREMENT GUARD (US summer hard is physically brutal):
+   Washington and Cincinnati are played in extreme heat/humidity — retirements spike.
+   If a player retired or gave a walkover in the last 14 days, or injury news mentions him:
+   SKIP the match (set skip_reason) or cap at 60% if evidence is weak. 5% of our season picks
+   voided on retirements; expect MORE on summer hard. Fatigue differential matters doubly here.
+
+7. RANKING RELIABILITY (hard-specific — the one place ranking IS trustworthy):
+   Unlike clay/grass, overall ELO and ATP ranking are legitimately predictive on hard —
+   the surface is neutral and rewards all-court quality. A 150+ overall ELO gap with
+   corroborating serve numbers is a real edge. But it still needs ONE corroborating
+   hard-specific signal — never rank alone.
+
+8. GRAND SLAM (US Open, BO5) — STRICTER BAR:
+   Our Grand Slam picks underperformed ATP 250s on BOTH surfaces (clay GS 54% vs non-GS 67%).
+   At the US Open every ticket-eligible pick needs 65%+ honest confidence. BO5 protects true
+   favourites but punishes marginal ones — grade the marginal ones below 63 and move on.
+
+9. INDOOR HARD (same model, amplified serve):
+   Indoors there is no wind/sun and conditions are faster and uniform — serve dominance is
+   AMPLIFIED and upsets are rarer. Favour strong servers and proven indoor performers;
+   heavy favourites are slightly MORE reliable indoors, and return-based upset picks less so.
+
+10. CONFIDENCE SPREAD HONESTY (same discipline as grass/clay):
+   Only 63%+ enters tickets. Dominant pick (edge in ELO + serve + form, no live risks) → 70-80%.
+   Solid favourite with one risk → 64-69%. Marginal/conflicting/thin data → below 63%, commit
+   to dropping it. A falsely-confident 64% puts a coin-flip onto a real-money accumulator —
+   that error, repeated, is exactly why 31 of our 33 tickets lost.
+=== END HARD-SPECIFIC RULES v1 ==="""
 
 
 def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights: dict, all_news: str = "") -> dict:

@@ -140,6 +140,28 @@ def run_evening_update() -> dict:
         score_str = f" {actual_score}" if actual_score else ""
         print(f"  Azuriran: {p1_name} vs {p2_name} -> {result} ({actual_winner}{score_str})")
 
+    # 2b. Razriješi analyzed_matches (hard revizija 2026-07-18): upiši ishode u ŠIRI
+    # korpus analiza, ne samo tiket pickove. Prije ovoga je 419/419 analiza stajalo bez
+    # rezultata → kalibracija/revizije su se radile samo na selektiranom uzorku tiketa.
+    # Koristi već izgrađeni fixture_winner lookup (zadnjih 8 dana) — 0 dodatnih API poziva.
+    try:
+        unresolved = db.get_unresolved_analyzed_matches(days=8)
+        n_resolved = 0
+        for am in unresolved:
+            fkey = ((am.get("player1") or "").lower().strip(),
+                    (am.get("player2") or "").lower().strip())
+            winner = fixture_winner.get(fkey, "")
+            if not winner:
+                continue
+            predicted = am.get("predicted_winner") or ""
+            correct = _names_match(predicted, winner) if predicted else None
+            db.update_analyzed_match_result(am["id"], winner, correct)
+            n_resolved += 1
+        print(f"Analyzed_matches: razriješeno {n_resolved}/{len(unresolved)} analiza (8 dana).")
+        summary["analyzed_resolved"] = n_resolved
+    except Exception as e:
+        print(f"Analyzed_matches razrješavanje preskočeno (greška): {e}")
+
     # 2. Ažuriraj statuseve tiketa
     _update_ticket_statuses()
 

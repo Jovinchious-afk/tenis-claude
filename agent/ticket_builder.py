@@ -71,11 +71,98 @@ def _is_clay(p) -> bool:
     return "clay" in (p.get("match", {}).get("surface", "") or "").lower()
 
 
+def _is_hard(p) -> bool:
+    """True ako se par igra na hardu — uključuje 'Hard' i 'Indoor Hard' (isti model)."""
+    return "hard" in (p.get("match", {}).get("surface", "") or "").lower()
+
+
 def _needs_conf_floor(p) -> bool:
-    """Podloge s confidence floorom u selekciji: grass (od 22.06.) + clay (revizija 11.07.).
+    """Podloge s confidence floorom u selekciji: grass (22.06.) + clay (11.07.) + hard (18.07.).
     Clay dokaz: pickovi ispod 63% nisu ni ulazili u clay korpus, ali zona 66-70% pobjeđivala
-    je 38% — floor + poštena kalibracija (clay rule 9) zajedno tjeraju coinflipove ispod 63."""
-    return _is_grass(p) or _is_clay(p)
+    je 38% — floor + poštena kalibracija zajedno tjeraju coinflipove ispod 63.
+    Hard (revizija 18.07., prije prvog hard picka): ista disciplina od 1. dana — deklarirani
+    conf 63-70 na grass+clay korpusu (n=187) vraćao je 55-60%, optimizam ~+7pp."""
+    return _is_grass(p) or _is_clay(p) or _is_hard(p)
+
+
+# ── Hard selekcijska pravila v1 (revizija 2026-07-18, korpus 187 grass+clay pickova) ──
+# Dead zone 1.43-1.60 = najgori band sezone (50% WR, ROI -24%) → na hardu ZABRANJEN.
+# Srednja zona 1.61-1.90 (55% WR, ROI -8%) → max 1 hard pick po tiketu.
+# GS je podbacivao vs ATP 250 na obje podloge → na hard GS-u (US Open) prag je 65%.
+_HARD_DEAD_ZONE = (1.43, 1.60)      # uključivo — nikad na tiket
+_HARD_MID_ZONE = (1.61, 1.90)       # max 1 po tiketu (vidi _find_best_combination)
+_HARD_MID_ZONE_MAX = 1
+_HARD_GS_MIN_CONF = 65.0
+_HARD_ELITE_ELO = 1900.0            # elite iznimka hot-hand veta (početni prag)
+_HARD_ELITE_HOLD = 88.0             # elite iznimka hot-hand veta (početni prag)
+
+
+def _hard_bands_ok(p) -> bool:
+    """Hard pick s kvotom u mrtvoj zoni 1.43-1.60 nikad ne ulazi na tiket."""
+    if not _is_hard(p):
+        return True
+    o = _pick_odds(p)
+    return not (_HARD_DEAD_ZONE[0] <= o <= _HARD_DEAD_ZONE[1])
+
+
+def _hard_gs_conf_ok(p) -> bool:
+    """Na hard Grand Slamu (US Open, BO5) pick treba >=65% — GS je sezonski podbacivao."""
+    if not _is_hard(p):
+        return True
+    level = p.get("match", {}).get("level", "")
+    if "Grand Slam" not in level:
+        return True
+    return (p.get("confidence") or 0) >= _HARD_GS_MIN_CONF
+
+
+def _opponent_beat_us(p) -> bool:
+    """Fery pravilo (deterministički veto, sve podloge): protivnik picka je igrač koji je
+    NAMA već srušio pick u istom turniru (zastavice p1_beat_us/p2_beat_us postavlja
+    run_daily iz izgubljenih ticket_matches zadnjih 21 dan). Fery nas je srušio 6× u tri
+    tjedna jer je model svaki dan iznova fade-ao istog vrućeg igrača — pravila su rizik
+    registrirala u risk_notes, ali ga nisu PROVODILA. Sada je veto, ne napomena."""
+    m = p.get("match", {})
+    pick = (p.get("pick") or "").lower()
+    if not pick:
+        return False
+    p1 = (m.get("player1") or "").lower()
+    # protivnik = igrač kojeg NISMO pickali
+    if pick in p1 or p1 in pick:
+        return bool(m.get("p2_beat_us"))
+    return bool(m.get("p1_beat_us"))
+
+
+def _pick_side_is_p1(p) -> bool:
+    """True ako je pick prvi igrač (isti mehanizam kao _pick_odds)."""
+    pick = (p.get("pick") or "").lower()
+    p1 = (p.get("match", {}).get("player1") or "").lower()
+    return bool(pick) and (pick in p1 or p1 in pick)
+
+
+def _hard_hot_hand_ok(p) -> bool:
+    """Deterministički hot-hand veto na hardu (M1, revizija 2026-07-18): protivnik s 2+
+    pobjede u OVOM turniru → pick blokiran, OSIM ako je pick elite (hard ELO >= 1900 ili
+    hold% >= 88 — početni pragovi). Dry-run 18.07. dokazao zašto prompt nije dovoljan:
+    Haiku je dao 64% Meridi protiv Džumhura na 4W/0L runu, reviewer ga izbacio, ali je
+    kvota-guard poništio reviewera — samo builder-veto garantirano provodi pravilo.
+    Zastavice p1/p2_tourn_wins + elite podatke postavlja run_daily."""
+    if not _is_hard(p):
+        return True
+    m = p.get("match", {})
+    is_p1 = _pick_side_is_p1(p)
+    opp_wins = (m.get("p2_tourn_wins") if is_p1 else m.get("p1_tourn_wins")) or 0
+    if opp_wins < 2:
+        return True
+    elo_h = (m.get("p1_elo_hard_val") if is_p1 else m.get("p2_elo_hard_val")) or 0
+    hold = (m.get("p1_hold_pct_val") if is_p1 else m.get("p2_hold_pct_val")) or 0
+    return float(elo_h) >= _HARD_ELITE_ELO or float(hold) >= _HARD_ELITE_HOLD
+
+
+def _selection_ok(p) -> bool:
+    """Zajednički mandatory filter za sve kandidatske liste tiketa."""
+    return (_is_main_tour(p) and _has_odds(p) and _hard_bands_ok(p)
+            and _hard_gs_conf_ok(p) and _hard_hot_hand_ok(p)
+            and not _opponent_beat_us(p))
 
 
 def build_ticket(predictions: list, weights: dict, min_odds_override: float = None) -> Optional[dict]:
@@ -116,7 +203,7 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
     value_candidates = [p for p in floor_below
                         if (p.get("confidence") or 0) >= VALUE_MIN_CONF
                         and _pick_edge(p) >= VALUE_MIN_EDGE
-                        and _is_main_tour(p) and _has_odds(p)]
+                        and _selection_ok(p)]
     value_candidates.sort(key=lambda p: _pick_edge(p), reverse=True)
     value_keep = {id(p) for p in value_candidates[:VALUE_MAX_PICKS]}
 
@@ -152,8 +239,7 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
         candidates = [p for p in predictions
                       if not p.get("skip_reason")
                       and (p.get("confidence") or 0) >= conf_threshold
-                      and _is_main_tour(p)
-                      and _has_odds(p)]
+                      and _selection_ok(p)]
         if len(candidates) >= cfg["min_matches"]:
             if conf_threshold < cfg["min_confidence"]:
                 print(f"Fallback: using conf >= {conf_threshold}% (no Challengers)")
@@ -162,7 +248,7 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
     # Zadnji resort: svi main-tour bez obzira na conf, ali NIKAD Challenger
     if len(candidates) < cfg["min_matches"]:
         candidates = [p for p in predictions
-                      if not p.get("skip_reason") and _is_main_tour(p) and _has_odds(p)]
+                      if not p.get("skip_reason") and _selection_ok(p)]
         candidates.sort(key=lambda p: (p.get("confidence") or 0), reverse=True)
         candidates = candidates[:cfg["max_matches"]]
         print(f"Last resort: top {len(candidates)} main-tour picks by confidence")
@@ -180,7 +266,7 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
             if fair > 0 and bookmaker > 0:
                 edge = (1.0 / fair - 1.0 / bookmaker) * 100
                 if edge >= 8.0:
-                    if _is_main_tour(p) and _has_odds(p):
+                    if _selection_ok(p):
                         edge_overrides.append(p)
                         print(f"  Edge override: {p.get('pick','')} conf={conf}% edge={edge:.1f}pp")
 
@@ -206,7 +292,7 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
         # koji će gurnuti kombiniranu kvotu u raspon 6-20
         print("Standardni raspon nije dostignut — tražim riskantnije pickove s višom kvotom.")
         all_valid = [p for p in predictions
-                     if not p.get("skip_reason") and _is_main_tour(p) and _has_odds(p)]
+                     if not p.get("skip_reason") and _selection_ok(p)]
         all_valid.sort(key=lambda p: _pick_odds(p), reverse=True)  # najviše kvote prvo
         combined_pool = candidates + [p for p in all_valid if p not in candidates]
         best_combo = _find_best_combination(combined_pool, cfg)
@@ -295,6 +381,13 @@ def _clay_dead_zone_count(combo) -> int:
                if _is_clay(p) and _CLAY_DEAD_ZONE[0] <= _pick_odds(p) < _CLAY_DEAD_ZONE[1])
 
 
+def _hard_mid_zone_count(combo) -> int:
+    """Hard srednja zona 1.61-1.90 (sezonski 55% WR) — max 1 po tiketu.
+    Mrtva zona 1.43-1.60 je već potpuno blokirana u _hard_bands_ok."""
+    return sum(1 for p in combo
+               if _is_hard(p) and _HARD_MID_ZONE[0] <= _pick_odds(p) <= _HARD_MID_ZONE[1])
+
+
 def _find_best_combination(candidates: list, cfg: dict) -> Optional[list]:
     """
     Quality-first scoring using joint probability as primary metric.
@@ -327,6 +420,9 @@ def _find_best_combination(candidates: list, cfg: dict) -> Optional[list]:
                 continue
 
             if _clay_dead_zone_count(combo) > _CLAY_DEAD_ZONE_MAX:
+                continue
+
+            if _hard_mid_zone_count(combo) > _HARD_MID_ZONE_MAX:
                 continue
 
             score = _score_combo(combo)

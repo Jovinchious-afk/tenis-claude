@@ -46,8 +46,12 @@ TICKET_CONFIG = {
 # tiketa na toj podlozi (clay revizija 2026-07-11, n=32 pickova / 7 tiketa 0/7):
 # clay 6.5-30 umjesto 6.5-40 i max 6 parova umjesto 7 — visoke kombinirane kvote
 # na clayu su se gradile gomilanjem dead-zone (1.50-1.90) pickova koji pobjeđuju 27%.
+# Hard (revizija 2026-07-18, korisnikova odluka): kombinirana OSTAJE 6.5-40, ali
+# 4-6 parova umjesto 4-7 — manje parova = manja izloženost akumulator-matematici.
+# "hard" ključ hvata i "Indoor Hard" (substring match u _apply_surface_overrides).
 SURFACE_TICKET_OVERRIDES = {
     "clay": {"max_combined_odds": 30.0, "max_matches": 6},
+    "hard": {"max_matches": 6},
 }
 
 # Max kandidata po turniru po danu (danas vs sutra)
