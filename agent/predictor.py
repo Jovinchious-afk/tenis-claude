@@ -654,7 +654,11 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         client = _get_client()
         response = client.messages.create(
             model=CLAUDE_MODELS["analysis"],
-            max_tokens=900,
+            max_tokens=1500,  # margin za Sonnet high effort (bilo 900 na Haiku)
+            # 18.07.2026: najvažnija odluka u pipelineu. Korisnik tražio "high ili extra high";
+            # "xhigh" NIJE podržan za ovaj model (API 400: "Supported levels: high, low, max,
+            # medium") — korisnik odabrao "high" (ne "max").
+            output_config={"effort": "high"},
             messages=[{"role": "user", "content": prompt}]
         )
         raw = response.content[0].text.strip()

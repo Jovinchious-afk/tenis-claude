@@ -9,6 +9,39 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-07-18 (šesti put) — Analysis model: Haiku → Sonnet, output_config effort=high
+
+**Povod:** korisnik primijetio da jezgru predikcije (pick/confidence/fair_odds po meču) radi
+Haiku dok finalna holistička recenzija tiketa i write-up već koriste Sonnet — pitao je vrijedi
+li podići i taj korak. Direktno povezano s nalazom iz istog dana (dokumentacijski pregled
+sustava): precjenjivanje pouzdanosti (~7-16pp) otkriveno je NEOVISNO na sve tri podloge, što
+sugerira svojstvo modela, ne podloge — jezgra predikcije je ujedno i najvažnija odluka u
+cijelom pipelineu (sve nizvodno — filteri, kombinatorika — samo radi s brojkama koje ovaj
+poziv već odluči).
+
+**Što:**
+- `CLAUDE_MODELS["analysis"]`: `claude-haiku-4-5-20251001` → `claude-sonnet-4-6` (config/model_config.py).
+- `predictor.py` `analyze_match()`: dodan `output_config={"effort": "high"}` na Claude poziv,
+  `max_tokens` podignut 900→1500 (margin). Korisnik izvorno tražio "high ili extra high" —
+  `"xhigh"` je isproban prvo i odbijen od strane API-ja (400: "Supported levels: high, low,
+  max, medium" — ovaj model nema xhigh razinu), pa je `"max"` privremeno postavljen kao
+  najbliži ekvivalent, ali korisnik je eksplicitno tražio `"high"` umjesto `"max"` — to je
+  finalna vrijednost.
+- `"feedback"` (analiza gubitaka u feedback_analyzer.py) i `"ticket_writer"`/`"odds_extraction"`
+  NISU dirani — ostaju kako jesu (feedback i dalje Haiku, ostala dva već Sonnet).
+- Napomena: `CLAUDE_MODELS["analysis"]` dijeli se i s hipotetskim "kad bih baš morao riskirati"
+  write-upom u `ticket_builder.py` (_generate_hypothetical_summary) — taj poziv automatski
+  dobiva Sonnet kao model (bolji tekst), ali NE dobiva `effort=high` (nije dirano, ostaje
+  default effort — ta odluka nije ono na što se korisnikov zahtjev odnosio).
+
+**Ishod:** mock-testovi potvrđuju konfiguraciju i kwargs poziva; regresija starih test suita
+(hard v1 + universal logging) prošla bez padova; STVARNI (ne-mock) API poziv s
+`output_config={"effort":"high"}` uspio (7.4s, bez greške) — model je ispravno preskočio
+namjerno oskudan testni fixture (5/7 kategorija N/A) umjesto da nagađa, dobar znak discipline
+na visokom effortu. Puni end-to-end dry-run sa stvarnim podacima dana istog dana.
+
+---
+
 ## 2026-07-18 (peti put) — 9 korisnikovih prijedloga: pregled + univerzalni fixevi + context logging
 
 **Povod:** korisnik predložio 9 ideja za poboljšanje modela (doba dana, 3-set decider record,
