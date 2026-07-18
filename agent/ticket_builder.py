@@ -115,10 +115,11 @@ def _hard_gs_conf_ok(p) -> bool:
 
 def _opponent_beat_us(p) -> bool:
     """Fery pravilo (deterministički veto, sve podloge): protivnik picka je igrač koji je
-    NAMA već srušio pick u istom turniru (zastavice p1_beat_us/p2_beat_us postavlja
-    run_daily iz izgubljenih ticket_matches zadnjih 21 dan). Fery nas je srušio 6× u tri
-    tjedna jer je model svaki dan iznova fade-ao istog vrućeg igrača — pravila su rizik
-    registrirala u risk_notes, ali ga nisu PROVODILA. Sada je veto, ne napomena."""
+    NAMA već srušio pick 2+ PUTA u istom turniru zadnjih 14 dana (zastavice
+    p1_beat_us/p2_beat_us postavlja run_daily; prag 2 poraza korekcija je istog dana —
+    1 poraz je normalna varijanca, 2 poraza od istog igrača je obrazac). Fery nas je
+    srušio 6× u tri tjedna jer je model svaki dan iznova fade-ao istog vrućeg igrača —
+    pravila su rizik registrirala u risk_notes, ali ga nisu PROVODILA. Sada je veto."""
     m = p.get("match", {})
     pick = (p.get("pick") or "").lower()
     if not pick:

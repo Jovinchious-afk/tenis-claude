@@ -216,10 +216,11 @@ def get_won_matches(limit: int = 40) -> list:
     }, order="resolved_at.desc", limit=limit)
 
 
-def get_recent_lost_matches(days: int = 21) -> list:
-    """Izgubljeni pickovi zadnjih N dana — za Fery veto (hard revizija 2026-07-18):
-    igrač koji je srušio naš pick (actual_winner) ne smije se više fade-ati u istom
-    turniru. Vraća player1/player2/pick/actual_winner/tournament/match_date."""
+def get_recent_lost_matches(days: int = 14) -> list:
+    """Izgubljeni pickovi zadnjih N dana — za Fery veto (hard revizija 2026-07-18,
+    korekcija istog dana: 21→14 dana, dovoljno za pokriti trajanje Grand Slama).
+    Igrač koji nas je srušio 2+ puta u istom turniru ne smije se više fade-ati u
+    njemu. Vraća player1/player2/pick/actual_winner/tournament/match_date."""
     since = (datetime.date.today() - datetime.timedelta(days=days)).isoformat()
     return _select("ticket_matches",
                    select="player1,player2,pick,actual_winner,tournament,match_date",

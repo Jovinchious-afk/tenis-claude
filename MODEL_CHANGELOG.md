@@ -9,6 +9,30 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-07-18 (treći put) — Fery-veto: prag 1→2 poraza, prozor 21→14 dana
+
+**Povod:** korisnik primijetio da je Fery-veto možda prestrog — jedan poraz od nekog igrača
+u turniru odmah ga trajno vetira, iako naši pickovi i onako pogađaju samo ~60% vremena
+(znači i ISPRAVAN pick gubi ~40% vremena zbog normalne varijance). Jedan poraz nije pouzdan
+dokaz da je taj igrač "naš problem" — dva poraza od istog igrača u istom turniru jest.
+
+**Što (potvrdio korisnik):**
+- `get_recent_lost_matches`: prozor 21→**14 dana** (i dalje pokriva puno trajanje Grand
+  Slama; ATP 250/500 turniri traju ~7 dana pa je i 14 s viškom).
+- `run_daily` Fery-veto logika: `beaten_us` se sada gradi preko `Counter`-a po
+  (pobjednik, turnir) i u veto ulaze samo igrači sa **2+ poraza** u istom turniru
+  (prije: bilo koji 1 poraz).
+- `_opponent_beat_us` (ticket_builder) komentar ažuriran; sama logika nepromijenjena —
+  i dalje čita p1_beat_us/p2_beat_us zastavice, samo su te zastavice sada strože postavljene.
+
+**Ishod (stvarna provjera na Supabase, 18.07.):** stara logika (1 poraz/21 dan) vraćala je
+**27 igrača** u vetu; nova logika (2 poraza/14 dana) vraća **3 igrača** (Fery, Cobolli,
+Dimitrov — svi doista 2+ poraza na istom Wimbledonu). Pravi ponavljači ostaju uhvaćeni,
+igrači koji su nas pobijedili samo jednom (moguća slučajnost) više se ne blokiraju. 11
+unit-testova (čista logika brojanja + usporedba starog/novog praga) + end-to-end dry-run.
+
+---
+
 ## 2026-07-18 (kasnije) — Korekcija hard revizije: ukinut duplikat + hot-hand win-count veto
 
 **Povod:** korisnik uočio dvije greške u istodnevnoj hard reviziji (dolje):

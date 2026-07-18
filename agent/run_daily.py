@@ -234,19 +234,26 @@ def main():
     _total_draw = sum(len(v) for v in tournament_draw_cache.values())
     print(f"  Draw cache: {_total_draw} zapisa za {len(tournament_draw_cache)} turnira.")
 
-    # 6d. Fery veto podaci (revizija 2026-07-18): igrači koji su srušili naš pick zadnjih
-    # 21 dan, po turniru. Ticket builder kroz zastavice p1_beat_us/p2_beat_us NIKAD ne
-    # dopušta ponovni fade istog igrača u istom turniru (Fery nas je srušio 6× u 3 tjedna —
-    # pravila su rizik zapisivala u risk_notes, ali ga nisu provodila).
-    beaten_us = set()   # {(winner_name_lower, tournament_base_lower)}
+    # 6d. Fery veto podaci (revizija 2026-07-18, korekcija istog dana): igrači koji su
+    # srušili naš pick 2+ PUTA u istom turniru zadnjih 14 dana. Prag podignut s 1 na 2
+    # poraza — jedan poraz je unutar normalne varijance (naši pickovi pogađaju ~60%, pa
+    # čak i ispravan pick gubi ~40% vremena), dok 2 poraza od istog igrača u istom
+    # turniru je jak signal stvarnog obrasca, ne slučajnosti. Ticket builder kroz
+    # zastavice p1_beat_us/p2_beat_us NIKAD ne dopušta daljnji fade takvog igrača u
+    # tom turniru (Fery nas je srušio 6× u 3 tjedna — pravila su rizik zapisivala u
+    # risk_notes, ali ga nisu provodila).
+    from collections import Counter as _Counter
+    _beat_counts = _Counter()   # {(winner_name_lower, tournament_base_lower): broj poraza}
+    beaten_us = set()           # samo oni s 2+ poraza — ovo čita _beat_us ispod
     try:
-        for lost in db.get_recent_lost_matches(21):
+        for lost in db.get_recent_lost_matches(14):
             w = (lost.get("actual_winner") or "").strip()
             t = (lost.get("tournament") or "").split(" - ")[0].strip().lower()
             if w and t:
-                beaten_us.add((w.lower(), t))
+                _beat_counts[(w.lower(), t)] += 1
+        beaten_us = {key for key, n in _beat_counts.items() if n >= 2}
         if beaten_us:
-            print(f"  Fery veto: {len(beaten_us)} igrač(a) koji su nas nedavno srušili "
+            print(f"  Fery veto: {len(beaten_us)} igrač(a) koji su nas 2+ puta srušili "
                   f"({', '.join(sorted(w for w, _ in beaten_us))}).")
     except Exception as e:
         print(f"  Fery veto: greška dohvata izgubljenih pickova ({e}) — nastavljam bez veta.")
