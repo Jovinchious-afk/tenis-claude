@@ -9,6 +9,42 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-07-18 (četvrti put) — Cross-surface parity: clay hot-hand popravak + grass dead-zone + clay GS
+
+**Povod:** korisnik pitao koja su od hard-revizijskih pravila zapravo univerzalna, ne samo
+hard-specifična. Provjera koda + korpusa otkrila je tri nedosljednosti:
+
+1. **Clay hot-hand pravilo je imalo ISTU grešku koju smo tog jutra popravili na hardu** —
+   "3+ pobjede u turniru → veto" i dalje živi u clay promptu (rule 2), a to se okida na
+   SVAKI meč od SF-a nadalje (3+ pobjede = SF). Za razliku od hardovog builder-level veta,
+   ovo je bio samo prompt-savjet (manje opasno, ali ista logička greška), i clay se **igra
+   upravo sada** (finala).
+2. **Grass nema NIKAKVU zaštitu od mrtve zone kvota 1.43-1.60**, unatoč najjačem dokazu od
+   sve tri podloge (n=33, 52% WR, ROI -20.3% dedupe) — jače nego evidencija koja je
+   opravdala potpunu zabranu na hardu (koji ima 0 stvarnih pickova).
+3. **GS prag 65% je stavljen na hard (bez dokaza)**, ali dokaz da GS podbacuje postoji na
+   **clayu** (Roland Garros 54% vs ne-GS 67%), NE na grassu (Wimbledon 61% == ne-GS 61%,
+   nema razlike) — pravilo je bilo na krivoj podlozi.
+
+**Što (potvrdio korisnik — implementirati sve tri):**
+- **Clay hot-hand pravilo prepisano** (isti pristup kao hard): "3+ pobjede" trigger
+  zamijenjen s ciljanim uvjetom — protivnik mora biti (a) niže rangiran/slabiji clay ELO
+  od našeg picka, (b) pobijedio SEEDANOG/više rangiranog igrača ovaj tjedan (pravi upset),
+  i (c) naš pick je samo marginalni favorit. Dva favorita koja su normalno napredovala do
+  SF/F = normalan meč, bez auto-capa.
+- **Grass dead-zone ban** (`_grass_bands_ok`, nova): kvota 1.43-1.60 na grassu nikad ne
+  ulazi na tiket — identičan mehanizam kao hard (`_hard_bands_ok`), ista granica.
+- **Clay GS prag** (`_clay_gs_conf_ok`, nova): na clay Grand Slamu (Roland Garros) pick
+  treba >=65% confidence — identičan mehanizam kao hard GS prag, primijenjen tamo gdje
+  dokaz stvarno stoji. Grass GS NE dobiva ovaj prag (nema dokaza za razliku GS/ne-GS).
+- Sve novo je ožičeno u `_selection_ok` (zajednički filter za sve kandidatske liste tiketa).
+
+**Ishod:** 18 unit-testova (novi: grass dead-zone 6 scenarija, clay GS 5 scenarija, clay
+prompt-tekst provjera 4 asercije) + end-to-end dry-run. Fery-veto je provjeren kao već
+univerzalan (bez izmjene, `_opponent_beat_us` nema surface-provjeru).
+
+---
+
 ## 2026-07-18 (treći put) — Fery-veto: prag 1→2 poraza, prozor 21→14 dana
 
 **Povod:** korisnik primijetio da je Fery-veto možda prestrog — jedan poraz od nekog igrača

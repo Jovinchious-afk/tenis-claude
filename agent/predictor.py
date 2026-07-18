@@ -320,16 +320,27 @@ treat them as hard constraints, not guidelines.
    clay record AND the better hold% — the opponent won all three matches.
    Every winning pick in the corpus with edges in 2+ categories won.
 
-2. HOT-HAND VETO (the #1 documented loss cause — 8 of 15 clay losses):
-   If the opponent has 3+ wins in THIS tournament, or 2+ wins over seeded/higher-ranked
-   players this tournament, they are IN A RUN. Do NOT fade a player in a run with a
-   marginal favourite. The pick against them is only allowed if our player is a genuinely
+2. HOT-HAND CAUTION — target genuine UPSET runs, NOT normal advancement (the #1 documented
+   loss cause — 8 of 15 clay losses). CORRECTED 2026-07-18: raw win-count is NOT the trigger —
+   by the quarterfinal every player already has 2-3 tournament wins (R32→R16→QF), by the final
+   4-5, so "3+ wins → veto" would fire on every deep-round match and is not a useful signal.
+   Reaching the QF/SF/F normally is NOT a hot hand. Apply a strong caution (cap confidence at
+   61%, or skip a marginal favourite) ONLY when ALL of these hold:
+   - the opponent of your pick is clearly LOWER-ranked / worse clay ELO than your pick, AND
+   - he has beaten a SEEDED or higher-ranked player this week (a real upset, not just wins
+     over peers), AND
+   - your pick is only a MARGINAL favourite (no double-confirmation edge from rule 1).
+   In that exact profile, the pick against him is only allowed if our player is a genuinely
    ELITE clay player: clay ELO >= 1850, or hold% >= 85% combined with the better clay record.
-   Otherwise cap confidence at 61%.
+   Two proven favourites who both advanced normally to the SF/F are a normal match — judge
+   them on the usual factors, do NOT auto-skip just because both have tournament wins.
    Documented: Mensik eliminated 3 of our picks in a row, Arnaldi 2, Fonseca 2, Svajda 1 —
-   the model saw them as "weaker on paper" EVERY following day and kept losing.
-   The elite exemption is proven: Zverev (clay ELO 2021) beat in-form Jodar and Mensik;
-   Berrettini (hold 90.5%) beat a 5/5 J.M. Cerundolo.
+   the model saw them as "weaker on paper" EVERY following day and kept losing (all were
+   genuine upset runs, not just normal advancement). The elite exemption is proven: Zverev
+   (clay ELO 2021) beat in-form Jodar and Mensik; Berrettini (hold 90.5%) beat a 5/5 J.M.
+   Cerundolo. (Deterministic backstop: a player who already ELIMINATED one of our picks
+   twice in this same tournament is auto-vetoed by the ticket builder — you need not model
+   that specific case.)
    NEVER fade the same in-form player two days in a row after he already beat one of our picks.
 
 3. BOTH-PLAYERS-DECLINING CAP (same as grass rule — proven on clay too):

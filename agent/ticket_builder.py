@@ -94,6 +94,13 @@ _HARD_MID_ZONE = (1.61, 1.90)       # max 1 po tiketu (vidi _find_best_combinati
 _HARD_MID_ZONE_MAX = 1
 _HARD_GS_MIN_CONF = 65.0
 
+# Grass dead zone (dodano 2026-07-18, kasnije istog dana): ista 1.43-1.60 mrtva zona je
+# NAJJAČE dokumentirana baš na grassu (n=33, 52% WR, ROI -20.3% dedupe) — jača evidencija
+# nego što je uopće postojala za hard kad je dobio potpunu zabranu. Grass dosad nije imao
+# NIKAKVU determinističku zaštitu (samo opći conf floor 63%) unatoč najviše dokaza od sve
+# tri podloge — ista zabrana koju već ima hard, prenesena na dosljednost.
+_GRASS_DEAD_ZONE = (1.43, 1.60)     # uključivo — nikad na tiket
+
 
 def _hard_bands_ok(p) -> bool:
     """Hard pick s kvotom u mrtvoj zoni 1.43-1.60 nikad ne ulazi na tiket."""
@@ -101,6 +108,15 @@ def _hard_bands_ok(p) -> bool:
         return True
     o = _pick_odds(p)
     return not (_HARD_DEAD_ZONE[0] <= o <= _HARD_DEAD_ZONE[1])
+
+
+def _grass_bands_ok(p) -> bool:
+    """Grass pick s kvotom u mrtvoj zoni 1.43-1.60 nikad ne ulazi na tiket (isto pravilo
+    kao hard, ali s jačom evidencijom — grass ima najviše dokumentiranih pickova u zoni)."""
+    if not _is_grass(p):
+        return True
+    o = _pick_odds(p)
+    return not (_GRASS_DEAD_ZONE[0] <= o <= _GRASS_DEAD_ZONE[1])
 
 
 def _hard_gs_conf_ok(p) -> bool:
@@ -111,6 +127,23 @@ def _hard_gs_conf_ok(p) -> bool:
     if "Grand Slam" not in level:
         return True
     return (p.get("confidence") or 0) >= _HARD_GS_MIN_CONF
+
+
+# Clay GS prag (dodano 2026-07-18, kasnije istog dana): dokaz da GS podbacuje vs ATP 250
+# je zapravo NAĐEN na clayu (Roland Garros 54% vs ne-GS 67%, revizija 2026-07-11), ne na
+# grassu (Wimbledon 61% == ne-GS 61%, identično — nema efekta). Hard je ovaj prag dobio
+# preventivno bez ikakvih hard podataka; ovdje se primjenjuje tamo gdje dokaz stvarno stoji.
+_CLAY_GS_MIN_CONF = 65.0
+
+
+def _clay_gs_conf_ok(p) -> bool:
+    """Na clay Grand Slamu (Roland Garros, BO5) pick treba >=65% — GS je dokazano podbacivao."""
+    if not _is_clay(p):
+        return True
+    level = p.get("match", {}).get("level", "")
+    if "Grand Slam" not in level:
+        return True
+    return (p.get("confidence") or 0) >= _CLAY_GS_MIN_CONF
 
 
 def _opponent_beat_us(p) -> bool:
@@ -142,8 +175,10 @@ def _opponent_beat_us(p) -> bool:
 
 def _selection_ok(p) -> bool:
     """Zajednički mandatory filter za sve kandidatske liste tiketa."""
-    return (_is_main_tour(p) and _has_odds(p) and _hard_bands_ok(p)
-            and _hard_gs_conf_ok(p) and not _opponent_beat_us(p))
+    return (_is_main_tour(p) and _has_odds(p)
+            and _hard_bands_ok(p) and _grass_bands_ok(p)
+            and _hard_gs_conf_ok(p) and _clay_gs_conf_ok(p)
+            and not _opponent_beat_us(p))
 
 
 def build_ticket(predictions: list, weights: dict, min_odds_override: float = None) -> Optional[dict]:
