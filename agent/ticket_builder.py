@@ -173,12 +173,51 @@ def _opponent_beat_us(p) -> bool:
 # (_opponent_beat_us — igrač koji nas je STVARNO srušio, ne puko brojanje pobjeda).
 
 
+def _both_declining_ok(p) -> bool:
+    """BOTH-PLAYERS-DECLINING CAP otvrdnuto u kod (18.07., korisnikova preporuka C).
+    Pravilo je postojalo samo u promptu (grass rule 7, clay rule 3: 'cap confidence at 60%
+    regardless of ELO, surface record, or other factors') — deterministički backstop je
+    stroži i pouzdaniji: ako su OBA igrača 1/3 ili lošija u zadnja 3 meča, pick se isključuje
+    iz selekcije u potpunosti (60% < 63% tiketni prag, pa svejedno ne bi prošao — ovo samo
+    jamči da ne prođe zbog eventualno preoptimistične procjene). Univerzalno, sve podloge —
+    logika je surface-neutralna (dva neizvjesna igrača = neizvjestan meč, bez obzira na
+    podlogu), i hard pravila to već eksplicitno traže ('surface-independent, MUST be enforced
+    from day one'), samo tekst pravila dosad nije bio napisan za hard."""
+    m = p.get("match", {})
+    return not (m.get("p1_declining") and m.get("p2_declining"))
+
+
+def _clay_fatigue_ok(p) -> bool:
+    """Clay REST & FATIGUE DIFFERENTIAL (rule 4) otvrdnuto u kod (18.07., korisnikova
+    preporuka C). CLAY-ONLY — obrazloženje pravila je izričito vezano uz clay ('rallies are
+    the longest in tennis'), nema dokumentiranog dokaza za grass/hard, pa se NE prenosi
+    (za razliku od both-declining pravila gore, koje je surface-neutralno). Ako je NAŠ pick
+    odigrao 2+ meča zadnjih 7 dana I ima 2+ manje dana odmora od protivnika
+    (p1/p2_fatigue_disadvantage, postavlja run_daily): efektivni confidence pada 4pp (6pp u
+    Bo5) — ako tako umanjen confidence padne ispod 63% tiketnog praga, pick se isključuje."""
+    if not _is_clay(p):
+        return True
+    m = p.get("match", {})
+    pick = (p.get("pick") or "").lower()
+    if not pick:
+        return True
+    p1 = (m.get("player1") or "").lower()
+    is_p1_pick = pick in p1 or p1 in pick
+    fatigued = m.get("p1_fatigue_disadvantage") if is_p1_pick else m.get("p2_fatigue_disadvantage")
+    if not fatigued:
+        return True
+    conf = p.get("confidence") or 0
+    penalty = 6.0 if "Grand Slam" in (m.get("level") or "") else 4.0
+    return (conf - penalty) >= 63.0
+
+
 def _selection_ok(p) -> bool:
     """Zajednički mandatory filter za sve kandidatske liste tiketa."""
     return (_is_main_tour(p) and _has_odds(p)
             and _hard_bands_ok(p) and _grass_bands_ok(p)
             and _hard_gs_conf_ok(p) and _clay_gs_conf_ok(p)
-            and not _opponent_beat_us(p))
+            and not _opponent_beat_us(p)
+            and _both_declining_ok(p) and _clay_fatigue_ok(p))
 
 
 def build_ticket(predictions: list, weights: dict, min_odds_override: float = None) -> Optional[dict]:

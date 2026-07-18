@@ -325,6 +325,19 @@ def update_analyzed_match_result(row_id: str, actual_winner: str, prediction_cor
             {"id": f"eq.{row_id}"})
 
 
+def get_resolved_analyzed_matches(limit: int = 2000) -> list:
+    """Sve razriješene analize (prediction_correct NIJE null) iz ŠIREG korpusa
+    analyzed_matches — NE samo tiket pickovi (preporuka F, 18.07.2026: kalibracijska
+    tablica na Model Statistike stranici prije je koristila samo ticket_matches, uzak,
+    selektirani uzorak). void ishodi (prediction_correct is.null nakon voida) su već
+    isključeni jer void upisuje None, ne True/False."""
+    return _select("analyzed_matches",
+                   select="predicted_confidence,prediction_correct,surface,match_date",
+                   filters={"prediction_correct": "not.is.null"},
+                   order="match_date.desc",
+                   limit=limit)
+
+
 # ── ELO Cache ─────────────────────────────────────────────────────────────────
 
 def get_elo_cache() -> dict:

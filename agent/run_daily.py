@@ -57,6 +57,22 @@ def main():
         print(f"Greška učitavanja težina, koristim default za sve površine: {e}")
         weights = {"clay": DEFAULT_WEIGHTS, "grass": DEFAULT_WEIGHTS, "hard": DEFAULT_WEIGHTS}
 
+    # 1b. Hard revalidacijski okidač (preporuka D, 18.07.2026): hard pravila v1 su pisana
+    # BLIND (0 stvarnih pickova u korpusu kad su pisana — vidi MODEL_CHANGELOG.md). Javi
+    # svaki dan dok prag ne bude ručno riješen, umjesto da čekamo da netko ručno primijeti
+    # (isti tip rizika kao "revalidirati nakon 30+ pickova" ostane trajno odgođeno).
+    try:
+        _hard_resolved_n = sum(
+            1 for m in db.get_resolved_analyzed_matches(limit=2000)
+            if "hard" in (m.get("surface") or "").lower()
+        )
+        if _hard_resolved_n >= 30:
+            print(f"  ⚠️ HARD REVALIDACIJA: {_hard_resolved_n} riješenih hard pickova u "
+                  f"analyzed_matches (prag 30 dosegnut) — vrijeme za punu reviziju hard "
+                  f"pravila kao za clay/grass (hard v1 je pisan blind, vidi MODEL_CHANGELOG.md).")
+    except Exception as e:
+        print(f"  Hard revalidacijski okidač preskočen (greška: {e})")
+
     # 2. Dohvati mečeve za danas i sutra
     today = today_zagreb()
     tomorrow = tomorrow_zagreb()
@@ -352,6 +368,25 @@ def main():
                 print(f"    ⚠ Fery veto aktivan: {who} nas je već srušio u ovom turniru — "
                       f"pick protiv njega neće ući na tiket.")
 
+            # Both-players-declining zastavice (18.07., otvrdnuto iz prompta) — univerzalno,
+            # sve podloge. ticket_builder._both_declining_ok ih čita.
+            match["p1_declining"] = _is_declining(p1_form.get("matches", []))
+            match["p2_declining"] = _is_declining(p2_form.get("matches", []))
+
+            # Clay REST & FATIGUE DIFFERENTIAL zastavice (18.07., otvrdnuto iz prompta) —
+            # CLAY-ONLY (rezoniranje vezano uz najduže razmjene u tenisu, nema dokaza za
+            # grass/hard). ticket_builder._clay_fatigue_ok ih čita.
+            _p1_rest = _rest_days(_last_match_date(p1_form.get("matches", [])), match.get("date", ""))
+            _p2_rest = _rest_days(_last_match_date(p2_form.get("matches", [])), match.get("date", ""))
+            _p1_m7d = _count_matches_last_n_days(p1_form.get("matches", []), 7)
+            _p2_m7d = _count_matches_last_n_days(p2_form.get("matches", []), 7)
+            match["p1_fatigue_disadvantage"] = bool(
+                _p1_m7d >= 2 and _p1_rest >= 0 and _p2_rest >= 0 and _p1_rest <= _p2_rest - 2
+            )
+            match["p2_fatigue_disadvantage"] = bool(
+                _p2_m7d >= 2 and _p1_rest >= 0 and _p2_rest >= 0 and _p2_rest <= _p1_rest - 2
+            )
+
             # Kompajliraj p1_data i p2_data
             p1_data = {**p1_info, **p1_stats,
                        "form_recent": p1_form,
@@ -633,6 +668,30 @@ def _last_match_date(matches: list) -> str:
     if not matches:
         return "N/A"
     return matches[0].get("date", "N/A")[:10]
+
+
+def _is_declining(matches: list) -> bool:
+    """Igrač je '1/3 ili lošije' u zadnja 3 meča — otvrdnuti dio pravila 'BOTH-PLAYERS-DECLINING
+    CAP' (grass rule 7 / clay rule 3: 'cap confidence at 60% regardless of ELO...'). Traži
+    barem 3 odigrana meča da bi tvrdnja bila pouzdana (isti prag kao _form_trend)."""
+    last3 = matches[:3]
+    if len(last3) < 3:
+        return False
+    return sum(1 for m in last3 if m.get("won")) <= 1
+
+
+def _rest_days(last_match_date: str, reference_date: str) -> int:
+    """Dani odmora = reference_date - last_match_date. Vraća -1 ako nepoznato (tretira se kao
+    'nema fatigue signala', ne kao 0 dana odmora)."""
+    if not last_match_date or not reference_date:
+        return -1
+    try:
+        import datetime as _dt
+        last = _dt.date.fromisoformat(str(last_match_date)[:10])
+        ref = _dt.date.fromisoformat(str(reference_date)[:10])
+        return (ref - last).days
+    except (ValueError, TypeError):
+        return -1
 
 
 def _decider_record(matches: list) -> dict:

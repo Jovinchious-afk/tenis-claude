@@ -520,6 +520,13 @@ and MUST be enforced from day one.
    NOTE: unlike clay/grass, rule 7 above (RANKING RELIABILITY) means hard does NOT get a
    ranking-gap-deflation rule — on hard, ranking/ELO gaps are legitimately more predictive,
    so deflating them here would contradict our own documented hard-specific evidence.
+
+12. BOTH-PLAYERS-DECLINING CAP (same as grass/clay — added here for parity 2026-07-18):
+   When BOTH players show 1/3 or worse in their last 3 matches: cap confidence at 60%
+   regardless of ELO, surface record, or other factors. Do NOT assess one player's 1/3 as
+   "stable" and the other's as "declining" — they are in the same uncertainty category.
+   (Deterministic backstop: the ticket builder excludes such matches from selection
+   entirely, so you need not model that consequence — just score honestly.)
 === END HARD-SPECIFIC RULES v1 ==="""
 
 

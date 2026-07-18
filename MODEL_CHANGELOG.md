@@ -9,6 +9,59 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-07-18 (osmi put) — Preporuke C, F, D iz stručnog komentara: otvrdnuta 2 pravila, kalibracijska tablica, hard okidač
+
+**Povod:** korisnik pročitao stručni komentar + preporuke A-F iz dokumentacije sustava,
+odlučio zadržati strukturu tiketa netaknutom (kvota/broj parova po podlozi ostaju kako jesu
+— A i A-tipa promjene isključene), i zatražio preporuku što je odmah spremno za implementaciju.
+Odabrano: C (otvrdnuti prompt-only pravila), F (kalibracijska tablica), D (hard okidač) —
+odobreno "moze c f i d napravi".
+
+**C — Both-players-declining cap i clay rest/fatigue differential otvrdnuti u kod:**
+- Provjera koda PRIJE implementacije otkrila da je moja ranija tvrdnja ("sve tri podloge")
+  bila netočna za drugo pravilo — ispravljeno prije pisanja koda:
+  - **BOTH-PLAYERS-DECLINING CAP** (60% kad su oba igrača 1/3 ili lošija u zadnja 3 meča):
+    postojao je u grass (rule 7) i clay (rule 3) promptu, NE u hardu. Logika je surface-
+    neutralna (dva neizvjesna igrača = neizvjestan meč, bez obzira na podlogu) — hard
+    pravila to i sama traže ("surface-independent, MUST be enforced from day one") — pa je
+    `_both_declining_ok()` implementiran univerzalno, sve tri podloge, i tekst pravila
+    dodan hardu (rule 12) za dokumentacijsku dosljednost.
+  - **REST & FATIGUE DIFFERENTIAL** (−4pp, −6pp u Bo5, kad naš pick ima 2+ meča/7 dana I 2+
+    manje dana odmora od protivnika): postojao je SAMO u clayu (rule 4), s obrazloženjem
+    izričito vezanim uz clay ("rallies are the longest in tennis") — NIJE preneseno na
+    grass/hard (nema dokaza), `_clay_fatigue_ok()` implementiran clay-only.
+- `run_daily.py`: nove zastavice `p1/p2_declining` (iz `p1_form.get("matches")[:3]`, treba
+  3+ odigrana meča) i `p1/p2_fatigue_disadvantage` (dani odmora preko novog `_rest_days()`
+  helpera + `matches_7d`), postavljene po meču uz postojeće Fery-veto zastavice.
+- `ticket_builder.py`: `_both_declining_ok()` (isključuje pick ako su oba igrača declining
+  — 60% < 63% tiketni prag pa svejedno ne bi prošao, ovo samo jamči da eventualno
+  preoptimistična procjena ne proturije) i `_clay_fatigue_ok()` (računa efektivni
+  confidence umanjen za penal, zahtijeva da i tako umanjen i dalje bude ≥63%) — oba
+  ožičena u `_selection_ok`.
+
+**F — Kalibracijska tablica proširena na puni korpus, podijeljena po podlozi:**
+- Otkriveno tijekom implementacije: kalibracijska tablica na "Model Statistike" stranici
+  VEĆ je postojala, ali se gradila SAMO iz `ticket_matches` (uzak, selektirani uzorak —
+  isti problem koji je evening update riješio za feedback petlju ranije danas, ali ova
+  Streamlit tablica nikad nije ažurirana da prati tu promjenu).
+- `database/supabase_client.py`: nova `get_resolved_analyzed_matches()` — čita puni
+  `analyzed_matches` korpus gdje `prediction_correct` nije null.
+- `pages/4_Model_Statistike.py`: kalibracijska sekcija prepisana da koristi taj korpus,
+  PODIJELJENA PO PODLOZI (tabovi Sve/Clay/Grass/Hard) — izravan test je li prekalibracija
+  (Nalaz 02) stvarno neovisna po podlozi, umjesto jedne kombinirane tablice koja to
+  ne bi mogla pokazati. Osvježava se uživo pri svakom otvaranju stranice.
+
+**D — Hard revalidacijski okidač:**
+- `run_daily.py`, rano u `main()`: broji riješene hard picke u `analyzed_matches` (preko
+  iste `get_resolved_analyzed_matches()`), javlja upozorenje u dnevnom logu čim prag 30
+  bude dosegnut — umjesto oslanjanja da netko ručno primijeti.
+
+**Ishod:** novi unit test suite (test_c_deterministic.py, 19 asercija) + F testiran
+(uzorak trenutno n=0 jer se šire razrješavanje tek počelo puniti od danas — očekivano) +
+regresija sva tri ranija test suita + end-to-end dry-run.
+
+---
+
 ## 2026-07-18 (sedmi put) — Feedback model: Haiku → Sonnet, output_config effort=high
 
 **Povod:** korisnik pitao, nakon prelaska "analysis" koraka na Sonnet, vrijedi li isto napraviti

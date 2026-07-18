@@ -184,27 +184,58 @@ if len(weight_history) > 1:
 else:
     st.info("Only one version of weights exists (initial version). Weights are automatically adjusted after enough error analyses.")
 
-# ── Confidence calibration ────────────────────────────────────────────────────
+# ── Confidence calibration (preporuka F, 18.07.2026) ──────────────────────────
+# Prije: gradila se SAMO iz ticket_matches (uzak, selektirani uzorak — samo mečevi koji
+# su stvarno ušli na tiket). Sad: puni analyzed_matches korpus (SVI analizirani mečevi,
+# uklj. one koji su pali ispod praga) — isti razlog zbog kojeg je evening update proširen
+# da razrješava taj korpus (hard revizija 18.07.). Podijeljeno po podlozi jer je baš to
+# pitanje koje testiramo: ponavlja li se prekalibracija NEOVISNO na sve tri podloge
+# (Nalaz 02, stručni komentar 18.07.) — s jednom kombiniranom tablicom to se ne vidi.
 
-if resolved and all_matches:
-    st.markdown("---")
-    st.subheader("🎯 Confidence calibration")
-    st.caption("Compares stated confidence with actual win rate — a well-calibrated model follows the diagonal.")
+st.markdown("---")
+st.subheader("🎯 Confidence calibration")
+st.caption(
+    "Izjavljeni confidence naspram stvarnog win-ratea, iz PUNOG korpusa analiziranih mečeva "
+    "(ne samo tiket pickovi) — dobro kalibriran model prati dijagonalu. Osvježava se uživo pri "
+    "svakom otvaranju stranice."
+)
 
-    bins = [(55, 65), (65, 70), (70, 75), (75, 80), (80, 100)]
+analyzed_resolved = db.get_resolved_analyzed_matches()
+
+def _calibration_table(rows: list) -> pd.DataFrame | None:
+    bins = [(55, 60), (60, 63), (63, 66), (66, 70), (70, 75), (75, 80), (80, 101)]
     cal_rows = []
     for low, high in bins:
-        in_bin = [m for m in all_matches if low <= m.get("confidence", 0) < high]
+        in_bin = [m for m in rows if low <= (m.get("predicted_confidence") or 0) < high]
         if not in_bin:
             continue
-        actual_wr = sum(1 for m in in_bin if m.get("result") == "won") / len(in_bin) * 100
+        actual_wr = sum(1 for m in in_bin if m.get("prediction_correct")) / len(in_bin) * 100
         cal_rows.append({
-            "Confidence range": f"{low}-{high}%",
+            "Confidence range": f"{low}-{min(high,100)}%",
             "Picks": len(in_bin),
-            "Stated conf.": f"{(low+high)/2:.0f}%",
             "Actual win%": f"{actual_wr:.0f}%",
-            "Calibrated?": "✅" if abs((low+high)/2 - actual_wr) < 10 else "⚠️"
+            "Gap (pp)": round((low + min(high, 100)) / 2 - actual_wr, 1),
+            "Calibrated?": "✅" if abs((low + min(high, 100)) / 2 - actual_wr) < 10 else "⚠️",
         })
+    return pd.DataFrame(cal_rows) if cal_rows else None
 
-    if cal_rows:
-        st.dataframe(pd.DataFrame(cal_rows), hide_index=True, use_container_width=True)
+if analyzed_resolved:
+    st.caption(f"Uzorak: {len(analyzed_resolved)} riješenih analiza ukupno (sve podloge, cijeli korpus).")
+    tab_all, tab_c, tab_g, tab_h = st.tabs(["Sve podloge", "🟤 Clay", "🟢 Grass", "🔵 Hard"])
+    with tab_all:
+        df_cal = _calibration_table(analyzed_resolved)
+        if df_cal is not None:
+            st.dataframe(df_cal, hide_index=True, use_container_width=True)
+        else:
+            st.info("Nema dovoljno riješenih analiza za kalibracijsku tablicu.")
+    for tab, surf_key in [(tab_c, "clay"), (tab_g, "grass"), (tab_h, "hard")]:
+        with tab:
+            surf_rows = [m for m in analyzed_resolved if db._surface_key(m.get("surface", "hard")) == surf_key]
+            df_cal = _calibration_table(surf_rows)
+            if df_cal is not None:
+                st.caption(f"n={len(surf_rows)} na ovoj podlozi")
+                st.dataframe(df_cal, hide_index=True, use_container_width=True)
+            else:
+                st.info("Nema dovoljno riješenih analiza na ovoj podlozi još.")
+else:
+    st.info("Nema riješenih analiza u analyzed_matches još — kalibracijska tablica će se popuniti kako evening update razrješava ishode.")
