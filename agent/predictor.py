@@ -139,6 +139,24 @@ Tournament record {player2} (aggregate W/L COUNTS ONLY — do not infer round ac
 {p2_tournament_history}
 {odds_alert}
 
+=== SCOUTING PROFILES (secondary evidence — strict usage rules) ===
+Curated analyst scouting notes (qualitative priors, snapshot-dated). Usage rules:
+- SECONDARY evidence only: may adjust confidence by AT MOST ±3pp, and may act as the
+  tie-breaker when the measured factors above are close to even. It must NEVER override
+  the measured statistics (ELO, hold%, form, H2H) when they clearly point one way.
+- Do NOT double-count: scouting is qualitative context for INTERPRETING the numbers above
+  (e.g. "big server" explains a high hold%, it is not a second, independent piece of
+  evidence on top of that hold%).
+- Style-vs-style matchups ARE a legitimate factor (research shows style matchups can swing
+  win probability by several points at equal rating, and the surface amplifies this):
+  e.g. big server vs counter-puncher tilts server on grass/indoor, counter-puncher on clay.
+  Use the styles + favourable/tough matchup fields together with the CURRENT surface.
+- Where a profile says "No reliable scouting profile", do NOT substitute your own memory
+  of the player — treat scouting as absent and rely purely on the measured data above.
+- Profiles are a snapshot (see date) — recent form/results above always outrank them.
+Scouting {player1}: {p1_scouting_block}
+Scouting {player2}: {p2_scouting_block}
+
 === MODEL WEIGHTS ===
 ELO + ranking trend + opponent quality: {w_elo_ranking}%
 Surface + playing style matchup: {w_surface_style}%
@@ -419,6 +437,14 @@ treat them as hard constraints, not guidelines.
    return/BP stats, weight the return side. EXCEPTION: a hold% gap of 5pp+ is decisive on
    any surface (documented: Gomez 77.8% vs Brancaccio 72.3% decided the match) — never back
    the clearly weaker server just because of a surface ELO edge.
+
+11. FAST-CLAY CONDITIONS (from surface-physics analysis, 2026-07-25): not all clay plays
+   slow. High altitude (see Altitude context above — e.g. Madrid ~650 m, Gstaad, Kitzbühel)
+   and hot/dry weather make the ball fly faster and bounce higher, shifting the surface
+   partway toward hard-court behaviour: serve and first-strike quality regain value, and
+   the pure-grinder edge shrinks. When Altitude/Conditions above indicate fast clay, soften
+   rules 5 and 10 accordingly (a big server is less disadvantaged than on slow, heavy clay).
+   Conversely cold/damp "heavy" conditions amplify the standard clay logic.
 === END CLAY-SPECIFIC RULES v1 ==="""
 
 
@@ -645,6 +671,8 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         ),
         p1_tournament_history=_format_tournament_record(p1.get("tournament_record", {})),
         p2_tournament_history=_format_tournament_record(p2.get("tournament_record", {})),
+        p1_scouting_block=_format_scouting(p1.get("scouting") or {}),
+        p2_scouting_block=_format_scouting(p2.get("scouting") or {}),
         odds_alert=_odds_alert(odds_p1, odds_p2, match["player1"], match["player2"]),
 
         w_elo_ranking=weights.get("elo_ranking", 22),
@@ -675,7 +703,9 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         # ulazi u prompt niti utječe na pick/confidence, samo se sprema u analyzed_matches.
         # context_snapshot.context_version bilježi verziju oblika radi budućih izmjena sheme.
         result["context_snapshot"] = {
-            "context_version": 1,
+            # v2 (25.07.2026): + p1/p2_scouting_confidence — omogućuje kasniju usporedbu
+            # WR mečeva sa scoutingom vs bez (je li scouting stvarno pomogao, mjerljivo).
+            "context_version": 2,
             "p1_age": p1.get("age"), "p2_age": p2.get("age"),
             "p1_nationality": p1.get("nationality"), "p2_nationality": p2.get("nationality"),
             "match_time": match.get("time", ""),
@@ -683,6 +713,8 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             "p2_decider_record": p2.get("decider_record"),
             "p1_previous_tournament_level": p1.get("previous_tournament_level"),
             "p2_previous_tournament_level": p2.get("previous_tournament_level"),
+            "p1_scouting_confidence": (p1.get("scouting") or {}).get("confidence"),
+            "p2_scouting_confidence": (p2.get("scouting") or {}).get("confidence"),
         }
         _normalize_fair_odds(result, match)
         return result
@@ -946,6 +978,30 @@ def _format_h2h_stats(h2h: dict, player1: str, player2: str) -> str:
         lines.append("Format split: " + " | ".join(parts))
 
     return "\n".join(lines) if lines else "N/A"
+
+
+# Scouting profili ispod ovih razina pouzdanosti se NE ubacuju u prompt — autorova vlastita
+# legenda u Excelu kaže za njih "do NOT trust or fill from memory". Umjesto profila ide
+# eksplicitna "no reliable scouting" poruka koja modelu brani da rupu popuni iz vlastite memorije.
+_SCOUTING_MIN_CONFIDENCE = {"High", "Med-High", "Med", "Med-Low"}
+
+
+def _format_scouting(s: dict) -> str:
+    """Format scouting profila za prompt (SEKUNDARNI dokaz — pravila korištenja su u templateu).
+    Low/Insufficient/nepostojeći profil → eksplicitna 'absent' poruka, nikad tihi izostanak."""
+    if not s or (s.get("confidence") or "") not in _SCOUTING_MIN_CONFIDENCE:
+        return ("No reliable scouting profile — do not fill this gap from memory; "
+                "rely on the measured data only.")
+    parts = [
+        f"[confidence: {s.get('confidence')}, snapshot: {s.get('source_date', 'N/A')}]",
+        f"Style: {s.get('style') or 'N/A'}",
+        f"Best surfaces: {s.get('best_surfaces') or 'N/A'}",
+        f"Strengths: {s.get('strengths') or 'N/A'}",
+        f"Weaknesses: {s.get('weaknesses') or 'N/A'}",
+        f"Favours playing against: {s.get('favourable_matchups') or 'N/A'}",
+        f"Struggles against: {s.get('tough_matchups') or 'N/A'}",
+    ]
+    return " | ".join(parts)
 
 
 def _format_tournament_record(record: dict) -> str:

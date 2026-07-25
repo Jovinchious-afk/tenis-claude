@@ -9,6 +9,55 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-07-25 — Scouting profili (Excel) + surface-fizika destilat (Word) kao sekundarni izvor
+
+**Povod:** korisnik priložio dva dokumenta: "ATP_Player_Scouting top100.xlsx" (100 igrača:
+stil, prednosti/mane, matchupovi, uz pošten confidence sustav High→Insufficient i legendu
+"analyst inference, NOT fresh research — validate before use") i "Tennis_Surface_Analysis.docx"
+(fizika i taktika podloga, 30 navedenih izvora). Zatražio kritičku procjenu pa integraciju
+kao SEKUNDARNI izvor istine za izjednačene mečeve.
+
+**Procjena prije implementacije:** Word dokument neovisno POTVRĐUJE ~80% postojećih odluka
+(surface ELO, indoor amplifikacija, serve težine po podlozi, tiebreak lutrija, altitude...)
+— glavna stvarna rupa: model o stilu igrača zna samo ruku, a stilski matchup može pomaknuti
+vjerojatnost za nekoliko pp uz isti rating (Harvard izvor u dokumentu). Excel: ~69/100
+igrača upotrebljivo (Med+); 2026 tvrdnje konzistentne s NAŠIM podacima iz prve ruke (Fery
+"Wimbledon run" = srušio nas 6×; Cobolli "breakout" = u našem vetu; Merida "clay craftsman"
+= osvojio Umag protiv našeg picka). Za slavne igrače vrijednost je SIDRENJE (model čita
+dogovorene činjenice umjesto vlastite memorije), za 2026 risere stvarna nova informacija.
+
+**Što:**
+- **Nova Supabase tablica `player_scouting`** (ključ: normalizirano ime; sadržaj: rank,
+  stil, podloge, prednosti/mane, matchupovi, confidence, source_date). U schema.sql;
+  postojeća instanca treba ručni CREATE TABLE (vidi upute korisniku).
+- **`scripts/import_scouting.py`**: Excel → Supabase upsert; `--dry-run` mod; legende na
+  dnu Excela automatski preskočene; ponovljivo za buduća osvježavanja.
+- **`db.get_all_scouting()`**: jedan query po daily runu, graceful {} ako tablice nema.
+- **`run_daily._find_scouting()`**: lookup po normaliziranom imenu + fuzzy fallback preko
+  postojećeg `_name_match` (isti mehanizam kao screenshot kvote).
+- **Prompt: nova sekcija "SCOUTING PROFILES (secondary evidence)"** sa strogim pravilima:
+  max ±3pp utjecaja; tie-breaker za izjednačene mečeve; NIKAD ne nadjačava mjerene brojke;
+  anti-double-counting (kvalitativni kontekst za interpretaciju brojki, ne dodatni dokaz);
+  stilski matchup eksplicitno dozvoljen kao faktor uz trenutnu podlogu; **Low/Insufficient
+  profili se NE ubacuju** — umjesto njih "No reliable scouting — do not fill from memory"
+  (poštuje autorovu vlastitu legendu, sprječava da model rupu popuni halucinacijom).
+- **Clay pravilo 11 (FAST-CLAY CONDITIONS)** — jedini destilat iz Word dokumenta koji nam
+  je stvarno nedostajao: visinski/vrući clay (Madrid, Gstaad, Kitzbühel) pomiče ponašanje
+  prema hard vrijednostima; veže se na postojeći Altitude kontekst. Ostatak dokumenta
+  NAMJERNO nije prepisan u prompt (već pokriveno težinama/pravilima — izbjegnuto dvostruko
+  brojanje istih dokaza).
+- **context_snapshot v2**: + `p1/p2_scouting_confidence` — za koji mjesec mjerljivo je li
+  scouting stvarno pomogao (WR sa scoutingom vs bez), isti standard kao za druge varijable.
+- Scouting NEMA deterministic veto-moć (interpretacija, ne mjereni podaci) i NE ulazi u
+  feedback petlju težina.
+
+**Ishod:** 27 novih testova (parse 100/100 igrača, confidence gating, prompt pravila,
+end-to-end mock s context_snapshot v2, fuzzy lookup) + regresijski smoke test svih
+determinističkih filtera i prompt markera (sve prošlo) + end-to-end dry-run bez tablice
+(graceful degradacija). **Čeka korisnika:** CREATE TABLE u Supabase + prvi import.
+
+---
+
 ## 2026-07-20 — Korekcija praga: both-declining cap zategnut s "1/3 ili lošije" na strogo "0/3"
 
 **Povod:** korisnik, gledajući stvarne ponedjeljkove (20.07.) ATP 250/500 prvokolaške

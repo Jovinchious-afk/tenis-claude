@@ -118,6 +118,28 @@ CREATE TABLE IF NOT EXISTS performance_log (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Scouting profili igrača (korisnikov Excel "ATP_Player_Scouting top100.xlsx", uvoz preko
+-- scripts/import_scouting.py). SEKUNDARNI izvor za prompt: kvalitativni stil/matchup kontekst,
+-- max ±3pp utjecaja na confidence, nikad ne nadjačava mjerene brojke. Low/Insufficient
+-- profili se NE ubacuju u prompt (autorova vlastita legenda: "do NOT fill from memory").
+CREATE TABLE IF NOT EXISTS player_scouting (
+    player_name TEXT PRIMARY KEY,          -- normalizirano (lowercase, bez dijakritika)
+    display_name TEXT,
+    rank INTEGER,
+    country VARCHAR(30),
+    hand VARCHAR(30),
+    style TEXT,
+    best_surfaces TEXT,
+    strengths TEXT,
+    weaknesses TEXT,
+    favourable_matchups TEXT,
+    tough_matchups TEXT,
+    note TEXT,
+    confidence VARCHAR(20),
+    source_date DATE,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Ručno unesene kvote sa screenshotova kladionice (Streamlit upload, Claude vision ekstrakcija)
 CREATE TABLE IF NOT EXISTS screenshot_odds (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

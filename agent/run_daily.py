@@ -279,6 +279,23 @@ def main():
         pl = (player_name or "").lower()
         return any(w == pl and t == t_base for w, t in beaten_us)
 
+    # 6e. Scouting profili (korisnikov Excel → player_scouting tablica, 25.07.2026):
+    # SEKUNDARNI kvalitativni kontekst za prompt (stil, matchupovi) — max ±3pp utjecaja,
+    # nikad ne nadjačava mjerene brojke. Jedan query za sve, nula dodatnih API poziva.
+    scouting_map = db.get_all_scouting()
+    if scouting_map:
+        print(f"  Scouting profili: učitano {len(scouting_map)} igrača.")
+
+    def _find_scouting(player_name: str) -> dict:
+        """Lookup po normaliziranom imenu; fallback fuzzy match (isti _name_match kao kvote)."""
+        key = " ".join(df._strip_diacritics(player_name or "").lower().strip().split())
+        if key in scouting_map:
+            return scouting_map[key]
+        for k, v in scouting_map.items():
+            if df._name_match(player_name, v.get("display_name") or k):
+                return v
+        return {}
+
     # 7. Za svaki meč dohvati podatke o igračima
     print(f"\nDohvaćam podatke za {len(all_matches)} mečeva...")
     matches_with_data = []
@@ -406,6 +423,7 @@ def main():
                        "form_trend": p1_trend,
                        "decider_record": p1_decider,
                        "previous_tournament_level": p1_prev_tourn_level,
+                       "scouting": _find_scouting(match["player1"]),
                        }
 
             p2_data = {**p2_info, **p2_stats,
@@ -426,6 +444,7 @@ def main():
                        "form_trend": p2_trend,
                        "decider_record": p2_decider,
                        "previous_tournament_level": p2_prev_tourn_level,
+                       "scouting": _find_scouting(match["player2"]),
                        }
 
             _base_tname = match.get("tournament", "").split(" - ")[0].strip()

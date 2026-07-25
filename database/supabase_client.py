@@ -325,6 +325,18 @@ def update_analyzed_match_result(row_id: str, actual_winner: str, prediction_cor
             {"id": f"eq.{row_id}"})
 
 
+def get_all_scouting() -> dict:
+    """Svi scouting profili (player_scouting tablica, uvoz iz korisnikovog Excela preko
+    scripts/import_scouting.py) — dict keyed by normalizirano ime. Jedan poziv po daily runu.
+    Vraća {} ako tablica ne postoji ili je prazna (pipeline radi normalno bez scoutinga)."""
+    try:
+        rows = _select("player_scouting", limit=200)
+        return {r["player_name"]: r for r in rows if r.get("player_name")}
+    except Exception as e:
+        print(f"Scouting profili nedostupni ({e}) — nastavljam bez njih.")
+        return {}
+
+
 def get_resolved_analyzed_matches(limit: int = 2000) -> list:
     """Sve razriješene analize (prediction_correct NIJE null) iz ŠIREG korpusa
     analyzed_matches — NE samo tiket pickovi (preporuka F, 18.07.2026: kalibracijska
