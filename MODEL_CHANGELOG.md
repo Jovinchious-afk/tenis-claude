@@ -9,6 +9,57 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-07-26 (večer) — Kalibracija proradila (bug 0/421), hard pravila 13-14, ocjena v15
+
+**Povod:** korisnik pitao zašto je "Confidence calibration" na Model Statistike prazan, tražio
+ocjenu auto-generiranih clay težina v15 i pripremu hard modela za Washington/Los Cabos (27.07.).
+
+**Nalaz 1 — kalibracija prazna zbog stvarnog buga, ne zbog praga:** korak 2b večernjeg
+updatea (18.07.) čitao je pobjednika iz `/atp/fixtures`, ali taj endpoint NIKAD ne vraća
+pobjednika — čisti je raspored (provjereno sirovim odgovorom: ključevi samo
+id/date/roundId/playerXId/live). Rezultat: 0/421 analiza razriješeno, kalibracijska tablica
+prazna, hard-revalidacijski okidač (30 hard pickova) slijep, walkover-fallback mrtav.
+Dodatni nalaz: fixtures za PROŠLE dane IZBACUJU odigrane mečeve — isti mehanizam zbog kojeg
+je Kitzbühel "nestao" iz feeda 25.07.
+
+**Popravak:** novi izvor pobjednika `/atp/tournament/results/{seasonId}` tekuće sezone
+(`get_current_season_results` u data_fetcheru; 2 API poziva po turniru). Zajednički helper
+`_build_season_winner_lookup` (feedback_analyzer) pronalazi tournament_id kaskadno:
+fixtures par-mapa → past-matches igrača s ranking liste (traži se TOČNO meč para: datum ±2
+dana I prezime protivnika — širi prozor je hvatao susjedni turnir istog igrača). Lookup puni
+postojeći `fixture_winner`, pa su korak 2b i walkover-fallback proradili bez daljnjih izmjena.
+Backfill (`scripts/backfill_analyzed_results.py`): razriješeno 261/421 analiza (ostatak su
+kvalifikacije kojih nema u results endpointu, challengeri izvan top-500 i Citi Open koji još
+nije počeo). Kalibracijski korpus sada: n=223 — bin 63-65% pogađa 64.9% (dobro kalibrirano
+nakon revizija), 66-69% → 73.1%, 70%+ → 90%.
+
+**Nalaz 2 — ocjena clay v15 (auto-feedback, 7 analiza):** zadržan bez izmjena. Opravdano:
+elo −2 (gubici s gapom 60-77 bodova tretiranim kao presudnim), fatigue +2 (umor zapisan pa
+pregažen u 4 gubitka), serve_return +1 (Halys 3×). Dvije dokumentirane zamjerke: trajectory
+−1 počiva na tome da hot-hand sada čuva deterministički Fery-veto (a taj je 25.07. zakazao
+zbog feed-rupe — sada zakrpano A1 + ovim popravkom); h2h +1 dijelom citira halucinirani
+"Van Assche 2023 Estoril win" iz pred-A2 analiza. Kontekst: clay 11.-26.07. = 39W-15L
+(72.2%), flat ROI +14.6%; pravi tiketi 1W-8L (akumulator-matematika, korisnikova odluka).
+
+**Nalaz 3 — hard pravila 13 i 14 (prompt, v14 težine NETAKNUTE do prvih hard podataka):**
+
+- Pravilo 13 SERVE-DOMINANT OPPONENT CAP: protivnik hold ≥82% + naš return <40% → cap 60%
+  (destilat tri Halys poraza: Navone @1.45, Hanfmann @1.55, Bublik @1.50).
+- Pravilo 14 HARD SUB-SPEED: iz Tennis_Surface_Analysis.docx ("treating all hard courts
+  identically is the most common modelling error") — brzi/spori hard mijenja vrijednost
+  servisa vs returna; arhetip upozorenje za jednodimenzionalne igrače uz SCOUTING PROFILE.
+
+Provjera usklađenosti s Word dokumentom: pravila 4, 5, 6, 7, 9 + v14 balans (elo 22 =
+serve_return 22) već pokrivaju "balanced blend / ranking najpouzdaniji na hardu / vrućina /
+indoor amplifikacija"; jedina stvarna rupa bila je sub-speed → pokrivena pravilom 14.
+
+**Retro-provjera scoutinga (uveden 25.07. poslijepodne, prvi live run 27.07.):** profili bi
+izravno označili 3 najskuplja gubitka — Navone (tough: "Big servers") vs Halysa, Rublev
+(tough: "Counter-punchers who absorb pace") vs Van Asschea, Bublik ("Very streaky") vs
+Halysa; s capom −3pp sva tri padaju ispod floora 63% i ispadaju iz selekcije.
+
+---
+
 ## 2026-07-26 — Revizija po 8 korisnikovih nalaza: A (5 popravaka), B, C, D (struktura tiketa)
 
 **Povod:** korisnik prijavio 8 točaka (neriješen rezultat, dvije sumnjive tvrdnje u analizama,

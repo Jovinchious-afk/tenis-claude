@@ -589,6 +589,33 @@ and MUST be enforced from day one.
    "stable" and the other's as "declining" — they are in the same uncertainty category.
    (Deterministic backstop: the ticket builder excludes such matches from selection
    entirely, so you need not model that consequence — just score honestly.)
+
+13. SERVE-DOMINANT OPPONENT CAP (added 2026-07-26 — distilled from THREE identical losses
+   to Halys in one week at Kitzbühel, where fast conditions made his serve unbreakable):
+   If the OPPONENT of your pick holds serve >= 82% on hard AND our pick's return points
+   won is below ~40%: the opponent can realistically keep every set within one break or
+   tiebreak, which is a coin-flip regardless of ELO/ranking gaps. Cap confidence at 60%
+   unless our pick has a clearly documented answer: elite return numbers (42%+), a winning
+   H2H with this server, or a clearly superior tiebreak record. On hard this pattern is
+   STRONGER than on the fast clay where it cost us three picks (Navone @1.45, Hanfmann
+   @1.55, Bublik @1.50 — all beaten by the same big server we kept backing against).
+   This complements rule 4 (both players serve-dominant) — rule 13 covers the asymmetric
+   case where only the OPPONENT is the unbreakable one.
+
+14. HARD SUB-SPEED (added 2026-07-26 from surface-physics analysis — "treating all hard
+   courts identically is the most common modelling error for this surface"):
+   "Hard" is a wide band from slow/high-bouncing to near-indoor fast. Re-weight styles by
+   the specific court, using tournament history, ace-rate evidence in the data provided,
+   and known venue reputations (US swing anchors: Cincinnati fast; Washington medium-fast
+   and brutally hot; US Open medium-fast; Toronto/Montreal medium; Indian Wells slow).
+   - FAST hard (or hot daytime conditions): serve, ace rate and first-strike quality gain
+     value — a big server's effective level rises above his ELO; rule 13 triggers earlier.
+   - SLOW hard (or cool/night sessions): return, rally tolerance and movement gain value —
+     counter-punchers neutralise big serves; do not pay a premium for serve stats alone.
+   - Style note (use SCOUTING PROFILES): hard is the least style-punishing surface — it
+     rewards complete all-courters and exposes ONE-DIMENSIONAL specialists. A pure clay
+     grinder without a serve, or a pure server without a rally game, should be discounted
+     against a complete player even when rankings are close.
 === END HARD-SPECIFIC RULES v1 ==="""
 
 

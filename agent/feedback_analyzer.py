@@ -13,7 +13,87 @@ from dotenv import load_dotenv
 from config.model_config import CLAUDE_MODELS, WEIGHT_ADJUSTMENT, DEFAULT_WEIGHTS
 from database import supabase_client as db
 from agent.data_fetcher import (get_matches_for_date, get_recent_form, get_match_stats,
-                                find_player_id)
+                                find_player_id, get_current_season_results)
+
+
+def _build_season_winner_lookup(rows: list, pair_to_tid: dict) -> dict:
+    """Vrati {(p1_lower, p2_lower): winner_name} za parove iz `rows` (analyzed_matches /
+    ticket_matches retci s player1/player2/tournament/match_date).
+
+    Izvor pobjednika je /atp/tournament/results tekuće sezone (get_current_season_results)
+    jer /atp/fixtures NIKAD ne nosi pobjednika. tournament_id se traži kaskadno:
+      1) pair_to_tid — mapa (par igrača) → tid iz fixtures feeda (radi za današnje mečeve,
+         ali fixtures za PROŠLE dane izbacuju već odigrane mečeve — otkriveno 26.07.2026,
+         isti mehanizam zbog kojeg je Kitzbühel "nestao" iz feeda 25.07.)
+      2) past-matches poznatog igrača iz para (ranking lista → player_id → njegovi
+         nedavni mečevi nose tournamentId; meč u danima turnira ⇒ tid turnira).
+    """
+    from agent.data_fetcher import find_player_id as _fpid
+
+    groups: dict = {}   # tname -> [(p1, p2, iso_date), ...]
+    for am in rows:
+        tname = (am.get("tournament") or "?").split(" - ")[0].strip().lower()
+        d = str(am.get("match_date") or "")[:10]
+        p1 = (am.get("player1") or "").lower().strip()
+        p2 = (am.get("player2") or "").lower().strip()
+        if p1 and p2:
+            groups.setdefault(tname, []).append((p1, p2, d))
+
+    tids: dict = {}
+    for tname, pairs in groups.items():
+        for p1, p2, _d in pairs:
+            tid = pair_to_tid.get((p1, p2), "")
+            if tid:
+                tids[tname] = tid
+                break
+
+    for tname, pairs in [(t, p) for t, p in groups.items() if t not in tids]:
+        # tid preko past-matches: tražimo TOČNO meč tog para (datum ±2 dana I prezime
+        # protivnika) — širi prozor po rasponu turnira je hvatao KRIVI turnir, jer isti
+        # igrač u susjednom tjednu već igra sljedeći event (npr. Gstaad pa Kitzbühel)
+        tried = 0
+        for p1, p2, d in pairs:
+            if tname in tids or tried >= 5 or not d:
+                break
+            try:
+                d_lo = datetime.date.fromisoformat(d) - datetime.timedelta(days=2)
+                d_hi = datetime.date.fromisoformat(d) + datetime.timedelta(days=2)
+            except ValueError:
+                continue
+            for me, opp in ((p1, p2), (p2, p1)):
+                pid = _fpid(me)
+                if not pid:
+                    continue
+                tried += 1
+                opp_surname = opp.split()[-1] if opp.split() else ""
+                for fm in get_recent_form(pid, n=25).get("matches", []):
+                    fd = fm.get("date") or ""
+                    fopp = (fm.get("opponent") or "").lower()
+                    if not (fm.get("tournament_id") and fd and opp_surname
+                            and opp_surname in fopp):
+                        continue
+                    try:
+                        fdate = datetime.date.fromisoformat(fd)
+                    except ValueError:
+                        continue
+                    if d_lo <= fdate <= d_hi:
+                        tids[tname] = fm["tournament_id"]
+                        break
+                if tname in tids or tried >= 5:
+                    break
+
+    lookup: dict = {}
+    for tname, tid in sorted(tids.items()):
+        results = get_current_season_results(tid)
+        for r in results:
+            k = (r["player1"].lower().strip(), r["player2"].lower().strip())
+            lookup.setdefault(k, r["winner"])
+            lookup.setdefault((k[1], k[0]), r["winner"])
+        print(f"  Rezultati sezone [{tname}]: {len(results)} odigranih mečeva.")
+    missing = [t for t in groups if t not in tids]
+    if missing:
+        print(f"  Bez tournament_id (ostaju nerazriješeni): {', '.join(sorted(missing))}")
+    return lookup
 from utils.helpers import today_zagreb, days_ago, format_date
 
 load_dotenv()
@@ -73,6 +153,24 @@ def run_evening_update() -> dict:
                     fkey = (m["player1"].lower().strip(), m["player2"].lower().strip())
                     fixture_winner[fkey] = winner_name
                     fixture_winner[(fkey[1], fkey[0])] = winner_name
+
+    # 1b. Pobjednici iz rezultata TEKUĆE sezone turnira (26.07.2026): /atp/fixtures je
+    # čisti raspored i NIKAD ne nosi pobjednika (provjereno sirovim odgovorom), pa je
+    # fixture_winner lookup iznad uvijek bio PRAZAN — korak 2b je od 18.07. razriješio
+    # 0/421 analiza (kalibracija prazna, hard-revalidacijski okidač slijep), a walkover
+    # fallback u koraku 2 nikad nije okinuo. Pobjednike sada vadimo iz
+    # /atp/tournament/results/{seasonId} (2 API poziva po turniru) i punimo ISTI
+    # fixture_winner lookup, pa oba postojeća potrošača prorade bez daljnjih izmjena.
+    # Turnire ograničavamo na one s parovima koje stvarno trebamo razriješiti.
+    unresolved_analyzed = []
+    try:
+        unresolved_analyzed = db.get_unresolved_analyzed_matches(days=8)
+        _rows_of_interest = list(db.get_pending_matches()) + list(unresolved_analyzed)
+        fixture_winner.update(
+            _build_season_winner_lookup(_rows_of_interest, match_to_tournament))
+        print(f"Rezultati sezone: {len(fixture_winner) // 2} mečeva s poznatim pobjednikom.")
+    except Exception as e:
+        print(f"Rezultati sezone preskočeni (greška): {e}")
 
     # 2. Za svaki pending par provjeri rezultat via past-matches
     pending = db.get_pending_matches()
@@ -157,7 +255,8 @@ def run_evening_update() -> dict:
     # rezultata → kalibracija/revizije su se radile samo na selektiranom uzorku tiketa.
     # Koristi već izgrađeni fixture_winner lookup (zadnjih 8 dana) — 0 dodatnih API poziva.
     try:
-        unresolved = db.get_unresolved_analyzed_matches(days=8)
+        # unresolved_analyzed je dohvaćen u koraku 1b (isti upit) — ne dupliraj poziv
+        unresolved = unresolved_analyzed or db.get_unresolved_analyzed_matches(days=8)
         n_resolved = 0
         for am in unresolved:
             fkey = ((am.get("player1") or "").lower().strip(),

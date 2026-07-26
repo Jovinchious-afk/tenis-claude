@@ -328,8 +328,11 @@ def get_unresolved_analyzed_matches(days: int = 8) -> list:
     razrješava (hard revizija 2026-07-18). Prije toga je 419/419 analiza stajalo bez
     rezultata pa je feedback petlja učila samo na uskom, selektiranom uzorku tiketa."""
     since = (datetime.date.today() - datetime.timedelta(days=days)).isoformat()
+    # tournament je potreban da _build_season_winner_lookup (26.07.2026) može grupirati
+    # parove po turniru i otkriti tournament_id kad turnir nestane iz fixtures feeda
     return _select("analyzed_matches",
-                   select="id,external_match_id,match_date,player1,player2,predicted_winner",
+                   select="id,external_match_id,match_date,player1,player2,"
+                          "predicted_winner,tournament",
                    filters={"actual_winner": "is.null", "match_date": f"gte.{since}"})
 
 

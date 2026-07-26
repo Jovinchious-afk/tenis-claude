@@ -1338,3 +1338,46 @@ def get_tournament_draw_history(tournament_id: str, tournament_name: str, years:
         print(f"  {base_name} {year}: {n_this_year} draw rezultata (F/SF/QF/R16)")
 
     return all_results
+
+
+def get_current_season_results(tournament_id: str) -> list:
+    """Svi odigrani mečevi TEKUĆE sezone turnira: parovi imena + pobjednik.
+
+    Endpointi: GET /atp/tournament/seasons/{tournamentId} → season_id tekuće godine,
+               GET /atp/tournament/results/{seasonId}     → mečevi s match_winner.
+
+    Povod (26.07.2026): /atp/fixtures je čisti raspored i NIKAD ne nosi pobjednika
+    (provjereno sirovim odgovorom — ključevi su samo id/date/roundId/playerXId/live/...),
+    pa je večernji korak razrješavanja analyzed_matches od 18.07. razriješio 0/421
+    analiza: kalibracijska tablica prazna, hard-revalidacijski okidač slijep. Ovo je
+    jedini izvor pobjednika koji ne traži player_id — 2 API poziva po turniru.
+    """
+    if not tournament_id:
+        return []
+    current_year = datetime.date.today().year
+    seasons = get_tournament_seasons(tournament_id)
+    season = next((s for s in seasons if s.get("year") == current_year), None)
+    if not season:
+        return []
+    data = _get(f"/atp/tournament/results/{season['season_id']}")
+    if not data:
+        return []
+    raw = data.get("data", {})
+    matches = raw.get("singles", []) if isinstance(raw, dict) else (raw if isinstance(raw, list) else [])
+    out = []
+    for m in matches:
+        w_id = str(m.get("match_winner") or "")
+        p1 = m.get("player1") or {}
+        p2 = m.get("player2") or {}
+        p1_id = str(m.get("player1Id", p1.get("id", "")))
+        p2_id = str(m.get("player2Id", p2.get("id", "")))
+        p1_name = p1.get("name", "")
+        p2_name = p2.get("name", "")
+        if not w_id or not p1_name or not p2_name:
+            continue
+        winner = p1_name if w_id == p1_id else p2_name if w_id == p2_id else ""
+        if not winner:
+            continue
+        out.append({"player1": p1_name, "player2": p2_name,
+                    "winner": winner, "score": str(m.get("result") or "")})
+    return out
