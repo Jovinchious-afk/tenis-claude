@@ -269,6 +269,22 @@ def get_active_weights(surface: str = "hard") -> dict:
     return DEFAULT_WEIGHTS
 
 
+def get_active_weight_version(surface: str = "hard"):
+    """Broj verzije aktivnih težina za podlogu (npr. 15) ili None.
+
+    Svrha (26.07.2026): žig u context_snapshot.model_stamp — omogućuje kasnije EGZAKTNO
+    rezanje kalibracijskog korpusa po erama modela (dosad se era rekonstruirala iz datuma
+    revizija u MODEL_CHANGELOG-u, što radi, ali ručno je)."""
+    sk = _surface_key(surface)
+    results = _select("model_weights", select="version",
+                      filters={"is_active": "eq.true", "weights->>surface": f"eq.{sk}"},
+                      order="version.desc", limit=1)
+    if not results:
+        results = _select("model_weights", select="version",
+                          filters={"is_active": "eq.true"}, order="version.desc", limit=1)
+    return results[0].get("version") if results else None
+
+
 def get_active_weight_version_date(surface: str = "hard") -> str:
     """Returns the created_at date of the active weights for a given surface."""
     sk = _surface_key(surface)

@@ -85,13 +85,19 @@ def _needs_conf_floor(p) -> bool:
     return _is_grass(p) or _is_clay(p) or _is_hard(p)
 
 
-# ── Hard selekcijska pravila v1 (revizija 2026-07-18, korpus 187 grass+clay pickova) ──
-# Dead zone 1.43-1.60 = najgori band sezone (50% WR, ROI -24%) → na hardu ZABRANJEN.
-# Srednja zona 1.61-1.90 (55% WR, ROI -8%) → max 1 hard pick po tiketu.
+# ── Hard selekcijska pravila (v1 18.07., UBLAŽENO 26.07.2026 uz korisnikovo odobrenje) ──
+# v1 je 1.43-1.60 potpuno ZABRANIO a 1.61-1.90 ograničio na max 1 — izvedeno iz korpusa
+# PRIJE clay revizije 11.07. (1.43-1.60: 53% WR, ROI -19.2%; 1.61-1.90: 48% WR, -16.5%).
+# Ponovno mjerenje 26.07. na post-revizijskom clayu pokazalo je da je zona bila problem
+# STAROG modela, ne kvote: s v13+ pravilima (conf floor, hot-hand, Fery veto) ista zona
+# daje 1.43-1.60: 10W-4L +7.8% i 1.61-1.90: 9W-4L +21.9% (n=14/13, malen uzorak!).
+# Zato zabrana ukinuta → jedna OPREZNA zona 1.43-1.90, max 1 hard pick po tiketu
+# (isti oblik koji je na clayu isporučio 72% WR). Prompt pravilo 3 (double-confirmation
+# za marginalne favorite) ostaje kao kvalitativna kočnica. Revalidirati s prvih ~30
+# stvarnih hard pickova (okidač u run_daily).
 # GS je podbacivao vs ATP 250 na obje podloge → na hard GS-u (US Open) prag je 65%.
-_HARD_DEAD_ZONE = (1.43, 1.60)      # uključivo — nikad na tiket
-_HARD_MID_ZONE = (1.61, 1.90)       # max 1 po tiketu (vidi _find_best_combination)
-_HARD_MID_ZONE_MAX = 1
+_HARD_CAUTION_ZONE = (1.43, 1.90)   # uključivo — max 1 po tiketu (vidi _find_best_combination)
+_HARD_CAUTION_ZONE_MAX = 1
 _HARD_GS_MIN_CONF = 65.0
 
 # Grass dead zone (dodano 2026-07-18, kasnije istog dana): ista 1.43-1.60 mrtva zona je
@@ -102,12 +108,11 @@ _HARD_GS_MIN_CONF = 65.0
 _GRASS_DEAD_ZONE = (1.43, 1.60)     # uključivo — nikad na tiket
 
 
-def _hard_bands_ok(p) -> bool:
-    """Hard pick s kvotom u mrtvoj zoni 1.43-1.60 nikad ne ulazi na tiket."""
-    if not _is_hard(p):
-        return True
-    o = _pick_odds(p)
-    return not (_HARD_DEAD_ZONE[0] <= o <= _HARD_DEAD_ZONE[1])
+# NAPOMENA: per-pick zabrana hard mrtve zone (_hard_bands_ok) UKINUTA 26.07.2026 —
+# vidi komentar uz _HARD_CAUTION_ZONE. Ograničenje živi na razini KOMBINACIJE
+# (_hard_caution_zone_count u _find_best_combination), ne pojedinačnog picka.
+# Grass zabrana (_grass_bands_ok) namjerno OSTAJE — grass evidencija (n=33, -20.3%)
+# nije ponovno mjerena jer je grass sezona završila; revalidirati prije iduće trave.
 
 
 def _grass_bands_ok(p) -> bool:
@@ -217,7 +222,7 @@ def _clay_fatigue_ok(p) -> bool:
 def _selection_ok(p) -> bool:
     """Zajednički mandatory filter za sve kandidatske liste tiketa."""
     return (_is_main_tour(p) and _has_odds(p)
-            and _hard_bands_ok(p) and _grass_bands_ok(p)
+            and _grass_bands_ok(p)
             and _hard_gs_conf_ok(p) and _clay_gs_conf_ok(p)
             and not _opponent_beat_us(p)
             and _both_declining_ok(p) and _clay_fatigue_ok(p))
@@ -444,11 +449,11 @@ def _clay_dead_zone_count(combo) -> int:
                if _is_clay(p) and _CLAY_DEAD_ZONE[0] <= _pick_odds(p) < _CLAY_DEAD_ZONE[1])
 
 
-def _hard_mid_zone_count(combo) -> int:
-    """Hard srednja zona 1.61-1.90 (sezonski 55% WR) — max 1 po tiketu.
-    Mrtva zona 1.43-1.60 je već potpuno blokirana u _hard_bands_ok."""
+def _hard_caution_zone_count(combo) -> int:
+    """Hard oprezna zona 1.43-1.90 — max 1 po tiketu (ublaženo 26.07.2026: prije je
+    1.43-1.60 bio potpuno zabranjen; vidi komentar uz _HARD_CAUTION_ZONE)."""
     return sum(1 for p in combo
-               if _is_hard(p) and _HARD_MID_ZONE[0] <= _pick_odds(p) <= _HARD_MID_ZONE[1])
+               if _is_hard(p) and _HARD_CAUTION_ZONE[0] <= _pick_odds(p) <= _HARD_CAUTION_ZONE[1])
 
 
 def _find_best_combination(candidates: list, cfg: dict) -> Optional[list]:
@@ -485,7 +490,7 @@ def _find_best_combination(candidates: list, cfg: dict) -> Optional[list]:
             if _clay_dead_zone_count(combo) > _CLAY_DEAD_ZONE_MAX:
                 continue
 
-            if _hard_mid_zone_count(combo) > _HARD_MID_ZONE_MAX:
+            if _hard_caution_zone_count(combo) > _HARD_CAUTION_ZONE_MAX:
                 continue
 
             score = _score_combo(combo)

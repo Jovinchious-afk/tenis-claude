@@ -235,6 +235,32 @@ Respond ONLY in the following JSON format (no additional text):
 If the match should be skipped (too much uncertainty, injury, insufficient data), set "skip_reason" to a string with the reason and all other fields to null."""
 
 
+_model_stamp_cache: dict = {}
+
+
+def _model_stamp(surface: str) -> dict:
+    """Žig verzije modela za context_snapshot (v3, 26.07.2026): omogućuje kasnije EGZAKTNO
+    rezanje kalibracijskog korpusa po erama modela umjesto rekonstrukcije iz datuma
+    revizija. rules_hash je md5 nad (surface pravila + univerzalni template) pa se mijenja
+    AUTOMATSKI sa svakom izmjenom prompta — nema ručnog održavanja verzije; weights_version
+    je broj aktivne verzije iz model_weights. Cache po procesu (1 DB upit po podlozi)."""
+    key = (surface or "hard").lower()
+    if key in _model_stamp_cache:
+        return _model_stamp_cache[key]
+    import hashlib
+    rules_hash = hashlib.md5(
+        (_surface_specific_rules(surface or "") + ANALYSIS_PROMPT_TEMPLATE).encode("utf-8")
+    ).hexdigest()[:8]
+    version = None
+    try:
+        from database.supabase_client import get_active_weight_version
+        version = get_active_weight_version(surface or "hard")
+    except Exception:
+        pass
+    _model_stamp_cache[key] = {"weights_version": version, "rules_hash": rules_hash}
+    return _model_stamp_cache[key]
+
+
 def _surface_specific_rules(surface: str) -> str:
     """Returns surface-specific calibration rules for the analysis prompt.
     Grass rules derived from post-analysis of documented losses (June-July 2026 season).
@@ -522,11 +548,16 @@ and MUST be enforced from day one.
    score BELOW 61% regardless of ATP ranking. Be honest: a marginal favourite belongs at
    58-62%, not 64%.
 
-3. MARGINAL-FAVOURITE REALITY CHECK (dead-zone discipline):
-   Market odds 1.43-1.60 was our WORST segment all season (50% win rate, -24% ROI) — these are
-   matches where the bookmaker sees a coin-flip that our model dressed up as a favourite.
-   When your pick's market odds are in that region, demand double-confirmation (rule 2) AND
-   at least one decisive hard-specific edge; otherwise score below 63% so selection drops it.
+3. MARGINAL-FAVOURITE REALITY CHECK (caution-zone discipline — RE-MEASURED 2026-07-26):
+   Market odds 1.43-1.90 are matches where the bookmaker sees something close to a coin-flip.
+   Season history: this region was our worst segment under the OLD model (-19% ROI), but
+   after the July rule revisions the same region turned positive on clay (19W-8L). The
+   lesson stands in softened form: these picks are fine ONLY when honestly earned — demand
+   double-confirmation (rule 2) AND at least one decisive hard-specific edge; otherwise
+   score below 63% so selection drops it. (Deterministic backstop: the ticket builder
+   allows at most ONE hard pick from the 1.43-1.90 zone per ticket, so only your single
+   best marginal favourite can make the ticket anyway — grade them honestly, not
+   strategically.)
 
 4. TIEBREAK LOTTERY RULE (transferred from grass — hard has the 2nd-highest TB rate):
    If BOTH players hold >= 85% on hard, the match will likely hinge on 1-2 tiebreaks — that is
@@ -770,7 +801,10 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         result["context_snapshot"] = {
             # v2 (25.07.2026): + p1/p2_scouting_confidence — omogućuje kasniju usporedbu
             # WR mečeva sa scoutingom vs bez (je li scouting stvarno pomogao, mjerljivo).
-            "context_version": 2,
+            # v3 (26.07.2026): + model_stamp {weights_version, rules_hash} — egzaktno
+            # rezanje kalibracije po erama modela (vidi _model_stamp).
+            "context_version": 3,
+            "model_stamp": _model_stamp(match.get("surface", "")),
             "p1_age": p1.get("age"), "p2_age": p2.get("age"),
             "p1_nationality": p1.get("nationality"), "p2_nationality": p2.get("nationality"),
             "match_time": match.get("time", ""),

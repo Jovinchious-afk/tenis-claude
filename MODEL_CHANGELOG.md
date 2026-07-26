@@ -9,6 +9,36 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-07-26 (kasna večer) — Hard zona ublažena po ponovnom mjerenju + model_stamp u snapshotu
+
+**Povod:** korisnik pitao stojim li i dalje iza potpune hard zabrane 1.43-1.60 nakon
+Kitzbühela/Estorila. Ponovno mjerenje po erama (dedupe, flat ROI):
+
+| Zona | Prije 11.07. (stari model) | Clay 11.-26.07. (novi model) |
+|---|---|---|
+| 1.43-1.60 | 17W-15L, −19.2% | 10W-4L, **+7.8%** |
+| 1.61-1.90 | 22W-24L, −16.5% | 9W-4L, **+21.9%** |
+
+**Zaključak:** mrtva zona je bila problem STAROG modela (bez conf floora, hot-handa,
+Fery veta), ne kvote same. Zabrana iz 18.07. počivala je na korpusu stare ere.
+
+**Izmjena (korisnik odobrio):** hard "1.43-1.60 zabranjeno + 1.61-1.90 max 1" →
+**jedna oprezna zona 1.43-1.90, max 1 hard pick po tiketu** (isti oblik kao clay pravilo
+koje je isporučilo 72% WR). `_hard_bands_ok` uklonjen iz `_selection_ok`;
+`_hard_caution_zone_count` u `_find_best_combination`. Prompt pravilo 3 ažurirano (nosi
+obje ere brojki + opis novog backstopa). Grass zabrana NAMJERNO ostaje (n=33, −20.3%,
+nije ponovno mjerena — grass sezona gotova; revalidirati prije iduće trave). Nuspojava:
+hard tiket je sada izvediv s JEDNIM underdogom >1.90 (test: 1.35/1.40/1.55/2.10 → 6.15),
+pa rizik svakodnevnog analysis-only praktički nestaje. Revalidacija na ~30 hard pickova
+(okidač aktivan). Oprez: novi uzorak zone je malen (n=14/13) i s claya.
+
+**model_stamp (context_snapshot v3):** svaka analiza sada nosi `{weights_version,
+rules_hash}` — verzija aktivnih težina + md5 hash surface pravila i templatea (mijenja se
+automatski sa svakom izmjenom prompta, bez ručnog održavanja). Svrha: egzaktno rezanje
+kalibracijskog korpusa po erama modela umjesto rekonstrukcije iz datuma revizija.
+
+---
+
 ## 2026-07-26 (večer) — Kalibracija proradila (bug 0/421), hard pravila 13-14, ocjena v15
 
 **Povod:** korisnik pitao zašto je "Confidence calibration" na Model Statistike prazan, tražio
