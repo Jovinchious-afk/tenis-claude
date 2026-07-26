@@ -142,6 +142,52 @@ def _get_tournament_info(tournament_id: str) -> dict:
     return info
 
 
+_player_id_by_name_cache: dict = {}
+
+
+def get_player_ids_by_name(limit: int = 500) -> dict:
+    """Mapa normalizirano_ime → player_id iz ATP ranking liste (top {limit}).
+
+    Zašto (A1, 26.07.2026): evening update gradi ID-eve iz fixtures feeda zadnjih 8 dana.
+    Kad turnir NESTANE iz feeda (Generali Open Kitzbühel, 25.07.2026), igrači nemaju ID pa
+    se rezultat nikad ne razriješi — Bublik-Halys je tako ostao neriješen dok su Estoril
+    mečevi istog dana prošli. Ranking lista je neovisan izvor koji pokriva sve main-tour
+    igrače na koje ikad tipujemo. Cache: jedan dohvat po procesu."""
+    if _player_id_by_name_cache:
+        return _player_id_by_name_cache
+    pages = (limit + 99) // 100
+    for page in range(1, pages + 1):
+        data = _get("/atp/ranking/singles", params={"pageSize": 100, "pageNo": page})
+        entries = (data or {}).get("data") or []
+        if not entries:
+            break
+        for e in entries:
+            p = e.get("player", {}) if isinstance(e.get("player"), dict) else {}
+            name, pid = p.get("name", ""), p.get("id")
+            if name and pid:
+                _player_id_by_name_cache[_norm_key(name)] = str(pid)
+    return _player_id_by_name_cache
+
+
+def _norm_key(s: str) -> str:
+    """Normalizirani ključ imena (bez dijakritika, lowercase, single-space)."""
+    return " ".join(_strip_diacritics(s or "").lower().strip().split())
+
+
+def find_player_id(name: str) -> str:
+    """Player ID po imenu iz ranking mape — egzaktno pa fuzzy (_name_match). '' ako nema."""
+    if not name:
+        return ""
+    ids = get_player_ids_by_name()
+    key = _norm_key(name)
+    if key in ids:
+        return ids[key]
+    for k, pid in ids.items():
+        if _name_match(name, k):
+            return pid
+    return ""
+
+
 def get_tournament_tier(tournament_id: str) -> str:
     """Public wrapper oko _get_tournament_info — vraća samo tier ("ATP 250", "Grand Slam"...),
     cache-irano. Koristi se za bilježenje razine igračevog PRETHODNOG turnira (context_snapshot,
@@ -945,6 +991,39 @@ def get_player_surface_summary(player_id: str) -> dict:
             "win_pct": round(wins / total * 100, 1) if total > 0 else None,
         }
     return result
+
+
+_titles_cache: dict = {}
+
+
+def get_player_titles(player_id: str) -> dict:
+    """
+    Endpoint: GET /atp/player/titles/{playerId}
+    Karijerna finala po razini turnira (C1, 26.07.2026 — korisnikov prijedlog "tko ima više
+    iskustva u završnicama"). titlesWon = osvojeni turniri, titlesLost = izgubljena finala,
+    pa je (won + lost) = ukupno odigranih finala na toj razini.
+
+    Vraća: {"main_won": int, "main_lost": int, "ch_won": int, "ch_lost": int}
+    (main = ATP main tour + Masters zbrojeno; ch = Challenger/ITF >$10K).
+    """
+    if not player_id:
+        return {}
+    key = str(player_id)
+    if key in _titles_cache:
+        return _titles_cache[key]
+    data = _get(f"/atp/player/titles/{key}")
+    out = {"main_won": 0, "main_lost": 0, "ch_won": 0, "ch_lost": 0}
+    for row in (data or {}).get("data", []) or []:
+        rank_id = safe_int(row.get("tourRankId"))
+        won, lost = safe_int(row.get("titlesWon")), safe_int(row.get("titlesLost"))
+        if rank_id in (2, 3):      # Main tour + Masters series
+            out["main_won"] += won or 0
+            out["main_lost"] += lost or 0
+        elif rank_id == 1:          # Challengers / ITF > $10K
+            out["ch_won"] += won or 0
+            out["ch_lost"] += lost or 0
+    _titles_cache[key] = out
+    return out
 
 
 def get_player_tournament_record(player_id: str, tournament_id: str) -> dict:

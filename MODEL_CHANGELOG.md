@@ -9,6 +9,99 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-07-26 — Revizija po 8 korisnikovih nalaza: A (5 popravaka), B, C, D (struktura tiketa)
+
+**Povod:** korisnik prijavio 8 točaka (neriješen rezultat, dvije sumnjive tvrdnje u analizama,
+dvije hipoteze za provjeru, prijedlog nove varijable, promjena strukture tiketa). Sve je
+provjereno kroz stvarne podatke prije bilo kakve izmjene; dvije hipoteze su potvrđene, jedna
+opovrgnuta, tri tvrdnje o greškama potvrđene.
+
+**Nalazi iz provjere (dokumentirano jer objašnjava SVE izmjene ispod):**
+
+- **Bublik-Halys 25.07. nije razriješen** jer je Generali Open Kitzbühel NESTAO iz fixtures
+  feeda (0 mečeva 22.-26.07.). Evening update gradi player ID-eve isključivo iz feeda → bez
+  ID-eva odustaje prije nego išta pokuša. Estoril mečevi istog dana prošli normalno.
+  Stvarni rezultat (past-matches): Halys 6-4 7-6(6). Upisan + generirana analiza gubitka.
+- **Halys nas je srušio 3× u istom turniru** (23./24./25.07.) a Fery-veto nije upalio: ta
+  tri dana bila su `analysis_only`, a `build_analysis_only_ticket` NIJE primjenjivao nijedan
+  deterministički filter — ni veto, ni mrtve zone, ni conf floor. Vrijedilo je i za
+  hipotetski "kad bih morao riskirati" tiket koji korisnik čita.
+- **Rublev-Darderi (točka 2): potvrđeno.** Prompt je doslovno sadržavao `Luciano Darderi:
+  2025 FW` (protivnik osvojio isti turnir novije) i `2024 R16: Tirante def. Rublev` (naš pick
+  ispao rano zadnji put). Model je citirao samo "Rublev won this title in 2023". Nije
+  halucinacija nego jednostrano citiranje dokaza koje je imao pred sobom.
+- **Van Assche "2023 Estoril win" (točka 5): potvrđeno i gore.** Naša draw baza kaže
+  `2023 R16: Davidovich Fokina def. Luca Van Assche` — dakle taj meč je IZGUBIO. Analiza je
+  napisala da ga je dobio, a feedback model to eskalirao u "his 2023 Estoril win" (2023.
+  Estoril je osvojio Ruud). Feedback prompt dotad nije imao NI draw podatke NI anti-
+  halucinacijsko pravilo. Usput: Estoril draw ima samo 2022-2024, pa je
+  `has_tournament_history` vraćao False svaki dan → puni re-fetch ~45 zapisa SVAKI run.
+- **Shevchenko/Struff (točka 3): potvrđeno.** Tiket 19.07: `risk_notes` = "Shevchenko fresher
+  (2 vs 13 rest days)" dok `key_factors` iste analize kaže "Struff's 13 days rest — fatigue
+  factor favours Struff". Igrač s 2 dana odmora označen "svježijim". Ponovilo se i 20.07.
+- **Točka 4 (oba igrača >120 ATP): hipoteza NIJE potvrđena.** oba ≤120: n=156, WR 63.5%,
+  ROI -4.0% | jedan >120: n=44, 61.4%, -2.9% | **oba >120: n=19, 63.2%, +8.5%**. Kontrola
+  prag 100 → +2.1%, prag 150 → -0.3%. Isti WR uz više kvote. Ništa nije mijenjano (korisnik
+  potvrdio: "E - okej, necemo dirati nista").
+- **Točka 6 (završnice): hipoteza POTVRĐENA.** QF/SF/F kvota ≤1.60: n=59, WR 66.1%,
+  **ROI -10.2%** | kvota >1.60: n=21, WR 57.1%, **ROI +11.2%**. Finale je najgora runda
+  (n=9, 55.6%, -27.4%). Razlika 21pp ROI-a.
+- **Točka 7:** pronađen neiskorišten endpoint `/atp/player/titles/{id}` — karijerna finala
+  po razini (osvojena + izgubljena), tj. koliko je finala igrao i koliko ih je zatvorio.
+
+**Što je promijenjeno:**
+
+**A1 — razrješavanje rezultata više ne ovisi o fixtures feedu.** `ticket_matches` dobiva
+`player1_id`/`player2_id` (upisuju se pri kreiranju tiketa), a evening update koristi kaskadu
+tiket → fixtures → **ATP ranking lista** (nova `df.find_player_id`, cache po procesu).
+`save_ticket_matches` ima defenzivni fallback: ako stupci ne postoje, upisuje bez njih pa
+spremanje tiketa nikad ne padne. Potreban ALTER TABLE (vidi schema.sql).
+
+**A2 — feedback prompt ojačan:** dobiva draw povijest turnira + isto anti-halucinacijsko
+pravilo kao analizni prompt, plus eksplicitnu uputu da `risk_notes` iz predikcije NISU
+provjerena činjenica i da se proturječje s draw podacima mora prijaviti kao nalaz.
+
+**A3 — pravilo uravnoteženog citiranja:** ako model citira turnirsku povijest u prilog svog
+picka, mora prvo provjeriti istu povijest za protivnika i za vlastite nedavne neuspjehe tamo.
+Uz konkretan dokumentirani primjer (Rublev/Darderi). Dodano i pravilo da se rezultat mora
+čitati u ispravnom smjeru (primjer Van Assche R16).
+
+**A4 — pravilo interne konzistentnosti:** `risk_notes` ne smiju proturječiti `key_factors`;
+model mora prije vraćanja ponovno pročitati oba polja i provjeriti da ime, broj i smjer
+("fresher", "better") pokazuju isto. Uz dokumentirani Shevchenko primjer.
+
+**A5 — draw re-fetch throttle:** `has_tournament_history` više ne traži strogo prošlu sezonu
+(neki turniri je u API-ju nemaju), nego bilo koju unutar 3 godine; ako su podaci stariji od
+current_year-1, dopušta re-fetch **jednom tjedno** umjesto svaki dan.
+`save_tournament_history` sada osvježava `fetched_at` pri svakom upsertu — bez toga throttle
+nikad ne bi resetirao brojač (uhvaćeno testom).
+
+**B — hipotetski tiket prolazi kroz `_selection_ok`.** Široka lista analiziranih mečeva
+namjerno OSTAJE bez filtera (informativna), ali "kad bih morao riskirati" prijedlog sada
+poštuje ista pravila kao pravi tiket. Ovo bi spriječilo trostruki Halys fade.
+
+**C1 — karijerna finala u prompt** (`df.get_player_titles`, cache): ATP/Masters i Challenger
+finala odigrana + postotak zatvaranja, uz uputu da je to podupirući faktor za QF/SF/F, ne
+driver u ranim rundama.
+
+**C2 — LATE-ROUND PRICING DISCIPLINE** (univerzalno, dokaz je cross-surface): od QF nadalje
+ne napuhavati confidence heavy favoritu na temelju reputacije; dobro potkrijepljen underdog
+u završnici je legitiman pick; finale je najveće-varijance runda. Uz izmjerene brojke i
+eksplicitnu zaštitu da ovo NIJE poziv na slijepo favoriziranje underdoga.
+
+**D — struktura tiketa ujednačena za sve podloge** (korisnikova odluka): **4-6 parova,
+kombinirana kvota 6.0-40**. `SURFACE_TICKET_OVERRIDES` ispražnjen (clay 6.5-30 i hard max 6
+ukinuti). Analysis-only ponašanje nepromijenjeno. **Napomena za buduću reviziju zapisana u
+kodu:** pri našem stvarnom pogotku (~63%/pick) prag isplativosti je ~6.0 za 4 para, ~9.3 za
+5 i ~14.6 za 6 parova — fiksni donji prag 6.0 znači da su tiketi s 5-6 parova pri dnu
+raspona matematički nepovoljni (kandidat: min kvota koja skalira s brojem nogu).
+
+**Ishod:** 48 novih testova (D, B, A1-A5, C1, C2) + regresija scouting i smoke suita + puni
+dry-run. Jedan pravi bug uhvaćen vlastitim testom tijekom rada: A5 je prvo koristio
+nepostojeći stupac `created_at` umjesto `fetched_at`.
+
+---
+
 ## 2026-07-25 — Scouting profili (Excel) + surface-fizika destilat (Word) kao sekundarni izvor
 
 **Povod:** korisnik priložio dva dokumenta: "ATP_Player_Scouting top100.xlsx" (100 igrača:

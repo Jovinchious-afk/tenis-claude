@@ -12,7 +12,8 @@ import anthropic
 from dotenv import load_dotenv
 from config.model_config import CLAUDE_MODELS, WEIGHT_ADJUSTMENT, DEFAULT_WEIGHTS
 from database import supabase_client as db
-from agent.data_fetcher import get_matches_for_date, get_recent_form, get_match_stats
+from agent.data_fetcher import (get_matches_for_date, get_recent_form, get_match_stats,
+                                find_player_id)
 from utils.helpers import today_zagreb, days_ago, format_date
 
 load_dotenv()
@@ -79,11 +80,22 @@ def run_evening_update() -> dict:
     for pm in pending:
         p1_name = pm.get("player1", "")
         p2_name = pm.get("player2", "")
-        p1_id = name_to_id.get(p1_name.lower().strip(), "")
-        p2_id = name_to_id.get(p2_name.lower().strip(), "")
+        # Kaskada izvora player ID-a (A1, 26.07.2026 — prije je postojao SAMO korak 2):
+        #   1) ID spremljen na tiketu (najpouzdanije, bez API poziva)
+        #   2) fixtures feed zadnjih 8 dana
+        #   3) ATP ranking lista (neovisna o fixtures feedu)
+        # Povod: 25.07. je Generali Open Kitzbühel nestao iz fixtures feeda pa Bublik-Halys
+        # nikad nije razriješen, dok su Estoril mečevi istog dana prošli normalno.
+        p1_id = (pm.get("player1_id") or "").strip() or name_to_id.get(p1_name.lower().strip(), "")
+        p2_id = (pm.get("player2_id") or "").strip() or name_to_id.get(p2_name.lower().strip(), "")
+        if not p1_id:
+            p1_id = find_player_id(p1_name)
+        if not p2_id:
+            p2_id = find_player_id(p2_name)
 
         if not p1_id and not p2_id:
-            print(f"  Nema player_id: {p1_name} vs {p2_name}")
+            print(f"  Nema player_id ni u tiketu, ni u fixturesima, ni na ranking listi: "
+                  f"{p1_name} vs {p2_name}")
             continue
 
         # Pokušaj via past-matches (normalno) — probaj s oba igrača
@@ -288,6 +300,21 @@ def _analyze_lost_match(match: dict, stats: dict = None) -> str:
     if stats:
         stats_block = _format_match_stats(p1, p2, stats)
 
+    # Draw povijest + anti-halucinacijsko pravilo (A2, 26.07.2026). Povod: analiza gubitka
+    # Van Assche-Carreno-Busta (23.07.) tvrdila je "his 2023 Estoril win", a naša draw baza
+    # kaže "2023 R16: Davidovich Fokina def. Van Assche" — dakle taj meč je IZGUBIO, i nikad
+    # nije osvojio Estoril (2023. je uzeo Ruud). Feedback prompt dotad nije imao NI draw
+    # podatke NI zabranu izmišljanja povijesti, pa je pogrešku iz risk_notes samo pojačao.
+    draw_block = "Nema podataka."
+    try:
+        from agent.predictor import _format_draw_history
+        import datetime as _dt
+        _rows = db.get_tournament_draw(tournament, _dt.date.today().year - 3)
+        if _rows:
+            draw_block = _format_draw_history(_rows, p1, p2)
+    except Exception as e:
+        print(f"  Draw povijest za analizu gubitka nedostupna: {e}")
+
     prompt = f"""A tennis prediction model made an incorrect prediction. Analyse the error.
 
 MATCH: {p1} vs {p2} | {tournament} ({surface})
@@ -296,6 +323,19 @@ ACTUAL RESULT: {actual} won | Score: {score}
 STATED RISKS: {risk_notes}
 KEY FACTORS THAT DROVE THE PICK: {', '.join(key_factors) if key_factors else 'N/A'}
 {stats_block}
+TOURNAMENT DRAW HISTORY (verified API data, last 3 seasons — the ONLY authoritative source
+for past results at this event):
+{draw_block}
+
+STRICT ANTI-HALLUCINATION RULES:
+- Make NO claim about past titles, finals, or results at this tournament unless it appears
+  in the draw history above. If the draw history says a player LOST a round, do not describe
+  it as a win. If it shows "Nema podataka", make ZERO historical claims.
+- The STATED RISKS above were written before the match and may themselves contain errors.
+  Do NOT treat them as verified fact and do NOT amplify them — if a stated risk contradicts
+  the draw history, say so explicitly; that contradiction is itself a finding worth reporting.
+- Do not invent geographic, political, or biographical claims about either player.
+
 Write a concise but COMPLETE analysis (aim for ~200 words, never leave a sentence unfinished) explaining:
 1. Which factor was incorrectly assessed?
 2. What actually decided the match?

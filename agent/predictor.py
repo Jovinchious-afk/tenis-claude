@@ -133,10 +133,21 @@ STRICT ANTI-HALLUCINATION RULE:
 - Do NOT write "title defence", "defending champion", "winner last year", "finalist last year", or ANY historical tournament achievement for either player unless they are explicitly listed in the draw history above (e.g. "F: PlayerName def. ...").
 - If draw history shows "Nema podataka" — make ZERO historical tournament claims.
 - Do NOT invent geographic, political, or biographical claims beyond the literal Country value given above (e.g. "his home country borders the host nation", "he grew up nearby", "fans from the neighbouring country"). Documented error: the model claimed Slovakia borders Croatia to justify a "home crowd" narrative for a Slovak player at a Croatian tournament — Slovakia does not border Croatia. Use the Country field exactly as given; do not reason about geography, borders, or regional ties beyond it.
+- Read the draw history for what it ACTUALLY says about each player, including losses. Documented error: the model wrote "Van Assche won 2023 R16 here" when the draw history for that event explicitly recorded "2023 R16: Davidovich Fokina def. Luca Van Assche" — i.e. he lost that match. Before citing any past result, confirm the player's name is on the WINNING side of that specific line.
+- BALANCED CITATION (mandatory): if you cite tournament history as evidence FOR your pick, you must first check the SAME history for the opponent and for your pick's recent failures there, and mention anything comparable or stronger. Documented error: the model cited "Rublev won this title in 2023" to support picking Rublev, while the very same draw history in this prompt showed "Darderi: 2025 FW" (the opponent won the title more recently) and "2024 R16: Tirante def. Rublev" (our pick lost early on his most recent appearance). Citing only the half that supports your pick is a reasoning error even when the individual fact is true. Either present both sides or do not use tournament history as a key factor at all.
 Tournament record {player1} (aggregate W/L COUNTS ONLY — do not infer round achievements):
 {p1_tournament_history}
 Tournament record {player2} (aggregate W/L COUNTS ONLY — do not infer round achievements):
 {p2_tournament_history}
+
+=== CAREER FINALS EXPERIENCE (verified API counts) ===
+Relevant mainly from the quarterfinal onwards: how often each player has BEEN in a final and
+how often he CLOSED it. A player with many finals played and a high conversion rate handles
+closing pressure better than one with a poor conversion record; a player with no tour-level
+finals is unproven in that specific situation. Treat this as a supporting factor for late
+rounds (QF/SF/F), not as a driver in early rounds.
+{player1}: {p1_titles}
+{player2}: {p2_titles}
 {odds_alert}
 
 === SCOUTING PROFILES (secondary evidence — strict usage rules) ===
@@ -172,6 +183,22 @@ If stats and form favour the underdog, pick the underdog. Since we do not play s
 For handicap option: suggest only if the favourite is clearly dominant AND has no tiebreak profile.
 Round context is critical: early rounds allow larger upsets; later rounds (SF/F) favour proven performers. Adjust confidence accordingly.
 
+LATE-ROUND PRICING DISCIPLINE (QF/SF/F — measured on our own 2026 corpus, all surfaces):
+In quarterfinals, semifinals and finals our SHORT-PRICED picks have systematically
+underperformed their price while our higher-priced picks have outperformed theirs:
+  - late-round picks at odds <= 1.60: 66.1% win rate but -10.2% ROI (n=59)
+  - late-round picks at odds >  1.60: 57.1% win rate but +11.2% ROI (n=21)
+  - finals specifically are our worst round overall (55.6% win rate, -27.4% ROI, n=9)
+By the quarterfinal the field has narrowed to players who have all proven themselves that
+week, so the true gap between them is smaller than ratings and reputation suggest, and the
+market's favourite is more likely to be over-priced. Therefore, from the QF onwards:
+  - do NOT inflate confidence for a heavy favourite purely on rating/reputation — require
+    the same double-confirmation you would demand anywhere else;
+  - a well-supported underdog in a late round is a legitimate, historically profitable pick,
+    not a gamble to be avoided — if the evidence genuinely favours him, say so and price it;
+  - treat a final as the highest-variance round of the tournament, not the safest.
+This is a pricing/calibration rule, not an instruction to prefer underdogs blindly.
+
 Key analytical priorities:
 - Surface-specific ELO outweighs ATP ranking. A player ranked #15 with clay ELO 1750 is better on clay than a #8 with clay ELO 1680.
 - Hold% and serve dominance are the strongest predictors in ATP tennis (especially hard/grass). A player who wins 70%+ of serve points rarely loses service games.
@@ -181,6 +208,15 @@ Key analytical priorities:
 - Fatigue compounds across rounds: a player who played a 3-hour match yesterday is not the same as one who had 2 days rest, especially in BoF5.
 - Confidence calibration (CRITICAL): Historical data shows the model is systematically overconfident. Apply these strict rules: only reach 68% when 4+ independent factors clearly favour the same pick. Only exceed 70% when the edge is overwhelming across ALL factor categories. If 1-2 factors favour the pick but others are neutral or mixed — cap at 64%. A well-calibrated 68% pick should genuinely win ~68% of the time; if unsure, go lower.
 {surface_specific_rules}
+
+INTERNAL CONSISTENCY (mandatory): "risk_notes" and "key_factors" must not contradict each
+other. Documented error: risk_notes said "Shevchenko fresher (2 vs 13 rest days)" while
+key_factors in the SAME analysis said "Struff's 13 days rest — fatigue factor favours Struff";
+the player with 2 days rest was labelled the fresher one. Before returning, re-read your
+risk_notes against your key_factors and the data above: every name, number and direction
+("fresher", "better", "more rested") must point the same way in both fields. If a field is
+too short to state the comparison correctly, name the player the risk applies TO rather than
+compressing it into an ambiguous phrase.
 
 Respond ONLY in the following JSON format (no additional text):
 {{
@@ -451,7 +487,7 @@ treat them as hard constraints, not guidelines.
 # Hard pravila v1 — pisana 2026-07-18 PRIJE prvog hard picka (korpus: 0 hard mečeva).
 # Izvor: revizija 187 unikatnih grass+clay pickova (33 tiketa, 2W-31L) + poznate
 # razlike podloga. Svi pragovi su POČETNI i revidiraju se nakon prvih hard tjedana
-# (Washington/Los Cabos/Montreal). Struktura tiketa (korisnikova odluka): 6.5-40, 4-6 parova.
+# (Washington/Los Cabos/Montreal). Struktura tiketa (korisnik, 26.07.): 6.0-40, 4-6 parova.
 _HARD_RULES_V1 = """
 === HARD-SPECIFIC CALIBRATION RULES v1 (apply these STRICTLY over the general rules above) ===
 These rules are transferred from a full audit of 187 resolved grass+clay picks (our model has
@@ -673,6 +709,8 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         p2_tournament_history=_format_tournament_record(p2.get("tournament_record", {})),
         p1_scouting_block=_format_scouting(p1.get("scouting") or {}),
         p2_scouting_block=_format_scouting(p2.get("scouting") or {}),
+        p1_titles=_format_titles(p1.get("titles") or {}),
+        p2_titles=_format_titles(p2.get("titles") or {}),
         odds_alert=_odds_alert(odds_p1, odds_p2, match["player1"], match["player2"]),
 
         w_elo_ranking=weights.get("elo_ranking", 22),
@@ -984,6 +1022,26 @@ def _format_h2h_stats(h2h: dict, player1: str, player2: str) -> str:
 # legenda u Excelu kaže za njih "do NOT trust or fill from memory". Umjesto profila ide
 # eksplicitna "no reliable scouting" poruka koja modelu brani da rupu popuni iz vlastite memorije.
 _SCOUTING_MIN_CONFIDENCE = {"High", "Med-High", "Med", "Med-Low"}
+
+
+def _format_titles(t: dict) -> str:
+    """Karijerna finala po razini (C1, 26.07.2026). titlesWon+titlesLost = odigrana finala,
+    pa dobivamo i KOLIKO ih je igrao i KOLIKO ih je zatvorio. Relevantno za QF/SF/F."""
+    if not t:
+        return "N/A"
+    mw, ml = t.get("main_won", 0), t.get("main_lost", 0)
+    cw, cl = t.get("ch_won", 0), t.get("ch_lost", 0)
+    main_tot, ch_tot = mw + ml, cw + cl
+    if main_tot == 0 and ch_tot == 0:
+        return "No tour-level finals on record"
+    parts = []
+    if main_tot:
+        parts.append(f"ATP/Masters finals: {main_tot} played, {mw} won ({mw/main_tot*100:.0f}% converted)")
+    else:
+        parts.append("ATP/Masters finals: none")
+    if ch_tot:
+        parts.append(f"Challenger finals: {ch_tot} played, {cw} won ({cw/ch_tot*100:.0f}% converted)")
+    return " | ".join(parts)
 
 
 def _format_scouting(s: dict) -> str:

@@ -39,6 +39,13 @@ CREATE TABLE IF NOT EXISTS ticket_matches (
     external_match_id VARCHAR(200),
     player1 VARCHAR(150) NOT NULL,
     player2 VARCHAR(150) NOT NULL,
+    -- API player ID-evi, spremljeni pri kreiranju tiketa (2026-07-26, A1). Bez njih evening
+    -- update ovisi o tome da turnir još postoji u fixtures feedu — 25.07.2026 je Generali Open
+    -- Kitzbühel nestao iz feeda pa se Bublik-Halys nije mogao razriješiti. Postojeća baza:
+    --   ALTER TABLE ticket_matches ADD COLUMN IF NOT EXISTS player1_id VARCHAR(30);
+    --   ALTER TABLE ticket_matches ADD COLUMN IF NOT EXISTS player2_id VARCHAR(30);
+    player1_id VARCHAR(30),
+    player2_id VARCHAR(30),
     pick VARCHAR(150) NOT NULL,
     odds DECIMAL(10,4) NOT NULL,
     match_date DATE NOT NULL,

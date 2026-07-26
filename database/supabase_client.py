@@ -145,9 +145,24 @@ def delete_ticket(ticket_id: str) -> bool:
 
 # ── Ticket Matches ────────────────────────────────────────────────────────────
 
+# Stupci dodani 2026-07-26 (A1) koji možda još ne postoje na starijim instancama baze.
+# Ako insert padne zbog njih, ponavljamo bez njih — spremanje tiketa NIKAD ne smije pasti
+# zbog opcionalnog polja (vidi ALTER TABLE u database/schema.sql).
+_OPTIONAL_TM_COLS = ("player1_id", "player2_id")
+
+
 def save_ticket_matches(matches: list) -> None:
-    if matches:
-        _insert("ticket_matches", matches)
+    if not matches:
+        return
+    result = _insert("ticket_matches", matches)
+    if result:
+        return
+    # Fallback: možda tablica nema opcionalne stupce — probaj bez njih
+    stripped = [{k: v for k, v in m.items() if k not in _OPTIONAL_TM_COLS} for m in matches]
+    if stripped != matches:
+        print("  Upis tiketa bez player1_id/player2_id (stupci ne postoje — pokreni ALTER TABLE "
+              "iz database/schema.sql da razrješavanje rezultata bude otpornije).")
+        _insert("ticket_matches", stripped)
 
 
 def update_match_result(match_id: str, result: str, actual_winner: str,
@@ -428,12 +443,19 @@ def cleanup_old_screenshot_odds(keep_from_date: str) -> int:
 # ── Tournament History (draw results — F/SF/QF/R16, zadnje 3 sezone) ─────────
 
 def save_tournament_history(records: list) -> int:
-    """Batch upsert draw rezultata turnira. Vraća broj stvarno upsertanih redaka."""
+    """Batch upsert draw rezultata turnira. Vraća broj stvarno upsertanih redaka.
+
+    fetched_at se OSVJEŽAVA pri svakom upsertu (A5, 26.07.2026). Prije se slao samo pri
+    prvom insertu, pa je ostajao zamrznut na datumu prvog dohvata — zbog čega tjedni
+    throttle u has_tournament_history nikad ne bi resetirao brojač i turnir bez najnovije
+    sezone (npr. Estoril, koji u API-ju nema 2025) bi se opet dohvaćao svaki dan."""
     if not records:
         return 0
     _DB_COLS = {"tournament_name", "season_id", "season_year", "round_name",
                 "winner_name", "loser_name", "score"}
-    clean = [{k: v for k, v in r.items() if k in _DB_COLS} for r in records]
+    _now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    clean = [{**{k: v for k, v in r.items() if k in _DB_COLS}, "fetched_at": _now}
+             for r in records]
     saved = 0
     for i in range(0, len(clean), 50):
         batch = clean[i:i + 50]
@@ -469,21 +491,42 @@ def get_tournament_draw(tournament_name: str, min_year: int) -> list:
 
 
 def has_tournament_history(tournament_name: str) -> bool:
-    """Provjeri postoje li draw podaci za prošlu godinu — ako ne, treba re-fetch.
-    Koristi (current_year - 1) kao provjeru svježine: kad nova sezona završi,
-    idući run automatski dohvaća i sprema nove podatke bez ručne intervencije."""
+    """Provjeri postoje li upotrebljivi draw podaci — ako ne, treba re-fetch.
+
+    Prije (do 26.07.2026) je tražio STROGO prošlu sezonu (current_year - 1). Problem: neki
+    turniri tu sezonu jednostavno nemaju u API-ju (Millennium Estoril Open ima 2022/2023/2024,
+    2025. ne postoji), pa je provjera vraćala False svaki dan → puni re-fetch i re-upsert
+    istih ~45 zapisa SVAKI daily run, a 2025. se ionako nikad nije pojavila.
+
+    Sada: dovoljno je da postoji BILO KOJA sezona unutar zadnje 3 (A5). Time se gubi
+    automatski re-fetch čim nova sezona završi, pa se to rješava zasebno: ako su podaci
+    stariji od (current_year - 1), dopuštamo jedan re-fetch pokušaj TJEDNO umjesto dnevno.
+    """
     base_name = tournament_name.split(" - ")[0].strip()
-    last_year = datetime.date.today().year - 1
+    today = datetime.date.today()
     try:
         rows = _select(
             "tournament_history",
-            select="id",
+            select="id,season_year,fetched_at",
             filters={
                 "tournament_name": f"ilike.%{base_name}%",
-                "season_year": f"eq.{last_year}",
+                "season_year": f"gte.{today.year - 3}",
             },
+            order="season_year.desc",
             limit=1,
         )
-        return bool(rows)
+        if not rows:
+            return False  # nema ničega → dohvati
+        newest_season = rows[0].get("season_year") or 0
+        if newest_season >= today.year - 1:
+            return True  # svježe, ništa ne treba
+        # Podaci postoje ali su stariji (npr. Estoril bez 2025) — pokušaj re-fetch najviše
+        # jednom tjedno umjesto svaki dan, da se ne troše API pozivi uzalud.
+        fetched = str(rows[0].get("fetched_at") or "")[:10]
+        try:
+            age_days = (today - datetime.date.fromisoformat(fetched)).days
+        except ValueError:
+            return False  # nepoznata starost → dopusti dohvat (kao i prije izmjene)
+        return age_days < 7
     except Exception:
         return False

@@ -31,28 +31,30 @@ SURFACE_MAP = {
     "carpet": "Carpet",
 }
 
+# Struktura tiketa — UJEDNAČENA za sve podloge (korisnikova odluka, 26.07.2026):
+# 4-6 parova, kombinirana kvota 6.0-40.0. Prije: 4-7 parova / 6.5-40 uz surface override
+# za clay (6.5-30, max 6) i hard (max 6). Razlog ujednačavanja: manje parova = manja
+# izloženost akumulator-matematici, a jedinstvena pravila su lakša za praćenje.
+# Kad ima premalo mečeva za 4 para, sustav i dalje ide u analysis-only (nepromijenjeno).
 TICKET_CONFIG = {
     "stake": 50.0,
     "min_matches": 4,
-    "max_matches": 7,
-    "min_combined_odds": 6.5,
+    "max_matches": 6,
+    "min_combined_odds": 6.0,
     "max_combined_odds": 40.0,
     "min_confidence": 63.0,
     "fallback_confidence": 58.0,
     "last_resort_confidence": 55.0,
 }
 
-# Surface-specifični overridi TICKET_CONFIG-a — primjenjuju se kad su SVI kandidati
-# tiketa na toj podlozi (clay revizija 2026-07-11, n=32 pickova / 7 tiketa 0/7):
-# clay 6.5-30 umjesto 6.5-40 i max 6 parova umjesto 7 — visoke kombinirane kvote
-# na clayu su se gradile gomilanjem dead-zone (1.50-1.90) pickova koji pobjeđuju 27%.
-# Hard (revizija 2026-07-18, korisnikova odluka): kombinirana OSTAJE 6.5-40, ali
-# 4-6 parova umjesto 4-7 — manje parova = manja izloženost akumulator-matematici.
-# "hard" ključ hvata i "Indoor Hard" (substring match u _apply_surface_overrides).
-SURFACE_TICKET_OVERRIDES = {
-    "clay": {"max_combined_odds": 30.0, "max_matches": 6},
-    "hard": {"max_matches": 6},
-}
+# Surface-specifični overridi UKINUTI 26.07.2026 (korisnikova odluka): sve podloge sada
+# dijele istu strukturu iz TICKET_CONFIG-a. Prazan dict znači "nema override-a" i
+# _apply_surface_overrides tiho prolazi bez ikakve izmjene.
+# NAPOMENA za buduće revizije: EV pri našem stvarnom pogotku (~63% po picku) traži
+# kombiniranu kvotu ~6.0 za 4 para, ~9.3 za 5 i ~14.6 za 6 parova da bi tiket bio na nuli.
+# Fiksni donji prag 6.0 znači da su tiketi s 5-6 parova pri dnu raspona matematički
+# nepovoljni — kandidat za sljedeću reviziju (min_combined_odds koji skalira s brojem nogu).
+SURFACE_TICKET_OVERRIDES = {}
 
 # Max kandidata po turniru po danu (danas vs sutra)
 # Ovo je pre-filter PRIJE kombinatorike — ne limit na tiketu

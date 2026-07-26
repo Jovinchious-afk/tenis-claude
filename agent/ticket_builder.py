@@ -1,6 +1,6 @@
 """
 Ticket Builder: od liste predikcija gradi optimalni tiket.
-Kriteriji: 4-7 mečeva, ukupna kvota 8-15, max 2 mača istog turnira.
+Kriteriji: 4-6 mečeva, kombinirana kvota 6.0-40 (jedinstveno za sve podloge, 26.07.2026).
 Claude Sonnet piše finalni write-up.
 """
 import os
@@ -391,6 +391,10 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
             "handicap_option": pred.get("handicap_option"),
             "key_factors": pred.get("key_factors", []),
             "external_match_id": m.get("external_id", ""),
+            # API player ID-evi (A1, 26.07.2026): evening update ih koristi za razrješavanje
+            # rezultata i kad turnir nestane iz fixtures feeda (slučaj Bublik-Halys 25.07.).
+            "player1_id": str(m.get("player1_id") or "") or None,
+            "player2_id": str(m.get("player2_id") or "") or None,
             "result": "pending",
         })
 
@@ -412,8 +416,9 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
 
 def _apply_surface_overrides(cfg: dict, candidates: list) -> dict:
     """Primijeni surface-specifične ticket limite kad su SVI kandidati na istoj podlozi.
-    Clay (revizija 2026-07-11, potvrdio korisnik): kombinirana kvota 6.5-30 i max 6 parova
-    — kvote 30+ na clayu su se dosezale samo gomilanjem dead-zone/underdog pickova."""
+    OD 26.07.2026 je SURFACE_TICKET_OVERRIDES prazan (sve podloge dijele istu strukturu:
+    4-6 parova, kombinirana 6.0-40), pa ova funkcija efektivno vraća cfg nepromijenjen.
+    Zadržana je namjerno kao mehanizam za slučaj da se surface-specifični limiti vrate."""
     from config.model_config import SURFACE_TICKET_OVERRIDES
     if not candidates:
         return cfg
@@ -606,7 +611,7 @@ Review the ticket holistically as an experienced tennis analyst. You may:
 A. CONFIRM — keep as-is
 B. MODIFY — replace 1-2 picks if tennis reasoning clearly overrules the math
 C. REDUCE — remove the weakest link if it makes the ticket fragile (never below 4 picks)
-D. FORCE — if ticket is weak, build the best possible 4-7 pick ticket from all available
+D. FORCE — if ticket is weak, build the best possible ticket from all available (respect the pick-count limits below)
 
 CHECK FOR: hidden fatigue, false recent form (weak opponents), surface/style mismatch, overlapping risk (too many picks with same vulnerability), data gaps (ELO 1500), BoF5 stamina implications, H2H small sample overweighting.
 
@@ -690,7 +695,7 @@ Respond ONLY in this JSON format:
                         final_combo.append(p)
                         break
 
-        # Validate result — must be 4-7 picks and odds in range
+        # Validate result — must satisfy cfg pick-count limits and odds range
         if len(final_combo) >= cfg["min_matches"]:
             rev_odds = combined_odds([_pick_odds(p) for p in final_combo])
             if cfg["min_combined_odds"] <= rev_odds <= cfg["max_combined_odds"]:
@@ -774,7 +779,7 @@ def build_analysis_only_ticket(predictions: list) -> dict:
     Builds an analysis-only entry when there aren't enough matches for a full ticket.
     Max 12 picks, sorted by odds descending (higher-odds matches make the cut),
     picks below 1.06 excluded. Tracks results, never marks won/lost.
-    Also computes a HYPOTHETICAL "forced risk" ticket (4-7 picks, combined 9-40) for the
+    Also computes a HYPOTHETICAL "forced risk" ticket (limits from TICKET_CONFIG) for the
     EMAIL ONLY — what we'd play if we absolutely had to bet today. Not saved to DB.
     """
     valid = [p for p in predictions
@@ -806,17 +811,32 @@ def build_analysis_only_ticket(predictions: list) -> dict:
             "handicap_option": pred.get("handicap_option"),
             "key_factors": pred.get("key_factors", []),
             "external_match_id": m.get("external_id", ""),
+            # API player ID-evi (A1, 26.07.2026): evening update ih koristi za razrješavanje
+            # rezultata i kad turnir nestane iz fixtures feeda (slučaj Bublik-Halys 25.07.).
+            "player1_id": str(m.get("player1_id") or "") or None,
+            "player2_id": str(m.get("player2_id") or "") or None,
             "result": "pending",
         })
 
     summary = _generate_analysis_only_summary(ticket_matches)
 
-    # Hipotetski "kad bih baš morao riskirati" tiket: najbolja kombinacija 4-7 parova
-    # (clay: 4-6, kvota 6.5-30 — surface override), iz tih 12 (ignorira conf floor —
-    # forsirani scenarij). _find_best_combination boduje po KVALITETI, ne po najvišoj kvoti.
-    # Samo za email, NE sprema se u bazu (app ostaje čist).
-    cfg = _apply_surface_overrides(dict(TICKET_CONFIG), valid)
-    hypo_combo = _find_best_combination(valid, cfg)
+    # Hipotetski "kad bih baš morao riskirati" tiket: najbolja kombinacija iz gornje liste,
+    # bez conf floora (forsirani scenarij). _find_best_combination boduje po KVALITETI, ne
+    # po najvišoj kvoti. Samo za email, NE sprema se u bazu (app ostaje čist).
+    #
+    # B (26.07.2026): hipotetski tiket sada prolazi kroz _selection_ok — isti deterministički
+    # filteri kao pravi tiket (Fery-veto, mrtve zone, GS pragovi, both-declining, clay fatigue).
+    # Povod: 23.-25.07. su bili analysis-only dana, a Halys nas je u istom turniru srušio TRI
+    # puta zaredom jer se ovdje veto nikad nije primjenjivao. Široka lista analiziranih mečeva
+    # (gore) namjerno OSTAJE bez tih filtera — ona je informativna; hipotetski tiket je
+    # preporuka koju korisnik stvarno čita, pa mora poštovati ista pravila kao pravi tiket.
+    hypo_pool = [p for p in valid if _selection_ok(p)]
+    n_filtered = len(valid) - len(hypo_pool)
+    if n_filtered:
+        print(f"  Hipotetski tiket: izbačeno {n_filtered} pickova determinističkim filterima "
+              f"(Fery-veto / mrtve zone / GS prag / declining / fatigue).")
+    cfg = _apply_surface_overrides(dict(TICKET_CONFIG), hypo_pool or valid)
+    hypo_combo = _find_best_combination(hypo_pool, cfg)
     hypothetical_summary = _generate_hypothetical_summary(hypo_combo, cfg)
 
     return {
@@ -836,7 +856,7 @@ def build_analysis_only_ticket(predictions: list) -> dict:
 
 def _generate_hypothetical_summary(combo: Optional[list], cfg: dict) -> str:
     """Email-only: par rečenica u glasu 'lovca na rizik' o tiketu koji bismo odigrali KAD
-    bismo baš morali (4-7 parova, kombinirana 9-40). Pošten 'preskočio bih' ako nije moguće."""
+    bismo baš morali (granice iz TICKET_CONFIG). Pošten 'preskočio bih' ako nije moguće."""
     if not combo:
         return (
             "Even forcing it, today's slate can't reach the minimum combined odds of "

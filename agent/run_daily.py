@@ -161,7 +161,7 @@ def main():
     analysis_only_mode = total_matches < 4
     if analysis_only_mode:
         print(f"Samo {total_matches} meča — analysis-only mode (QF/SF/F faza). Tiket neće biti kreiran.")
-    # Jedinstvena, stabilna tvrda granica kombinirane kvote: 6.5-40 (iz TICKET_CONFIG).
+    # Jedinstvena, stabilna tvrda granica kombinirane kvote: 6.0-40 (iz TICKET_CONFIG).
     # Nema više posebnog spuštanja za 4 meča — granica je uvijek ista.
     min_odds_override = None
 
@@ -334,6 +334,10 @@ def main():
             p1_tournament_rec = df.get_player_tournament_record(p1_id, tournament_id) if p1_id and tournament_id else {}
             p2_tournament_rec = df.get_player_tournament_record(p2_id, tournament_id) if p2_id and tournament_id else {}
 
+            # Karijerna finala (C1, 26.07.2026) — iskustvo u završnicama, cached po igraču
+            p1_titles = df.get_player_titles(p1_id) if p1_id else {}
+            p2_titles = df.get_player_titles(p2_id) if p2_id else {}
+
             # Avg opponent ELO last 10 — quality-adjusted form signal
             p1_avg_opp_elo = _avg_opponent_elo(p1_form.get("matches", []), elo_data)
             p2_avg_opp_elo = _avg_opponent_elo(p2_form.get("matches", []), elo_data)
@@ -424,6 +428,7 @@ def main():
                        "decider_record": p1_decider,
                        "previous_tournament_level": p1_prev_tourn_level,
                        "scouting": _find_scouting(match["player1"]),
+                       "titles": p1_titles,
                        }
 
             p2_data = {**p2_info, **p2_stats,
@@ -445,6 +450,7 @@ def main():
                        "decider_record": p2_decider,
                        "previous_tournament_level": p2_prev_tourn_level,
                        "scouting": _find_scouting(match["player2"]),
+                       "titles": p2_titles,
                        }
 
             _base_tname = match.get("tournament", "").split(" - ")[0].strip()
@@ -888,7 +894,7 @@ def _send_no_ticket_email(date, predictions: list) -> None:
     <p>Analizirani mečevi: {len(predictions)}<br>
     Valjane analize: {valid_count}<br>
     Visoki confidence (&ge;63%): {high_conf}<br>
-    Problem: nije moguće složiti kombinaciju s kvotom 8-15 u 4-7 mečeva</p>
+    Problem: nije moguće složiti valjanu kombinaciju unutar zadanih granica</p>
     </body></html>"""
     _send_email(f"⚠️ Tenis Agent — Nema tiketa za {format_date_hr(date)}", body)
 
