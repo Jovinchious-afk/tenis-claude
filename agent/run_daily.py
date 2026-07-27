@@ -109,11 +109,25 @@ def main():
     # NIJE kvalifikacija: korisnik screenshota samo mečeve glavnog ždrijeba, nikad
     # kvalifikacije. _infer_rounds to koristi da prepozna API-jev pogrešan Q-tag
     # (npr. Umag QF označen kao Q2) i izvede pravu rundu iz broja mečeva.
-    screenshot_odds = {}
-    screenshot_odds.update(df.get_screenshot_odds(format_date(today)))
-    screenshot_odds.update(df.get_screenshot_odds(format_date(tomorrow)))
+    # Danas/sutra drže se odvojeno (27.07.2026) — screenshot-isključivost ispod mora
+    # znati JE LI konkretan dan uopće screenshotan, spojeni skup to ne bi znao reći.
+    today_str = format_date(today)
+    tomorrow_str = format_date(tomorrow)
+    screenshot_today = df.get_screenshot_odds(today_str)
+    screenshot_tomorrow = df.get_screenshot_odds(tomorrow_str)
+    screenshot_odds = {**screenshot_today, **screenshot_tomorrow}
     if screenshot_odds:
         print(f"  Učitano {len(screenshot_odds)} screenshot kvota (imaju prioritet nad Odds API).")
+
+    # Screenshot-isključivost (korisnikov zahtjev 27.07.2026): kad je dan screenshotan,
+    # mečevi koji NISU na screenshotu se izbacuju PRIJE analize — ne samo s tiketa/
+    # analysis-only, nego iz cijele obrade (štedi ELO/kvote/vrijeme/Claude pozive).
+    # Povod: The Odds API je uživo vratio prave (ali drukčije!) kvote za Washington —
+    # bez ovog filtera, mečevi koje korisnik NIJE screenshotao mogli su ući na tiket
+    # čim ih Odds API "pokrije", oslanjajući se samo na sretnu okolnost da manji
+    # turniri dosad nisu imali live tržišta. Vidi _gate_by_screenshot.
+    all_matches = _gate_by_screenshot(all_matches, screenshot_today, screenshot_tomorrow,
+                                      today_str, tomorrow_str)
 
     # Fix unreliable round labels using match count per tournament per day
     all_matches = _infer_rounds(all_matches, screenshot_odds)
@@ -192,9 +206,8 @@ def main():
     # 6b. Dohvati vremenske uvjete za svaki turnir (jednom po gradu)
     print("Dohvaćam vremenske uvjete...")
     # Cache by (city, date) so today and tomorrow get separate weather
+    # (today_str/tomorrow_str already defined above, before the screenshot gate)
     weather_cache = {}
-    today_str = format_date(today)
-    tomorrow_str = format_date(tomorrow)
     for match in all_matches:
         city = _city_for_weather(match.get("tournament", ""))
         match_date = match.get("date", today_str)
@@ -778,6 +791,50 @@ def _city_for_weather(tournament_name: str) -> str:
         if tournament_name.endswith(suffix):
             return tournament_name[:-len(suffix)].strip()
     return tournament_name.strip()
+
+
+def _gate_by_screenshot(matches: list, screenshot_today: dict, screenshot_tomorrow: dict,
+                         today_str: str, tomorrow_str: str) -> list:
+    """Screenshot-isključivost (korisnikov zahtjev 27.07.2026): ako je korisnik za dan D
+    uploadao barem jedan screenshot par, SAMO ti parovi tog dana smiju dalje u obradu —
+    svi ostali mečevi tog dana (bez obzira što o njima kaže The Odds API ili API-jeva
+    round-oznaka) se izbacuju ovdje, prije ELO/kvota/vremena/Claude analize. Dan bez
+    ikakvog uploada ostaje nepromijenjen (Odds API fallback kao dosad).
+
+    Provjera imena ide preko SPOJENOG (danas+sutra) skupa, NE strogo po danu koji API
+    prijavi za taj meč: Washington/Los Cabos večernji mečevi znaju po satu ispasti u
+    idući Zagreb kalendarski dan (SAD zapadna obala je ~9-10h iza), pa API zna meč koji
+    je korisnik screenshotao pod "danas" označiti sutrašnjim datumom. Isti par ne igra
+    dva puta unutar ta dva dana (eliminacijski turnir), pa spajanje ne nosi rizik.
+    """
+    gate_today = bool(screenshot_today)
+    gate_tomorrow = bool(screenshot_tomorrow)
+    if not gate_today and not gate_tomorrow:
+        return matches
+
+    pool = {**screenshot_today, **screenshot_tomorrow}
+
+    def _in_pool(m: dict) -> bool:
+        return bool(df.find_match_odds(m.get("player1", ""), m.get("player2", ""),
+                                       {}, screenshot_odds=pool))
+
+    kept, dropped = [], []
+    for m in matches:
+        d = m.get("date", "")
+        gate_active = (d == today_str and gate_today) or (d == tomorrow_str and gate_tomorrow)
+        if gate_active and not _in_pool(m):
+            dropped.append(m)
+        else:
+            kept.append(m)
+
+    if dropped:
+        tours = sorted({m.get("tournament", "").split(" - ")[0] for m in dropped})
+        print(f"  Screenshot-isključivost: izbačeno {len(dropped)} meč(eva) izvan "
+              f"screenshota ({', '.join(tours)}):")
+        for m in dropped:
+            print(f"    - {m.get('date')} {m.get('tournament', '')} {m.get('round', '')} "
+                  f"{m.get('player1')} vs {m.get('player2')}")
+    return kept
 
 
 def _infer_rounds(matches: list, screenshot_odds: dict = None) -> list:

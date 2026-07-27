@@ -9,6 +9,41 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-07-27 — Screenshot-isključivost: mečevi izvan screenshota se izbacuju prije analize
+
+**Povod:** korisnik pitao je li moguće da se meč izvan njegovih uploadanih screenshot
+kvota ipak provuče na analysis-only ili tiket. Provjera je pokazala da JEST — i to
+uživo, ne teoretski: The Odds API je taj dan vratio 28 stvarnih tržišta za Washington/
+Los Cabos, uključujući mečeve koje korisnik NIJE screenshotao, s cijenama koje se za
+zajedničke mečeve razlikuju od SuperSporta (npr. Arnaldi-Musetti 2.65/1.47 na screenshotu
+naspram 2.42/1.69 na Odds API-ju). Dosadašnja "zaštita" počivala je isključivo na sretnoj
+okolnosti da The Odds API dotad nije imao tržišta za manje clay ATP 250 turnire —
+pretpostavka koja se raspala na prvom većem hard turniru. Dodatno, `build_analysis_only_
+ticket` nije ni provjeravao postoji li stvarna kvota (`_pick_odds` tiho vraća 1.50 kad
+kvote nema), pa je isti mehanizam prije proizveo šest lažnih Washington kvalifikacijskih
+pickova (vidi zapis od 26.07.).
+
+**Pravilo:** ako je korisnik za dan D (danas ILI sutra) uploadao barem jedan screenshot
+par, SAMO ti parovi tog dana smiju dalje u obradu — svi ostali mečevi tog dana se
+izbacuju PRIJE ELO/kvota/vremena/Claude analize (ne samo prije selekcije na tiket), bez
+obzira što o njima kaže The Odds API ili API-jeva round-oznaka. Dan bez ikakvog uploada
+ostaje nepromijenjen (Odds API fallback kao dosad).
+
+**Cross-day nijansa (korisnikov uvid):** Washington/Los Cabos večernji mečevi znaju po
+satu ispasti u idući Zagreb kalendarski dan (SAD zapadna obala ~9-10h iza), pa API zna
+meč koji je korisnik screenshotao pod "danas" označiti sutrašnjim datumom. Zato provjera
+imena ide preko SPOJENOG (danas+sutra) skupa, dok je UKLJUČENOST pravila i dalje po
+danu — isti par ne igra dvaput unutar ta dva dana (eliminacijski turnir), pa spajanje ne
+nosi rizik krivog poklapanja.
+
+**Implementacija:** `agent/run_daily.py` — nova `_gate_by_screenshot()`, pozvana odmah
+nakon učitavanja screenshot kvota, prije `_infer_rounds`. `screenshot_today`/
+`screenshot_tomorrow` sada odvojeni (prije su se odmah spajali). Testirano na stvarnim
+podacima 27.-28.07.: filter je uživo izbacio 5 Los Cabos mečeva koje korisnik nije
+screenshotao te sezone, bez utjecaja na 27 mečeva koje jest.
+
+---
+
 ## 2026-07-26 (kasna večer) — Hard zona ublažena po ponovnom mjerenju + model_stamp u snapshotu
 
 **Povod:** korisnik pitao stojim li i dalje iza potpune hard zabrane 1.43-1.60 nakon
