@@ -9,6 +9,90 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-07-31 — Kalibracija spašena od tihe korupcije + 4 nova izvora signala
+
+**Povod:** korisnik tražio analizu Tommy Paul gubitka i obrazaca prvog hard tjedna. Usput
+otkriven ozbiljan bug koji je mijenjao tumačenje svega ostalog.
+
+### A. KRITIČNO: `analyzed_matches` je bio 70% korumpiran na hardu
+
+`actual_winner` u 56 redaka nije bio nijedan od dvojice igrača u meču — npr.
+"Kamil Majchrzak vs Tommy Paul" → `actual_winner = 'Quentin Halys'` (igrač s clay turnira).
+
+**Uzrok:** API-jev fixture `id` NIJE stabilan — s vremenom se prenamjenjuje drugom meču.
+Dokaz: `id=1216` je u našoj bazi Majchrzak-Paul (28.07.), a u API-ju danas pripada meču
+Echargui-Lee (25.07.). Kako se koristio kao `on_conflict` ključ pri upsertu, reciklirani ID
+je prepisao imena i predikciju NOVIM mečem, dok su `actual_winner`/`prediction_correct`
+ostali od STAROG. Posljedica: hard kalibracija 70,5% neispravna (55/78), hard okidač
+revalidacije brojao smeće, auto-feedback učio iz izmišljenih ishoda.
+
+**Popravak:**
+- `stable_match_key()` — ključ je sada `datum|igrac_a|igrac_b` (normalizirano, sortirano),
+  ovisi samo o stvarnom identitetu meča i ne može se reciklirati. Otporan na zamjenu p1/p2.
+- Sanity guard u `update_analyzed_match_result()`: pobjednik MORA biti jedan od dvojice
+  igrača, inače se zapis odbija uz upozorenje umjesto da tiho iskrivi korpus.
+- Migracija `scripts/migrate_analyzed_key.py`: obrisano 56 korumpiranih + 67 duplikata,
+  286 ključeva prepisano. Korpus poslije: **140 razriješenih (clay 91 / grass 36 / hard 13)**.
+- NAPOMENA: `ticket_matches` NIJE bio pogođen (koristi insert, ne upsert) — W/L i ROI su
+  cijelo vrijeme bili točni.
+
+### B. Obrasci prvog hard tjedna (12W-5L, flat ROI +1,9%)
+
+U **svih 5 gubitaka** rejting je bio glavni pokretač, a upozorenje uredno zapisano u
+`risk_notes` pa pregaženo. 4 od 5 bila su na 63-65% — ISPOD starog praga od 66% na kojem se
+double-confirmation uopće aktivirao. To je bila prava rupa.
+
+Provjerena i **opovrgnuta** lekcija iz auto-analize Lehecka gubitka ("dugi odmor = penal"):
+igrači s 23-28 dana odmora išli su **4W-1L**. Da smo je ugradili, izbacili bismo 4 dobitnika.
+Zaključak: auto-analize gubitaka pišu se na n=1 i sposobne su predložiti štetne izmjene.
+
+**Zona kvota 1.43-1.90 (max 1/tiket) validirana:** u zoni 3W-3L (50%, ROI −13,3%), izvan
+zone 9W-2L (82%, ROI +10,2%). Zadržana bez izmjene.
+
+### C. Nova/izmijenjena pravila (prompt-razina, težine NETAKNUTE)
+
+- **Pravilo 2 prepisano**: double-confirmation sada vrijedi od **63%** (ne 66%), i tri
+  kategorije su strogo odvojene — ELO + ranking + surface record su **JEDNA** kategorija
+  (model ih je razbijao na više "potvrda"); serve/return se broji tek od **≥3pp hold** ili
+  **≥2pp return** (Mensikov 1,2pp return "edge" bio je šum). Jedna kategorija sama prolazi
+  samo ako je golema (ELO ≥250 ili record gap ≥15pp), i tada max 64%.
+- **Pravilo 15 RATING-vs-REALITY**: −4pp ako naš pick ima hard win-rate ≤50% (Brooksby) ili
+  protivnik ≥70% (Gea 76,7%). Odbitak, ne veto.
+- **Pravilo 16 CONVERGED SERVE**: kad su hold% unutar 3pp, servis se NEUTRALIZIRA kao
+  potvrda i odluku preuzimaju vlastiti tiebreak/decider recordi; cap 62% ako pick ne vodi u
+  oba. Namjerno NE capira sam po sebi — Norrie (konvergiran servis, ELO 284 + forma) dobio
+  je 6-1 6-0 i mora proći. Dizajn testiran: hvata 4 od 5 gubitaka, gubi 1 od 12 dobitaka.
+
+### D. key_factors standardiziran (5 fiksnih + 1 slobodna)
+
+Uzrok varijacije: JSON predložak je doslovno pisao `["factor1","factor2","factor3"]`.
+Izmjereno: analize s 3 stavke išle su **3W-3L (50%)**, s 5+ **9W-2L (82%)**.
+Sada su polja 1-5 obavezna (Rating / Serve-return / Form vs opponent quality / Style matchup
+/ Fatigue & conditions) uz obavezno "no data" kad podatka nema, a **6. je slobodna** —
+korisnikov zahtjev da se ne izgubi agentov vlastiti uvid; izričito potiče i argumente
+PROTIV vlastitog picka.
+
+### E. Četiri nova signala u promptu
+
+- **Vlastiti tiebreak record** (`_tiebreak_record`) — parsiran iz score stringova koje već
+  imamo, 0 API poziva. Dosad je postojao samo međusobni H2H tiebreak, koji je na n=1 šum.
+- **Deciding-set record** — postojao od 18.07. samo u snapshotu, sada ulazi u prompt.
+- **Brzina terena** (`get_court_pace`) — udio setova u tiebreaku po turniru, iz rezultata
+  sezone koje ionako dohvaćamo. Izmjereno: Washington 15,8% (fast), Los Cabos 10,9%
+  (medium), Estoril clay 7,5% (slow). Zamjenjuje dosadašnju procjenu "po reputaciji" u
+  pravilu 14.
+- **Lokalno vrijeme + sesija** (`local_match_time`) — `timeGame` iz API-ja je UVIJEK null,
+  pa je `context_snapshot.match_time` bio prazan otkad postoji (18.07.). Pravi izvor je puni
+  UTC timestamp u polju `date`; pretvara se u lokalni sat turnira preko mape gradova.
+  Korisnikov nalaz: meč koji nama počinje u 4 ujutro u Washingtonu je popodnevna sesija po
+  suncu — vrijeme i sesija moraju se vezati na lokalni sat, ne naš.
+
+`max_tokens` za analizu 1500 → 2600: u dry-runu je 1 od 5 analiza pala na odrezan JSON zbog
+duljeg key_factors formata (odrezan odgovor = tiho preskočen meč).
+`context_snapshot` v4: + local_time, session, court_pace_label, p1/p2_tiebreak_record.
+
+---
+
 ## 2026-07-27 — Screenshot-isključivost: mečevi izvan screenshota se izbacuju prije analize
 
 **Povod:** korisnik pitao je li moguće da se meč izvan njegovih uploadanih screenshot

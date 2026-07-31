@@ -224,6 +224,26 @@ def main():
                 print(f"  {city} ({match_date}): {weather_str}")
             else:
                 weather_cache[cache_key] = "N/A"
+    # Lokalno vrijeme početka + sesija + brzina terena (31.07.2026, korisnikov zahtjev).
+    # Vrijeme se veže na LOKALNI sat mjesta gdje se meč igra, ne na naš zagrebački —
+    # meč koji nama počinje u 4 ujutro u Washingtonu je popodnevna sesija po suncu.
+    # Brzina terena se računa iz score stringova rezultata sezone (0 dodatnih API poziva).
+    for match in all_matches:
+        city = _city_for_weather(match.get("tournament", ""))
+        lt = df.local_match_time(match.get("start_utc", ""), city)
+        if lt:
+            match["local_time"] = lt["local_time"]
+            match["session"] = lt["session"]
+        cp = df.get_court_pace(match.get("tournament_id", ""), match.get("tournament", ""))
+        if cp:
+            match["court_pace_str"] = (f"{cp['tb_pct']}% of sets ({cp['label']} court, "
+                                       f"n={cp['sets']} sets this event)")
+            match["court_pace_label"] = cp["label"]
+    _n_lt = sum(1 for m in all_matches if m.get("local_time"))
+    _n_cp = sum(1 for m in all_matches if m.get("court_pace_str"))
+    print(f"  Lokalno vrijeme izračunato za {_n_lt}/{len(all_matches)} mečeva; "
+          f"brzina terena za {_n_cp}/{len(all_matches)}.")
+
     for match in all_matches:
         city = _city_for_weather(match.get("tournament", ""))
         match_date = match.get("date", today_str)
@@ -363,10 +383,13 @@ def main():
             p1_trend = _form_trend(p1_form.get("matches", []))
             p2_trend = _form_trend(p2_form.get("matches", []))
 
-            # Sirove varijable za buduću analizu (korisnikov prijedlog 2026-07-18) — NE ulaze
-            # u prompt niti u odluku, samo se bilježe u context_snapshot dok se ne skupi uzorak.
+            # decider_record je od 18.07. bio SAMO sirova varijabla u snapshotu; od 31.07.
+            # ulazi i u prompt (hard pravilo 16 — konvergiran servis se odlučuje u
+            # tiebreakovima i odlučujućem setu, pa ondje ovi zapisi nose odluku).
             p1_decider = _decider_record(p1_form.get("matches", []))
             p2_decider = _decider_record(p2_form.get("matches", []))
+            p1_tb = _tiebreak_record(p1_form.get("matches", []))
+            p2_tb = _tiebreak_record(p2_form.get("matches", []))
             p1_prev_tourn_level = _previous_tournament_level(p1_form.get("matches", []))
             p2_prev_tourn_level = _previous_tournament_level(p2_form.get("matches", []))
 
@@ -439,6 +462,7 @@ def main():
                        "tournament_path": p1_tourn_path,
                        "form_trend": p1_trend,
                        "decider_record": p1_decider,
+                       "tiebreak_record": p1_tb,
                        "previous_tournament_level": p1_prev_tourn_level,
                        "scouting": _find_scouting(match["player1"]),
                        "titles": p1_titles,
@@ -461,6 +485,7 @@ def main():
                        "tournament_path": p2_tourn_path,
                        "form_trend": p2_trend,
                        "decider_record": p2_decider,
+                       "tiebreak_record": p2_tb,
                        "previous_tournament_level": p2_prev_tourn_level,
                        "scouting": _find_scouting(match["player2"]),
                        "titles": p2_titles,
@@ -747,6 +772,44 @@ def _decider_record(matches: list) -> dict:
     čisti 3-0 sweep od pravog decidera u Bo5."""
     won = sum(1 for m in matches if m.get("sets_played") == 3 and m.get("won"))
     lost = sum(1 for m in matches if m.get("sets_played") == 3 and not m.get("won"))
+    return {"won": won, "lost": lost}
+
+
+def _tiebreak_record(matches: list) -> dict:
+    """Igračev VLASTITI tiebreak učinak iz rezultata zadnjih mečeva (31.07.2026).
+
+    Zašto: dosad smo imali samo MEĐUSOBNI tiebreak record iz H2H-a, koji je na malom
+    uzorku čisti šum — dokumentirano: "Mensik 100% vs Nakashima" temeljilo se na JEDNOM
+    ranijem meču i navedeno je kao potvrdni argument; pick je izgubio 7-6 3-6 6-4.
+    Hard pravilo 16 (konvergiran servis) treba pravi, vlastiti uzorak igrača.
+
+    Konvencija rezultata (provjerena na našim zapisima): score je zapisan iz perspektive
+    POBJEDNIKA meča — npr. Majchrzak d. Paul "7-5 7-6(4)". Zato se strana čita preko
+    zastavice `won`: ako je igrač dobio meč, prvi broj u setu je njegov; ako je izgubio,
+    prvi broj je protivnikov. Bez API poziva — koristi podatke koje već imamo."""
+    won = lost = 0
+    for m in matches:
+        score = str(m.get("score") or "")
+        if "(" not in score:
+            continue
+        player_is_perspective_owner = bool(m.get("won"))
+        for token in score.split():
+            if "(" not in token:
+                continue
+            games = token.split("(")[0]
+            if "-" not in games:
+                continue
+            a, _, b = games.partition("-")
+            try:
+                a, b = int(a), int(b)
+            except ValueError:
+                continue
+            perspective_won_set = a > b
+            player_won_tb = (perspective_won_set == player_is_perspective_owner)
+            if player_won_tb:
+                won += 1
+            else:
+                lost += 1
     return {"won": won, "lost": lost}
 
 

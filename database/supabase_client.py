@@ -335,8 +335,40 @@ def get_performance_history(days: int = 60) -> list:
 
 # ── Analyzed Matches ──────────────────────────────────────────────────────────
 
+def stable_match_key(match_date, player1: str, player2: str) -> str:
+    """Stabilan, nepromjenjiv ključ meča: datum + oba igrača (normalizirano, sortirano).
+
+    KRITIČNO (31.07.2026): dosad se kao ključ upserta koristio API-jev fixture `id`, ali
+    on NIJE stabilan — API ga s vremenom PRENAMJENJUJE drugom meču. Dokaz: id=1216 je u
+    našoj bazi bio Majchrzak-Paul (28.07.), a u API-ju danas pripada meču Echargui-Lee
+    (25.07.). Kad se ID reciklira, upsert prepiše imena i predikciju novim mečem, ali
+    actual_winner/prediction_correct ostanu od STAROG meča → 55/78 hard analiza je nosilo
+    pobjednika s clay turnira (npr. Majchrzak-Paul -> 'Quentin Halys'). Kalibracijska
+    tablica za hard bila je 70% smeće, a auto-feedback je iz toga učio.
+    Ovaj ključ ovisi samo o stvarnom identitetu meča i ne može se reciklirati."""
+    d = str(match_date or "")[:10]
+    a = _norm_player_key(player1)
+    b = _norm_player_key(player2)
+    lo, hi = sorted([a, b])          # sortirano → otporno na zamjenu p1/p2 između runova
+    return f"{d}|{lo}|{hi}"
+
+
+def _norm_player_key(name: str) -> str:
+    """Ime igrača svedeno na ključ: bez dijakritika, mala slova, jedan razmak."""
+    import unicodedata
+    s = unicodedata.normalize("NFKD", str(name or ""))
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    return " ".join(s.lower().replace("-", " ").split())
+
+
 def save_analyzed_match(match_data: dict) -> None:
-    _upsert("analyzed_matches", match_data, on_conflict="external_match_id")
+    """Upsert analize. Ključ je STABILAN (datum+igrači), ne API fixture id — vidi
+    stable_match_key za razlog. external_match_id se prepisuje ovdje da pozivatelji
+    ne moraju znati za promjenu."""
+    data = dict(match_data)
+    data["external_match_id"] = stable_match_key(
+        data.get("match_date"), data.get("player1"), data.get("player2"))
+    _upsert("analyzed_matches", data, on_conflict="external_match_id")
 
 
 def get_unresolved_analyzed_matches(days: int = 8) -> list:
@@ -352,11 +384,25 @@ def get_unresolved_analyzed_matches(days: int = 8) -> list:
                    filters={"actual_winner": "is.null", "match_date": f"gte.{since}"})
 
 
-def update_analyzed_match_result(row_id: str, actual_winner: str, prediction_correct) -> None:
-    """Upis ishoda u analyzed_matches (prediction_correct može biti None za void)."""
+def update_analyzed_match_result(row_id: str, actual_winner: str, prediction_correct,
+                                 player1: str = None, player2: str = None) -> bool:
+    """Upis ishoda u analyzed_matches (prediction_correct može biti None za void).
+
+    SANITY GUARD (31.07.2026): ako su proslijeđena imena igrača, pobjednik MORA biti
+    jedan od njih. Prije ove provjere 55 hard analiza je tiho dobilo pobjednika iz
+    posve drugog meča (posljedica recikliranja fixture id-a — vidi stable_match_key),
+    a nitko to nije primijetio jer se ishod nigdje ne uspoređuje s igračima.
+    Vraća True ako je zapisano, False ako je odbijeno."""
+    if player1 is not None and player2 is not None:
+        w = _norm_player_key(actual_winner)
+        if w and w not in (_norm_player_key(player1), _norm_player_key(player2)):
+            print(f"  ODBIJEN neispravan ishod: '{actual_winner}' nije igrač u meču "
+                  f"{player1} vs {player2} — preskačem (mogući nesklad izvora).")
+            return False
     _update("analyzed_matches",
             {"actual_winner": actual_winner, "prediction_correct": prediction_correct},
             {"id": f"eq.{row_id}"})
+    return True
 
 
 def get_all_scouting() -> dict:

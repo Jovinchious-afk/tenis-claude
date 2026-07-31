@@ -86,6 +86,7 @@ Total serve points won: {p1_serve_pts_won}% | Hold % (est.): {p1_hold_pct}%
 2nd serve pts won: {p1_second_serve_won} | Aces/match: {p1_aces}
 BP saved: {p1_bp_saved} | BP converted: {p1_break_conv}
 Return pts won: {p1_return_won}% (break proxy)
+Tiebreaks (own record): {p1_tb_record} | Deciding sets (Bo3 2-1): {p1_decider_record}
 --- Physical condition ---
 Matches last 7 days: {p1_matches_7d} | Sets last 7 days: {p1_sets_7d} | Days rest: {p1_days_rest} | Age: {p1_age}
 Current tournament path: {p1_tourn_path}
@@ -107,6 +108,7 @@ Total serve points won: {p2_serve_pts_won}% | Hold % (est.): {p2_hold_pct}%
 2nd serve pts won: {p2_second_serve_won} | Aces/match: {p2_aces}
 BP saved: {p2_bp_saved} | BP converted: {p2_break_conv}
 Return pts won: {p2_return_won}% (break proxy)
+Tiebreaks (own record): {p2_tb_record} | Deciding sets (Bo3 2-1): {p2_decider_record}
 --- Physical condition ---
 Matches last 7 days: {p2_matches_7d} | Sets last 7 days: {p2_sets_7d} | Days rest: {p2_days_rest} | Age: {p2_age}
 Current tournament path: {p2_tourn_path}
@@ -125,6 +127,8 @@ H2H reliability: {h2h_reliability}
 Conditions: {weather}
 Altitude: {altitude}
 Venue type: {venue_type}
+Local start time at the venue: {local_time} ({session} session)
+Court pace this event (share of sets going to a tiebreak): {court_pace}
 Tournament draw history — verified API data, last 3 seasons (F/SF/QF/R16):
 {tournament_draw_history}
 STRICT ANTI-HALLUCINATION RULE:
@@ -227,15 +231,44 @@ Respond ONLY in the following JSON format (no additional text):
   "risk_level": "low|medium|high",
   "risk_notes": "brief explanation of main risks (max 80 chars)",
   "handicap_option": "handicap option description or null",
-  "key_factors": ["factor1", "factor2", "factor3"],
+  "key_factors": ["1. Rating: ...", "2. Serve/return: ...", "3. Form vs opponent quality: ...", "4. Style matchup: ...", "5. Fatigue & conditions: ...", "6. Own read: ..."],
   "analysis": "2-3 sentences of key match analysis",
   "skip_reason": null
 }}
+
+KEY_FACTORS FORMAT (mandatory structure, added 2026-07-31):
+Entries 1-5 are FIXED and must ALWAYS be present, in this exact order, each prefixed with
+its number and label. Never omit one: if the data is missing, write "no data" and say what
+is missing. Measured reason for this rule: analyses that listed only 3 factors went 3W-3L
+(50%) while analyses listing 5+ went 9W-2L (82%) — a short list meant thin evidence, not a
+simple match, and every hard loss except one came from a 3-factor analysis.
+  1. Rating — hard ELO, ATP ranking and hard W-L record (this is ONE category, see rule 2)
+  2. Serve/return — hold%, return points won, break-point saved/converted, tiebreak record
+  3. Form vs opponent quality — recent form weighted by average opponent ELO
+  4. Style matchup — from the SCOUTING PROFILES section; say "no reliable profile" if absent
+  5. Fatigue & conditions — rest days, sets played, weather, local start time, day/night
+  6. Own read — FREE-FORM AND ENCOURAGED. Anything the five fixed slots do not capture:
+     a specific tactical read, an anomaly in the data, a doubt about your own pick, or a
+     reason this match resists the usual framework. You are NOT limited to the categories
+     above; if you see something that matters and has no slot, this is where it belongs.
+     Include it whenever you have a genuine insight — including arguments AGAINST your own
+     pick. Omit only if you truly have nothing to add beyond 1-5.
 
 If the match should be skipped (too much uncertainty, injury, insufficient data), set "skip_reason" to a string with the reason and all other fields to null."""
 
 
 _model_stamp_cache: dict = {}
+
+
+def _format_wl_record(rec: dict, label: str) -> str:
+    """W-L zapis s postotkom; 'no data' kad uzorka nema (31.07.2026 — key_factors format
+    zahtijeva eksplicitno 'no data' umjesto tihog izostanka)."""
+    if not rec:
+        return "no data"
+    w, l = int(rec.get("won") or 0), int(rec.get("lost") or 0)
+    if w + l == 0:
+        return f"no data (0 {label} in last 10 matches)"
+    return f"{w}W-{l}L ({round(w / (w + l) * 100)}%)"
 
 
 def _model_stamp(surface: str) -> dict:
@@ -540,13 +573,28 @@ and MUST be enforced from day one.
    (Deterministic backstop: a player who already ELIMINATED one of our picks in this same
    tournament is auto-vetoed by the ticket builder, so you need not model that case.)
 
-2. DOUBLE-CONFIRMATION for 66%+ (calibration deflator):
-   Season data: our stated confidence ran ~7pp above reality (63-70% picks won 55-60%).
-   A pick may only reach 66%+ confidence with a clear edge in AT LEAST TWO of:
-   (a) hard ELO / hard W-L record (3y), (b) serve quality on hard (hold% + tiebreak record),
-   (c) recent form adjusted for opponent quality. If the OPPONENT leads two of the three,
-   score BELOW 61% regardless of ATP ranking. Be honest: a marginal favourite belongs at
-   58-62%, not 64%.
+2. DOUBLE-CONFIRMATION — now required for 63%+, not just 66%+ (REVISED 2026-07-31):
+   Why revised: 4 of our first 5 hard losses were scored 63-65%, i.e. BELOW the old 66%
+   trigger, so this rule never applied to them. Since only 63%+ picks reach a ticket, the
+   gate must sit at 63%. Documented losses: Paul 65%, Cerundolo 65%, Mensik 64%,
+   Brooksby 63% — every one driven by a rating gap with no second independent edge.
+
+   The three categories are STRICTLY SEPARATE — do not split one signal into two:
+   (a) RATING: hard ELO, ATP ranking AND hard W-L record are ALL ONE CATEGORY. Quoting
+       "ELO gap 104" plus "hard record 68% vs 62%" is ONE confirmation, not two.
+   (b) SERVE/RETURN: counts ONLY if hold% differs by >= 3pp OR return-points-won by
+       >= 2pp. Smaller gaps are noise — a 1.2pp return edge is NOT a confirmation
+       (documented: Mensik vs Nakashima cited exactly that and lost).
+   (c) FORM adjusted for opponent quality (avg opponent ELO must actually differ).
+
+   Scoring:
+   - TWO or more categories favour your pick  -> 63-70% is available.
+   - ONE category only, but OVERWHELMING (hard ELO gap >= 250, or hard W-L record gap
+     >= 15pp) -> cap at 64%.
+   - ONE category only, marginal -> score BELOW 63% and let selection drop it.
+   - If the OPPONENT leads two of the three -> below 61% regardless of ranking.
+   Career-finals experience, H2H with fewer than 3 matches, and "closing pressure" are
+   NOT categories and can never serve as a confirmation.
 
 3. MARGINAL-FAVOURITE REALITY CHECK (caution-zone discipline — RE-MEASURED 2026-07-26):
    Market odds 1.43-1.90 are matches where the bookmaker sees something close to a coin-flip.
@@ -636,17 +684,49 @@ and MUST be enforced from day one.
 14. HARD SUB-SPEED (added 2026-07-26 from surface-physics analysis — "treating all hard
    courts identically is the most common modelling error for this surface"):
    "Hard" is a wide band from slow/high-bouncing to near-indoor fast. Re-weight styles by
-   the specific court, using tournament history, ace-rate evidence in the data provided,
-   and known venue reputations (US swing anchors: Cincinnati fast; Washington medium-fast
-   and brutally hot; US Open medium-fast; Toronto/Montreal medium; Indian Wells slow).
+   the specific court. PRIMARY evidence is the measured "Court pace this event" figure in
+   the MATCH block above (share of sets going to a tiebreak at THIS event this season):
+   >= 14% = fast, 9-13% = medium, < 9% = slow. Measured reference points: Washington 15.8%
+   (fast), Los Cabos 10.9% (medium), Estoril clay 7.5% (slow). Fall back to venue
+   reputation only when that figure reads "no data".
    - FAST hard (or hot daytime conditions): serve, ace rate and first-strike quality gain
      value — a big server's effective level rises above his ELO; rule 13 triggers earlier.
    - SLOW hard (or cool/night sessions): return, rally tolerance and movement gain value —
      counter-punchers neutralise big serves; do not pay a premium for serve stats alone.
+   - SESSION: use the venue's LOCAL start time given in the MATCH block, never an assumption
+     based on your own clock — our tournaments are often 6-9 hours behind us. Night sessions
+     play cooler, heavier and slower: shade a fast court one step toward medium at night,
+     and treat daytime heat (see Conditions) as speeding the court up.
    - Style note (use SCOUTING PROFILES): hard is the least style-punishing surface — it
      rewards complete all-courters and exposes ONE-DIMENSIONAL specialists. A pure clay
      grinder without a serve, or a pure server without a rally game, should be discounted
      against a complete player even when rankings are close.
+
+15. RATING-vs-REALITY CONTRADICTION (added 2026-07-31, from two documented losses):
+   A rating is only as good as the record behind it. Subtract 4pp from confidence when
+   EITHER holds:
+   - our pick's own hard win rate (3y) is <= 50% — his ELO and his actual results are in
+     direct contradiction, so the ELO is not trustworthy (documented: Brooksby, 50% hard
+     record, backed at 63% on a 121-point ELO gap, lost 6-1 7-5); OR
+   - the OPPONENT's hard win rate (3y) is >= 70% — a genuinely strong surface performer
+     regardless of what the rating gap says (documented: Gea, 76.7% hard record, was
+     flagged as "a real threat" then dismissed; beat our 65% pick).
+   If both hold, subtract 8pp. This is a deduction, not a veto — a pick with several
+   genuine edges can absorb it.
+
+16. CONVERGED SERVE -> THE MATCH IS DECIDED IN THE MARGINS (added 2026-07-31):
+   When both players' hold% are within 3pp of each other, NEITHER can reliably break, so
+   the match will be decided by 1-2 tiebreaks or a deciding set. In that situation:
+   - serve is NEUTRALISED: it cannot count as a confirmation under rule 2 (b);
+   - the decisive evidence becomes each player's OWN tiebreak record and deciding-set
+     record (provided in the data above) — not the rating gap;
+   - if your pick does not lead in BOTH tiebreak and deciding-set record, cap at 62%.
+   Documented: Paul (hold ~81%) vs Majchrzak (hold ~81%) — a 140-point ELO gap was
+   treated as decisive, the model itself wrote "TB lottery possible" in its risk notes,
+   and the match went 7-5 7-6(4) exactly as predicted by the risk it ignored.
+   NOTE: converged serve alone does NOT sink a pick — a player with a large rating edge
+   AND better quality-adjusted form still qualifies under rule 2 (documented: Norrie,
+   hold 80.3% vs 81.6% converged, won 6-1 6-0 on a 284-point ELO gap plus form quality).
 === END HARD-SPECIFIC RULES v1 ==="""
 
 
@@ -711,6 +791,10 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         p1_aces=p1.get("aces_per_game", "N/A"),
         p1_first_serve_won=p1.get("first_serve_points_won", "N/A"),
         p1_second_serve_won=p1.get("second_serve_points_won", "N/A"),
+        p1_tb_record=_format_wl_record(p1.get("tiebreak_record"), "tiebreaks"),
+        p2_tb_record=_format_wl_record(p2.get("tiebreak_record"), "tiebreaks"),
+        p1_decider_record=_format_wl_record(p1.get("decider_record"), "deciding sets"),
+        p2_decider_record=_format_wl_record(p2.get("decider_record"), "deciding sets"),
         p1_bp_saved=p1.get("break_points_saved", "N/A"),
         p1_break_conv=p1.get("break_points_converted", "N/A"),
         p1_return_won=p1.get("return_points_won", "N/A"),
@@ -778,6 +862,9 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         w_fatigue_injuries=weights.get("fatigue_injuries", 11),
         w_h2h_context=weights.get("h2h_context", 4),
         w_tournament_trajectory=weights.get("tournament_trajectory", 4),
+        local_time=match.get("local_time") or "unknown",
+        session=match.get("session") or "unknown",
+        court_pace=match.get("court_pace_str") or "no data",
         surface_specific_rules=_surface_specific_rules(surface),
     )
 
@@ -785,7 +872,12 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         client = _get_client()
         response = client.messages.create(
             model=CLAUDE_MODELS["analysis"],
-            max_tokens=1500,  # margin za Sonnet high effort (bilo 900 na Haiku)
+            # 2600 od 31.07.2026 (bilo 1500): novi obavezni format key_factors ima 6 polja
+            # umjesto 3, pa je odgovor osjetno dulji. U dry-runu 31.07. jedna od 5 analiza
+            # je pala na "No JSON object found" jer je odgovor bio odrezan na 1500 tokena —
+            # odrezan JSON znači tiho preskočen meč, pa je margina ovdje jeftinija od gubitka
+            # analize (naplaćuju se samo stvarno generirani tokeni, ne limit).
+            max_tokens=2600,
             # 18.07.2026: najvažnija odluka u pipelineu. Korisnik tražio "high ili extra high";
             # "xhigh" NIJE podržan za ovaj model (API 400: "Supported levels: high, low, max,
             # medium") — korisnik odabrao "high" (ne "max").
@@ -803,8 +895,15 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             # WR mečeva sa scoutingom vs bez (je li scouting stvarno pomogao, mjerljivo).
             # v3 (26.07.2026): + model_stamp {weights_version, rules_hash} — egzaktno
             # rezanje kalibracije po erama modela (vidi _model_stamp).
-            "context_version": 3,
+            # v4 (31.07.2026): + local_time/session/court_pace (stvarno izmjereni, ne
+            # procijenjeni) i tiebreak/decider recordi — sve ULAZI i u prompt od danas.
+            "context_version": 4,
             "model_stamp": _model_stamp(match.get("surface", "")),
+            "local_time": match.get("local_time"),
+            "session": match.get("session"),
+            "court_pace_label": match.get("court_pace_label"),
+            "p1_tiebreak_record": p1.get("tiebreak_record"),
+            "p2_tiebreak_record": p2.get("tiebreak_record"),
             "p1_age": p1.get("age"), "p2_age": p2.get("age"),
             "p1_nationality": p1.get("nationality"), "p2_nationality": p2.get("nationality"),
             "match_time": match.get("time", ""),

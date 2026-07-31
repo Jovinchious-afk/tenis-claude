@@ -266,8 +266,12 @@ def run_evening_update() -> dict:
                 continue
             predicted = am.get("predicted_winner") or ""
             correct = _names_match(predicted, winner) if predicted else None
-            db.update_analyzed_match_result(am["id"], winner, correct)
-            n_resolved += 1
+            # Imena se prosljeđuju radi sanity guarda (31.07.2026) — pobjednik mora biti
+            # jedan od dvojice igrača; inače se zapis odbija umjesto da tiho iskrivi korpus.
+            if db.update_analyzed_match_result(am["id"], winner, correct,
+                                               player1=am.get("player1"),
+                                               player2=am.get("player2")):
+                n_resolved += 1
         print(f"Analyzed_matches: razriješeno {n_resolved}/{len(unresolved)} analiza (8 dana).")
         summary["analyzed_resolved"] = n_resolved
     except Exception as e:

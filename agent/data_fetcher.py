@@ -280,6 +280,10 @@ def get_matches_for_date(date: datetime.date) -> list:
             "round_id":      int(g.get("roundId") or 0),
             "date":          date_str,
             "time":          str(g.get("timeGame", "") or ""),
+            # Puni UTC timestamp početka meča. `timeGame` je UVIJEK null (provjereno
+            # 31.07.2026), pa je "time" gore prazan otkad postoji — pravi izvor sata je
+            # ovo polje, koje local_match_time pretvara u lokalno vrijeme turnira.
+            "start_utc":     str(g.get("date", "") or ""),
             "winner_id":     str(g.get("match_winner") or g.get("winnerId") or ""),
             "status":        ("finished" if (g.get("match_winner") or g.get("winnerId")) and not g.get("live")
                               else "live" if g.get("live") else "scheduled"),
@@ -1338,6 +1342,90 @@ def get_tournament_draw_history(tournament_id: str, tournament_name: str, years:
         print(f"  {base_name} {year}: {n_this_year} draw rezultata (F/SF/QF/R16)")
 
     return all_results
+
+
+_court_pace_cache: dict = {}
+
+# UTC pomak grada domaćina (ljetno vrijeme, srpanj-listopad). Koristi se SAMO za
+# pretvorbu vremena početka meča u LOKALNO vrijeme turnira (31.07.2026, korisnikov
+# zahtjev): korisnik je u Zagrebu, a meč koji njemu počinje u 4 ujutro se u Washingtonu
+# igra u 17h po suncu i vrućini — vremenska prognoza i sesija (dan/noć) moraju se vezati
+# na lokalni sat mjesta, ne na naš. Nepoznat grad -> None (nema nagađanja).
+_CITY_UTC_OFFSET = {
+    "washington": -4, "los cabos": -6, "cincinnati": -4, "new york": -4,
+    "toronto": -4, "montreal": -4, "winston-salem": -4, "atlanta": -4,
+    "indian wells": -7, "miami": -4, "acapulco": -6, "delray beach": -5,
+    "san diego": -7, "dallas": -5, "houston": -5,
+    "london": 1, "paris": 2, "madrid": 2, "rome": 2, "monte carlo": 2,
+    "barcelona": 2, "hamburg": 2, "munich": 2, "stuttgart": 2, "halle": 2,
+    "vienna": 2, "basel": 2, "geneva": 2, "gstaad": 2, "kitzbuhel": 2,
+    "umag": 2, "bastad": 2, "estoril": 1, "lisbon": 1, "marrakech": 1,
+    "rotterdam": 2, "antwerp": 2, "metz": 2, "marseille": 2, "montpellier": 2,
+    "doha": 3, "dubai": 4, "melbourne": 11, "sydney": 11, "adelaide": 10,
+    "tokyo": 9, "beijing": 8, "shanghai": 8, "chengdu": 8, "hangzhou": 8,
+    "astana": 6, "almaty": 6, "tel aviv": 3, "buenos aires": -3, "rio": -3,
+    "santiago": -4, "cordoba": -3, "bucharest": 3, "sofia": 3, "belgrade": 2,
+}
+
+
+def local_match_time(iso_utc: str, city: str) -> dict:
+    """Pretvori UTC vrijeme početka meča u LOKALNO vrijeme turnira + sesiju (dan/noć).
+
+    Povod (31.07.2026): polje `timeGame` iz fixtures API-ja je UVIJEK null, pa je
+    context_snapshot.match_time bio prazan otkad je uveden (18.07.) — varijabla "sat meča"
+    zapravo nikad nije postojala. Puni timestamp ipak stoji u polju `date`
+    (npr. "2026-08-01T03:00:00.000Z"), pa ga ovdje pretvaramo u lokalni sat grada domaćina.
+
+    Vraća {"local_time": "HH:MM", "session": "day|night", "utc_offset": int} ili {} ako
+    grad nije poznat (nikad ne nagađamo — bolje bez podatka nego s krivim)."""
+    if not iso_utc or not city:
+        return {}
+    offset = _CITY_UTC_OFFSET.get(city.lower().strip())
+    if offset is None:
+        return {}
+    try:
+        base = datetime.datetime.fromisoformat(str(iso_utc).replace("Z", "+00:00"))
+    except ValueError:
+        return {}
+    local = base + datetime.timedelta(hours=offset)
+    # Sesija: dnevna do 18h lokalno, inače noćna (US hard noćne sesije su hladnije i sporije)
+    session = "day" if 6 <= local.hour < 18 else "night"
+    return {"local_time": local.strftime("%H:%M"), "session": session, "utc_offset": offset}
+
+
+def get_court_pace(tournament_id: str, tournament_name: str = "") -> dict:
+    """Proxy za brzinu terena: udio setova odigranih u tiebreaku na ovom turniru ove sezone.
+
+    Zašto ovako (31.07.2026): Tennis_Surface_Analysis.docx kaže da je "tretiranje svih hard
+    terena jednako najčešća greška u modeliranju te podloge", a pravi Court Pace Index
+    (Hawkeye CPI) nije javno dostupan ni na jednom pristupačnom API-ju. Rezultate turnira
+    ionako dohvaćamo svaku večer, pa se iz score stringova broj tiebreakova računa BEZ
+    IJEDNOG dodatnog API poziva. Izmjereno: Washington (hard) 15.8% setova u tiebreaku vs
+    Estoril (clay) 7.5% — signal jasno razlikuje brze od sporih terena.
+
+    Vraća {"tb_pct": float, "sets": int, "label": "fast|medium|slow"} ili {} bez podataka."""
+    if not tournament_id:
+        return {}
+    if tournament_id in _court_pace_cache:
+        return _court_pace_cache[tournament_id]
+    results = get_current_season_results(tournament_id)
+    tb = sets = 0
+    for r in results:
+        score = str(r.get("score") or "")
+        for token in score.split():
+            if "-" not in token:
+                continue
+            sets += 1
+            if "(" in token:
+                tb += 1
+    out = {}
+    if sets >= 20:      # ispod ~20 setova uzorak je prešaren da bi značio išta
+        pct = round(tb / sets * 100, 1)
+        # Pragovi iz izmjerenog raspona: clay ~7%, medium hard ~12%, fast hard ~16%+
+        label = "fast" if pct >= 14 else ("slow" if pct < 9 else "medium")
+        out = {"tb_pct": pct, "sets": sets, "label": label}
+    _court_pace_cache[tournament_id] = out
+    return out
 
 
 def get_current_season_results(tournament_id: str) -> list:
