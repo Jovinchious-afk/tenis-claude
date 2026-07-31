@@ -1,0 +1,2805 @@
+[
+ {
+  "rank": 4,
+  "name": "Felix Auger Aliassime",
+  "country": "CAN",
+  "id": "40434",
+  "elo": {
+   "elo_overall": 1972.8,
+   "elo_hard": 1939.6,
+   "elo_clay": 1871.4,
+   "elo_grass": 1819.4
+  },
+  "surface": {
+   "hard": {
+    "wins": 37,
+    "losses": 25,
+    "matches": 62,
+    "win_pct": 59.7
+   },
+   "indoor_hard": {
+    "wins": 34,
+    "losses": 11,
+    "matches": 45,
+    "win_pct": 75.6
+   },
+   "grass": {
+    "wins": 13,
+    "losses": 9,
+    "matches": 22,
+    "win_pct": 59.1
+   },
+   "clay": {
+    "wins": 28,
+    "losses": 19,
+    "matches": 47,
+    "win_pct": 59.6
+   }
+  },
+  "stats": {
+   "hold_pct": 85.4,
+   "serve_points_won": 66.0,
+   "return_points_won": 39.9,
+   "aces_per_game": 11.06,
+   "first_serve_pct": 63.7,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "CAN"
+  }
+ },
+ {
+  "rank": 43,
+  "name": "Jaume Antoni Munar Clar",
+  "country": "ESP",
+  "id": "31358",
+  "elo": {
+   "elo_overall": 1436.2,
+   "elo_hard": 1409.7,
+   "elo_clay": 1391.3,
+   "elo_grass": 1334.9
+  },
+  "surface": {
+   "hard": {
+    "wins": 23,
+    "losses": 24,
+    "matches": 47,
+    "win_pct": 48.9
+   },
+   "grass": {
+    "wins": 6,
+    "losses": 8,
+    "matches": 14,
+    "win_pct": 42.9
+   },
+   "indoor_hard": {
+    "wins": 10,
+    "losses": 10,
+    "matches": 20,
+    "win_pct": 50.0
+   },
+   "clay": {
+    "wins": 35,
+    "losses": 34,
+    "matches": 69,
+    "win_pct": 50.7
+   }
+  },
+  "stats": {
+   "hold_pct": 77.0,
+   "serve_points_won": 61.6,
+   "return_points_won": 43.0,
+   "aces_per_game": 4.31,
+   "first_serve_pct": 64.9,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "ESP"
+  }
+ },
+ {
+  "rank": 66,
+  "name": "Pablo Carreno-Busta",
+  "country": "ESP",
+  "id": "14432",
+  "elo": {
+   "elo_overall": 1797,
+   "elo_hard": 1742.3,
+   "elo_clay": 1761.2,
+   "elo_grass": 1601.4
+  },
+  "surface": {
+   "clay": {
+    "wins": 34,
+    "losses": 25,
+    "matches": 59,
+    "win_pct": 57.6
+   },
+   "grass": {
+    "wins": 1,
+    "losses": 2,
+    "matches": 3,
+    "win_pct": 33.3
+   },
+   "indoor_hard": {
+    "wins": 4,
+    "losses": 7,
+    "matches": 11,
+    "win_pct": 36.4
+   },
+   "hard": {
+    "wins": 39,
+    "losses": 21,
+    "matches": 60,
+    "win_pct": 65.0
+   }
+  },
+  "stats": {
+   "hold_pct": 80.3,
+   "serve_points_won": 63.3,
+   "return_points_won": 41.5,
+   "aces_per_game": 5.04,
+   "first_serve_pct": 64.0,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "ESP"
+  }
+ },
+ {
+  "rank": 90,
+  "name": "Hugo Gaston",
+  "country": "FRA",
+  "id": "46747",
+  "elo": {
+   "elo_overall": 1648.7,
+   "elo_hard": 1641.3,
+   "elo_clay": 1592.8,
+   "elo_grass": 1566.8
+  },
+  "surface": {
+   "hard": {
+    "wins": 16,
+    "losses": 27,
+    "matches": 43,
+    "win_pct": 37.2
+   },
+   "clay": {
+    "wins": 33,
+    "losses": 37,
+    "matches": 70,
+    "win_pct": 47.1
+   },
+   "indoor_hard": {
+    "wins": 30,
+    "losses": 14,
+    "matches": 44,
+    "win_pct": 68.2
+   },
+   "grass": {
+    "wins": 6,
+    "losses": 5,
+    "matches": 11,
+    "win_pct": 54.5
+   }
+  },
+  "stats": {
+   "hold_pct": 73.4,
+   "serve_points_won": 59.7,
+   "return_points_won": 42.9,
+   "aces_per_game": 3.74,
+   "first_serve_pct": 55.9,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "FRA"
+  }
+ },
+ {
+  "rank": 100,
+  "name": "Francisco Comesana",
+  "country": "ARG",
+  "id": "61971",
+  "elo": {
+   "elo_overall": 1667.4,
+   "elo_hard": 1628.1,
+   "elo_clay": 1639.7,
+   "elo_grass": 1524.9
+  },
+  "surface": {
+   "hard": {
+    "wins": 19,
+    "losses": 19,
+    "matches": 38,
+    "win_pct": 50.0
+   },
+   "grass": {
+    "wins": 2,
+    "losses": 5,
+    "matches": 7,
+    "win_pct": 28.6
+   },
+   "clay": {
+    "wins": 62,
+    "losses": 47,
+    "matches": 109,
+    "win_pct": 56.9
+   },
+   "indoor_hard": {
+    "wins": 3,
+    "losses": 4,
+    "matches": 7,
+    "win_pct": 42.9
+   }
+  },
+  "stats": {
+   "hold_pct": 76.8,
+   "serve_points_won": 61.5,
+   "return_points_won": 43.5,
+   "aces_per_game": 5.7,
+   "first_serve_pct": 66.2,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "ARG"
+  }
+ },
+ {
+  "rank": 101,
+  "name": "Benjamin Bonzi",
+  "country": "FRA",
+  "id": "28899",
+  "elo": {
+   "elo_overall": 1737.7,
+   "elo_hard": 1707.3,
+   "elo_clay": 1616,
+   "elo_grass": 1658.1
+  },
+  "surface": {
+   "indoor_hard": {
+    "wins": 35,
+    "losses": 12,
+    "matches": 47,
+    "win_pct": 74.5
+   },
+   "clay": {
+    "wins": 13,
+    "losses": 20,
+    "matches": 33,
+    "win_pct": 39.4
+   },
+   "hard": {
+    "wins": 36,
+    "losses": 33,
+    "matches": 69,
+    "win_pct": 52.2
+   },
+   "grass": {
+    "wins": 15,
+    "losses": 10,
+    "matches": 25,
+    "win_pct": 60.0
+   }
+  },
+  "stats": {
+   "hold_pct": 80.8,
+   "serve_points_won": 63.6,
+   "return_points_won": 41.5,
+   "aces_per_game": 6.64,
+   "first_serve_pct": 62.6,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "FRA"
+  }
+ },
+ {
+  "rank": 103,
+  "name": "Alexei Popyrin",
+  "country": "AUS",
+  "id": "34233",
+  "elo": {
+   "elo_overall": 1735.5,
+   "elo_hard": 1677.6,
+   "elo_clay": 1723.8,
+   "elo_grass": 1577.3
+  },
+  "surface": {
+   "clay": {
+    "wins": 19,
+    "losses": 20,
+    "matches": 39,
+    "win_pct": 48.7
+   },
+   "hard": {
+    "wins": 26,
+    "losses": 27,
+    "matches": 53,
+    "win_pct": 49.1
+   },
+   "grass": {
+    "wins": 6,
+    "losses": 9,
+    "matches": 15,
+    "win_pct": 40.0
+   },
+   "indoor_hard": {
+    "wins": 4,
+    "losses": 9,
+    "matches": 13,
+    "win_pct": 30.8
+   }
+  },
+  "stats": {
+   "hold_pct": 82.9,
+   "serve_points_won": 64.7,
+   "return_points_won": 37.5,
+   "aces_per_game": 10.11,
+   "first_serve_pct": 60.5,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "AUS"
+  }
+ },
+ {
+  "rank": 104,
+  "name": "Martin Damm",
+  "country": "USA",
+  "id": "72574",
+  "elo": {
+   "elo_overall": 1704.9,
+   "elo_hard": 1656.4,
+   "elo_clay": 1534.7,
+   "elo_grass": 1641.9
+  },
+  "surface": {
+   "hard": {
+    "wins": 50,
+    "losses": 26,
+    "matches": 76,
+    "win_pct": 65.8
+   },
+   "grass": {
+    "wins": 7,
+    "losses": 5,
+    "matches": 12,
+    "win_pct": 58.3
+   },
+   "indoor_hard": {
+    "wins": 29,
+    "losses": 16,
+    "matches": 45,
+    "win_pct": 64.4
+   },
+   "clay": {
+    "wins": 8,
+    "losses": 13,
+    "matches": 21,
+    "win_pct": 38.1
+   }
+  },
+  "stats": {
+   "hold_pct": 85.4,
+   "serve_points_won": 66.0,
+   "return_points_won": 37.7,
+   "aces_per_game": 13.93,
+   "first_serve_pct": 60.1,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "USA"
+  }
+ },
+ {
+  "rank": 105,
+  "name": "Aleksandar Vukic",
+  "country": "AUS",
+  "id": "28267",
+  "elo": {
+   "elo_overall": 1653.1,
+   "elo_hard": 1634,
+   "elo_clay": 1527,
+   "elo_grass": 1573.7
+  },
+  "surface": {
+   "hard": {
+    "wins": 42,
+    "losses": 48,
+    "matches": 90,
+    "win_pct": 46.7
+   },
+   "grass": {
+    "wins": 19,
+    "losses": 16,
+    "matches": 35,
+    "win_pct": 54.3
+   },
+   "clay": {
+    "wins": 11,
+    "losses": 25,
+    "matches": 36,
+    "win_pct": 30.6
+   },
+   "indoor_hard": {
+    "wins": 11,
+    "losses": 7,
+    "matches": 18,
+    "win_pct": 61.1
+   }
+  },
+  "stats": {
+   "hold_pct": 81.8,
+   "serve_points_won": 64.1,
+   "return_points_won": 38.5,
+   "aces_per_game": 10.7,
+   "first_serve_pct": 57.9,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "AUS"
+  }
+ },
+ {
+  "rank": 107,
+  "name": "Facundo Diaz Acosta",
+  "country": "ARG",
+  "id": "64741",
+  "elo": {
+   "elo_overall": 1676.4,
+   "elo_hard": 1531,
+   "elo_clay": 1667.3,
+   "elo_grass": 1462.8
+  },
+  "surface": {
+   "hard": {
+    "wins": 10,
+    "losses": 15,
+    "matches": 25,
+    "win_pct": 40.0
+   },
+   "grass": {
+    "wins": 0,
+    "losses": 3,
+    "matches": 3,
+    "win_pct": 0.0
+   },
+   "clay": {
+    "wins": 73,
+    "losses": 38,
+    "matches": 111,
+    "win_pct": 65.8
+   },
+   "indoor_hard": {
+    "wins": 0,
+    "losses": 3,
+    "matches": 3,
+    "win_pct": 0.0
+   }
+  },
+  "stats": {
+   "hold_pct": 76.8,
+   "serve_points_won": 61.5,
+   "return_points_won": 44.3,
+   "aces_per_game": 3.9,
+   "first_serve_pct": 59.4,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "ARG"
+  }
+ },
+ {
+  "rank": 108,
+  "name": "Chak Lam Coleman Wong",
+  "country": "HKG",
+  "id": "71166",
+  "elo": {
+   "elo_overall": 1582.1,
+   "elo_hard": 1576.9,
+   "elo_clay": 1456.7,
+   "elo_grass": 1446.7
+  },
+  "surface": {
+   "hard": {
+    "wins": 85,
+    "losses": 60,
+    "matches": 145,
+    "win_pct": 58.6
+   },
+   "grass": {
+    "wins": 7,
+    "losses": 12,
+    "matches": 19,
+    "win_pct": 36.8
+   },
+   "indoor_hard": {
+    "wins": 7,
+    "losses": 7,
+    "matches": 14,
+    "win_pct": 50.0
+   },
+   "clay": {
+    "wins": 4,
+    "losses": 12,
+    "matches": 16,
+    "win_pct": 25.0
+   }
+  },
+  "stats": {
+   "hold_pct": 79.3,
+   "serve_points_won": 62.8,
+   "return_points_won": 40.2,
+   "aces_per_game": 9.71,
+   "first_serve_pct": 60.5,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "HKG"
+  }
+ },
+ {
+  "rank": 109,
+  "name": "Eliot Spizzirri",
+  "country": "USA",
+  "id": "71083",
+  "elo": {
+   "elo_overall": 1796.1,
+   "elo_hard": 1765,
+   "elo_clay": 1584.1,
+   "elo_grass": 1630
+  },
+  "surface": {
+   "hard": {
+    "wins": 61,
+    "losses": 28,
+    "matches": 89,
+    "win_pct": 68.5
+   },
+   "indoor_hard": {
+    "wins": 24,
+    "losses": 11,
+    "matches": 35,
+    "win_pct": 68.6
+   },
+   "clay": {
+    "wins": 7,
+    "losses": 7,
+    "matches": 14,
+    "win_pct": 50.0
+   },
+   "grass": {
+    "wins": 6,
+    "losses": 7,
+    "matches": 13,
+    "win_pct": 46.2
+   }
+  },
+  "stats": {
+   "hold_pct": 80.1,
+   "serve_points_won": 63.2,
+   "return_points_won": 42.2,
+   "aces_per_game": 6.24,
+   "first_serve_pct": 66.0,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "USA"
+  }
+ },
+ {
+  "rank": 110,
+  "name": "Jacob Fearnley",
+  "country": "GBR",
+  "id": "68090",
+  "elo": {
+   "elo_overall": 1691.8,
+   "elo_hard": 1610.8,
+   "elo_clay": 1644.2,
+   "elo_grass": 1661.9
+  },
+  "surface": {
+   "hard": {
+    "wins": 29,
+    "losses": 21,
+    "matches": 50,
+    "win_pct": 58.0
+   },
+   "grass": {
+    "wins": 23,
+    "losses": 11,
+    "matches": 34,
+    "win_pct": 67.6
+   },
+   "indoor_hard": {
+    "wins": 36,
+    "losses": 13,
+    "matches": 49,
+    "win_pct": 73.5
+   },
+   "clay": {
+    "wins": 12,
+    "losses": 9,
+    "matches": 21,
+    "win_pct": 57.1
+   }
+  },
+  "stats": {
+   "hold_pct": 80.3,
+   "serve_points_won": 63.3,
+   "return_points_won": 42.9,
+   "aces_per_game": 7.18,
+   "first_serve_pct": 61.4,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "GBR"
+  }
+ },
+ {
+  "rank": 111,
+  "name": "Bu Yunchaokete",
+  "country": "CHN",
+  "id": "61667",
+  "elo": {
+   "elo_overall": 1690.8,
+   "elo_hard": 1645.5,
+   "elo_clay": 1599.3,
+   "elo_grass": 1595.7
+  },
+  "surface": {
+   "hard": {
+    "wins": 67,
+    "losses": 40,
+    "matches": 107,
+    "win_pct": 62.6
+   },
+   "grass": {
+    "wins": 12,
+    "losses": 8,
+    "matches": 20,
+    "win_pct": 60.0
+   },
+   "indoor_hard": {
+    "wins": 9,
+    "losses": 11,
+    "matches": 20,
+    "win_pct": 45.0
+   },
+   "clay": {
+    "wins": 9,
+    "losses": 11,
+    "matches": 20,
+    "win_pct": 45.0
+   }
+  },
+  "stats": {
+   "hold_pct": 82.2,
+   "serve_points_won": 64.3,
+   "return_points_won": 40.9,
+   "aces_per_game": 8.21,
+   "first_serve_pct": 59.0,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "CHN"
+  }
+ },
+ {
+  "rank": 112,
+  "name": "Toby Samuel",
+  "country": "GBR",
+  "id": "79068",
+  "elo": {
+   "elo_overall": 1733.5,
+   "elo_hard": 1722.8,
+   "elo_clay": 1629.5,
+   "elo_grass": 1570.9
+  },
+  "surface": {
+   "clay": {
+    "wins": 10,
+    "losses": 6,
+    "matches": 16,
+    "win_pct": 62.5
+   },
+   "indoor_hard": {
+    "wins": 8,
+    "losses": 6,
+    "matches": 14,
+    "win_pct": 57.1
+   },
+   "grass": {
+    "wins": 5,
+    "losses": 5,
+    "matches": 10,
+    "win_pct": 50.0
+   },
+   "hard": {
+    "wins": 73,
+    "losses": 15,
+    "matches": 88,
+    "win_pct": 83.0
+   }
+  },
+  "stats": {
+   "hold_pct": 81.8,
+   "serve_points_won": 64.1,
+   "return_points_won": 44.6,
+   "aces_per_game": 5.91,
+   "first_serve_pct": 65.5,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "GBR"
+  }
+ },
+ {
+  "rank": 113,
+  "name": "Patrick Kypson",
+  "country": "USA",
+  "id": "46718",
+  "elo": {
+   "elo_overall": 1648.4,
+   "elo_hard": 1615.1,
+   "elo_clay": 1558.7,
+   "elo_grass": 1517.5
+  },
+  "surface": {
+   "hard": {
+    "wins": 34,
+    "losses": 27,
+    "matches": 61,
+    "win_pct": 55.7
+   },
+   "grass": {
+    "wins": 3,
+    "losses": 5,
+    "matches": 8,
+    "win_pct": 37.5
+   },
+   "indoor_hard": {
+    "wins": 32,
+    "losses": 13,
+    "matches": 45,
+    "win_pct": 71.1
+   },
+   "clay": {
+    "wins": 15,
+    "losses": 14,
+    "matches": 29,
+    "win_pct": 51.7
+   }
+  },
+  "stats": {
+   "hold_pct": 82.2,
+   "serve_points_won": 64.3,
+   "return_points_won": 41.0,
+   "aces_per_game": 7.98,
+   "first_serve_pct": 62.4,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "USA"
+  }
+ },
+ {
+  "rank": 114,
+  "name": "Shintaro Mochizuki",
+  "country": "JPN",
+  "id": "73742",
+  "elo": {
+   "elo_overall": 1574.7,
+   "elo_hard": 1475,
+   "elo_clay": 1482.5,
+   "elo_grass": 1617.8
+  },
+  "surface": {
+   "hard": {
+    "wins": 54,
+    "losses": 52,
+    "matches": 106,
+    "win_pct": 50.9
+   },
+   "indoor_hard": {
+    "wins": 3,
+    "losses": 9,
+    "matches": 12,
+    "win_pct": 25.0
+   },
+   "grass": {
+    "wins": 21,
+    "losses": 12,
+    "matches": 33,
+    "win_pct": 63.6
+   },
+   "clay": {
+    "wins": 9,
+    "losses": 14,
+    "matches": 23,
+    "win_pct": 39.1
+   }
+  },
+  "stats": {
+   "hold_pct": 69.4,
+   "serve_points_won": 57.6,
+   "return_points_won": 44.3,
+   "aces_per_game": 3.3,
+   "first_serve_pct": 55.8,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "JPN"
+  }
+ },
+ {
+  "rank": 115,
+  "name": "Otto Virtanen",
+  "country": "FIN",
+  "id": "55252",
+  "elo": {
+   "elo_overall": 1717.5,
+   "elo_hard": 1680,
+   "elo_clay": 1520.2,
+   "elo_grass": 1701.6
+  },
+  "surface": {
+   "hard": {
+    "wins": 18,
+    "losses": 23,
+    "matches": 41,
+    "win_pct": 43.9
+   },
+   "grass": {
+    "wins": 22,
+    "losses": 7,
+    "matches": 29,
+    "win_pct": 75.9
+   },
+   "indoor_hard": {
+    "wins": 41,
+    "losses": 14,
+    "matches": 55,
+    "win_pct": 74.5
+   },
+   "clay": {
+    "wins": 17,
+    "losses": 26,
+    "matches": 43,
+    "win_pct": 39.5
+   }
+  },
+  "stats": {
+   "hold_pct": 81.4,
+   "serve_points_won": 63.9,
+   "return_points_won": 40.2,
+   "aces_per_game": 10.88,
+   "first_serve_pct": 59.1,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "FIN"
+  }
+ },
+ {
+  "rank": 116,
+  "name": "Dalibor Svrcina",
+  "country": "CZE",
+  "id": "63299",
+  "elo": {
+   "elo_overall": 1620.7,
+   "elo_hard": 1614.8,
+   "elo_clay": 1561.4,
+   "elo_grass": 1465.2
+  },
+  "surface": {
+   "clay": {
+    "wins": 42,
+    "losses": 34,
+    "matches": 76,
+    "win_pct": 55.3
+   },
+   "hard": {
+    "wins": 65,
+    "losses": 35,
+    "matches": 100,
+    "win_pct": 65.0
+   },
+   "grass": {
+    "wins": 1,
+    "losses": 3,
+    "matches": 4,
+    "win_pct": 25.0
+   },
+   "indoor_hard": {
+    "wins": 3,
+    "losses": 3,
+    "matches": 6,
+    "win_pct": 50.0
+   }
+  },
+  "stats": {
+   "hold_pct": 67.0,
+   "serve_points_won": 56.3,
+   "return_points_won": 47.2,
+   "aces_per_game": 1.61,
+   "first_serve_pct": 66.6,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "CZE"
+  }
+ },
+ {
+  "rank": 117,
+  "name": "Yibing Wu",
+  "country": "CHN",
+  "id": "39310",
+  "elo": {
+   "elo_overall": 1699.3,
+   "elo_hard": 1708.2,
+   "elo_clay": 1648.4,
+   "elo_grass": 1479.1
+  },
+  "surface": {
+   "grass": {
+    "wins": 1,
+    "losses": 5,
+    "matches": 6,
+    "win_pct": 16.7
+   },
+   "indoor_hard": {
+    "wins": 1,
+    "losses": 0,
+    "matches": 1,
+    "win_pct": 100.0
+   },
+   "clay": {
+    "wins": 13,
+    "losses": 7,
+    "matches": 20,
+    "win_pct": 65.0
+   },
+   "hard": {
+    "wins": 43,
+    "losses": 19,
+    "matches": 62,
+    "win_pct": 69.4
+   }
+  },
+  "stats": {
+   "hold_pct": 79.3,
+   "serve_points_won": 62.8,
+   "return_points_won": 41.4,
+   "aces_per_game": 5.59,
+   "first_serve_pct": 61.6,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "CHN"
+  }
+ },
+ {
+  "rank": 118,
+  "name": "Michael Zheng",
+  "country": "USA",
+  "id": "87512",
+  "elo": {
+   "elo_overall": 1771.4,
+   "elo_hard": 1709.6,
+   "elo_clay": 1614.3,
+   "elo_grass": 1669.7
+  },
+  "surface": {
+   "clay": {
+    "wins": 3,
+    "losses": 3,
+    "matches": 6,
+    "win_pct": 50.0
+   },
+   "indoor_hard": {
+    "wins": 7,
+    "losses": 3,
+    "matches": 10,
+    "win_pct": 70.0
+   },
+   "grass": {
+    "wins": 5,
+    "losses": 4,
+    "matches": 9,
+    "win_pct": 55.6
+   },
+   "hard": {
+    "wins": 42,
+    "losses": 16,
+    "matches": 58,
+    "win_pct": 72.4
+   }
+  },
+  "stats": {
+   "hold_pct": 80.7,
+   "serve_points_won": 63.5,
+   "return_points_won": 42.8,
+   "aces_per_game": 6.11,
+   "first_serve_pct": 58.6,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "USA"
+  }
+ },
+ {
+  "rank": 119,
+  "name": "Titouan Droguet",
+  "country": "FRA",
+  "id": "59092",
+  "elo": {
+   "elo_overall": 1742.3,
+   "elo_hard": 1662.7,
+   "elo_clay": 1716.6,
+   "elo_grass": 1628.1
+  },
+  "surface": {
+   "hard": {
+    "wins": 15,
+    "losses": 14,
+    "matches": 29,
+    "win_pct": 51.7
+   },
+   "indoor_hard": {
+    "wins": 31,
+    "losses": 24,
+    "matches": 55,
+    "win_pct": 56.4
+   },
+   "grass": {
+    "wins": 8,
+    "losses": 5,
+    "matches": 13,
+    "win_pct": 61.5
+   },
+   "clay": {
+    "wins": 55,
+    "losses": 26,
+    "matches": 81,
+    "win_pct": 67.9
+   }
+  },
+  "stats": {
+   "hold_pct": 81.0,
+   "serve_points_won": 63.7,
+   "return_points_won": 42.2,
+   "aces_per_game": 7.66,
+   "first_serve_pct": 60.7,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "FRA"
+  }
+ },
+ {
+  "rank": 120,
+  "name": "Kyrian Jacquet",
+  "country": "FRA",
+  "id": "65904",
+  "elo": {
+   "elo_overall": 1696.5,
+   "elo_hard": 1668.7,
+   "elo_clay": 1585,
+   "elo_grass": 1665.7
+  },
+  "surface": {
+   "hard": {
+    "wins": 36,
+    "losses": 15,
+    "matches": 51,
+    "win_pct": 70.6
+   },
+   "grass": {
+    "wins": 9,
+    "losses": 6,
+    "matches": 15,
+    "win_pct": 60.0
+   },
+   "indoor_hard": {
+    "wins": 11,
+    "losses": 9,
+    "matches": 20,
+    "win_pct": 55.0
+   },
+   "clay": {
+    "wins": 27,
+    "losses": 23,
+    "matches": 50,
+    "win_pct": 54.0
+   }
+  },
+  "stats": {
+   "hold_pct": 75.9,
+   "serve_points_won": 61.0,
+   "return_points_won": 43.0,
+   "aces_per_game": 4.87,
+   "first_serve_pct": 60.0,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "FRA"
+  }
+ },
+ {
+  "rank": 121,
+  "name": "Dane Sweeny",
+  "country": "AUS",
+  "id": "56590",
+  "elo": {
+   "elo_overall": 1514.5,
+   "elo_hard": 1470.7,
+   "elo_clay": 1314.2,
+   "elo_grass": 1481.2
+  },
+  "surface": {
+   "clay": {
+    "wins": 0,
+    "losses": 3,
+    "matches": 3,
+    "win_pct": 0.0
+   },
+   "hard": {
+    "wins": 107,
+    "losses": 58,
+    "matches": 165,
+    "win_pct": 64.8
+   },
+   "grass": {
+    "wins": 13,
+    "losses": 8,
+    "matches": 21,
+    "win_pct": 61.9
+   },
+   "indoor_hard": {
+    "wins": 0,
+    "losses": 2,
+    "matches": 2,
+    "win_pct": 0.0
+   }
+  },
+  "stats": {
+   "hold_pct": 75.0,
+   "serve_points_won": 60.5,
+   "return_points_won": 43.2,
+   "aces_per_game": 3.39,
+   "first_serve_pct": 62.9,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "AUS"
+  }
+ },
+ {
+  "rank": 122,
+  "name": "Zsombor Piros",
+  "country": "HUN",
+  "id": "47021",
+  "elo": {
+   "elo_overall": 1714.5,
+   "elo_hard": 1656,
+   "elo_clay": 1691.1,
+   "elo_grass": 1577.2
+  },
+  "surface": {
+   "hard": {
+    "wins": 7,
+    "losses": 12,
+    "matches": 19,
+    "win_pct": 36.8
+   },
+   "grass": {
+    "wins": 1,
+    "losses": 3,
+    "matches": 4,
+    "win_pct": 25.0
+   },
+   "indoor_hard": {
+    "wins": 29,
+    "losses": 9,
+    "matches": 38,
+    "win_pct": 76.3
+   },
+   "clay": {
+    "wins": 67,
+    "losses": 36,
+    "matches": 103,
+    "win_pct": 65.0
+   }
+  },
+  "stats": {
+   "hold_pct": 75.5,
+   "serve_points_won": 60.8,
+   "return_points_won": 43.2,
+   "aces_per_game": 4.44,
+   "first_serve_pct": 60.4,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "HUN"
+  }
+ },
+ {
+  "rank": 123,
+  "name": "Henrique Rocha",
+  "country": "POR",
+  "id": "83794",
+  "elo": {
+   "elo_overall": 1635.8,
+   "elo_hard": 1554.4,
+   "elo_clay": 1634.7,
+   "elo_grass": 1478
+  },
+  "surface": {
+   "grass": {
+    "wins": 3,
+    "losses": 6,
+    "matches": 9,
+    "win_pct": 33.3
+   },
+   "indoor_hard": {
+    "wins": 4,
+    "losses": 6,
+    "matches": 10,
+    "win_pct": 40.0
+   },
+   "clay": {
+    "wins": 65,
+    "losses": 50,
+    "matches": 115,
+    "win_pct": 56.5
+   },
+   "hard": {
+    "wins": 27,
+    "losses": 18,
+    "matches": 45,
+    "win_pct": 60.0
+   }
+  },
+  "stats": {
+   "hold_pct": 75.1,
+   "serve_points_won": 60.6,
+   "return_points_won": 43.8,
+   "aces_per_game": 3.8,
+   "first_serve_pct": 60.2,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "POR"
+  }
+ },
+ {
+  "rank": 124,
+  "name": "Sebastian Ofner",
+  "country": "AUT",
+  "id": "27547",
+  "elo": {
+   "elo_overall": 1699.2,
+   "elo_hard": 1647.7,
+   "elo_clay": 1660.9,
+   "elo_grass": 1627.1
+  },
+  "surface": {
+   "hard": {
+    "wins": 7,
+    "losses": 16,
+    "matches": 23,
+    "win_pct": 30.4
+   },
+   "grass": {
+    "wins": 9,
+    "losses": 8,
+    "matches": 17,
+    "win_pct": 52.9
+   },
+   "indoor_hard": {
+    "wins": 11,
+    "losses": 3,
+    "matches": 14,
+    "win_pct": 78.6
+   },
+   "clay": {
+    "wins": 39,
+    "losses": 36,
+    "matches": 75,
+    "win_pct": 52.0
+   }
+  },
+  "stats": {
+   "hold_pct": 79.9,
+   "serve_points_won": 63.1,
+   "return_points_won": 40.2,
+   "aces_per_game": 8.77,
+   "first_serve_pct": 56.5,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "AUT"
+  }
+ },
+ {
+  "rank": 125,
+  "name": "Stan Wawrinka",
+  "country": "SUI",
+  "id": "1092",
+  "elo": {
+   "elo_overall": 1667.8,
+   "elo_hard": 1658.7,
+   "elo_clay": 1603.8,
+   "elo_grass": 1578
+  },
+  "surface": {
+   "indoor_hard": {
+    "wins": 14,
+    "losses": 13,
+    "matches": 27,
+    "win_pct": 51.9
+   },
+   "grass": {
+    "wins": 1,
+    "losses": 2,
+    "matches": 3,
+    "win_pct": 33.3
+   },
+   "clay": {
+    "wins": 18,
+    "losses": 30,
+    "matches": 48,
+    "win_pct": 37.5
+   },
+   "hard": {
+    "wins": 12,
+    "losses": 15,
+    "matches": 27,
+    "win_pct": 44.4
+   }
+  },
+  "stats": {
+   "hold_pct": 84.3,
+   "serve_points_won": 65.4,
+   "return_points_won": 39.5,
+   "aces_per_game": 8.66,
+   "first_serve_pct": 57.7,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "SUI"
+  }
+ },
+ {
+  "rank": 126,
+  "name": "Christopher O'Connell",
+  "country": "AUS",
+  "id": "24721",
+  "elo": {
+   "elo_overall": 1500,
+   "elo_hard": 1500,
+   "elo_clay": 1500,
+   "elo_grass": 1500
+  },
+  "surface": {
+   "clay": {
+    "wins": 5,
+    "losses": 17,
+    "matches": 22,
+    "win_pct": 22.7
+   },
+   "indoor_hard": {
+    "wins": 7,
+    "losses": 7,
+    "matches": 14,
+    "win_pct": 50.0
+   },
+   "grass": {
+    "wins": 8,
+    "losses": 10,
+    "matches": 18,
+    "win_pct": 44.4
+   },
+   "hard": {
+    "wins": 47,
+    "losses": 39,
+    "matches": 86,
+    "win_pct": 54.7
+   }
+  },
+  "stats": {
+   "hold_pct": 81.6,
+   "serve_points_won": 64.0,
+   "return_points_won": 40.6,
+   "aces_per_game": 7.86,
+   "first_serve_pct": 62.6,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "AUS"
+  }
+ },
+ {
+  "rank": 127,
+  "name": "Arthur Gea",
+  "country": "FRA",
+  "id": "87277",
+  "elo": {
+   "elo_overall": 1632.7,
+   "elo_hard": 1635.5,
+   "elo_clay": 1539,
+   "elo_grass": 1551.7
+  },
+  "surface": {
+   "clay": {
+    "wins": 53,
+    "losses": 46,
+    "matches": 99,
+    "win_pct": 53.5
+   },
+   "indoor_hard": {
+    "wins": 18,
+    "losses": 9,
+    "matches": 27,
+    "win_pct": 66.7
+   },
+   "grass": {
+    "wins": 5,
+    "losses": 4,
+    "matches": 9,
+    "win_pct": 55.6
+   },
+   "hard": {
+    "wins": 47,
+    "losses": 14,
+    "matches": 61,
+    "win_pct": 77.0
+   }
+  },
+  "stats": {
+   "hold_pct": 75.7,
+   "serve_points_won": 60.9,
+   "return_points_won": 44.7,
+   "aces_per_game": 4.42,
+   "first_serve_pct": 60.6,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "FRA"
+  }
+ },
+ {
+  "rank": 128,
+  "name": "Vilius Gaubas",
+  "country": "LTU",
+  "id": "79088",
+  "elo": {
+   "elo_overall": 1611.8,
+   "elo_hard": 1574.9,
+   "elo_clay": 1551.7,
+   "elo_grass": 1593.6
+  },
+  "surface": {
+   "hard": {
+    "wins": 11,
+    "losses": 9,
+    "matches": 20,
+    "win_pct": 55.0
+   },
+   "grass": {
+    "wins": 4,
+    "losses": 2,
+    "matches": 6,
+    "win_pct": 66.7
+   },
+   "indoor_hard": {
+    "wins": 7,
+    "losses": 9,
+    "matches": 16,
+    "win_pct": 43.8
+   },
+   "clay": {
+    "wins": 92,
+    "losses": 65,
+    "matches": 157,
+    "win_pct": 58.6
+   }
+  },
+  "stats": {
+   "hold_pct": 74.0,
+   "serve_points_won": 60.0,
+   "return_points_won": 43.1,
+   "aces_per_game": 3.33,
+   "first_serve_pct": 66.0,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "LTU"
+  }
+ },
+ {
+  "rank": 129,
+  "name": "Pablo Llamas Ruiz",
+  "country": "ESP",
+  "id": "64896",
+  "elo": {
+   "elo_overall": 1729.3,
+   "elo_hard": 1616.6,
+   "elo_clay": 1718.3,
+   "elo_grass": 1565.7
+  },
+  "surface": {
+   "clay": {
+    "wins": 55,
+    "losses": 28,
+    "matches": 83,
+    "win_pct": 66.3
+   },
+   "hard": {
+    "wins": 13,
+    "losses": 16,
+    "matches": 29,
+    "win_pct": 44.8
+   },
+   "grass": {
+    "wins": 2,
+    "losses": 3,
+    "matches": 5,
+    "win_pct": 40.0
+   },
+   "indoor_hard": {
+    "wins": 7,
+    "losses": 6,
+    "matches": 13,
+    "win_pct": 53.8
+   }
+  },
+  "stats": {
+   "hold_pct": 75.1,
+   "serve_points_won": 60.6,
+   "return_points_won": 44.0,
+   "aces_per_game": 2.65,
+   "first_serve_pct": 68.6,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "ESP"
+  }
+ },
+ {
+  "rank": 130,
+  "name": "Leandro Riedi",
+  "country": "SUI",
+  "id": "79064",
+  "elo": {
+   "elo_overall": 1693.1,
+   "elo_hard": 1675.3,
+   "elo_clay": 1598.6,
+   "elo_grass": 1625.8
+  },
+  "surface": {
+   "hard": {
+    "wins": 23,
+    "losses": 15,
+    "matches": 38,
+    "win_pct": 60.5
+   },
+   "indoor_hard": {
+    "wins": 21,
+    "losses": 7,
+    "matches": 28,
+    "win_pct": 75.0
+   },
+   "grass": {
+    "wins": 13,
+    "losses": 6,
+    "matches": 19,
+    "win_pct": 68.4
+   },
+   "clay": {
+    "wins": 12,
+    "losses": 8,
+    "matches": 20,
+    "win_pct": 60.0
+   }
+  },
+  "stats": {
+   "hold_pct": 81.2,
+   "serve_points_won": 63.8,
+   "return_points_won": 41.3,
+   "aces_per_game": 7.06,
+   "first_serve_pct": 60.6,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "SUI"
+  }
+ },
+ {
+  "rank": 131,
+  "name": "Nicolas Mejia",
+  "country": "COL",
+  "id": "34968",
+  "elo": {
+   "elo_overall": 1578.6,
+   "elo_hard": 1474.6,
+   "elo_clay": 1565.5,
+   "elo_grass": 1562.7
+  },
+  "surface": {
+   "clay": {
+    "wins": 54,
+    "losses": 18,
+    "matches": 72,
+    "win_pct": 75.0
+   },
+   "grass": {
+    "wins": 5,
+    "losses": 2,
+    "matches": 7,
+    "win_pct": 71.4
+   },
+   "indoor_hard": {
+    "wins": 6,
+    "losses": 13,
+    "matches": 19,
+    "win_pct": 31.6
+   },
+   "hard": {
+    "wins": 49,
+    "losses": 51,
+    "matches": 100,
+    "win_pct": 49.0
+   }
+  },
+  "stats": {
+   "hold_pct": 76.7,
+   "serve_points_won": 61.4,
+   "return_points_won": 41.8,
+   "aces_per_game": 4.94,
+   "first_serve_pct": 62.1,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "COL"
+  }
+ },
+ {
+  "rank": 132,
+  "name": "Alexandre Muller",
+  "country": "FRA",
+  "id": "28108",
+  "elo": {
+   "elo_overall": 1650.5,
+   "elo_hard": 1623.3,
+   "elo_clay": 1614.4,
+   "elo_grass": 1502.8
+  },
+  "surface": {
+   "hard": {
+    "wins": 25,
+    "losses": 30,
+    "matches": 55,
+    "win_pct": 45.5
+   },
+   "indoor_hard": {
+    "wins": 6,
+    "losses": 10,
+    "matches": 16,
+    "win_pct": 37.5
+   },
+   "grass": {
+    "wins": 1,
+    "losses": 5,
+    "matches": 6,
+    "win_pct": 16.7
+   },
+   "clay": {
+    "wins": 40,
+    "losses": 34,
+    "matches": 74,
+    "win_pct": 54.1
+   }
+  },
+  "stats": {
+   "hold_pct": 75.5,
+   "serve_points_won": 60.8,
+   "return_points_won": 43.0,
+   "aces_per_game": 3.86,
+   "first_serve_pct": 65.8,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "FRA"
+  }
+ },
+ {
+  "rank": 133,
+  "name": "Nikoloz Basilashvili",
+  "country": "GEO",
+  "id": "14716",
+  "elo": {
+   "elo_overall": 1640.9,
+   "elo_hard": 1593,
+   "elo_clay": 1605,
+   "elo_grass": 1577.7
+  },
+  "surface": {
+   "clay": {
+    "wins": 48,
+    "losses": 37,
+    "matches": 85,
+    "win_pct": 56.5
+   },
+   "hard": {
+    "wins": 33,
+    "losses": 28,
+    "matches": 61,
+    "win_pct": 54.1
+   },
+   "grass": {
+    "wins": 7,
+    "losses": 6,
+    "matches": 13,
+    "win_pct": 53.8
+   },
+   "indoor_hard": {
+    "wins": 23,
+    "losses": 15,
+    "matches": 38,
+    "win_pct": 60.5
+   }
+  },
+  "stats": {
+   "hold_pct": 75.5,
+   "serve_points_won": 60.8,
+   "return_points_won": 40.4,
+   "aces_per_game": 5.39,
+   "first_serve_pct": 59.3,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "GEO"
+  }
+ },
+ {
+  "rank": 134,
+  "name": "Gustavo Heide",
+  "country": "BRA",
+  "id": "74899",
+  "elo": {
+   "elo_overall": 1674.4,
+   "elo_hard": 1525.3,
+   "elo_clay": 1661,
+   "elo_grass": 1506.8
+  },
+  "surface": {
+   "grass": {
+    "wins": 1,
+    "losses": 2,
+    "matches": 3,
+    "win_pct": 33.3
+   },
+   "indoor_hard": {
+    "wins": 1,
+    "losses": 2,
+    "matches": 3,
+    "win_pct": 33.3
+   },
+   "clay": {
+    "wins": 85,
+    "losses": 44,
+    "matches": 129,
+    "win_pct": 65.9
+   },
+   "hard": {
+    "wins": 7,
+    "losses": 6,
+    "matches": 13,
+    "win_pct": 53.8
+   }
+  },
+  "stats": {
+   "hold_pct": 80.7,
+   "serve_points_won": 63.5,
+   "return_points_won": 42.7,
+   "aces_per_game": 6.77,
+   "first_serve_pct": 56.0,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "BRA"
+  }
+ },
+ {
+  "rank": 135,
+  "name": "Reilly Opelka",
+  "country": "USA",
+  "id": "28087",
+  "elo": {
+   "elo_overall": 1748.9,
+   "elo_hard": 1733.8,
+   "elo_clay": 1644,
+   "elo_grass": 1634.6
+  },
+  "surface": {
+   "hard": {
+    "wins": 22,
+    "losses": 24,
+    "matches": 46,
+    "win_pct": 47.8
+   },
+   "clay": {
+    "wins": 5,
+    "losses": 9,
+    "matches": 14,
+    "win_pct": 35.7
+   },
+   "grass": {
+    "wins": 10,
+    "losses": 6,
+    "matches": 16,
+    "win_pct": 62.5
+   },
+   "indoor_hard": {
+    "wins": 10,
+    "losses": 7,
+    "matches": 17,
+    "win_pct": 58.8
+   }
+  },
+  "stats": {
+   "hold_pct": 92.8,
+   "serve_points_won": 69.9,
+   "return_points_won": 32.2,
+   "aces_per_game": 20.94,
+   "first_serve_pct": 62.7,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "USA"
+  }
+ },
+ {
+  "rank": 136,
+  "name": "Jurij Rodionov",
+  "country": "AUT",
+  "id": "44555",
+  "elo": {
+   "elo_overall": 1603,
+   "elo_hard": 1567.4,
+   "elo_clay": 1549.3,
+   "elo_grass": 1565
+  },
+  "surface": {
+   "hard": {
+    "wins": 32,
+    "losses": 24,
+    "matches": 56,
+    "win_pct": 57.1
+   },
+   "grass": {
+    "wins": 6,
+    "losses": 7,
+    "matches": 13,
+    "win_pct": 46.2
+   },
+   "indoor_hard": {
+    "wins": 30,
+    "losses": 19,
+    "matches": 49,
+    "win_pct": 61.2
+   },
+   "clay": {
+    "wins": 34,
+    "losses": 31,
+    "matches": 65,
+    "win_pct": 52.3
+   }
+  },
+  "stats": {
+   "hold_pct": 78.6,
+   "serve_points_won": 62.4,
+   "return_points_won": 40.1,
+   "aces_per_game": 7.21,
+   "first_serve_pct": 60.7,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "AUT"
+  }
+ },
+ {
+  "rank": 137,
+  "name": "Andrea Pellegrino",
+  "country": "ITA",
+  "id": "29457",
+  "elo": {
+   "elo_overall": 1660.7,
+   "elo_hard": 1415.3,
+   "elo_clay": 1644,
+   "elo_grass": 1455.2
+  },
+  "surface": {
+   "hard": {
+    "wins": 0,
+    "losses": 5,
+    "matches": 5,
+    "win_pct": 0.0
+   },
+   "grass": {
+    "wins": 1,
+    "losses": 3,
+    "matches": 4,
+    "win_pct": 25.0
+   },
+   "clay": {
+    "wins": 88,
+    "losses": 61,
+    "matches": 149,
+    "win_pct": 59.1
+   },
+   "indoor_hard": {
+    "wins": 1,
+    "losses": 4,
+    "matches": 5,
+    "win_pct": 20.0
+   }
+  },
+  "stats": {
+   "hold_pct": 74.4,
+   "serve_points_won": 60.2,
+   "return_points_won": 42.0,
+   "aces_per_game": 3.61,
+   "first_serve_pct": 62.7,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "ITA"
+  }
+ },
+ {
+  "rank": 138,
+  "name": "Tomas Barrios Vera",
+  "country": "CHI",
+  "id": "30849",
+  "elo": {
+   "elo_overall": 1582.1,
+   "elo_hard": 1535.9,
+   "elo_clay": 1550.2,
+   "elo_grass": 1545.4
+  },
+  "surface": {
+   "hard": {
+    "wins": 17,
+    "losses": 15,
+    "matches": 32,
+    "win_pct": 53.1
+   },
+   "grass": {
+    "wins": 10,
+    "losses": 7,
+    "matches": 17,
+    "win_pct": 58.8
+   },
+   "clay": {
+    "wins": 82,
+    "losses": 55,
+    "matches": 137,
+    "win_pct": 59.9
+   },
+   "indoor_hard": {
+    "wins": 0,
+    "losses": 2,
+    "matches": 2,
+    "win_pct": 0.0
+   }
+  },
+  "stats": {
+   "hold_pct": 76.5,
+   "serve_points_won": 61.3,
+   "return_points_won": 43.8,
+   "aces_per_game": 3.61,
+   "first_serve_pct": 63.5,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "CHI"
+  }
+ },
+ {
+  "rank": 139,
+  "name": "Cristian Garin",
+  "country": "CHI",
+  "id": "24840",
+  "elo": {
+   "elo_overall": 1666.9,
+   "elo_hard": 1572.1,
+   "elo_clay": 1658.7,
+   "elo_grass": 1617.3
+  },
+  "surface": {
+   "clay": {
+    "wins": 61,
+    "losses": 37,
+    "matches": 98,
+    "win_pct": 62.2
+   },
+   "hard": {
+    "wins": 9,
+    "losses": 17,
+    "matches": 26,
+    "win_pct": 34.6
+   },
+   "grass": {
+    "wins": 7,
+    "losses": 5,
+    "matches": 12,
+    "win_pct": 58.3
+   },
+   "indoor_hard": {
+    "wins": 2,
+    "losses": 2,
+    "matches": 4,
+    "win_pct": 50.0
+   }
+  },
+  "stats": {
+   "hold_pct": 76.8,
+   "serve_points_won": 61.5,
+   "return_points_won": 42.2,
+   "aces_per_game": 5.24,
+   "first_serve_pct": 60.4,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "CHI"
+  }
+ },
+ {
+  "rank": 140,
+  "name": "Grigor Dimitrov",
+  "country": "BUL",
+  "id": "11953",
+  "elo": {
+   "elo_overall": 1758.1,
+   "elo_hard": 1742.9,
+   "elo_clay": 1656.4,
+   "elo_grass": 1681.2
+  },
+  "surface": {
+   "clay": {
+    "wins": 14,
+    "losses": 14,
+    "matches": 28,
+    "win_pct": 50.0
+   },
+   "hard": {
+    "wins": 32,
+    "losses": 18,
+    "matches": 50,
+    "win_pct": 64.0
+   },
+   "grass": {
+    "wins": 14,
+    "losses": 6,
+    "matches": 20,
+    "win_pct": 70.0
+   },
+   "indoor_hard": {
+    "wins": 14,
+    "losses": 6,
+    "matches": 20,
+    "win_pct": 70.0
+   }
+  },
+  "stats": {
+   "hold_pct": 85.8,
+   "serve_points_won": 66.2,
+   "return_points_won": 39.7,
+   "aces_per_game": 8.97,
+   "first_serve_pct": 62.0,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "BUL"
+  }
+ },
+ {
+  "rank": 141,
+  "name": "Arthur Cazaux",
+  "country": "FRA",
+  "id": "70873",
+  "elo": {
+   "elo_overall": 1792.9,
+   "elo_hard": 1737.6,
+   "elo_clay": 1702.8,
+   "elo_grass": 1658.7
+  },
+  "surface": {
+   "hard": {
+    "wins": 46,
+    "losses": 30,
+    "matches": 76,
+    "win_pct": 60.5
+   },
+   "grass": {
+    "wins": 5,
+    "losses": 6,
+    "matches": 11,
+    "win_pct": 45.5
+   },
+   "indoor_hard": {
+    "wins": 8,
+    "losses": 7,
+    "matches": 15,
+    "win_pct": 53.3
+   },
+   "clay": {
+    "wins": 8,
+    "losses": 7,
+    "matches": 15,
+    "win_pct": 53.3
+   }
+  },
+  "stats": {
+   "hold_pct": 83.7,
+   "serve_points_won": 65.1,
+   "return_points_won": 40.8,
+   "aces_per_game": 10.25,
+   "first_serve_pct": 58.5,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "FRA"
+  }
+ },
+ {
+  "rank": 142,
+  "name": "Stefano Travaglia",
+  "country": "ITA",
+  "id": "12097",
+  "elo": {
+   "elo_overall": 1573.9,
+   "elo_hard": 1540.8,
+   "elo_clay": 1534.4,
+   "elo_grass": 1463.3
+  },
+  "surface": {
+   "hard": {
+    "wins": 16,
+    "losses": 14,
+    "matches": 30,
+    "win_pct": 53.3
+   },
+   "grass": {
+    "wins": 1,
+    "losses": 2,
+    "matches": 3,
+    "win_pct": 33.3
+   },
+   "clay": {
+    "wins": 70,
+    "losses": 55,
+    "matches": 125,
+    "win_pct": 56.0
+   },
+   "indoor_hard": {
+    "wins": 11,
+    "losses": 8,
+    "matches": 19,
+    "win_pct": 57.9
+   }
+  },
+  "stats": {
+   "hold_pct": 78.6,
+   "serve_points_won": 62.4,
+   "return_points_won": 42.2,
+   "aces_per_game": 7.49,
+   "first_serve_pct": 56.7,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "ITA"
+  }
+ },
+ {
+  "rank": 143,
+  "name": "Hugo Dellien",
+  "country": "BOL",
+  "id": "18477",
+  "elo": {
+   "elo_overall": 1637.8,
+   "elo_hard": 1485.9,
+   "elo_clay": 1626.4,
+   "elo_grass": 1471.4
+  },
+  "surface": {
+   "hard": {
+    "wins": 3,
+    "losses": 7,
+    "matches": 10,
+    "win_pct": 30.0
+   },
+   "grass": {
+    "wins": 1,
+    "losses": 3,
+    "matches": 4,
+    "win_pct": 25.0
+   },
+   "clay": {
+    "wins": 108,
+    "losses": 62,
+    "matches": 170,
+    "win_pct": 63.5
+   }
+  },
+  "stats": {
+   "hold_pct": 76.1,
+   "serve_points_won": 61.1,
+   "return_points_won": 44.2,
+   "aces_per_game": 2.64,
+   "first_serve_pct": 72.5,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "BOL"
+  }
+ },
+ {
+  "rank": 144,
+  "name": "Nicolai Budkov Kjaer",
+  "country": "NOR",
+  "id": "104215",
+  "elo": {
+   "elo_overall": 1612,
+   "elo_hard": 1593.8,
+   "elo_clay": 1568.3,
+   "elo_grass": 1518.3
+  },
+  "surface": {
+   "grass": {
+    "wins": 5,
+    "losses": 7,
+    "matches": 12,
+    "win_pct": 41.7
+   },
+   "indoor_hard": {
+    "wins": 32,
+    "losses": 19,
+    "matches": 51,
+    "win_pct": 62.7
+   },
+   "hard": {
+    "wins": 16,
+    "losses": 10,
+    "matches": 26,
+    "win_pct": 61.5
+   },
+   "clay": {
+    "wins": 46,
+    "losses": 26,
+    "matches": 72,
+    "win_pct": 63.9
+   }
+  },
+  "stats": {
+   "hold_pct": 77.8,
+   "serve_points_won": 62.0,
+   "return_points_won": 42.8,
+   "aces_per_game": 5.49,
+   "first_serve_pct": 62.9,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "NOR"
+  }
+ },
+ {
+  "rank": 145,
+  "name": "Mackenzie Mcdonald",
+  "country": "USA",
+  "id": "18094",
+  "elo": {
+   "elo_overall": 1618.3,
+   "elo_hard": 1610.5,
+   "elo_clay": 1479.7,
+   "elo_grass": 1553.6
+  },
+  "surface": {
+   "hard": {
+    "wins": 49,
+    "losses": 37,
+    "matches": 86,
+    "win_pct": 57.0
+   },
+   "grass": {
+    "wins": 16,
+    "losses": 16,
+    "matches": 32,
+    "win_pct": 50.0
+   },
+   "indoor_hard": {
+    "wins": 14,
+    "losses": 8,
+    "matches": 22,
+    "win_pct": 63.6
+   },
+   "clay": {
+    "wins": 2,
+    "losses": 14,
+    "matches": 16,
+    "win_pct": 12.5
+   }
+  },
+  "stats": {
+   "hold_pct": 79.7,
+   "serve_points_won": 63.0,
+   "return_points_won": 41.0,
+   "aces_per_game": 6.11,
+   "first_serve_pct": 63.5,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "USA"
+  }
+ },
+ {
+  "rank": 146,
+  "name": "Nishesh Basavareddy",
+  "country": "USA",
+  "id": "92184",
+  "elo": {
+   "elo_overall": 1721.5,
+   "elo_hard": 1680.5,
+   "elo_clay": 1634.2,
+   "elo_grass": 1544.1
+  },
+  "surface": {
+   "hard": {
+    "wins": 60,
+    "losses": 29,
+    "matches": 89,
+    "win_pct": 67.4
+   },
+   "indoor_hard": {
+    "wins": 21,
+    "losses": 10,
+    "matches": 31,
+    "win_pct": 67.7
+   },
+   "clay": {
+    "wins": 16,
+    "losses": 13,
+    "matches": 29,
+    "win_pct": 55.2
+   },
+   "grass": {
+    "wins": 2,
+    "losses": 3,
+    "matches": 5,
+    "win_pct": 40.0
+   }
+  },
+  "stats": {
+   "hold_pct": 80.3,
+   "serve_points_won": 63.3,
+   "return_points_won": 42.4,
+   "aces_per_game": 5.98,
+   "first_serve_pct": 57.3,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "USA"
+  }
+ },
+ {
+  "rank": 147,
+  "name": "Jack Draper",
+  "country": "GBR",
+  "id": "63017",
+  "elo": {
+   "elo_overall": 1822.3,
+   "elo_hard": 1782.5,
+   "elo_clay": 1696.6,
+   "elo_grass": 1704
+  },
+  "surface": {
+   "clay": {
+    "wins": 17,
+    "losses": 12,
+    "matches": 29,
+    "win_pct": 58.6
+   },
+   "grass": {
+    "wins": 15,
+    "losses": 5,
+    "matches": 20,
+    "win_pct": 75.0
+   },
+   "indoor_hard": {
+    "wins": 8,
+    "losses": 3,
+    "matches": 11,
+    "win_pct": 72.7
+   },
+   "hard": {
+    "wins": 37,
+    "losses": 16,
+    "matches": 53,
+    "win_pct": 69.8
+   }
+  },
+  "stats": {
+   "hold_pct": 85.2,
+   "serve_points_won": 65.9,
+   "return_points_won": 42.5,
+   "aces_per_game": 10.11,
+   "first_serve_pct": 60.0,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "GBR"
+  }
+ },
+ {
+  "rank": 148,
+  "name": "Pedro Martinez Portero",
+  "country": "ESP",
+  "id": "27358",
+  "elo": {
+   "elo_overall": 1500,
+   "elo_hard": 1500,
+   "elo_clay": 1500,
+   "elo_grass": 1500
+  },
+  "surface": {
+   "hard": {
+    "wins": 16,
+    "losses": 21,
+    "matches": 37,
+    "win_pct": 43.2
+   },
+   "grass": {
+    "wins": 2,
+    "losses": 7,
+    "matches": 9,
+    "win_pct": 22.2
+   },
+   "indoor_hard": {
+    "wins": 6,
+    "losses": 13,
+    "matches": 19,
+    "win_pct": 31.6
+   },
+   "clay": {
+    "wins": 49,
+    "losses": 47,
+    "matches": 96,
+    "win_pct": 51.0
+   }
+  },
+  "stats": {
+   "hold_pct": 72.7,
+   "serve_points_won": 59.3,
+   "return_points_won": 44.4,
+   "aces_per_game": 2.23,
+   "first_serve_pct": 65.6,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "ESP"
+  }
+ },
+ {
+  "rank": 149,
+  "name": "Francesco Maestrelli",
+  "country": "ITA",
+  "id": "63737",
+  "elo": {
+   "elo_overall": 1497.1,
+   "elo_hard": 1530.4,
+   "elo_clay": 1437.9,
+   "elo_grass": 1362.6
+  },
+  "surface": {
+   "hard": {
+    "wins": 31,
+    "losses": 21,
+    "matches": 52,
+    "win_pct": 59.6
+   },
+   "grass": {
+    "wins": 0,
+    "losses": 5,
+    "matches": 5,
+    "win_pct": 0.0
+   },
+   "clay": {
+    "wins": 51,
+    "losses": 51,
+    "matches": 102,
+    "win_pct": 50.0
+   },
+   "indoor_hard": {
+    "wins": 14,
+    "losses": 8,
+    "matches": 22,
+    "win_pct": 63.6
+   }
+  },
+  "stats": {
+   "hold_pct": 75.0,
+   "serve_points_won": 60.5,
+   "return_points_won": 41.8,
+   "aces_per_game": 6.97,
+   "first_serve_pct": 61.1,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "ITA"
+  }
+ },
+ {
+  "rank": 150,
+  "name": "Timofey Skatov",
+  "country": "KAZ",
+  "id": "55257",
+  "elo": {
+   "elo_overall": 1546.8,
+   "elo_hard": 1480.8,
+   "elo_clay": 1526.8,
+   "elo_grass": 1514.8
+  },
+  "surface": {
+   "hard": {
+    "wins": 19,
+    "losses": 21,
+    "matches": 40,
+    "win_pct": 47.5
+   },
+   "grass": {
+    "wins": 5,
+    "losses": 4,
+    "matches": 9,
+    "win_pct": 55.6
+   },
+   "indoor_hard": {
+    "wins": 2,
+    "losses": 6,
+    "matches": 8,
+    "win_pct": 25.0
+   },
+   "clay": {
+    "wins": 69,
+    "losses": 48,
+    "matches": 117,
+    "win_pct": 59.0
+   }
+  },
+  "stats": {
+   "hold_pct": 72.7,
+   "serve_points_won": 59.3,
+   "return_points_won": 43.8,
+   "aces_per_game": 1.88,
+   "first_serve_pct": 69.0,
+   "break_points_saved": null,
+   "break_points_converted": null
+  },
+  "profile": {
+   "age": null,
+   "hand": "",
+   "height": "",
+   "nationality": "KAZ"
+  }
+ }
+]
