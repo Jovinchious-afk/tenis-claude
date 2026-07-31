@@ -24,8 +24,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import openpyxl
 
+# Od 31.07.2026 tablica pokriva top 150 (prije top 100). Stari top100 file je namjerno
+# ostavljen u folderu kao zapis polaznog stanja, ali se vise ne cita — uredjuj top150.
 XLSX_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                         "ATP_Player_Scouting top100.xlsx")
+                         "ATP_Player_Scouting top150.xlsx")
 SHEET = "ATP Player Scouting"
 
 # Stupci po indeksu (0-based) — redoslijed iz Excela:
