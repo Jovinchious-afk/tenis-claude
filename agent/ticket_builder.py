@@ -440,6 +440,16 @@ def _apply_surface_overrides(cfg: dict, candidates: list) -> dict:
 
 # Mrtva zona kvota na clayu: 1.50-1.90 pobjeđivala 3/11 (27%) u clay korpusu
 # (na grassu ista zona 20%). Marginalni favoriti bez informacijskog edga.
+# Gornja granica edga koji se boduje. Razdvojena po cijeni picka 02.08.2026 — vidi
+# obrazloženje u _score_combo. Favoriti zadržavaju stari, strogi prag.
+_EDGE_CAP = 20.0            # pickovi ispod _UNDERDOG_MIN_ODDS (favoriti)
+_UNDERDOG_EDGE_CAP = 30.0   # pickovi na _UNDERDOG_MIN_ODDS i više (pravi underdogovi)
+# 30, ne 28: na 28 je Cerundolo @2.79 (28.2pp, DOBIO) ispadao za dvije desetinke —
+# tocno onaj "za dlaku" problem koji ovim paketom popravljamo u pravilima. Na 30
+# prolaze svi povijesni dobitni underdogovi osim Gaubasa @3.10 (30.7pp), a
+# Collignon @2.82 uz conf 71 (35.5pp — dokumentirani promasaj) i dalje ispada.
+_UNDERDOG_MIN_ODDS = 2.00
+
 _CLAY_DEAD_ZONE = (1.50, 1.90)
 _CLAY_DEAD_ZONE_MAX = 1  # max toliko clay pickova iz mrtve zone po tiketu
 
@@ -511,9 +521,18 @@ def _score_combo(combo: tuple) -> float:
         joint_prob *= c / 100.0
 
     # Edge bonus: proportional, only if edge >= 3pp, cap 10 per pick.
-    # Edge-sanity (clay revizija 2026-07-11): edge > 20pp znači da model tvrdi da tržište
-    # griješi za 20+ postotnih bodova — povijesno je to bio signal NAŠE greške, ne value-a
-    # (Collignon @2.82 s umišljenih 18pp edga izgubio). Takav pick ne dobiva bonus.
+    # Edge-sanity (clay revizija 2026-07-11): prevelik edge je povijesno bio signal NAŠE
+    # greške, ne value-a (Collignon @2.82 uz umišljenih 18pp izgubio), pa iznad gornje
+    # granice pick ne dobiva bonus.
+    #
+    # GRANICA SADA OVISI O CIJENI PICKA (02.08.2026). Ista brojka znači različite tvrdnje:
+    #   - favorit @1.50: "ja 70%, tržište 50%" = "ovo je siguran meč"  -> tu smo griješili
+    #   - underdog @2.50: "ja 63%, tržište 40%" = "ovo je bliže izjednačenom nego cijena"
+    #     -> bitno skromnija i obranjivija tvrdnja
+    # Jedinstvenih 20pp je tiho gasilo SVE underdoge: pick @2.50 uz conf 63 ima 23pp edga,
+    # pa je dobivao NULA bonusa i optimizator ga nikad nije birao. Izmjereno na sezoni:
+    # raspon 2.30-2.60 nam je NAJBOLJI (6W-2L, ROI +79.4%), dok 1.30-1.60 gubi (-10.2%, n=93).
+    # Kontrola: Collignon @2.82 uz conf 71 (35.5pp) i dalje ostaje bez bonusa.
     edge_total = 0.0
     for p in combo:
         fair = p.get("fair_odds") or 0
@@ -522,7 +541,8 @@ def _score_combo(combo: tuple) -> float:
             model_prob = 1.0 / fair * 100
             implied_prob = 1.0 / bookmaker * 100
             edge = model_prob - implied_prob
-            if 3.0 <= edge <= 20.0:
+            edge_cap = _UNDERDOG_EDGE_CAP if bookmaker >= _UNDERDOG_MIN_ODDS else _EDGE_CAP
+            if 3.0 <= edge <= edge_cap:
                 edge_total += min(10.0, edge)
 
     # High confidence bonus

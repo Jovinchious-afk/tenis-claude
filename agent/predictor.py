@@ -202,6 +202,34 @@ market's favourite is more likely to be over-priced. Therefore, from the QF onwa
     not a gamble to be avoided — if the evidence genuinely favours him, say so and price it;
   - treat a final as the highest-variance round of the tournament, not the safest.
 This is a pricing/calibration rule, not an instruction to prefer underdogs blindly.
+UPDATE 2026-08-02 — the hard-court corpus confirms the round effect but NOT the underdog
+half: on hard, late rounds lose at every price (<=1.60: 64%, -11.5%; >1.60: 50%, -7.5%).
+So on hard, treat late rounds as harder across the board rather than as an underdog
+opportunity; the underdog finding above still stands for clay and grass.
+
+WHEN A BIG UNDERDOG IS A LEGITIMATE PICK (added 2026-08-02):
+You are ALLOWED — and on the evidence, expected — to back a genuine underdog when the
+case is real. Measured across our whole 2026 season: picks at odds 2.30-2.60 returned
++79.4% ROI (6W-2L) and picks above 2.60 returned +7.4% (3W-5L), while our largest band
+(1.30-1.60, n=93) LOST 10.2%. Short favourites are where we bleed, not long shots.
+The distinction that matters is WHERE the disagreement with the market comes from, not
+how large it is:
+  - LEGITIMATE: at least TWO of the rule-2 categories independently favour the underdog —
+    e.g. he holds serve 3pp+ better on a fast court, or his surface win rate is clearly
+    higher while the opponent's is at or below 50%, or a Med+ scouting profile describes a
+    style matchup that genuinely troubles the favourite. Then a 20-28pp disagreement with
+    the market is a defensible claim ("this is closer to even than the price says"), and
+    you should state the confidence you actually believe.
+  - NOT LEGITIMATE: the only argument is a rating gap, a hunch, or "he is due". A large
+    disagreement with no measured backing is our documented failure mode (Collignon @2.82
+    scored 71% on an imagined edge, lost).
+If you back an underdog on this basis, say so EXPLICITLY in key_factors point 6: name the
+two categories that back him and the margin in each. If you cannot name two, do not make
+the pick — score it honestly below the floor and move on.
+NOTE on the claim you are making: with a favourite, claiming 70% against a market price of
+50% asserts "this is a lock" — that is where we have historically been wrong. With an
+underdog, claiming 63% against a market price of 40% asserts only "this is nearer even
+than priced", which is a far more modest and defensible statement. Calibrate accordingly.
 
 Key analytical priorities:
 - Surface-specific ELO outweighs ATP ranking. A player ranked #15 with clay ELO 1750 is better on clay than a #8 with clay ELO 1680.
@@ -585,6 +613,10 @@ and MUST be enforced from day one.
    (b) SERVE/RETURN: counts ONLY if hold% differs by >= 3pp OR return-points-won by
        >= 2pp. Smaller gaps are noise — a 1.2pp return edge is NOT a confirmation
        (documented: Mensik vs Nakashima cited exactly that and lost).
+       SLIDING, NOT A SWITCH (added 2026-08-02): a value that clears the threshold by
+       less than 2pp is a WEAK confirmation, not a full one — it may lift confidence by
+       at most 1pp. Only a margin of 5pp or more counts as a full confirmation. Barely
+       clearing a floor is not evidence, it is a coin-flip dressed as evidence.
    (c) FORM adjusted for opponent quality (avg opponent ELO must actually differ).
 
    Scoring:
@@ -675,7 +707,15 @@ and MUST be enforced from day one.
    won is below ~40%: the opponent can realistically keep every set within one break or
    tiebreak, which is a coin-flip regardless of ELO/ranking gaps. Cap confidence at 60%
    unless our pick has a clearly documented answer: elite return numbers (42%+), a winning
-   H2H with this server, or a clearly superior tiebreak record. On hard this pattern is
+   H2H with this server, or a clearly superior tiebreak record.
+   SLIDING THRESHOLD (added 2026-08-02 — this rule was defused by a hair in THREE straight
+   losses): "42%+" is not a switch. Measured margins and what they are worth:
+     - return within 1pp of 42% (e.g. 42.5%)  -> the answer is NOT established; keep the
+       60% cap. Documented: De Minaur 42.5% vs Nakashima 87.5% hold -> lost 7-6 6-4.
+     - return 43-45%                          -> partial answer; cap 63%.
+     - return above 45%                       -> genuine answer; the cap is lifted.
+   The same logic applies to every numeric floor in these rules: ask HOW FAR the value
+   clears it, never merely WHETHER it clears it. On hard this pattern is
    STRONGER than on the fast clay where it cost us three picks (Navone @1.45, Hanfmann
    @1.55, Bublik @1.50 — all beaten by the same big server we kept backing against).
    This complements rule 4 (both players serve-dominant) — rule 13 covers the asymmetric
@@ -721,6 +761,10 @@ and MUST be enforced from day one.
    - the decisive evidence becomes each player's OWN tiebreak record and deciding-set
      record (provided in the data above) — not the rating gap;
    - if your pick does not lead in BOTH tiebreak and deciding-set record, cap at 62%.
+   SLIDING THRESHOLD: "within 3pp" is a gradient, not a line. A 2.9pp gap is nearly as
+   neutralising as a 0.5pp gap; a 3.5pp gap is barely different from 2.9pp. Treat serve as
+   fully live only from a 5pp gap upward, and as fully neutralised below 2pp; between the
+   two, count it as half a confirmation under rule 2.
    Documented: Paul (hold ~81%) vs Majchrzak (hold ~81%) — a 140-point ELO gap was
    treated as decisive, the model itself wrote "TB lottery possible" in its risk notes,
    and the match went 7-5 7-6(4) exactly as predicted by the risk it ignored.
