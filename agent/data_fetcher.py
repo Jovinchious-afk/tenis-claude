@@ -651,7 +651,22 @@ def find_match_odds(player1: str, player2: str, all_odds: dict, screenshot_odds:
     return _search(all_odds)
 
 
+# Slova koja Unicode NFKD NE rastavlja na osnovu + znak, pa bi ispala krivo ili nestala.
+# đ/Đ su presudni: NFKD ih ostavlja kao "đ", a naivno skidanje daje "d" — dok API i
+# kladionice pišu "dj" (Medjedovic, Djere). Bez ovoga se par "Međedović vs ..." nikad ne
+# poklopi sa screenshotom (dokumentirano 01.08.2026: Cerundolo vs Međedović ostao nespojen).
+_SPECIAL_LETTERS = {
+    "đ": "dj", "Đ": "Dj", "ð": "d", "Ð": "D",
+    "ø": "o", "Ø": "O", "ß": "ss", "æ": "ae", "Æ": "Ae", "œ": "oe", "Œ": "Oe",
+    "ł": "l", "Ł": "L", "þ": "th", "Þ": "Th",
+}
+
+
 def _strip_diacritics(s: str) -> str:
+    """Skida dijakritiku; slova koja NFKD ne rastavlja preslikavaju se eksplicitno."""
+    for src, dst in _SPECIAL_LETTERS.items():
+        if src in s:
+            s = s.replace(src, dst)
     return "".join(c for c in unicodedata.normalize("NFKD", s) if not unicodedata.combining(c))
 
 

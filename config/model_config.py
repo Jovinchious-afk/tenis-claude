@@ -58,11 +58,17 @@ SURFACE_TICKET_OVERRIDES = {}
 
 # Max kandidata po turniru po danu (danas vs sutra)
 # Ovo je pre-filter PRIJE kombinatorike — ne limit na tiketu
+# Max kandidata po TURNIRU po DANU koji ulaze u kombinatoriku tiketa (ne u analizu —
+# analysis-only ostaje na 12, vidi _ANALYSIS_ONLY_MAX_PICKS). Ograničava izloženost
+# jednom turniru. Podignuto na 6 posvuda 01.08.2026 (bilo 5 za "tomorrow"): otkad
+# prozor pokriva i prekosutra, jedan turnir zna dati 13+ screenshotanih parova, a
+# stari limit od 5 je bespotrebno rezao izbor. Challenger/Qualifying ostaju 0 —
+# to je politička isključenost, ne kapacitet.
 DAILY_MATCH_LIMITS = {
     "Grand Slam":       {"today": 7, "tomorrow": 6},
-    "ATP Masters 1000": {"today": 6, "tomorrow": 5},
-    "ATP 500":          {"today": 6, "tomorrow": 5},
-    "ATP 250":          {"today": 6, "tomorrow": 5},
+    "ATP Masters 1000": {"today": 6, "tomorrow": 6},
+    "ATP 500":          {"today": 6, "tomorrow": 6},
+    "ATP 250":          {"today": 6, "tomorrow": 6},
     "ATP Challenger":   {"today": 0, "tomorrow": 0},
     "ATP Qualifying":   {"today": 0, "tomorrow": 0},
 }

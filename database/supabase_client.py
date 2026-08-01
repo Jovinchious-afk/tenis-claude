@@ -354,10 +354,13 @@ def stable_match_key(match_date, player1: str, player2: str) -> str:
 
 
 def _norm_player_key(name: str) -> str:
-    """Ime igrača svedeno na ključ: bez dijakritika, mala slova, jedan razmak."""
-    import unicodedata
-    s = unicodedata.normalize("NFKD", str(name or ""))
-    s = "".join(c for c in s if not unicodedata.combining(c))
+    """Ime igrača svedeno na ključ: bez dijakritika, mala slova, jedan razmak.
+
+    Koristi istu transliteraciju kao data_fetcher._strip_diacritics (đ→dj itd.) da isti
+    igrač NIKAD ne dobije dva različita ključa ovisno o tome piše li izvor "Međedović"
+    ili "Medjedovic" — inače bi se stvorila dva zapisa za isti meč."""
+    from agent.data_fetcher import _strip_diacritics
+    s = _strip_diacritics(str(name or ""))
     return " ".join(s.lower().replace("-", " ").split())
 
 

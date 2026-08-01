@@ -73,14 +73,42 @@ def main():
     except Exception as e:
         print(f"  Hard revalidacijski okidač preskočen (greška: {e})")
 
-    # 2. Dohvati mečeve za danas i sutra
+    # 2. Dohvati mečeve za danas i sutra (+ prekosutra, uvjetno — vidi ispod)
     today = today_zagreb()
     tomorrow = tomorrow_zagreb()
-    print(f"\nDohvaćam mečeve za {format_date(today)} i {format_date(tomorrow)}...")
+    day_after = tomorrow + datetime.timedelta(days=1)
+    today_str = format_date(today)
+    tomorrow_str = format_date(tomorrow)
+    day_after_str = format_date(day_after)
+
+    # Screenshot kvote se učitavaju OVDJE (prije dohvata mečeva) jer o njima ovisi
+    # hoće li se uopće dohvatiti prekosutra. Danas/sutra ostaju odvojeni — gate mora
+    # znati JE LI konkretan dan screenshotan.
+    screenshot_today = df.get_screenshot_odds(today_str)
+    screenshot_tomorrow = df.get_screenshot_odds(tomorrow_str)
+    screenshot_odds = {**screenshot_today, **screenshot_tomorrow}
+
+    # PROŠIRENI PROZOR (01.08.2026, korisnikov zahtjev): pod "Sutra" korisnik zna
+    # uploadati i prekosutrašnje parove — SuperSport ima kvote za ponedjeljak već u
+    # subotu, dok naš API tada još nema taj raspored. Dokumentirano 01.08.: od 16
+    # uploadanih parova, 13 se zapravo igralo prekosutra (Montreal glavni ždrijeb
+    # počinje 03.08. po API-jevim vlastitim podacima) pa nikad nisu ni dohvaćeni.
+    # Prekosutra se dohvaća SAMO ako postoji "sutra" screenshot, i za taj je dan gate
+    # UVIJEK aktivan (always_gated) — inače bi prošao nefiltriran jer nema vlastiti
+    # screenshot slot, i povukao bi cijeli turnir u analizu.
+    fetch_day_after = bool(screenshot_tomorrow)
+    days_label = f"{today_str} i {tomorrow_str}"
+    if fetch_day_after:
+        days_label += f" (+ {day_after_str}, jer postoji screenshot za sutra)"
+    print(f"\nDohvaćam mečeve za {days_label}...")
 
     matches_today = df.get_matches_for_date(today)
     matches_tomorrow = df.get_matches_for_date(tomorrow)
     all_matches = matches_today + matches_tomorrow
+    matches_day_after = []
+    if fetch_day_after:
+        matches_day_after = df.get_matches_for_date(day_after)
+        all_matches += matches_day_after
 
     # 1. Filter live/finished — only upcoming scheduled matches
     live_removed = [m for m in all_matches if m.get("status") in ("live", "finished")]
@@ -100,22 +128,14 @@ def main():
     # NAPOMENA: duplikat pravilo (isti meč na 2 uzastopna tiketa) je UKINUTO na
     # korisnikov zahtjev 2026-07-18 — tiket pokriva danas+sutra, i legitimno je isti
     # dobar meč ponoviti sutra; ne želimo izbacivati kvalitetne mečeve zbog ponavljanja.
-    print(f"Found {len(matches_today)} today + {len(matches_tomorrow)} tomorrow → {len(all_matches)} main-tour scheduled")
+    _extra = f" + {len(matches_day_after)} day-after" if fetch_day_after else ""
+    print(f"Found {len(matches_today)} today + {len(matches_tomorrow)} tomorrow{_extra} "
+          f"→ {len(all_matches)} main-tour scheduled")
 
-    # Ručno unesene kvote sa screenshotova — drže se ODVOJENO od Odds API podataka
-    # kako bi find_match_odds mogao uvijek provjeriti screenshot PRVI (prioritet),
-    # a tek tada pasti na The Odds API kao fallback.
-    # Učitava se OVDJE (prije _infer_rounds) jer je screenshot izvor istine da meč
-    # NIJE kvalifikacija: korisnik screenshota samo mečeve glavnog ždrijeba, nikad
-    # kvalifikacije. _infer_rounds to koristi da prepozna API-jev pogrešan Q-tag
-    # (npr. Umag QF označen kao Q2) i izvede pravu rundu iz broja mečeva.
-    # Danas/sutra drže se odvojeno (27.07.2026) — screenshot-isključivost ispod mora
-    # znati JE LI konkretan dan uopće screenshotan, spojeni skup to ne bi znao reći.
-    today_str = format_date(today)
-    tomorrow_str = format_date(tomorrow)
-    screenshot_today = df.get_screenshot_odds(today_str)
-    screenshot_tomorrow = df.get_screenshot_odds(tomorrow_str)
-    screenshot_odds = {**screenshot_today, **screenshot_tomorrow}
+    # Screenshot kvote (učitane gore, prije dohvata mečeva) drže se ODVOJENO od Odds API
+    # podataka kako bi find_match_odds uvijek provjerio screenshot PRVI (prioritet), a tek
+    # tada pao na The Odds API kao fallback. Screenshot je i izvor istine da meč NIJE
+    # kvalifikacija — _infer_rounds to koristi za API-jev pogrešan Q-tag.
     if screenshot_odds:
         print(f"  Učitano {len(screenshot_odds)} screenshot kvota (imaju prioritet nad Odds API).")
 
@@ -127,7 +147,8 @@ def main():
     # čim ih Odds API "pokrije", oslanjajući se samo na sretnu okolnost da manji
     # turniri dosad nisu imali live tržišta. Vidi _gate_by_screenshot.
     all_matches = _gate_by_screenshot(all_matches, screenshot_today, screenshot_tomorrow,
-                                      today_str, tomorrow_str)
+                                      today_str, tomorrow_str,
+                                      always_gated_dates={day_after_str} if fetch_day_after else None)
 
     # Fix unreliable round labels using match count per tournament per day
     all_matches = _infer_rounds(all_matches, screenshot_odds)
@@ -857,7 +878,8 @@ def _city_for_weather(tournament_name: str) -> str:
 
 
 def _gate_by_screenshot(matches: list, screenshot_today: dict, screenshot_tomorrow: dict,
-                         today_str: str, tomorrow_str: str) -> list:
+                         today_str: str, tomorrow_str: str,
+                         always_gated_dates: set = None) -> list:
     """Screenshot-isključivost (korisnikov zahtjev 27.07.2026): ako je korisnik za dan D
     uploadao barem jedan screenshot par, SAMO ti parovi tog dana smiju dalje u obradu —
     svi ostali mečevi tog dana (bez obzira što o njima kaže The Odds API ili API-jeva
@@ -869,9 +891,17 @@ def _gate_by_screenshot(matches: list, screenshot_today: dict, screenshot_tomorr
     idući Zagreb kalendarski dan (SAD zapadna obala je ~9-10h iza), pa API zna meč koji
     je korisnik screenshotao pod "danas" označiti sutrašnjim datumom. Isti par ne igra
     dva puta unutar ta dva dana (eliminacijski turnir), pa spajanje ne nosi rizik.
+
+    `always_gated_dates` (01.08.2026): datumi za koje gate vrijedi BEZ OBZIRA što za njih
+    ne postoji vlastiti screenshot slot — koristi se za PREKOSUTRA. Korisnik pod "Sutra"
+    zna uploadati i ponedjeljak (SuperSport ima kvote ranije nego naš API ima raspored),
+    pa te parove treba tražiti i dan dalje. Bez ovog popisa prekosutra bi prošao
+    NEFILTRIRAN (nema screenshota za taj datum → gate neaktivan) i povukao bi cijeli
+    turnir u analizu — točno suprotno od isključivosti koju korisnik traži.
     """
     gate_today = bool(screenshot_today)
     gate_tomorrow = bool(screenshot_tomorrow)
+    always_gated_dates = always_gated_dates or set()
     if not gate_today and not gate_tomorrow:
         return matches
 
@@ -884,7 +914,9 @@ def _gate_by_screenshot(matches: list, screenshot_today: dict, screenshot_tomorr
     kept, dropped = [], []
     for m in matches:
         d = m.get("date", "")
-        gate_active = (d == today_str and gate_today) or (d == tomorrow_str and gate_tomorrow)
+        gate_active = ((d == today_str and gate_today)
+                       or (d == tomorrow_str and gate_tomorrow)
+                       or d in always_gated_dates)
         if gate_active and not _in_pool(m):
             dropped.append(m)
         else:
