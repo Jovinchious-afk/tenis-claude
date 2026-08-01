@@ -443,11 +443,20 @@ def _apply_surface_overrides(cfg: dict, candidates: list) -> dict:
 # Gornja granica edga koji se boduje. Razdvojena po cijeni picka 02.08.2026 — vidi
 # obrazloženje u _score_combo. Favoriti zadržavaju stari, strogi prag.
 _EDGE_CAP = 20.0            # pickovi ispod _UNDERDOG_MIN_ODDS (favoriti)
-_UNDERDOG_EDGE_CAP = 30.0   # pickovi na _UNDERDOG_MIN_ODDS i više (pravi underdogovi)
-# 30, ne 28: na 28 je Cerundolo @2.79 (28.2pp, DOBIO) ispadao za dvije desetinke —
-# tocno onaj "za dlaku" problem koji ovim paketom popravljamo u pravilima. Na 30
-# prolaze svi povijesni dobitni underdogovi osim Gaubasa @3.10 (30.7pp), a
-# Collignon @2.82 uz conf 71 (35.5pp — dokumentirani promasaj) i dalje ispada.
+_UNDERDOG_EDGE_CAP = 28.0   # pickovi na _UNDERDOG_MIN_ODDS i više (pravi underdogovi)
+# 28, NE 30 (korigirano 02.08.2026 na korisnikovu primjedbu). Prvo je bilo 30 kako bi
+# prošao Collignon @2.79 (28.2pp, dobio) — ali provjera je pokazala da razlika 28 vs 30
+# dira TOČNO DVA picka u cijeloj sezoni: taj Collignon (W) i Vacherot @2.78 (void).
+# Pomicanje praga zbog jednog povoljnog slučaja je upravo obrazac koji ovim paketom
+# ispravljamo kod modela — ne smijemo ga sami raditi. Asimetrija je bitna: granica
+# postoji jer smo POVIJESNO PRECJENJIVALI value, pa je popuštanje rizičan smjer i traži
+# pozitivan dokaz, kojeg za 30 nema.
+# Isti igrač ilustrira zašto strože stoji: Collignon @2.82 uz conf 71 (35.5pp) IZGUBIO,
+# a @2.79 uz conf 64 (28.2pp) dobio — dva dana razmaka. Problem nije bio igrač nego
+# razina uvjerenja, pa granica treba držati uvjerenje na uzdi.
+# OGRADA (istaknuti pri prvoj hard reviziji): od 36 pickova >=2.00 u sezoni, 23 su GRASS,
+# 12 clay i samo 1 HARD (Tabilo @2.00). Za visoke kvote na hardu nemamo dokaza —
+# revalidirati čim skupimo prve hard pickove iznad 2.00.
 _UNDERDOG_MIN_ODDS = 2.00
 
 _CLAY_DEAD_ZONE = (1.50, 1.90)
@@ -532,6 +541,7 @@ def _score_combo(combo: tuple) -> float:
     # Jedinstvenih 20pp je tiho gasilo SVE underdoge: pick @2.50 uz conf 63 ima 23pp edga,
     # pa je dobivao NULA bonusa i optimizator ga nikad nije birao. Izmjereno na sezoni:
     # raspon 2.30-2.60 nam je NAJBOLJI (6W-2L, ROI +79.4%), dok 1.30-1.60 gubi (-10.2%, n=93).
+# NAPOMENA: taj nalaz je grass/clay — od 36 pickova >=2.00 samo je JEDAN bio na hardu.
     # Kontrola: Collignon @2.82 uz conf 71 (35.5pp) i dalje ostaje bez bonusa.
     edge_total = 0.0
     for p in combo:
