@@ -9,6 +9,138 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-08-02 — Klizni pragovi + underdogovi vraceni u igru
+
+**Povod:** korisnik trazio analizu hard rezultata nakon poraza De Minaura i Sheltona, i
+pitao zasto na tiketu nikad nema kvote preko 2.50.
+
+**Stanje hard sezone (n=24):** 16W-8L (66.7%), flat ROI -2.3%. Trziste je iz kvota
+ocekivalo 16.7 pobjeda (69.5%), model tvrdio 15.6 (65%), dobili smo 16 — **kalibracija je
+odlicna**, ali prosjecna kvota 1.474 trazi 67.8% za nulu. Savrseno kalibriran model na tim
+cijenama i dalje gubi: problem nije predikcija nego cijena.
+
+### A. Pragovi su se "za dlaku" iskljucivali (3 od 3 zadnja SF poraza)
+
+De Minaur (return 42.5% naspram praga 42%), Shelton (Tabilov return 41.8% naspram 40%),
+Norrie ("jedva presao"). Model je tvrde brojke koristio kao prekidac: 42.5 > 42 znaci rizik
+nestao, confidence natrag na 65%. Greska u pravilima napisanima 31.07.
+
+**Popravak:** pragovi u pravilima 2b, 13 i 16 sada su KLIZNI. Presao za <2pp = slaba potvrda
+(max +1pp confidence); 3-5pp = djelomicna; >5pp = puna. Pravilo 13 nosi izmjerenu skalu
+(42.5% -> cap ostaje 60%, 43-45% -> 63%, >45% -> cap se dize) i primjer De Minaura.
+
+### B. Zasto nikad nema kvote >2.50 — strukturni nalaz
+
+Sezonska raspodjela: najveci segment gubi, najskuplji je najprofitabilniji.
+
+| Kvota | Pickova | Rezultat | ROI |
+|---|---|---|---|
+| 1.30-1.60 | 101 | 59W-34L | **-10.2%** |
+| 2.30-2.60 | 9 | 6W-2L | **+79.4%** |
+| 2.60+ | 9 | 3W-5L | +7.4% |
+
+Uzrok: `_score_combo` je bodovao edge samo do 20pp. Pick @2.50 uz conf 63 ima 23pp -> NULA
+bonusa -> optimizator ga nikad ne bira. Nije bio zabranjen, samo nikad isplativ. Uz to u
+uputama nije postojalo nijedno pravilo koje agentu kaze da SMIJE podrzati underdoga.
+
+**Popravak 1 — granica ovisi o cijeni:** favoriti (<2.00) zadrzavaju 20pp, underdogovi
+(>=2.00) dobivaju **28pp**. Ista brojka znaci razlicite tvrdnje: favorit @1.50 uz conf 70
+tvrdi "ovo je siguran mec" (tu smo grijesili), underdog @2.50 uz conf 63 tvrdi samo "ovo je
+blize izjednacenom nego cijena". Ucinak: 32 underdog picka ulaze u bodovanje (16W-15L,
+ROI +15.5%), 4 ostaju izvan (ukljucujuci dokumentirani promasaj Collignon @2.82 uz conf 71).
+
+**KOREKCIJA istog dana (korisnikova primjedba):** prag je prvo bio 30 kako bi prosao
+Collignon @2.79 (28.2pp, dobio). Provjera je pokazala da razlika 28 vs 30 dira **tocno dva
+picka u cijeloj sezoni** — taj Collignon (W) i Vacherot @2.78 (void). Pomicanje praga zbog
+jednog povoljnog slucaja je upravo obrazac koji ovim paketom ispravljamo kod modela; uz to
+granica postoji jer smo povijesno PRECJENJIVALI value, pa je popustanje rizican smjer koji
+trazi pozitivan dokaz. Vraceno na **28**. Ilustrativno: isti igrac je i promasaj i pogodak —
+Collignon @2.82 uz conf 71 izgubio, @2.79 uz conf 64 dobio, dva dana razmaka. Problem nije
+bio igrac nego razina uvjerenja. (Ispravak: pick @2.79 je Collignon, ne Cerundolo.)
+
+**OGRADA za prvu hard reviziju:** od 36 pickova >=2.00 u sezoni, **23 su na travi, 12 na
+zemlji i samo 1 na hardu** (Tabilo @2.00). Nalaz o profitabilnosti visokih kvota je
+grass/clay dokaz — za hard nemamo gotovo nista, a hard sada igramo.
+
+**Popravak 2 — izricito pravilo** ("WHEN A BIG UNDERDOG IS A LEGITIMATE PICK"): velik edge
+je dopusten samo uz DVIJE nezavisne mjerene kategorije (servis/return >=3pp, ucinak na
+podlozi, forma prilagodjena kvaliteti), uz obavezno imenovanje obiju u 6. tocki key_factors.
+Ako je jedini argument rejting ili predosjecaj — ostaje nelegitimno.
+
+### C. Late-round nalaz potvrden na drugoj podlozi, uz korekciju
+
+Rano (R16/R32) 7/9 = 78% naspram trzisnih 73% (nadmasujemo); zavrsnice 9/15 = 60% naspram
+67% (zaostajemo) — isto kao 26.07. na clay+grass. ALI na hardu su i underdogovi u
+zavrsnicama negativni (2W-2L, -7.5%), dok su na clayu bili +11.2%. Prompt nosi tu korekciju.
+Nista deterministicko nije uvedeno: 63% volumena nam je u zavrsnicama.
+
+### D. Provjereno i ODBACENO
+
+- "Veliki server uvijek pobjeduje" — Shelton je imao 90% holda i izgubio od Tabila (78.9%).
+- Broj stavki u analizi — nekad je 3 stavke znacilo 50% a 5 stavki 88%, ali otkad je format
+  od 31.07. propisan na 6 polja svi pickovi imaju 6, pa signal vise ne razlikuje nista.
+- Los Cabos 4W-4L vs Washington 12W-4L — n=8 na slabijem polju, ne gradi se nista na tome.
+
+**Tezine NISU dirane** (n=24, kalibracija vec dobra).
+
+---
+
+## 2026-08-01 — Prosireni prozor na prekosutra + dj-transliteracija + limiti 6
+
+**Povod:** korisnik uploadao 16 parova pod "Sutra", a na listic dosao samo jedan Montreal par.
+
+**Dijagnoza — gate NIJE bio kriv.** 13 od 16 parova zapravo se igra **prekosutra**
+(Montreal glavni zdrijeb po API-jevim podacima pocinje 03.08.; ono sto se 01.08. ondje
+igralo su kvalifikacije). Pipeline je dohvacao samo danas+sutra pa ti mecevi nikad nisu ni
+dohvaceni. Gate je usput dokazao vrijednost unije danas+sutra od 27.07.: korisnikova 3 para
+uploadana pod "Danas" API vodi pod SUTRA, i unija ih je uhvatila.
+Analysis-only je bio matematicki neizbjezan: 4 meca kroz gate, Fery veto maknuo Fritza
+(Nakashima nas srusio 2x u Washingtonu), ostala 3 < min 4, kombinirana kvota 2.98 << 6.0.
+
+**Izmjena 1 — prosireni prozor:** dohvaca se i prekosutra, ali SAMO uz "sutra" screenshot, i
+za taj je dan gate UVIJEK aktivan (`always_gated_dates`). Bez tog uvjeta prekosutra bi prosao
+nefiltriran (nema vlastiti screenshot slot) i povukao cijeli turnir u analizu. Screenshot se
+sada cita PRIJE dohvata meceva jer o njemu ovisi hoce li se treci dan dohvatiti.
+Verificirano na stvarnim podacima: kroz gate prolazi **19 umjesto 4** meca — tocno svih 19
+parova sa screenshota, nista izvan njega (39 -> 19).
+
+**Izmjena 2 — dj-transliteracija:** `_strip_diacritics` je pretvarao d u "d", a API pise
+"dj" (Medjedovic, Djere) — par "Cerundolo vs Medjedovic" se nije poklapao. Dodano
+preslikavanje slova koja NFKD ne rastavlja (d->dj, o, ss, ae, oe, l, th). Ista transliteracija
+u `_norm_player_key` da isti igrac ne dobije dva kljuca. Provjereno: 0 postojecih redaka s d.
+
+**Izmjena 3 — dnevni limiti po turniru 5 -> 6** (Masters/500/250); GS ostaje 7/6,
+Challenger/Qualifying 0; analysis-only ostaje 12.
+
+---
+
+## 2026-07-31 (kasno) — Scouting prosiren na ATP top 150 + ispravci profila
+
+**Audit — tri profila su bila kriva, i sva tri su sudjelovala u gubicima:**
+
+- **Van Assche** (bio Med-Low, "needs a weapon; tough vs big power + servers"): opovrgnuto —
+  osvojio Estoril 2026 pobijedivsi Rubleva 3-6 6-3 6-4, Carreno-Bustu, Gastona i Blockxa;
+  ranking #78 -> #48.
+- **Halys** (bio Med-Low, best "Hard, Grass, Indoor", tough "elite returners/movers"):
+  opovrgnuto na brzoj zemlji u Kitzbuhelu — srusio TRI nasa picka u tjedan dana (Navone
+  7-5 6-3, a Navone je elitni clay mover; Hanfmann; Bublik) i uzeo naslov. #83 -> #52.
+- **Majchrzak**: pobijedio nas pick Tommy Paul 7-5 7-6(4) uz obostrani hold ~81%.
+
+Sistemski nalaz: sva tri su bila **"Med-Low / partial data"**, sto PROLAZI prompt gate —
+najslabiji profili su ulazili kao dokaz.
+
+**Prosirenje na top 150:** dodano 50 profila (100 -> 150). Nista se ne izmislja: profili su
+IZVEDENI iz mjerenih podataka (3-godisnji surface W-L, hold%, return points won, ace rate,
+surface ELO). Kvalitativni opis dodan samo za 8 igraca s provjerenim izvorom (ATP Tour bio,
+Wikipedia, LTA); gdje podatka nema, pise "cannot be determined". Stil se klasificira iz
+brojki s pragovima kalibriranim na stvarni raspon (hold 67-93%, return 32-47%).
+Sukobi se biljeze: Arthur Gea se u ATP bio-u opisuje kao "big serve", a mjereni hold mu je
+75.7% uz 44.7% return — profil nosi CONFLICT zapis i uputu da se vjeruje izmjerenom.
+Skripte: `scripts/build_scouting_150.py`, `scripts/export_scouting_excel.py`
+(Excel `ATP_Player_Scouting top150.xlsx`, krug radi u oba smjera).
+
+---
+
 ## 2026-07-31 — Kalibracija spašena od tihe korupcije + 4 nova izvora signala
 
 **Povod:** korisnik tražio analizu Tommy Paul gubitka i obrazaca prvog hard tjedna. Usput
