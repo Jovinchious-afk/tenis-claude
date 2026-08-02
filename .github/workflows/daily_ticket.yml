@@ -12,7 +12,15 @@ on:
 jobs:
   generate-ticket:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 35, bilo 20 (02.08.2026): run od 02.08. je GitHub prekinuo TOČNO na 20 minuta usred
+    # analize ("The operation was canceled" + "Terminate orphan process: python") — tiket
+    # nije spremljen ni poslan. Uzrok nije broj mečeva (32 danas naspram 31 dana 27.07.,
+    # kad je isti posao trajao ~12 min) nego promjene od 31.07.-01.08.: key_factors ima 6
+    # obaveznih polja umjesto 3, max_tokens je 1500 -> 2600, prompt je narastao za pravila
+    # 15/16 + klizne pragove + underdog pravilo + brzinu terena + lokalno vrijeme, a prozor
+    # dohvaća tri dana umjesto dva. Sve su korisne promjene, samo im treba više vremena.
+    # 35 daje ~15 min rezerve za pun raspored; GitHub dopušta i puno više (limit je 6 sati).
+    timeout-minutes: 35
 
     steps:
       - name: Checkout repository
