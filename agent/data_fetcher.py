@@ -1544,6 +1544,34 @@ _court_pace_cache: dict = {}
 # zahtjev): korisnik je u Zagrebu, a meč koji njemu počinje u 4 ujutro se u Washingtonu
 # igra u 17h po suncu i vrućini — vremenska prognoza i sesija (dan/noć) moraju se vezati
 # na lokalni sat mjesta, ne na naš. Nepoznat grad -> None (nema nagađanja).
+# ZNANA GRESKA — ODGODJEN POPRAVAK (izmjereno 04.08.2026, korisnik odlucio ostaviti za
+# poslije jer za tekuce turnire nema ucinka).
+#
+# Ova mapa su FIKSNI CJELOBROJNI pomaci, pa ne moze pratiti tri stvari. Provjera protiv
+# pravih zona (zoneinfo, na tipicnom datumu svakog turnira) dala je 14 krivih od 37 gradova:
+#
+#   1. LJETNO/ZIMSKO VRIJEME — europski gradovi su upisani s LJETNIM pomakom (+2), a cijela
+#      dvoranska sezona (listopad-veljaca) igra se po zimskom (+1). Krivi su: paris (Masters,
+#      studeni), vienna, basel, metz, rotterdam, marseille, montpellier, sofia. Dakle SVAKI
+#      europski indoor turnir bio bi sat krivo. Isto vrijedi za dallas (veljaca, -6 ne -5).
+#   2. POLUSATNE ZONE — adelaide je UTC+10:30, sto cijeli broj ne moze zapisati (mi imamo 10).
+#   3. ZEMLJE KOJE SU MIJENJALE ZONU — Kazahstan se 2024. ujednacio na UTC+5 (astana/almaty
+#      imaju 6), Meksiko je 2022. ukinuo ljetno vrijeme (los cabos je -7, ne -6), santiago
+#      je ljeti -3 (imamo -4).
+#
+# POSLJEDICA KOJA SE VEC DOGODILA: analize iz Los Cabosa (27.07.-02.08.2026) imale su sat
+# pomaka — sve sesije oznacene sat kasnije nego sto jesu, sto je krivo hranilo `session`
+# (dan/noc) i, od 04.08., izbor vremenske prognoze po satu meca.
+#
+# TOCNO SU postavljeni gradovi koji su u igri u kolovozu 2026: montreal, washington,
+# cincinnati, new york, toronto, miami, indian wells, houston, doha, dubai, melbourne,
+# sydney, tokyo, beijing, shanghai, buenos aires, rio, tel aviv, bucharest, estoril, antwerp.
+#
+# POPRAVAK: zamijeniti brojeve IANA nazivima zona ("America/Toronto", "Australia/Adelaide",
+# "Asia/Dubai"...) i racunati pomak za DATUM TOG MECA preko pytz (vec je ovisnost projekta,
+# koristi se u utils/helpers.ZAGREB_TZ i u screenshot_start_utc). Time sve tri klase greske
+# nestaju trajno, ukljucujuci buduce zakonske promjene. Zahvat je zatvoren u `local_match_time`.
+# ROK: prije prvog europskog dvoranskog turnira (listopad 2026) — do tada nema ucinka.
 _CITY_UTC_OFFSET = {
     "washington": -4, "los cabos": -6, "cincinnati": -4, "new york": -4,
     "toronto": -4, "montreal": -4, "winston-salem": -4, "atlanta": -4,
