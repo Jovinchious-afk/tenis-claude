@@ -9,6 +9,54 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-08-04 (najkasnije) — Screenshot je izvor istine za VRIJEME pocetka
+
+**Povod:** korisnik poslao SuperSport screenshot koji pokazuje pocetak u 17:00 po Zagrebu,
+dok je nas API tvrdio 20:00. Provjera je pokazala da je korisnik u pravu.
+
+**Nalaz:** sluzbeni raspored turnira kaze da dnevna sesija u Montrealu pocinje **11:00 ET**
+(= 17:00 po Zagrebu, tocno kako pise na screenshotu), a vecernja "not before 19:00 ET".
+Nas API **nije imao nijedan mec prije 14:00 ET** — kasni oko 3 sata. Razlika NIJE konstantna
+(3h00, 3h05, 3h45, 4h05 na razlicitim mecevima), pa nije rijec o pogresnoj vremenskoj zoni
+koju bi se dalo ispraviti konstantom. Montreal je ljeti UTC-4 i to nas kod ima tocno.
+
+**Dvije posljedice, obje mjerljive:**
+1. **`session` (dan/noc)** iz 31.07. je bio kriv — Lehecka je po API-ju "night" (18:35 ET),
+   a stvarno je dnevni mec (14:30 ET). Pravilo 14 je dobivalo krivu oznaku sesije.
+2. **Izbor prognoze po satu meca** (uveden ranije istog dana) precizno je pogadjao KRIVI sat.
+   Za Baeza: API 14:00 ET -> 60% vlage / 24 C; stvarno 11:00 ET -> 73% / 20,5 C.
+
+**Izmjena:** vrijeme se sada cita SA SCREENSHOTA i ima prioritet nad API-jem — isti princip
+koji vec vrijedi za kvote (18.07.) i za zdrijeb (27.07.).
+- `_ODDS_EXTRACTION_PROMPT` trazi i `start_time`; kratica dana ("uto 17:00") se odbacuje,
+  a ako sat nije citljiv polje se izostavlja (ne pogadja se).
+- `screenshot_start_utc()` pretvara zagrebacki sat u UTC preko **pytz**, ne fiksne konstante —
+  inace bi se svaki listopad pojavila tiha jednosatna greska.
+- `find_screenshot_time()` trazi par kroz screenshotove SVIH dana; datum je nuzan jer sat sam
+  po sebi ne odredjuje dan.
+- `local_match_time()` vraca i **`local_date`** — vecernja sesija (19:00 ET) pada u sljedeci
+  UTC dan, pa bi prognoza trazena po "datumu meca" pogodila krivi dan. Prognoza i cache kljuc
+  sada koriste lokalni datum turnira, ne datum meca.
+- `context_snapshot.time_source` ("screenshot" ili "api") — da se kasnije vidi koliko je
+  analiza radilo na tocnom, a koliko na pomaknutom vremenu.
+- Streamlit stranica prikazuje procitano vrijeme u obje tablice i izricito upozorava kad
+  vrijeme nije procitano ni za jedan par.
+
+**VAZNO za postojece podatke:** kvote spremljene prije ove izmjene nemaju `start_time`
+(provjereno: 0 od 23 para za 04.08. i 0 od 9 za 05.08.). Ponovni upload iste snimke ih
+nadopisuje — `save_screenshot_odds` mergea po kljucu, nista se ne gubi. Bez ponovnog uploada
+pipeline pada na API-jev sat, sto je i dalje ispravno ponasanje (fallback), samo neprecizno.
+
+**Verificirano na stvarnim mecevima** (vremena prepisana s korisnikovog screenshota):
+Lehecka 18:35 ET "night" -> 14:30 ET "day" (oznaka sesije se PREOKRENE);
+Baez i Hurkacz 14:00 ET / 60% vlage / 24 C -> 11:00 ET / 73% / 20,5 C.
+
+**Ishod:** 17 novih asercija (ukupno 75) — parsiranje sata, ljetni i zimski pomak, prijelaz
+preko ponoci (01:00 Zagreb = 19:00 ET PRETHODNOG dana), obrnut redoslijed igraca, odbijanje
+pogadjanja kad sat nije citljiv.
+
+---
+
 ## 2026-08-04 (kasno) — Prognoza po satu meca (BUG), ruka i common opponents u log
 
 **Povod:** korisnikove biljeske s prijedlozima + sumnja da vlaga nije tocna ("model je za

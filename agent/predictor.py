@@ -1078,6 +1078,10 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             "weather_forecast_for": match.get("date"),
             "weather_forecast_local_time": _wd.get("forecast_local_time"),
             "weather_hours_off": _wd.get("hours_off"),
+            # "screenshot" = sat s kladionicinog screenshota (tocan), "api" = API-jev sat
+            # (za Montreal kasni ~3h). Biljezi se da se kasnije vidi koliko je analiza radilo
+            # na tocnom, a koliko na pomaknutom vremenu.
+            "time_source": match.get("time_source"),
             "venue_shielded": bool(match.get("weather_shielded")),
             "p1_hand": p1.get("hand"),
             "p2_hand": p2.get("hand"),

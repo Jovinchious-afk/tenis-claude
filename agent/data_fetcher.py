@@ -7,6 +7,7 @@ Dohvat podataka iz:
  - Web scraping (vijesti, ozljede, ELO sa Tennis Abstract)
 """
 import os
+import re
 import json
 import time
 import datetime
@@ -726,13 +727,17 @@ _ODDS_EXTRACTION_PROMPT = """Ovo je screenshot kvota kladionice za teniske meče
 Izvuci SVAKI par igrača i njihove decimalne kvote (1X2 / pobjednik meča, ne setovi/gemovi).
 
 Vrati ISKLJUČIVO JSON listu, bez ikakvog drugog teksta, u ovom formatu:
-[{"player1": "Prezime Ime", "odds1": 1.85, "player2": "Prezime Ime", "odds2": 1.95}, ...]
+[{"player1": "Prezime Ime", "odds1": 1.85, "player2": "Prezime Ime", "odds2": 1.95, "start_time": "17:00"}, ...]
 
 Pravila:
 - Koristi imena igrača točno onako kako su napisana na slici (ne skraćuj, ne prevodi).
 - "odds1"/"odds2" su decimalne kvote za pobjedu tog igrača u meču (ne setovi, ne handikep).
 - Ako kvota nije čitljiva ili nedostaje, preskoči taj par.
-- Ne uključuj kvalifikacijske mečeve ako su posebno označeni (npr. "Kvalifikacije", "Quali", "Q1", "Q2")."""
+- Ne uključuj kvalifikacijske mečeve ako su posebno označeni (npr. "Kvalifikacije", "Quali", "Q1", "Q2").
+- "start_time" je vrijeme početka meča kako piše u retku, u formatu "HH:MM" (24-satni).
+  Uz vrijeme često stoji i kratica dana ("uto 17:00", "sri 9:05") — kraticu IZBACI, vrati
+  samo sat i minutu. Ako vrijeme za taj red nije vidljivo, izostavi polje "start_time"
+  (nemoj pogađati i nemoj upisivati prazan string)."""
 
 
 def extract_odds_from_screenshot(image_bytes: bytes, media_type: str = "image/png") -> dict:
@@ -780,8 +785,68 @@ def extract_odds_from_screenshot(image_bytes: bytes, media_type: str = "image/pn
             continue
         if not p1 or not p2 or o1 <= 1.0 or o2 <= 1.0:
             continue
-        result[f"{p1}|{p2}"] = {"p1_odds": o1, "p2_odds": o2, "p1": p1, "p2": p2}
+        entry = {"p1_odds": o1, "p2_odds": o2, "p1": p1, "p2": p2}
+        # start_time (04.08.2026): kladionicin sat je IZVOR ISTINE za vrijeme pocetka.
+        # Povod: API-jev `date` za Montreal kasni ~3h — sluzbeno dnevna sesija pocinje
+        # 11:00 ET (=17:00 Zagreb, tocno kako pise na screenshotu), a API nije imao nijedan
+        # mec prije 14:00 ET. Kriva satnica kvari i `session` (dan/noc) i izbor prognoze.
+        t = _parse_clock(pair.get("start_time"))
+        if t:
+            entry["start_time"] = t
+        result[f"{p1}|{p2}"] = entry
     return result
+
+
+def _parse_clock(val) -> str:
+    """'uto 17:00' / '17:00' / '9:05' -> '17:00'. Vraca '' kad nema valjanog sata.
+
+    Namjerno strogo: radije bez podatka nego s krivim (isti princip kao `local_match_time`,
+    koji ne pogadja offset za nepoznat grad).
+    """
+    if not val:
+        return ""
+    m = re.search(r"(\d{1,2})[:.h](\d{2})", str(val))
+    if not m:
+        return ""
+    h, mi = int(m.group(1)), int(m.group(2))
+    if not (0 <= h <= 23 and 0 <= mi <= 59):
+        return ""
+    return f"{h:02d}:{mi:02d}"
+
+
+def screenshot_start_utc(date_str: str, hhmm: str) -> str:
+    """Kladionicin sat (zagrebacko vrijeme) -> ISO UTC, isti oblik kao API-jev `start_utc`.
+
+    Zasto zagrebacko: screenshot je sa SuperSporta, hrvatske kladionice, pa su sva vremena
+    u lokalnoj zoni korisnika. Ljetni/zimski pomak racuna pytz (vec ovisnost projekta), ne
+    fiksna konstanta — inace bi se svaki listopad pojavila tiha jednosatna greska.
+    """
+    if not date_str or not hhmm:
+        return ""
+    try:
+        from utils.helpers import ZAGREB_TZ
+        naive = datetime.datetime.strptime(f"{date_str[:10]} {hhmm}", "%Y-%m-%d %H:%M")
+        local = ZAGREB_TZ.localize(naive)
+        return local.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    except Exception:
+        return ""
+
+
+def find_screenshot_time(player1: str, player2: str, screenshot_by_date: dict) -> str:
+    """Trazi vrijeme pocetka za par kroz screenshotove svih dana; vraca ISO UTC ili ''.
+
+    `screenshot_by_date` je {datum: odds_dict} — datum je NUZAN jer sat sam po sebi ne
+    odredjuje dan, a isti par se u dva dana ne ponavlja (eliminacijski turnir).
+    """
+    for date_str, odds in (screenshot_by_date or {}).items():
+        for val in (odds or {}).values():
+            t = val.get("start_time")
+            if not t:
+                continue
+            if ((_name_match(player1, val.get("p1", "")) and _name_match(player2, val.get("p2", "")))
+                    or (_name_match(player1, val.get("p2", "")) and _name_match(player2, val.get("p1", "")))):
+                return screenshot_start_utc(date_str, t)
+    return ""
 
 
 def get_screenshot_odds(date_str: str) -> dict:
@@ -1485,7 +1550,12 @@ def local_match_time(iso_utc: str, city: str) -> dict:
     local = base + datetime.timedelta(hours=offset)
     # Sesija: dnevna do 18h lokalno, inače noćna (US hard noćne sesije su hladnije i sporije)
     session = "day" if 6 <= local.hour < 18 else "night"
-    return {"local_time": local.strftime("%H:%M"), "session": session, "utc_offset": offset}
+    # local_date (04.08.2026): LOKALNI datum turnira, koji NIJE uvijek isti kao datum meča u
+    # API-ju/screenshotu. Večernja sesija u Montrealu (19:00 ET) pada u sljedeći UTC dan, pa
+    # bi prognoza tražena po "datumu meča" pogodila krivi dan. Isti cross-day problem koji je
+    # 27.07. već uhvaćen kod screenshot gatea.
+    return {"local_time": local.strftime("%H:%M"), "session": session, "utc_offset": offset,
+            "local_date": local.strftime("%Y-%m-%d")}
 
 
 def get_court_pace(tournament_id: str, tournament_name: str = "") -> dict:

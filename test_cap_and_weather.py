@@ -199,6 +199,48 @@ check("neodigrani mecevi se ignoriraju",
 check("prazan ulaz ne puca", _common_opponents([], []) == {})
 check("None ne puca", _common_opponents(None, None) == {})
 
+print("\n=== 9. Vrijeme sa screenshota je izvor istine ===")
+from agent.data_fetcher import _parse_clock, screenshot_start_utc, find_screenshot_time, local_match_time
+
+check("'uto 17:00' -> 17:00", _parse_clock("uto 17:00") == "17:00")
+check("'9:05' -> 09:05 (vodeca nula)", _parse_clock("9:05") == "09:05")
+check("'sri 20.30' (tocka) -> 20:30", _parse_clock("sri 20.30") == "20:30")
+check("prazno -> ''", _parse_clock("") == "" and _parse_clock(None) == "")
+check("besmislen sat se odbija", _parse_clock("99:99") == "")
+check("tekst bez sata se odbija", _parse_clock("uto") == "")
+
+# 17:00 Zagreb ljeti (CEST, +2) = 15:00 UTC = 11:00 ET -> tocno sluzbeni pocetak sesije
+u = screenshot_start_utc("2026-08-04", "17:00")
+check("17:00 Zagreb (ljeto) -> 15:00 UTC", u.startswith("2026-08-04T15:00"), u)
+lt = local_match_time(u, "montreal")
+check("-> 11:00 lokalno u Montrealu", lt.get("local_time") == "11:00", str(lt))
+check("-> oznaceno kao dnevna sesija", lt.get("session") == "day")
+
+# zima: Zagreb je +1, pa isti sat daje drugi UTC — zato pytz, ne konstanta
+uw = screenshot_start_utc("2026-01-15", "17:00")
+check("zimi 17:00 Zagreb -> 16:00 UTC (pomak se racuna, ne fiksira)",
+      uw.startswith("2026-01-15T16:00"), uw)
+
+# cross-day: 01:00 Zagreb = 23:00 UTC prethodnog dana = 19:00 ET prethodnog dana
+uc = screenshot_start_utc("2026-08-05", "01:00")
+ltc = local_match_time(uc, "montreal")
+check("vecernja sesija: 01:00 Zagreb -> 19:00 ET PRETHODNOG dana",
+      ltc.get("local_time") == "19:00" and ltc.get("local_date") == "2026-08-04",
+      f"{ltc.get('local_date')} {ltc.get('local_time')}")
+check("local_date se vraca uz vrijeme", "local_date" in lt)
+
+# lookup kroz vise dana
+ss = {"2026-08-04": {"a|b": {"p1": "Baez Sebastian", "p2": "Bellucci Mattia",
+                             "p1_odds": 1.8, "p2_odds": 2.0, "start_time": "17:00"}},
+      "2026-08-05": {"c|d": {"p1": "Neki Igrac", "p2": "Drugi Igrac",
+                             "p1_odds": 1.5, "p2_odds": 2.5}}}
+check("nalazi vrijeme za par", find_screenshot_time("Sebastian Baez", "Mattia Bellucci", ss).startswith("2026-08-04T15:00"))
+check("radi i s obrnutim redoslijedom igraca",
+      find_screenshot_time("Mattia Bellucci", "Sebastian Baez", ss).startswith("2026-08-04T15:00"))
+check("par bez start_time -> ''", find_screenshot_time("Neki Igrac", "Drugi Igrac", ss) == "")
+check("nepoznat par -> ''", find_screenshot_time("Roger Federer", "Rafael Nadal", ss) == "")
+check("prazan ulaz ne puca", find_screenshot_time("A", "B", {}) == "")
+
 print("\n=== 6. Hard pravilo 2 nosi ogradu o capu ===")
 from agent.predictor import _surface_specific_rules
 h = _surface_specific_rules("Hard")

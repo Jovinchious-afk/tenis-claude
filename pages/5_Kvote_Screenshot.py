@@ -55,10 +55,26 @@ if extracted is not None and extracted_for == match_date:
         rows = []
         for key, val in extracted.items():
             rows.append({
+                "Vrijeme": val.get("start_time") or "—",
                 "Igrač 1": val["p1"], "Kvota 1": val["p1_odds"],
                 "Igrač 2": val["p2"], "Kvota 2": val["p2_odds"],
             })
         st.dataframe(rows, use_container_width=True, hide_index=True)
+
+        _n_time = sum(1 for v in extracted.values() if v.get("start_time"))
+        if _n_time:
+            st.success(
+                f"Vrijeme početka pročitano za {_n_time}/{len(extracted)} parova — to je "
+                "zagrebačko vrijeme s kladionice i **ima prioritet nad API-jem**, koji za "
+                "neke turnire kasni po nekoliko sati. Utječe na oznaku dan/noć i na to za "
+                "koji se sat dohvaća vremenska prognoza."
+            )
+        else:
+            st.warning(
+                "Vrijeme početka nije pročitano ni za jedan par — pipeline će pasti na "
+                "API-jev sat, koji zna kasniti (za Montreal ~3h). Ako se na screenshotu "
+                "vrijeme vidi, probaj snimku na kojoj je stupac s vremenom jasno čitljiv."
+            )
 
         st.caption(
             "Ako nešto nije točno pročitano, otkaži i probaj ponovno s drugačijim screenshotom — "
@@ -87,10 +103,19 @@ for label, d in date_options.items():
     with st.expander(f"{label} — {len(saved)} parova"):
         if saved:
             st.dataframe(
-                [{"Igrač 1": v["p1"], "Kvota 1": v["p1_odds"], "Igrač 2": v["p2"], "Kvota 2": v["p2_odds"]}
+                [{"Vrijeme": v.get("start_time") or "—",
+                  "Igrač 1": v["p1"], "Kvota 1": v["p1_odds"],
+                  "Igrač 2": v["p2"], "Kvota 2": v["p2_odds"]}
                  for v in saved.values()],
                 use_container_width=True, hide_index=True,
             )
+            _old = sum(1 for v in saved.values() if not v.get("start_time"))
+            if _old:
+                st.info(
+                    f"{_old} parova nema vrijeme početka — spremljeni su prije 04.08.2026., "
+                    "kad se vrijeme još nije čitalo sa screenshota. Ponovni upload iste "
+                    "snimke ih nadopisuje s vremenom (spremanje se mergea, ništa se ne gubi)."
+                )
             if st.button("🗑️ Obriši sve", key=f"delete_{d}"):
                 db.delete_screenshot_odds(d)
                 st.success(f"Obrisane sve kvote za {label.split('—')[1].strip()}.")

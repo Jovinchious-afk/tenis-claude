@@ -230,6 +230,30 @@ def main():
     # Brzina terena se računa iz score stringova rezultata sezone (0 dodatnih API poziva).
     # REDOSLIJED (04.08.2026): ovo se sada računa PRIJE vremenske prognoze jer prognoza od
     # danas ovisi o satu meča — vidi `weather_at_match_time` u data_fetcheru.
+    # SCREENSHOT JE IZVOR ISTINE ZA VRIJEME POCETKA (04.08.2026, korisnikov zahtjev).
+    # Povod: API-jev `date` za Montreal kasni ~3h. Sluzbeni raspored turnira kaze da dnevna
+    # sesija pocinje 11:00 ET (= 17:00 po Zagrebu, tocno kako pise na SuperSport screenshotu),
+    # a API nije imao NIJEDAN mec prije 14:00 ET. Razlika nije konstantna (3h00 do 4h05), pa
+    # nije rijec o pogresnoj vremenskoj zoni koju bi se dalo korigirati konstantom.
+    # Posljedice krive satnice: (1) `session` dan/noc — Lehecka je po API-ju bio "night"
+    # (18:35 ET) a stvarno je dnevni mec (14:30 ET), sto krivo hrani pravilo 14; (2) izbor
+    # vremenske prognoze po satu meca (uveden ranije istog dana) precizno bi pogadjao krivi sat.
+    # Isti princip koji vec vrijedi za kvote i za zdrijeb: sto korisnik vidi na screenshotu
+    # ima prioritet nad API-jem.
+    screenshot_by_date = {today_str: screenshot_today, tomorrow_str: screenshot_tomorrow}
+    _n_ss_time = 0
+    for match in all_matches:
+        ss_utc = df.find_screenshot_time(match["player1"], match["player2"], screenshot_by_date)
+        if ss_utc:
+            match["start_utc"] = ss_utc
+            match["time_source"] = "screenshot"
+            _n_ss_time += 1
+        else:
+            match["time_source"] = "api"
+    if _n_ss_time:
+        print(f"  Vrijeme početka sa screenshota za {_n_ss_time}/{len(all_matches)} mečeva "
+              f"(ostali padaju na API-jev sat).")
+
     for match in all_matches:
         city = _city_for_weather(match.get("tournament", ""))
         lt = df.local_match_time(match.get("start_utc", ""), city)
@@ -237,6 +261,7 @@ def main():
             match["local_time"] = lt["local_time"]
             match["session"] = lt["session"]
             match["utc_offset"] = lt["utc_offset"]
+            match["local_date"] = lt["local_date"]
         cp = df.get_court_pace(match.get("tournament_id", ""), match.get("tournament", ""))
         if cp:
             match["court_pace_str"] = (f"{cp['tb_pct']}% of sets ({cp['label']} court, "
@@ -262,14 +287,16 @@ def main():
         match_date = match.get("date", today_str)
         lt_str = match.get("local_time") or ""
         off = match.get("utc_offset")
+        # LOKALNI datum turnira, ne datum meča — večernja sesija pada u sljedeći UTC dan.
+        wx_date = match.get("local_date") or match_date
         hour = int(lt_str[:2]) if lt_str[:2].isdigit() else None
         # Ključ nosi i sat: dnevna i večernja sesija istog turnira više ne dijele prognozu.
-        cache_key = (city, match_date, hour)
+        cache_key = (city, wx_date, hour)
         if not city or cache_key in weather_cache:
             continue
         w = {}
         if hour is not None and off is not None:
-            w = df.weather_at_match_time(city, match_date, hour, off)
+            w = df.weather_at_match_time(city, wx_date, hour, off)
         if not w:
             # Sat ili offset nepoznat — ne pogađamo, vraćamo se na staru grubu procjenu.
             w = df.get_weather_for_tournament(city, forecast_date=match_date)
@@ -295,7 +322,7 @@ def main():
         match_date = match.get("date", today_str)
         lt_str = match.get("local_time") or ""
         hour = int(lt_str[:2]) if lt_str[:2].isdigit() else None
-        wkey = (city, match_date, hour)
+        wkey = (city, match.get("local_date") or match_date, hour)
         base_weather = weather_cache.get(wkey, "N/A")
         # Strukturirani zapis za context_snapshot v5 — ide u bazu, NE u prompt.
         match["weather_data"] = weather_raw_cache.get(wkey) or {}
