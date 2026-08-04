@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Uvoz scouting profila iz "ATP_Player_Scouting top100.xlsx" u Supabase tablicu player_scouting.
+Uvoz scouting profila iz "ATP_Player_Scouting top150.xlsx" u Supabase tablicu player_scouting.
 
 Pokretanje (iz roota projekta):
     python scripts/import_scouting.py --dry-run     # samo parsiraj i ispiši, bez upisa u bazu
@@ -24,8 +24,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import openpyxl
 
-# Od 31.07.2026 tablica pokriva top 150 (prije top 100). Stari top100 file je namjerno
-# ostavljen u folderu kao zapis polaznog stanja, ali se vise ne cita — uredjuj top150.
+# Od 31.07.2026 tablica pokriva top 150 (prije top 100). Stari top100 Excel je obrisan
+# 04.08.2026 na korisnikov zahtjev da ne stvara zabunu — postoji samo top150.
 XLSX_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                          "ATP_Player_Scouting top150.xlsx")
 SHEET = "ATP Player Scouting"

@@ -125,10 +125,12 @@ CREATE TABLE IF NOT EXISTS performance_log (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Scouting profili igrača (korisnikov Excel "ATP_Player_Scouting top100.xlsx", uvoz preko
+-- Scouting profili igrača (korisnikov Excel "ATP_Player_Scouting top150.xlsx", uvoz preko
 -- scripts/import_scouting.py). SEKUNDARNI izvor za prompt: kvalitativni stil/matchup kontekst,
--- max ±3pp utjecaja na confidence, nikad ne nadjačava mjerene brojke. Low/Insufficient
--- profili se NE ubacuju u prompt (autorova vlastita legenda: "do NOT fill from memory").
+-- nikad ne nadjačava mjerene brojke. Low/Insufficient profili se NE ubacuju u prompt
+-- (autorova vlastita legenda: "do NOT fill from memory"), a od 04.08.2026 dopušteni utjecaj
+-- skalira s pouzdanošću profila: High/Med-High ±3pp, Med ±2pp, Med-Low samo kao sumnja
+-- (nikad kao potpora picku — sva tri profila koja su 31.07. opovrgnuta bila su Med-Low).
 CREATE TABLE IF NOT EXISTS player_scouting (
     player_name TEXT PRIMARY KEY,          -- normalizirano (lowercase, bez dijakritika)
     display_name TEXT,

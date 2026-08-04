@@ -3,7 +3,7 @@
 
 Supabase je izvor istine (ondje su ispravci i 50 novih profila); ova skripta iz njega
 generira Excel istog oblika kao korisnikov original, da se tablica moze citati i uredjivati
-rucno. Stari "top100" file se NE dira — ostaje kao zapis polaznog stanja.
+rucno. (Stari "top100" Excel je obrisan 04.08.2026 — postoji samo top150.)
 
 Ako korisnik rucno uredi izvezeni Excel, `scripts/import_scouting.py` ga vraca natrag u bazu
 (upsert po player_name), pa krug ostaje zatvoren u oba smjera.
