@@ -28,3 +28,12 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+
+# Korisnikova osobna arhiva — biljeske, misli, pitanja za Claudea.
+# Nema veze s modelom i namjerno se NE prati (dogovor 04.08.2026).
+# NAPOMENA: Tennis_Surface_Analysis.docx NIJE ovdje — on je izvor pravila o
+# stilovima i podlogama (hard rule 14, clay rule 11) i ostaje u repozitoriju.
+Moje Biljeske/
+
+# Lokalni VS Code workspace
+*.code-workspace
