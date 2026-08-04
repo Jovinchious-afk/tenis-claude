@@ -224,42 +224,19 @@ def main():
     print("Dohvaćam vijesti o ozljedama...")
     injury_news = df.get_atp_injury_news()
 
-    # 6b. Dohvati vremenske uvjete za svaki turnir (jednom po gradu)
-    print("Dohvaćam vremenske uvjete...")
-    # Cache by (city, date) so today and tomorrow get separate weather
-    # (today_str/tomorrow_str already defined above, before the screenshot gate)
-    weather_cache = {}
-    # weather_raw_cache: isti podaci u strukturiranom obliku, za context_snapshot v5
-    # (04.08.2026). Dosad je vrijeme postojalo SAMO kao formatirani string za prompt, pa se
-    # nijedna hipoteza o uvjetima nije mogla izmjeriti — vidi komentar u predictor.py.
-    weather_raw_cache = {}
-    for match in all_matches:
-        city = _city_for_weather(match.get("tournament", ""))
-        match_date = match.get("date", today_str)
-        cache_key = (city, match_date)
-        if city and cache_key not in weather_cache:
-            w = df.get_weather_for_tournament(city, forecast_date=match_date)
-            if w:
-                label = "forecast" if match_date != today_str else "current"
-                weather_str = (
-                    f"{w['temp_c']}°C, {w['condition']}, "
-                    f"Wind: {w['wind_kmh']} km/h, Humidity: {w['humidity']}% ({label})"
-                )
-                weather_cache[cache_key] = weather_str
-                weather_raw_cache[cache_key] = w
-                print(f"  {city} ({match_date}): {weather_str}")
-            else:
-                weather_cache[cache_key] = "N/A"
-    # Lokalno vrijeme početka + sesija + brzina terena (31.07.2026, korisnikov zahtjev).
+    # 6b. Lokalno vrijeme početka + sesija + brzina terena (31.07.2026, korisnikov zahtjev).
     # Vrijeme se veže na LOKALNI sat mjesta gdje se meč igra, ne na naš zagrebački —
     # meč koji nama počinje u 4 ujutro u Washingtonu je popodnevna sesija po suncu.
     # Brzina terena se računa iz score stringova rezultata sezone (0 dodatnih API poziva).
+    # REDOSLIJED (04.08.2026): ovo se sada računa PRIJE vremenske prognoze jer prognoza od
+    # danas ovisi o satu meča — vidi `weather_at_match_time` u data_fetcheru.
     for match in all_matches:
         city = _city_for_weather(match.get("tournament", ""))
         lt = df.local_match_time(match.get("start_utc", ""), city)
         if lt:
             match["local_time"] = lt["local_time"]
             match["session"] = lt["session"]
+            match["utc_offset"] = lt["utc_offset"]
         cp = df.get_court_pace(match.get("tournament_id", ""), match.get("tournament", ""))
         if cp:
             match["court_pace_str"] = (f"{cp['tb_pct']}% of sets ({cp['label']} court, "
@@ -270,12 +247,58 @@ def main():
     print(f"  Lokalno vrijeme izračunato za {_n_lt}/{len(all_matches)} mečeva; "
           f"brzina terena za {_n_cp}/{len(all_matches)}.")
 
+    # 6c. Vremenski uvjeti — PO SATU MEČA, ne po podnevu.
+    # Bug ispravljen 04.08.2026 (korisnik uočio na Berrettiniju: model je tvrdio 99% vlage,
+    # a stvarnost je bila 85-90%): stara logika je uzimala unos u 12:00 UTC, što je za
+    # Montreal 08:00 ujutro. Izmjereno na stvarnoj prognozi za 05.08.: jutro 68% vlage /
+    # 19.2°C, sesija meča u 14h 48% / 28.3°C — 20pp i 9°C greške, uvijek u istom smjeru.
+    # Prognoza se dohvaća JEDNOM po gradu (cijela serija), pa biranje po satu ne košta
+    # dodatne pozive — zapravo ih ima manje nego prije.
+    print("Dohvaćam vremenske uvjete (po satu meča)...")
+    weather_cache = {}
+    weather_raw_cache = {}
     for match in all_matches:
         city = _city_for_weather(match.get("tournament", ""))
         match_date = match.get("date", today_str)
-        base_weather = weather_cache.get((city, match_date), "N/A")
+        lt_str = match.get("local_time") or ""
+        off = match.get("utc_offset")
+        hour = int(lt_str[:2]) if lt_str[:2].isdigit() else None
+        # Ključ nosi i sat: dnevna i večernja sesija istog turnira više ne dijele prognozu.
+        cache_key = (city, match_date, hour)
+        if not city or cache_key in weather_cache:
+            continue
+        w = {}
+        if hour is not None and off is not None:
+            w = df.weather_at_match_time(city, match_date, hour, off)
+        if not w:
+            # Sat ili offset nepoznat — ne pogađamo, vraćamo se na staru grubu procjenu.
+            w = df.get_weather_for_tournament(city, forecast_date=match_date)
+        if w:
+            if w.get("forecast_local_time"):
+                label = f"local {w['forecast_local_time'][11:]} forecast"
+                if (w.get("hours_off") or 0) > 2.0:
+                    label += f", nearest available ±{w['hours_off']}h"
+            else:
+                label = "forecast" if match_date != today_str else "current"
+            weather_str = (
+                f"{w['temp_c']}°C, {w['condition']}, "
+                f"Wind: {w['wind_kmh']} km/h, Humidity: {w['humidity']}% ({label})"
+            )
+            weather_cache[cache_key] = weather_str
+            weather_raw_cache[cache_key] = w
+            print(f"  {city} ({match_date} {lt_str or '??'}): {weather_str}")
+        else:
+            weather_cache[cache_key] = "N/A"
+
+    for match in all_matches:
+        city = _city_for_weather(match.get("tournament", ""))
+        match_date = match.get("date", today_str)
+        lt_str = match.get("local_time") or ""
+        hour = int(lt_str[:2]) if lt_str[:2].isdigit() else None
+        wkey = (city, match_date, hour)
+        base_weather = weather_cache.get(wkey, "N/A")
         # Strukturirani zapis za context_snapshot v5 — ide u bazu, NE u prompt.
-        match["weather_data"] = weather_raw_cache.get((city, match_date)) or {}
+        match["weather_data"] = weather_raw_cache.get(wkey) or {}
         # venue_shielded: dvorana ili zatvoreni krov — prognoza tada ne opisuje uvjete
         # igre, pa se ti mečevi pri kasnijem mjerenju moraju izdvojiti, inače bi razblažili
         # svaki nalaz o vremenu.
@@ -408,6 +431,10 @@ def main():
             # Avg opponent ELO last 10 — quality-adjusted form signal
             p1_avg_opp_elo = _avg_opponent_elo(p1_form.get("matches", []), elo_data)
             p2_avg_opp_elo = _avg_opponent_elo(p2_form.get("matches", []), elo_data)
+
+            # Common opponents — samo za context_snapshot, NE ulazi u prompt (vidi helper).
+            match["common_opponents"] = _common_opponents(
+                p1_form.get("matches", []), p2_form.get("matches", []))
 
             # Current tournament path — sets/scores dropped this week
             p1_tourn_path = _tournament_path(p1_form.get("matches", []), tournament_id)
@@ -761,6 +788,55 @@ def _altitude_context(tournament_name: str) -> str:
     return ""
 
 
+def _common_opponents(p1_matches: list, p2_matches: list) -> dict:
+    """Common-opponent metrika: ako A i B nisu igrali medjusobno, ali su oba igrala protiv
+    istih protivnika, iz toga se izvodi relativna snaga.
+
+    Uvedeno 04.08.2026 na korisnikov prijedlog. SAMO SE BILJEZI u context_snapshot — NE ide
+    u prompt i NE utjece na nijedan pick. Razlog je isti standard koji je projekt vec dvaput
+    naplatio: 31.07. je auto-analiza predlozila pravilo "dugi odmor = penal" koje bi nas
+    kostalo cetiri dobitnika, a 04.08. je prividan signal o vlazi ispao konfundiran jednim
+    kisnim tjednom. Prvo mjerimo je li signal stvaran, tek onda mu dajemo glas.
+
+    Racuna se iz vec dohvacenih zadnjih 10 meceva po igracu — NULA dodatnih API poziva.
+    Posljedica te odluke je nisko poklapanje (dva igraca rijetko dijele protivnika unutar
+    po 10 meceva), pa je prva stvar koju cemo iz loga vidjeti KOLIKO CESTO metrika uopce
+    okine. Ako je preretka da bi bila korisna, prosirenje dubine trazi vlastite API pozive
+    i tada je to zasebna odluka s vlastitom cijenom.
+
+    Vraca {} kad nema zajednickog protivnika, inace {n_common, p1_wins, p2_wins, edge, names}.
+    """
+    def by_opp(ms):
+        out = {}
+        for m in ms or []:
+            o = (m.get("opponent") or "").strip().lower()
+            if not o or not m.get("finished"):
+                continue
+            w, l = out.get(o, (0, 0))
+            out[o] = (w + 1, l) if m.get("won") else (w, l + 1)
+        return out
+
+    a, b = by_opp(p1_matches), by_opp(p2_matches)
+    shared = sorted(set(a) & set(b))
+    if not shared:
+        return {}
+    p1_w = sum(a[o][0] for o in shared)
+    p1_l = sum(a[o][1] for o in shared)
+    p2_w = sum(b[o][0] for o in shared)
+    p2_l = sum(b[o][1] for o in shared)
+    p1_rate = p1_w / (p1_w + p1_l) if (p1_w + p1_l) else None
+    p2_rate = p2_w / (p2_w + p2_l) if (p2_w + p2_l) else None
+    return {
+        "n_common": len(shared),
+        "p1_record": f"{p1_w}-{p1_l}",
+        "p2_record": f"{p2_w}-{p2_l}",
+        # edge > 0 znaci da je P1 bio uspjesniji protiv istih protivnika
+        "edge_pp": (round((p1_rate - p2_rate) * 100, 1)
+                    if p1_rate is not None and p2_rate is not None else None),
+        "opponents": shared[:6],
+    }
+
+
 def _last_match_date(matches: list) -> str:
     if not matches:
         return "N/A"
@@ -801,7 +877,7 @@ def _decider_record(matches: list) -> dict:
     """Bo3 decider-set (2-1) win/loss tally iz zadnjih odigranih mečeva — sirova varijabla,
     NE ulazi u prompt niti u odluku, samo se bilježi za buduću analizu kad se skupi uzorak
     (korisnikov prijedlog 2026-07-18, točka 2: 'koliko puta je igrač dobio/izgubio 2-1').
-    Napomena: obuhvaća samo Bo3 (sets_played==3); Bo5 deciderи (5 setova, Grand Slam) su
+    Napomena: obuhvaća samo Bo3 (sets_played==3); Bo5 decideri (5 setova, Grand Slam) su
     namjerno izostavljeni jer bez podatka o formatu prošle utakmice ne možemo razlikovati
     čisti 3-0 sweep od pravog decidera u Bo5."""
     won = sum(1 for m in matches if m.get("sets_played") == 3 and m.get("won"))
@@ -948,7 +1024,7 @@ def _gate_by_screenshot(matches: list, screenshot_today: dict, screenshot_tomorr
 def _infer_rounds(matches: list, screenshot_odds: dict = None) -> list:
     """
     Ispravlja NEPRAVILNE oznake runda s API-ja — ali samo kad su nemoguće ili
-    neprepoznate, jer rundu ne određuje samo broj mečeva u danu (rundа se
+    neprepoznate, jer rundu ne određuje samo broj mečeva u danu (runda se
     često proteže kroz više dana — npr. R32 prelijeva iz subote u nedjelju,
     pa dan s 2-3 R32 meča NE znači da je to zapravo SF).
 

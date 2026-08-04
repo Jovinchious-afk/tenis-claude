@@ -1091,11 +1091,102 @@ def get_player_tournament_record(player_id: str, tournament_id: str) -> dict:
     return result
 
 
+_forecast_series_cache: dict = {}
+
+
+def _entry_to_weather(e: dict) -> dict:
+    return {
+        "temp_c":    e.get("main", {}).get("temp"),
+        "humidity":  e.get("main", {}).get("humidity"),
+        "wind_kmh":  round(safe_float(e.get("wind", {}).get("speed", 0)) * 3.6, 1),
+        "condition": e.get("weather", [{}])[0].get("main", ""),
+    }
+
+
+def get_forecast_series(city: str) -> list:
+    """Cijela 3-satna prognoza za grad, JEDAN API poziv po gradu po procesu.
+
+    Vraca listu {"utc": datetime, "raw": entry}. Cache je nuzan jer se sada bira unos po
+    SATU svakog meca, pa bi bez njega isti grad bio dohvacen po nekoliko puta dnevno.
+    cnt=40 (bilo 16): 16 unosa je 48h, a od 01.08.2026. dohvacamo i prekosutra — trecem
+    danu je popodnevna sesija tada ispadala IZVAN prozora, pa je za njega jedini dostupan
+    unos bio rani jutarnji. 40 unosa = 5 dana, s marginom.
+    """
+    if not WEATHER_KEY or not city:
+        return []
+    key = city.lower().strip()
+    if key in _forecast_series_cache:
+        return _forecast_series_cache[key]
+    out = []
+    try:
+        data = _get_external(
+            "https://api.openweathermap.org/data/2.5/forecast",
+            params={"q": city, "appid": WEATHER_KEY, "units": "metric", "cnt": 40}
+        )
+        for e in (data or {}).get("list", []):
+            try:
+                out.append({"utc": datetime.datetime.strptime(e["dt_txt"], "%Y-%m-%d %H:%M:%S"),
+                            "raw": e})
+            except (KeyError, ValueError):
+                continue
+    except Exception:
+        out = []
+    _forecast_series_cache[key] = out
+    return out
+
+
+def weather_at_match_time(city: str, match_date: str, local_hour: int, utc_offset: int) -> dict:
+    """Prognoza za SAT KADA SE MEC IGRA, ne za podne.
+
+    BUG KOJI OVO ISPRAVLJA (04.08.2026, korisnik uocio na Berrettiniju): stara implementacija
+    je uzimala unos u 12:00 **UTC** bez obzira na sat meca. Montreal je UTC-4, pa je to
+    08:00 ujutro po lokalnom. Provjereno na stvarnom odgovoru za 05.08.2026:
+
+        08:00 lokalno (sto je kod uzimao):  vlaga 68%, temp 19.2 C
+        14:00 lokalno (kada se mec igra):   vlaga 48%, temp 28.3 C
+        17:00 lokalno (kada se mec igra):   vlaga 52%, temp 28.5 C
+
+    Dakle 20pp greske na vlazi i 9 C na temperaturi, uvijek u istom smjeru: jutro je hladno
+    i vlazno, popodne vruce i suho. Posljedica je bila sustavna — pravilo 14 ("daytime heat
+    speeds the court up") cijelo je ljeto dobivalo jutarnju temperaturu pa je podcjenjivalo
+    vrucinu, a pravila o vlazi/vjetru od 04.08. radila su na krivom ocitanju.
+
+    Vazno: usporedjuje se LOKALNO vrijeme, ne UTC datum. Vecernja sesija u Montrealu
+    (20:00 lok. = 00:00 UTC iduci dan) inace bi trazila unos pod pogresnim datumom — isti
+    cross-day problem koji je vec dokumentiran kod screenshot gatea 27.07.
+
+    Vraca standardni weather dict + `forecast_local_time` i `hours_off` (koliko je izabrani
+    unos udaljen od sata meca) da se u snapshotu vidi koliko je procjena pouzdana.
+    """
+    series = get_forecast_series(city)
+    if not series or utc_offset is None or local_hour is None:
+        return {}
+    try:
+        d = datetime.datetime.strptime(str(match_date)[:10], "%Y-%m-%d")
+    except ValueError:
+        return {}
+    target_local = d + datetime.timedelta(hours=int(local_hour))
+    best, best_gap = None, None
+    for item in series:
+        local = item["utc"] + datetime.timedelta(hours=utc_offset)
+        gap = abs((local - target_local).total_seconds()) / 3600.0
+        if best_gap is None or gap < best_gap:
+            best, best_gap = item, gap
+    if best is None:
+        return {}
+    w = _entry_to_weather(best["raw"])
+    local = best["utc"] + datetime.timedelta(hours=utc_offset)
+    w["forecast_local_time"] = local.strftime("%Y-%m-%d %H:%M")
+    w["hours_off"] = round(best_gap, 1)
+    return w
+
+
 def get_weather_for_tournament(city: str, forecast_date: str = None) -> dict:
     """
-    Fetch weather for a tournament city.
+    Fallback kad sat meca ILI utc offset grada nisu poznati (tada se ne smije pogadjati sat).
+    Za mecheve s poznatim vremenom koristi se `weather_at_match_time` — vidi bug opisan ondje.
     - forecast_date=None or today → current weather (/data/2.5/weather)
-    - forecast_date=tomorrow     → forecast API (/data/2.5/forecast), picks midday entry
+    - forecast_date=tomorrow     → forecast API, uzima podnevni unos (gruba procjena)
     """
     if not WEATHER_KEY or not city:
         return {}
@@ -1105,15 +1196,9 @@ def get_weather_for_tournament(city: str, forecast_date: str = None) -> dict:
 
     try:
         if use_forecast:
-            data = _get_external(
-                "https://api.openweathermap.org/data/2.5/forecast",
-                params={"q": city, "appid": WEATHER_KEY, "units": "metric", "cnt": 16}
-            )
-            if not data:
+            entries = [i["raw"] for i in get_forecast_series(city)]
+            if not entries:
                 return {}
-            # Find the forecast entry closest to target date at midday (12:00)
-            target = f"{forecast_date} 12:00:00"
-            entries = data.get("list", [])
             entry = None
             for e in entries:
                 if e.get("dt_txt", "").startswith(forecast_date):
@@ -1122,12 +1207,7 @@ def get_weather_for_tournament(city: str, forecast_date: str = None) -> dict:
                         break
             if not entry:
                 return {}
-            return {
-                "temp_c":    entry.get("main", {}).get("temp"),
-                "humidity":  entry.get("main", {}).get("humidity"),
-                "wind_kmh":  round(safe_float(entry.get("wind", {}).get("speed", 0)) * 3.6, 1),
-                "condition": entry.get("weather", [{}])[0].get("main", ""),
-            }
+            return _entry_to_weather(entry)
         else:
             data = _get_external(
                 "https://api.openweathermap.org/data/2.5/weather",

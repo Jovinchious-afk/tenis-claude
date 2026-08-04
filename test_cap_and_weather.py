@@ -136,6 +136,69 @@ check("Low profil daje 'no reliable' poruku",
 check("Med-Low profil se prikazuje s oznakom confidencea",
       "Med-Low" in _format_scouting({"confidence": "Med-Low", "style": "Baseliner"}))
 
+print("\n=== 7. Prognoza se bira po SATU MECA, ne po podnevu ===")
+import datetime as _dt
+from agent import data_fetcher as _df
+
+# Stvarni oblik odgovora: dt_txt je UTC. Montreal = UTC-4.
+_series = []
+for h in range(0, 48, 3):
+    utc = _dt.datetime(2026, 8, 5, 0, 0) + _dt.timedelta(hours=h)
+    loc = utc + _dt.timedelta(hours=-4)
+    # jutro vlazno i hladno, popodne suho i vruce — kao u stvarnim podacima
+    hum = 68 if loc.hour < 11 else 48
+    tmp = 19.2 if loc.hour < 11 else 28.3
+    _series.append({"utc": utc, "raw": {"main": {"temp": tmp, "humidity": hum},
+                                        "wind": {"speed": 2.0}, "weather": [{"main": "Clear"}],
+                                        "dt_txt": utc.strftime("%Y-%m-%d %H:%M:%S")}})
+_orig = _df.get_forecast_series
+_df.get_forecast_series = lambda city: _series
+try:
+    w = _df.weather_at_match_time("Montreal", "2026-08-05", 14, -4)
+    check("popodnevni mec dobiva POPODNEVNU vlagu (48%, ne 68%)", w.get("humidity") == 48,
+          f"dobiveno {w.get('humidity')}")
+    check("popodnevni mec dobiva popodnevnu temperaturu", w.get("temp_c") == 28.3)
+    check("biljezi se za koji sat vrijedi", (w.get("forecast_local_time") or "")[11:13] in ("14", "15", "13"))
+    # NB: `w["hours_off"] or 99` bi za tocno 0.0 dalo 99 (0 je falsy) — usporedi izravno.
+    check("hours_off je 0 kad se sat tocno poklapa", w.get("hours_off") == 0.0,
+          f"dobiveno {w.get('hours_off')}")
+
+    wm = _df.weather_at_match_time("Montreal", "2026-08-05", 8, -4)
+    check("jutarnji mec i dalje dobiva jutarnju vlagu", wm.get("humidity") == 68)
+
+    # vecernja sesija: 20:00 lokalno = 00:00 UTC IDUCI dan — ne smije promasiti datum
+    we = _df.weather_at_match_time("Montreal", "2026-08-05", 20, -4)
+    check("vecernja sesija ne pada na krivi UTC datum",
+          bool(we) and (we.get("forecast_local_time") or "").startswith("2026-08-05"),
+          f"dobiveno {we.get('forecast_local_time')}")
+
+    check("bez offseta se NE pogadja", _df.weather_at_match_time("Montreal", "2026-08-05", 14, None) == {})
+    check("bez sata se NE pogadja", _df.weather_at_match_time("Montreal", "2026-08-05", None, -4) == {})
+finally:
+    _df.get_forecast_series = _orig
+
+print("\n=== 8. Common opponents (samo log, ne prompt) ===")
+from agent.run_daily import _common_opponents
+
+A = [{"opponent": "Carlos Alcaraz", "won": True, "finished": True},
+     {"opponent": "Jack Draper", "won": False, "finished": True},
+     {"opponent": "Nekog Drugog", "won": True, "finished": True}]
+B = [{"opponent": "Carlos Alcaraz", "won": False, "finished": True},
+     {"opponent": "Jack Draper", "won": False, "finished": True}]
+co = _common_opponents(A, B)
+check("nalazi 2 zajednicka protivnika", co.get("n_common") == 2, str(co))
+check("P1 zapis 1-1", co.get("p1_record") == "1-1")
+check("P2 zapis 0-2", co.get("p2_record") == "0-2")
+check("edge pozitivan za boljeg (P1)", (co.get("edge_pp") or 0) > 0)
+check("bez preklapanja vraca prazno",
+      _common_opponents([{"opponent": "X", "won": True, "finished": True}],
+                        [{"opponent": "Y", "won": True, "finished": True}]) == {})
+check("neodigrani mecevi se ignoriraju",
+      _common_opponents([{"opponent": "X", "won": True, "finished": False}],
+                        [{"opponent": "X", "won": True, "finished": True}]) == {})
+check("prazan ulaz ne puca", _common_opponents([], []) == {})
+check("None ne puca", _common_opponents(None, None) == {})
+
 print("\n=== 6. Hard pravilo 2 nosi ogradu o capu ===")
 from agent.predictor import _surface_specific_rules
 h = _surface_specific_rules("Hard")

@@ -9,6 +9,96 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-08-04 (kasno) — Prognoza po satu meca (BUG), ruka i common opponents u log
+
+**Povod:** korisnikove biljeske s prijedlozima + sumnja da vlaga nije tocna ("model je za
+Berrettinija rekao 99%, a ja sam na Googleu nasao 85-90%").
+
+### A. KRITICNO: prognoza se citala za 12:00 UTC, ne za sat meca
+
+`get_weather_for_tournament` je uzimao unos u **12:00 UTC** bez obzira kad se mec igra.
+Montreal je UTC-4, pa je to **08:00 ujutro po lokalnom vremenu**. Provjereno na stvarnom
+OpenWeather odgovoru za 05.08.2026:
+
+| termin | vlaga | temperatura |
+|---|---|---|
+| 08:00 lokalno (sto je kod uzimao) | **68%** | **19,2 °C** |
+| 14:00 lokalno (sesija meca) | 48% | 28,3 °C |
+| 17:00 lokalno (sesija meca) | 52% | 28,5 °C |
+
+**20pp greske na vlazi i 9 °C na temperaturi, uvijek u istom smjeru** — jutro je hladno i
+vlazno, popodne vruce i suho.
+
+**Tri posljedice:**
+1. Pravilo 14 ("daytime heat speeds the court up") postoji od 26.07. i cijelo je vrijeme
+   dobivalo jutarnju temperaturu, pa je sustavno PODCJENJIVALO vrucinu.
+2. Pravila o vlazi i vjetru dodana ranije istog dana radila su na krivom ocitanju.
+3. **Prekosutra je bilo najgore:** `cnt=16` je 48h, pa je zadnji dostupni unos za treci dan
+   bio 08:00 ujutro — popodnevna sesija fizicki nije bila u prozoru. A treci dan dohvacamo
+   tek od 01.08.
+
+**Popravak:** nova `weather_at_match_time(city, date, local_hour, utc_offset)` bira unos
+najblizi LOKALNOM satu meca. `get_forecast_series` dohvaca cijelu seriju **jednom po gradu**
+(cache po procesu), pa biranje po satu ne kosta dodatne pozive — zapravo ih ima manje nego
+prije. `cnt` 16 -> 40 (5 dana). Usporedjuje se LOKALNO vrijeme, ne UTC datum: vecernja
+sesija u Montrealu (20:00 lok. = 00:00 UTC iduci dan) inace bi trazila unos pod pogresnim
+datumom — isti cross-day problem vec dokumentiran kod screenshot gatea 27.07.
+U `run_daily` je redoslijed promijenjen: lokalno vrijeme se sada racuna PRIJE prognoze.
+Kad sat ili offset grada nisu poznati, NE pogadja se — vraca se stara gruba procjena.
+Weather cache kljuc sada nosi i sat, pa dnevna i vecernja sesija istog turnira vise ne
+dijele istu prognozu.
+
+**Verificirano na stvarnim podacima:** mec u 14h dobiva 48% / 28,3 °C (prije 68% / 19,2 °C),
+svaki sat pogadja s odstupanjem 0,0 h, a prekosutrasnje popodne je sada pokriveno.
+
+### B. Provjera korisnikovih GitHub prijedloga — nalazi
+
+- **`JeffSackmann/tennis_atp` i `tennis_wta` VISE NE POSTOJE.** Provjereno preko GitHub
+  API-ja: Sackmann danas ima tocno jedan javni repo. Klonovi koje sam nasao zadnji put su
+  azurirani 2018.
+- **`Tennismylife/TML-Database`** postoji (1968-2026, 40+ stupaca), ali README tvrdi
+  "updated daily" dok je zadnji commit 27.01.2026., a `2026.csv` ima 28 KB. Nije zivi izvor.
+  Nama ionako ne treba — serve/return, forme i H2H vucemo iz API-ja u stvarnom vremenu.
+- **Match Charting Project** je ziv (7.566 muskih meceva, 184 u 2026.), ali unakrsna
+  provjera sa svih 150 nasih scouting igraca pokazuje da **pokriva bogate, ne siromasne**:
+  medijan charted meceva je 196 za High profile, 58 za Med-High, 15 za Med, **9 za Med-Low i
+  3 za Low**. Od 70 slabih profila samo 43% ima >=10 meceva. Konkretno za nase gubitke:
+  Droguet 1 charted mec, Atmane 1, Kopriva 3, Landaluce 3. Momentum-varijabla je zato
+  neizvediva kao dnevni signal. Licenca je CC BY-NC-SA (nekomercijalno) — korisnikova odluka.
+- **Alati** (Qdrant, RAGFlow, Ollama, CrewAI, AutoGen, Langflow, Mem0, Instructor...):
+  postoje i veliki su, ali nijedan ne rjesava nas problem — RAG nad jednim Wordom i jednim
+  Excelom, orkestracija nad pipelineom koji vec radi deterministicki, lokalni modeli koji bi
+  bili korak unatrag od Sonneta. Nista nije dodano. Lista "Top 10 AI GitHub Repo"
+  (DeepSeek-Reasonix, QwenPaw, OmniRoute, Graphify...) ne odgovara nijednom poznatom repou.
+
+### C. Dvije varijable u log (context_snapshot v6) — bez utjecaja na pickove
+
+- **`p1_hand` / `p2_hand`** — ruka vec ide u prompt, ali se nikad nije spremala, pa se
+  korisnikova hipoteza o ljevak-vs-desnak matchupu nije mogla ni provjeriti.
+- **`common_opponents`** (korisnikov prijedlog): ako A i B nisu igrali medjusobno ali su oba
+  igrala protiv istih protivnika, iz toga se izvodi relativna snaga. Racuna se iz vec
+  dohvacenih zadnjih 10 meceva po igracu — **nula dodatnih API poziva**. **NE ide u prompt i
+  ne utjece ni na jedan pick.** Isti standard koji je projekt vec dvaput naplatio: 31.07. bi
+  auto-analiza uvela "dugi odmor = penal" i kostala nas cetiri dobitnika, a ranije danas je
+  prividan signal o vlazi ispao konfundiran jednim kisnim tjednom. Prvo mjerimo, pa onda
+  odlucujemo. Prva stvar koju cemo iz loga vidjeti je KOLIKO CESTO metrika uopce okine —
+  dubina od 10 meceva znaci rijetko poklapanje, a prosirenje trazi vlastite API pozive i
+  bit ce zasebna odluka s vlastitom cijenom.
+- Dodano i `weather_forecast_local_time` + `weather_hours_off` — da se vidi za koji je sat
+  prognoza vrijedila i koliko je udaljena od pocetka meca (bez toga se bug iz tocke A ne bi
+  ni mogao primijetiti u podacima).
+
+**NIJE implementirano:** MCP stilski profili (popravljaju uglavnom profile koji su vec dobri,
+uz otvoreno pitanje licence), visina/dob kao izolirane varijable (korisnikova vlastita ograda
+da ih model lako precijeni), i svi alati s lista.
+
+**Ishod:** 15 novih asercija (ukupno 58) — ukljucujuci vecernju sesiju koja prelazi u iduci
+UTC dan i odbijanje pogadjanja kad sat/offset nisu poznati. Verificirano i na stvarnom
+OpenWeather odgovoru. Jedan bug uhvacen vlastitim testom: asercija je koristila
+`w["hours_off"] or 99`, sto za tocno 0.0 daje 99 (0 je falsy).
+
+---
+
 ## 2026-08-04 — Tvrdi clamp na cap + uvjeti se pocinju biljeziti
 
 **Povod:** korisnik trazio analizu tri uzastopna promasena tiketa (01., 02. i 03.08.).

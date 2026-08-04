@@ -1059,15 +1059,29 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         #     nemamo ni nakon meča. Bilježi se za koji je termin prognoza vrijedila.
         # (2) cap_enforced: je li kod morao spustiti confidence na cap koji je model sam
         #     proglasio — mjeri koliko često se to stvarno događa i s kojim ishodom.
+        # v6 (04.08.2026) — tri dodatka, sva tri SAMO za mjerenje:
+        # (a) weather_forecast_local_time / weather_hours_off: od danas se prognoza bira po
+        #     SATU MECA, pa se biljezi za koji je tocno sat vrijedila i koliko je taj unos
+        #     udaljen od pocetka. Bez toga se ne bi vidjelo da je stara logika citala jutro
+        #     (12:00 UTC = 08:00 u Montrealu) — bug nadjen tek kad ga je korisnik primijetio.
+        # (b) p1/p2_hand: ruka vec ide u prompt, ali se nikad nije spremala, pa se hipoteza
+        #     o ljevak-vs-desnak matchupu nije mogla ni provjeriti.
+        # (c) common_opponents: relativna snaga preko zajednickih protivnika. NE ide u prompt
+        #     i ne utjece na pickove — prvo mjerimo je li signal stvaran (vidi _common_opponents).
         _wd = match.get("weather_data") or {}
         result["context_snapshot"].update({
-            "context_version": 5,
+            "context_version": 6,
             "weather_temp_c": _wd.get("temp_c"),
             "weather_humidity": _wd.get("humidity"),
             "weather_wind_kmh": _wd.get("wind_kmh"),
             "weather_condition": _wd.get("condition"),
             "weather_forecast_for": match.get("date"),
+            "weather_forecast_local_time": _wd.get("forecast_local_time"),
+            "weather_hours_off": _wd.get("hours_off"),
             "venue_shielded": bool(match.get("weather_shielded")),
+            "p1_hand": p1.get("hand"),
+            "p2_hand": p2.get("hand"),
+            "common_opponents": match.get("common_opponents") or None,
             "cap_enforced": None,
             "cap_prose_mismatch": None,
         })
