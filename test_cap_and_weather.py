@@ -241,6 +241,36 @@ check("par bez start_time -> ''", find_screenshot_time("Neki Igrac", "Drugi Igra
 check("nepoznat par -> ''", find_screenshot_time("Roger Federer", "Rafael Nadal", ss) == "")
 check("prazan ulaz ne puca", find_screenshot_time("A", "B", {}) == "")
 
+print("\n=== 9b. Mecevi iza ponoci (korisnik ih namjerno sprema pod 'danas') ===")
+# 2026-08-04 je UTORAK. "sri 00:00" spremljen pod utorak = 05.08. 00:00 Zagreb.
+u_sri = screenshot_start_utc("2026-08-04", "00:00", "sri")
+check("'sri 00:00' pod utorkom -> 05.08., ne 04.08.",
+      u_sri.startswith("2026-08-04T22:00"), u_sri)   # 00:00 Zagreb 05.08 = 22:00 UTC 04.08
+lt_sri = local_match_time(u_sri, "montreal")
+check("-> 18:00 ET u utorak (vecernja sesija)",
+      lt_sri.get("local_time") == "18:00" and lt_sri.get("local_date") == "2026-08-04",
+      f"{lt_sri.get('local_date')} {lt_sri.get('local_time')}")
+check("bez kratice dana ostaje na datumu spremanja (staro ponasanje)",
+      screenshot_start_utc("2026-08-04", "00:00").startswith("2026-08-03T22:00"))
+check("'uto' pod utorkom ne pomice datum",
+      screenshot_start_utc("2026-08-04", "17:00", "uto").startswith("2026-08-04T15:00"))
+check("kratica s dijakritikom ('ČET') se prepoznaje",
+      screenshot_start_utc("2026-08-04", "01:00", "ČET").startswith("2026-08-05T23:00"))
+check("kratica predaleko unaprijed (>2 dana) se ODBIJA, ne nagadja",
+      screenshot_start_utc("2026-08-04", "12:00", "sub") == "")
+check("nepoznata kratica se ignorira, vrijeme ostaje",
+      screenshot_start_utc("2026-08-04", "17:00", "xyz").startswith("2026-08-04T15:00"))
+
+from agent.data_fetcher import _parse_day_abbr
+check("_parse_day_abbr normalizira", _parse_day_abbr("ČET") == "cet" and _parse_day_abbr("sri") == "sri")
+check("_parse_day_abbr odbija smece", _parse_day_abbr("abc") == "" and _parse_day_abbr(None) == "")
+
+ss2 = {"2026-08-04": {"x|y": {"p1": "Nakashima Brandon", "p2": "Altmaier Daniel",
+                              "p1_odds": 1.27, "p2_odds": 3.8,
+                              "start_time": "00:00", "start_day": "sri"}}}
+check("lookup prosljedjuje kraticu dana",
+      find_screenshot_time("Brandon Nakashima", "Daniel Altmaier", ss2).startswith("2026-08-04T22:00"))
+
 print("\n=== 6. Hard pravilo 2 nosi ogradu o capu ===")
 from agent.predictor import _surface_specific_rules
 h = _surface_specific_rules("Hard")

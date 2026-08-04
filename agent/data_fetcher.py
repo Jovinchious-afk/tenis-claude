@@ -735,9 +735,12 @@ Pravila:
 - Ako kvota nije čitljiva ili nedostaje, preskoči taj par.
 - Ne uključuj kvalifikacijske mečeve ako su posebno označeni (npr. "Kvalifikacije", "Quali", "Q1", "Q2").
 - "start_time" je vrijeme početka meča kako piše u retku, u formatu "HH:MM" (24-satni).
-  Uz vrijeme često stoji i kratica dana ("uto 17:00", "sri 9:05") — kraticu IZBACI, vrati
-  samo sat i minutu. Ako vrijeme za taj red nije vidljivo, izostavi polje "start_time"
-  (nemoj pogađati i nemoj upisivati prazan string)."""
+  Ako vrijeme za taj red nije vidljivo, izostavi polje "start_time" (nemoj pogađati i
+  nemoj upisivati prazan string).
+- "start_day" je kratica dana koja stoji uz vrijeme, preslikana DOSLOVNO ("uto", "sri",
+  "čet", ...). Obavezno je kad god je kratica vidljiva. Razlog: kladionica pod istim
+  danom prikazuje i mečeve koji počinju iza ponoći, pa "sri 00:00" u utorkovom pregledu
+  znači SLJEDEĆI kalendarski dan. Ako kratice nema, izostavi polje."""
 
 
 def extract_odds_from_screenshot(image_bytes: bytes, media_type: str = "image/png") -> dict:
@@ -793,6 +796,9 @@ def extract_odds_from_screenshot(image_bytes: bytes, media_type: str = "image/pn
         t = _parse_clock(pair.get("start_time"))
         if t:
             entry["start_time"] = t
+            d = _parse_day_abbr(pair.get("start_day"))
+            if d:
+                entry["start_day"] = d
         result[f"{p1}|{p2}"] = entry
     return result
 
@@ -814,18 +820,45 @@ def _parse_clock(val) -> str:
     return f"{h:02d}:{mi:02d}"
 
 
-def screenshot_start_utc(date_str: str, hhmm: str) -> str:
+# Hrvatske kratice dana kako ih pise SuperSport (bez dijakritike, prva tri slova).
+_DAY_ABBR = {"pon": 0, "uto": 1, "sri": 2, "cet": 3, "pet": 4, "sub": 5, "ned": 6}
+
+
+def _parse_day_abbr(val) -> str:
+    """'sri', 'ČET', 'cetvrtak' -> normalizirana troslovna kratica; '' ako nije prepoznata."""
+    if not val:
+        return ""
+    s = _strip_diacritics(str(val)).lower().strip()[:3]
+    return s if s in _DAY_ABBR else ""
+
+
+def screenshot_start_utc(date_str: str, hhmm: str, day_abbr: str = "") -> str:
     """Kladionicin sat (zagrebacko vrijeme) -> ISO UTC, isti oblik kao API-jev `start_utc`.
 
     Zasto zagrebacko: screenshot je sa SuperSporta, hrvatske kladionice, pa su sva vremena
     u lokalnoj zoni korisnika. Ljetni/zimski pomak racuna pytz (vec ovisnost projekta), ne
     fiksna konstanta — inace bi se svaki listopad pojavila tiha jednosatna greska.
+
+    PREKO PONOCI (04.08.2026, korisnikovo objasnjenje): korisnik parove koji pocinju iza
+    ponoci NAMJERNO sprema pod "danas", jer ih tako grupira i SuperSport — kladiti se na
+    njih moze samo tog dana, sutra su vec odigrani. Ta konvencija spremanja se NE dira.
+    Ali datum spremanja tada nije datum pocetka: "sri 00:00" u utorkovom pregledu pocinje
+    SLJEDECI kalendarski dan. Zato se, kad je kratica dana poznata, datum pomakne naprijed
+    do tog dana u tjednu (dopusteno +1 ili +2 dana). Bez pomaka bi takav mec dobio vrijeme
+    24 sata prerano, sto je gore nego nemati vrijeme uopce.
+    Ako kratica ne odgovara nijednom danu unutar +2, NE pogadja se — vraca se "".
     """
     if not date_str or not hhmm:
         return ""
     try:
         from utils.helpers import ZAGREB_TZ
         naive = datetime.datetime.strptime(f"{date_str[:10]} {hhmm}", "%Y-%m-%d %H:%M")
+        abbr = _parse_day_abbr(day_abbr)
+        if abbr:
+            delta = (_DAY_ABBR[abbr] - naive.weekday()) % 7
+            if delta > 2:
+                return ""      # kratica ne pripada ovom vikendu meceva — ne nagadjamo
+            naive += datetime.timedelta(days=delta)
         local = ZAGREB_TZ.localize(naive)
         return local.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
     except Exception:
@@ -845,7 +878,7 @@ def find_screenshot_time(player1: str, player2: str, screenshot_by_date: dict) -
                 continue
             if ((_name_match(player1, val.get("p1", "")) and _name_match(player2, val.get("p2", "")))
                     or (_name_match(player1, val.get("p2", "")) and _name_match(player2, val.get("p1", "")))):
-                return screenshot_start_utc(date_str, t)
+                return screenshot_start_utc(date_str, t, val.get("start_day", ""))
     return ""
 
 

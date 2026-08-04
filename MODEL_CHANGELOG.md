@@ -42,6 +42,18 @@ koji vec vrijedi za kvote (18.07.) i za zdrijeb (27.07.).
 - Streamlit stranica prikazuje procitano vrijeme u obje tablice i izricito upozorava kad
   vrijeme nije procitano ni za jedan par.
 
+**KOREKCIJA istog dana — mecevi iza ponoci.** Prvi zivi test ekstrakcije (7/7 vremena
+procitano) otkrio je rupu: kladionica pod istim danom prikazuje i meceve koji pocinju iza
+ponoci ("sri 00:00" u utorkovom pregledu). Korisnik ih NAMJERNO sprema pod "danas" jer ih
+tako grupira i SuperSport — kladiti se na njih moze samo tog dana, sutra su vec odigrani.
+**Ta konvencija spremanja se NE dira** (na njoj pociva i screenshot gate). Ali datum
+spremanja tada nije datum pocetka: bez korekcije bi takav mec dobio vrijeme **24 sata
+prerano**, sto je gore nego nemati vrijeme uopce. Zato ekstrakcija sada vraca i
+`start_day` (kratica dana, doslovno), a `screenshot_start_utc` pomice datum naprijed do
+tog dana u tjednu (dopusteno +1 ili +2 dana; dalje od toga se NE nagadja, vraca se prazno).
+Provjereno na stvarnoj ekstrakciji: "sri 00:00" pod utorkom -> 18:00 ET u utorak navecer,
+ispravno oznaceno kao nocna sesija.
+
 **VAZNO za postojece podatke:** kvote spremljene prije ove izmjene nemaju `start_time`
 (provjereno: 0 od 23 para za 04.08. i 0 od 9 za 05.08.). Ponovni upload iste snimke ih
 nadopisuje — `save_screenshot_odds` mergea po kljucu, nista se ne gubi. Bez ponovnog uploada
