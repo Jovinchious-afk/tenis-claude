@@ -110,6 +110,32 @@ check("vrijeme ne smije dizati confidence", "never warm it" in t)
 check("court pace/sesija izuzeti iz restrikcije", "keep their two-way use" in t)
 check("cap je strop, ne polazište (scouting)", "A CAP IS A CEILING, NOT A STARTING POINT" in t)
 
+print("\n=== 5b. Pravilo o vjetru (Tennis_Surface_Analysis.docx) ===")
+check("sekcija WIND postoji", "WIND (added 2026-08-04" in t)
+check("smjer: spin kaznjen, flat nagradjen", "high-margin spin games" in t)
+check("prag 15-25 km/h", "15-25 km/h" in t)
+check("prag >25 km/h", "above ~25 km/h" in t)
+check("vjetar smije samo spustati", "wind may only LOWER confidence" in t)
+check("bez stila se pravilo NE primjenjuje", "you cannot apply this rule" in t)
+check("pragovi oznaceni kao nemjereni kod nas", "NOT from our own measured corpus" in t)
+
+print("\n=== 5c. Scouting: budzet skalira s confidenceom profila ===")
+check("budzet skalira", "BUDGET SCALES WITH THE PROFILE" in t)
+check("Med-Low je asimetrican", "it may raise DOUBT about a pick" in t)
+check("dokumentirana tri profila", "Van Assche" in t and "Halys" in t and "Majchrzak" in t)
+check("naveden udio Med-Low u tablici", "50 of 150" in t)
+
+print("\n=== 5d. Gate i dalje izbacuje Low/Insufficient ===")
+from agent.predictor import _format_scouting, _SCOUTING_MIN_CONFIDENCE
+check("Low je izvan gatea", "Low" not in _SCOUTING_MIN_CONFIDENCE)
+check("Insufficient je izvan gatea", "Insufficient" not in _SCOUTING_MIN_CONFIDENCE)
+check("Med-Low i dalje prolazi (asimetricno, ne zabranjeno)",
+      "Med-Low" in _SCOUTING_MIN_CONFIDENCE)
+check("Low profil daje 'no reliable' poruku",
+      "No reliable scouting profile" in _format_scouting({"confidence": "Low", "style": "x"}))
+check("Med-Low profil se prikazuje s oznakom confidencea",
+      "Med-Low" in _format_scouting({"confidence": "Med-Low", "style": "Baseliner"}))
+
 print("\n=== 6. Hard pravilo 2 nosi ogradu o capu ===")
 from agent.predictor import _surface_specific_rules
 h = _surface_specific_rules("Hard")

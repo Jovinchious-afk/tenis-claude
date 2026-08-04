@@ -123,6 +123,63 @@ prognozirani podaci, i zadrzavaju dvosmjernu upotrebu.
   (prag za ulaz na tiket), naspram 20,6% kroz cijelu hard sezonu — model marginalne meceve
   gura NA prag umjesto ISPOD njega. Clamp iz tocke B djeluje upravo na to.
 
+### E. Vjetar dobio pravilo (bio jedina nepokrivena stavka izvornog dokumenta)
+
+**Povod:** korisnik podsjetio da je `Tennis_Surface_Analysis.docx` bitan dokument koji model
+mora imati na umu. Dokument je procitan u cijelosti (40.788 znakova, 8 poglavlja) i poglavlja
+4 (Hard) i 8 (Konsolidirane preporuke) usporedjena red po red s aktualnim promptom.
+
+**Pokriveno i potvrdjeno:** sub-speed (pravilo 14, uz IZMJERENU brzinu terena), toplina i
+nocne sesije (14), tiebreak/decider kao nositelji signala (31.07.), indoor kao zasebno stanje
+(9), 1-2 tjedna prilagodbe nakon promjene podloge (5), jednodimenzionalni specijalisti (14),
+Bo5 smanjuje varijancu upseta (8), stilski matchupovi (scouting sekcija).
+
+**Nepokriveno — VJETAR.** Podatak je od pocetka isao u prompt (`Wind: X km/h`), ali nijedno
+pravilo nije reklo modelu sto znaci; jedini spomen bio je negativan, u pravilu 9 ("indoors
+there is no wind"). Posljedica vidljiva u analizi Norrie-UGC (03.08., vjetar 15,7 km/h):
+model je napisao samo *"wind adds randomness"*, bez smjera.
+
+Dokument tvrdi smjer: *"wind penalises high-margin spin games and rewards flatter, more
+controlled hitting"*, a isti mehanizam potvrdjuje obrnuto u indoor poglavlju — bez vjetra
+najvise dobivaju precizni agresori i flat udarci, dok heavy-topspin igraci "who rely on
+wind/heat to make the ball jump lose some of that weapon".
+
+**Novo pravilo WIND** (zajednicki template, univerzalno — fizika je cross-surface):
+<15 km/h zanemari; 15-25 km/h znacajno, rizik ako je NAS PICK spin/high-margin igrac ili
+cisti defanzivac bez prvog udarca; >25 km/h jako, penal jaci + tolerancija na gresku
+nadjacava cistu brzinu za OBA igraca. Stil se cita iz SCOUTING PROFILES; ako stil nije
+utvrdjen, pravilo se NE primjenjuje umjesto da se nagadja. **Vrijedi ista asimetrija kao za
+ostale uvjete: vjetar smije samo HLADITI** — ako je nas pick flat igrac, vjetar naprosto
+nije rizik za njega, sto NIJE razlog da mu se broj digne. Pragovi su iz izvornog dokumenta i
+opceg teniskog znanja, **ne iz naseg korpusa** — vjetar se od danas biljezi, pa je pravilo
+kandidat za reviziju kad se bude moglo testirati.
+
+### F. Scouting: budzet ±3pp sada skalira s pouzdanoscu profila
+
+**Povod:** korisnik podsjetio da se `ATP_Player_Scouting top150` prati u Supabaseu i da ga
+model treba koristiti. Provjera stanja: tablica ima **150 redaka** (High 10, Med-High 25,
+Med 45, Med-Low 50, Low 16, Insufficient 4), gate izbacuje 20, ostaje 130 upotrebljivih.
+Pokrivenost u stvarnim mecevima je dobra — od 69 hard analiza sa snapshotom **54 imaju profil
+za OBA igraca**, samo 3 nemaju nijedan. Pipeline dakle radi.
+
+**Otvoreni nalaz od 31.07. koji nikad nije strukturno rijesen:** tri profila koja su se
+pokazala pogresnima — Van Assche, Halys, Majchrzak — bila su **sva tri Med-Low**, i sva tri
+su sudjelovala u gubicima. Tada su ispravljena ta tri konkretna profila, ali Med-Low je i
+dalje prolazio gate s punim ±3pp utjecaja kao i High profil. Med-Low je trecina tablice
+(50 od 150), dakle nije rubni slucaj.
+
+**Izmjena:** budzet sada skalira s vlastitom pouzdanoscu profila — High/Med-High puni ±3pp,
+Med najvise ±2pp, **Med-Low asimetricno: smije podici SUMNJU u pick, ali se nikad ne smije
+citirati kao potpora za njega**. Ako pick pociva samo na Med-Low profilu, taj dokaz ne
+postoji. Gate je nediran (Low/Insufficient i dalje ispadaju uz eksplicitnu "no reliable
+scouting" poruku) — ovo je gradacija unutar onoga sto prolazi, ne nova zabrana.
+
+**Zivi test oba pravila** (vjetar 28 km/h, nas pick heavy-topspin s Med-Low profilom,
+protivnik flat s High profilom): model je prepoznao prag >25 km/h, kaznio spin igraca,
+razlikovao High od Med-Low profila i **sam** spustio confidence na 62% — ispod praga 63,
+pick ispada. Clamp nije morao intervenirati jer je model dobrovoljno postovao vlastiti cap,
+sto je i bio cilj izmjene B.
+
 **Napomena:** korpus ima 45 razrijesenih hard analiza, dakle revalidacijski okidac (prag 30)
 je prekoracen — vrijedi provjeriti javlja li se u dnevnom logu.
 

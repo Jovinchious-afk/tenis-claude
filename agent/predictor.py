@@ -164,6 +164,19 @@ Curated analyst scouting notes (qualitative priors, snapshot-dated). Usage rules
   Documented failure: Landaluce vs Mejia, where rule 2's "one overwhelming category" cap
   of 64% was treated as a base and +1pp of scouting was added on top for a final 65%.
   That pick lost. If a cap applies, the cap is the maximum, full stop.
+- THE ±3pp BUDGET SCALES WITH THE PROFILE'S OWN CONFIDENCE (added 2026-08-04). Each block
+  states its confidence — honour it instead of treating every profile as equal evidence:
+    High / Med-High -> the full ±3pp is available.
+    Med             -> at most ±2pp.
+    Med-Low         -> ASYMMETRIC: it may raise DOUBT about a pick, but it may never be
+                       cited as support FOR one. If the only thing backing your pick is a
+                       Med-Low profile, you do not have that evidence at all.
+  Reason (measured 2026-07-31): the three scouting profiles that turned out to be plainly
+  wrong — Van Assche ("needs a weapon", then beat Rublev and won Estoril), Halys (who then
+  beat three of our picks in one week and took the title) and Majchrzak — were ALL Med-Low,
+  and all three participated in losses. Med-Low means "partial data", which is exactly the
+  profile most likely to be stale on a riser. One third of the table (50 of 150) is
+  Med-Low, so this is not a rare edge case.
 - Do NOT double-count: scouting is qualitative context for INTERPRETING the numbers above
   (e.g. "big server" explains a high hold%, it is not a second, independent piece of
   evidence on top of that hold%).
@@ -297,6 +310,28 @@ We are now logging conditions per match; when the data can settle the question t
 restriction will be revisited. Until then: conditions cool a pick, they never warm it.
 This does NOT apply to the measured "Court pace this event" figure or the local session
 (day/night) in rule 14 — those are measured, not forecast, and keep their two-way use.
+
+WIND (added 2026-08-04, from Tennis_Surface_Analysis.docx — the one condition in that
+document that had no rule anywhere in this prompt until now):
+Wind is not just noise, it has a DIRECTION: it "penalises high-margin spin games and
+rewards flatter, more controlled hitting". The mechanism is confirmed in reverse by the
+same document's indoor section — remove wind and precision aggressors and flat hitters
+gain the most, while heavy-topspin players "who rely on wind/heat to make the ball jump
+lose some of that weapon". Read the Wind figure in Conditions above:
+  - below ~15 km/h  -> ignore it, this is normal air.
+  - ~15-25 km/h     -> meaningful. If OUR PICK is the heavy-topspin / high-margin /
+                       spin-reliant player, or a pure defender without a first strike,
+                       treat it as a live risk and shade confidence down.
+  - above ~25 km/h  -> strong. The same penalty applies harder, and shot-tolerance and
+                       error control outweigh raw pace for BOTH players — widen your
+                       uncertainty and be reluctant to sit above the floor at all.
+Use the style fields in SCOUTING PROFILES to decide which player is which; if neither
+profile establishes a style, you cannot apply this rule — say so rather than guessing.
+DIRECTION LIMIT: like all conditions, wind may only LOWER confidence. If our pick is the
+flat, controlled hitter, wind is simply not a risk flag for him — that is NOT a reason to
+raise his number. These thresholds come from the source document and general tennis
+knowledge, NOT from our own measured corpus; wind is logged per match from today, so this
+rule is a candidate for revision once we can test it.
 
 Respond ONLY in the following JSON format (no additional text):
 {{
