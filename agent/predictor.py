@@ -159,6 +159,11 @@ Curated analyst scouting notes (qualitative priors, snapshot-dated). Usage rules
 - SECONDARY evidence only: may adjust confidence by AT MOST ±3pp, and may act as the
   tie-breaker when the measured factors above are close to even. It must NEVER override
   the measured statistics (ELO, hold%, form, H2H) when they clearly point one way.
+- A CAP IS A CEILING, NOT A STARTING POINT (added 2026-08-04): when any rule caps this
+  match, scouting may only move confidence DOWN from that cap — never up through it.
+  Documented failure: Landaluce vs Mejia, where rule 2's "one overwhelming category" cap
+  of 64% was treated as a base and +1pp of scouting was added on top for a final 65%.
+  That pick lost. If a cap applies, the cap is the maximum, full stop.
 - Do NOT double-count: scouting is qualitative context for INTERPRETING the numbers above
   (e.g. "big server" explains a high hold%, it is not a second, independent piece of
   evidence on top of that hold%).
@@ -250,6 +255,49 @@ risk_notes against your key_factors and the data above: every name, number and d
 too short to state the comparison correctly, name the player the risk applies TO rather than
 compressing it into an ambiguous phrase.
 
+DECLARE YOUR CAPS — AND THEN OBEY THEM (mandatory, added 2026-08-04):
+Several rules above impose a confidence CEILING. Our own record shows you reason your way
+to the correct ceiling and then emit a higher number anyway. Four documented cases, all on
+hard, three of them in a single losing week:
+  - "rule 16's cap of 62% ... is technically triggered"          -> you emitted 64
+  - "the cap at 60% is nearly triggered but ... I apply a
+     moderate rather than full penalty"                          -> you emitted 63  (LOST)
+  - "Cap held at 60% per rule 12 - below 63% threshold"          -> you emitted 63  (LOST)
+  - "start at 64% (overwhelming rating), +1pp for style"         -> you emitted 65  (LOST)
+Therefore: list EVERY ceiling you conclude applies to this match in "applied_caps", as
+{{"rule": "<rule number or short name>", "cap": <integer percent>}}. Use [] when none apply.
+Rules:
+  - List a cap only if you conclude it BINDS this match. A ceiling you considered and
+    ruled out does not belong here — say so in key_factors instead. Concretely: if
+    anywhere in your answer you write that a rule "does not trigger", "does not bind",
+    "does not apply" or "is not met", that rule MUST NOT appear in "applied_caps".
+    Observed failure of exactly this kind: rule 12 was listed as a binding 60% cap while
+    key_factors argued "rule 12 strictly requires BOTH players at 1/3 or worse; Mejia is
+    3/3, so rule 12 does NOT bind". Over-declaring is not the safe side — it silently
+    deletes picks that were never capped.
+  - "Nearly triggered", "technically triggered" and "triggered but softened" all mean
+    TRIGGERED. If you find yourself writing a sentence that concedes the cap and then
+    negotiates around it, the cap binds — list it.
+  - Your "confidence" MUST NOT exceed the lowest cap you list. This is enforced
+    mechanically after you answer: a higher number is silently lowered to that cap, so
+    emitting one gains you nothing and only makes your written reasoning inconsistent
+    with the stored number.
+  - If obeying the cap puts the pick below the 63% floor, that is the correct outcome —
+    the pick drops out. That is the rule working, not a failure.
+
+WEATHER AND CONDITIONS MAY ONLY LOWER CONFIDENCE (added 2026-08-04):
+Temperature, humidity, wind and rain are real and you should keep reading them — but until
+we have measured evidence they may act in ONE direction only: they may flag a risk to your
+pick and reduce confidence. They may NEVER be cited as a reason to raise confidence or as
+support FOR your pick. Reason: in a single rainy week at one venue the same 89-92% humidity
+was used as an argument FOR one pick ("slower, heavier court suits his baseline game" —
+Van Assche, lost) and as a dismissed risk against another (Berrettini, lost). A variable
+that argues both ways in the same week at the same venue is narrative, not evidence.
+We are now logging conditions per match; when the data can settle the question this
+restriction will be revisited. Until then: conditions cool a pick, they never warm it.
+This does NOT apply to the measured "Court pace this event" figure or the local session
+(day/night) in rule 14 — those are measured, not forecast, and keep their two-way use.
+
 Respond ONLY in the following JSON format (no additional text):
 {{
   "pick": "player name who wins",
@@ -259,6 +307,7 @@ Respond ONLY in the following JSON format (no additional text):
   "risk_level": "low|medium|high",
   "risk_notes": "brief explanation of main risks (max 80 chars)",
   "handicap_option": "handicap option description or null",
+  "applied_caps": [{{"rule": "16", "cap": 62}}],
   "key_factors": ["1. Rating: ...", "2. Serve/return: ...", "3. Form vs opponent quality: ...", "4. Style matchup: ...", "5. Fatigue & conditions: ...", "6. Own read: ..."],
   "analysis": "2-3 sentences of key match analysis",
   "skip_reason": null
@@ -622,7 +671,11 @@ and MUST be enforced from day one.
    Scoring:
    - TWO or more categories favour your pick  -> 63-70% is available.
    - ONE category only, but OVERWHELMING (hard ELO gap >= 250, or hard W-L record gap
-     >= 15pp) -> cap at 64%.
+     >= 15pp) -> cap at 64%. This 64% is a CEILING, not a base to build on: nothing —
+     scouting, style, conditions, freshness — may lift a capped pick above it, and the
+     cap must be declared in "applied_caps". Documented: Landaluce (ELO gap 203, hard
+     record gap 16.7pp) was capped at 64%, given +1pp for style matchup, emitted at 65%
+     and lost to Mejia.
    - ONE category only, marginal -> score BELOW 63% and let selection drop it.
    - If the OPPONENT leads two of the three -> below 61% regardless of ranking.
    Career-finals experience, H2H with fewer than 3 matches, and "closing pressure" are
@@ -958,6 +1011,35 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             "p1_scouting_confidence": (p1.get("scouting") or {}).get("confidence"),
             "p2_scouting_confidence": (p2.get("scouting") or {}).get("confidence"),
         }
+        # v5 (04.08.2026) — dvije stvari koje dosad NISU bile mjerljive:
+        # (1) uvjeti: vrijeme je od početka išlo u prompt, ali se nigdje nije spremalo, pa
+        #     se hipoteza "vlaga >85% usporava teren i pomaže grinderu" (predložile je DVIJE
+        #     nezavisne auto-analize gubitaka, Berrettini i Fucsovics) nije mogla ni
+        #     potvrditi ni odbaciti. Prvi pokušaj mjerenja iz teksta analiza dao je prividan
+        #     signal (vrijeme kao argument ZA pick = 42% WR naspram 58% prosjeka), ali 23 od
+        #     24 takva meča bila su iz jednog kišnog tjedna u Montrealu — potpuno konfundirano.
+        #     Bez ovog zapisa svaka buduća rasprava o vremenu ostaje nagađanje.
+        #     NAPOMENA: zastavica "meč je počeo kasnije od zakazanog" NIJE uključena jer je
+        #     API-jev `timeGame` uvijek null, a `date` nosi ZAKAZANI termin — stvarni početak
+        #     nemamo ni nakon meča. Bilježi se za koji je termin prognoza vrijedila.
+        # (2) cap_enforced: je li kod morao spustiti confidence na cap koji je model sam
+        #     proglasio — mjeri koliko često se to stvarno događa i s kojim ishodom.
+        _wd = match.get("weather_data") or {}
+        result["context_snapshot"].update({
+            "context_version": 5,
+            "weather_temp_c": _wd.get("temp_c"),
+            "weather_humidity": _wd.get("humidity"),
+            "weather_wind_kmh": _wd.get("wind_kmh"),
+            "weather_condition": _wd.get("condition"),
+            "weather_forecast_for": match.get("date"),
+            "venue_shielded": bool(match.get("weather_shielded")),
+            "cap_enforced": None,
+            "cap_prose_mismatch": None,
+        })
+        _enforce_stated_caps(result)
+        result["context_snapshot"]["cap_enforced"] = result.get("cap_enforced")
+        result["context_snapshot"]["cap_prose_mismatch"] = result.get("cap_prose_mismatch")
+        # NAKON clampa — fair_odds se izvodi iz confidencea, pa mora vidjeti spušteni broj.
         _normalize_fair_odds(result, match)
         return result
     except Exception as e:
@@ -1004,6 +1086,78 @@ def analyze_matches_batch(matches_with_data: list, weights: dict, all_news: str 
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
+# Fraze kojima model prizna cap pa ga zaobiđe. Koriste se SAMO za upozorenje (nikad za
+# spuštanje broja) — hvataju slučaj da cap nije završio u "applied_caps" iako je u tekstu.
+_CAP_PROSE_RE = re.compile(
+    r"(?:cap(?:s|ped)?\s+(?:confidence\s+)?(?:at|to)|cap\s+of|ceiling\s+of|cap\s+held\s+at)\s+(\d{2})\s*%",
+    re.I)
+# Negacije: "cap does NOT apply", "avoids the cap", "not triggered" — cap se spominje, ne veže.
+_CAP_NEGATION_RE = re.compile(
+    r"\b(?:does\s+not|doesn't|not\s+fully|never|avoid\w*|no\s+cap|would\s+(?:apply|trigger)|"
+    r"cannot|is\s+not)\b", re.I)
+
+
+def _enforce_stated_caps(result: dict) -> None:
+    """Spušta confidence na najniži cap koji je model SAM proglasio vezujućim.
+
+    Povod (2026-08-04, revizija nakon tri uzastopna promašena tiketa): model uredno izvede
+    ispravnu gornju granicu pa emitira viši broj. Četiri dokumentirana slučaja na hardu,
+    tri u istom tjednu — "rule 16's cap of 62% is technically triggered" -> 64;
+    "cap held at 60% per rule 12 - below 63% threshold" -> 63 (izgubio);
+    "start at 64% (overwhelming rating), +1pp for style" -> 65 (izgubio).
+    Simulacija na stvarnim tiketima: Van Assche 63->60 i Fucsovics 63->60 ispadaju, čime
+    tiket od 02.08. ostaje s 2 noge i uopće se ne sastavlja (taj je tiket izgubio); jedini
+    dobitak koji bi ovo izbacilo (Jodar 64->62) bio je na analysis-only listi, dakle na
+    stvarnim tiketima nijedan dobitnik nije koštao.
+
+    Izvor istine je STRUKTURIRANO polje `applied_caps` koje model ispunjava, a ne parsiranje
+    proze: raniji regex nad 102 hard analize dao je 26 "kršenja" od kojih je većina bila
+    puko SPOMINJANJE capa koji ne veže ("rule 13 cap does not trigger"). Proza se i dalje
+    skenira, ali samo da zabilježi neslaganje (`cap_prose_mismatch`) — nikad da spusti broj.
+    """
+    caps = result.get("applied_caps")
+    conf = safe_float(result.get("confidence") or 0)
+    if conf <= 0 or not result.get("pick"):
+        return
+
+    binding = []
+    if isinstance(caps, list):
+        for c in caps:
+            if isinstance(c, dict):
+                v = safe_float(c.get("cap") or 0)
+                rule = str(c.get("rule") or "?")
+            else:
+                v, rule = safe_float(c or 0), "?"
+            # Sanity: prihvaćamo samo capove u smislenom rasponu; 0/prazno/besmisleno se
+            # ignorira umjesto da tiho sruši pick na nulu.
+            if 50 <= v <= 80:
+                binding.append((v, rule))
+
+    if binding:
+        lowest, rule = min(binding, key=lambda x: x[0])
+        if conf > lowest:
+            result["confidence"] = lowest
+            result["cap_enforced"] = {"from": conf, "to": lowest, "rule": rule}
+            print(f"    [CAP] {result.get('pick')}: confidence {conf} -> {lowest} "
+                  f"(model sam proglasio cap po pravilu {rule})")
+
+    # Sekundarna mreža — samo bilježenje, bez učinka na broj.
+    text = " ".join([str(result.get("analysis") or ""), str(result.get("risk_notes") or "")]
+                    + [str(x) for x in (result.get("key_factors") or [])])
+    declared = {v for v, _ in binding}
+    prose = []
+    for sent in re.split(r"(?<=[.!?])\s+", text):
+        if _CAP_NEGATION_RE.search(sent):
+            continue
+        for m in _CAP_PROSE_RE.finditer(sent):
+            v = int(m.group(1))
+            if 50 <= v <= 80 and v not in declared:
+                prose.append(v)
+    if prose and min(prose) < safe_float(result.get("confidence") or 0):
+        result["cap_prose_mismatch"] = {"prose_caps": sorted(set(prose)),
+                                        "confidence": result.get("confidence")}
+
 
 def _normalize_fair_odds(result: dict, match: dict) -> None:
     """Veže fair_odds uz confidence i value uz stvarnu kvotu (clay revizija 2026-07-11).

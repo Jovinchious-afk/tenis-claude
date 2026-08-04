@@ -229,6 +229,10 @@ def main():
     # Cache by (city, date) so today and tomorrow get separate weather
     # (today_str/tomorrow_str already defined above, before the screenshot gate)
     weather_cache = {}
+    # weather_raw_cache: isti podaci u strukturiranom obliku, za context_snapshot v5
+    # (04.08.2026). Dosad je vrijeme postojalo SAMO kao formatirani string za prompt, pa se
+    # nijedna hipoteza o uvjetima nije mogla izmjeriti — vidi komentar u predictor.py.
+    weather_raw_cache = {}
     for match in all_matches:
         city = _city_for_weather(match.get("tournament", ""))
         match_date = match.get("date", today_str)
@@ -242,6 +246,7 @@ def main():
                     f"Wind: {w['wind_kmh']} km/h, Humidity: {w['humidity']}% ({label})"
                 )
                 weather_cache[cache_key] = weather_str
+                weather_raw_cache[cache_key] = w
                 print(f"  {city} ({match_date}): {weather_str}")
             else:
                 weather_cache[cache_key] = "N/A"
@@ -269,14 +274,22 @@ def main():
         city = _city_for_weather(match.get("tournament", ""))
         match_date = match.get("date", today_str)
         base_weather = weather_cache.get((city, match_date), "N/A")
+        # Strukturirani zapis za context_snapshot v5 — ide u bazu, NE u prompt.
+        match["weather_data"] = weather_raw_cache.get((city, match_date)) or {}
+        # venue_shielded: dvorana ili zatvoreni krov — prognoza tada ne opisuje uvjete
+        # igre, pa se ti mečevi pri kasnijem mjerenju moraju izdvojiti, inače bi razblažili
+        # svaki nalaz o vremenu.
+        match["weather_shielded"] = False
         if base_weather == "N/A":
             match["weather"] = base_weather
         elif "indoor" in match.get("surface", "").lower():
             match["weather"] = base_weather + " — indoor venue (weather not a factor for play)"
+            match["weather_shielded"] = True
         elif _has_retractable_roof(match.get("tournament", ""), city):
             rain_conds = {"rain", "drizzle", "thunderstorm", "shower"}
             if any(rc in base_weather.lower() for rc in rain_conds):
                 match["weather"] = base_weather + " — retractable roof venue (roof closed if rain: conditions indoor, rain/wind irrelevant for play)"
+                match["weather_shielded"] = True
             else:
                 match["weather"] = base_weather
         else:

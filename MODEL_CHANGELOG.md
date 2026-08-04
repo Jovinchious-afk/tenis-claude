@@ -9,6 +9,132 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-08-04 — Tvrdi clamp na cap + uvjeti se pocinju biljeziti
+
+**Povod:** korisnik trazio analizu tri uzastopna promasena tiketa (01., 02. i 03.08.).
+
+**Ispravak polazne pretpostavke:** vremena nastanka tiketa u bazi su UTC, a commitovi
+lokalni. Preracunato, paket izmjena od 01.08. (prosireni prozor 16:07, klizni pragovi
+16:37, underdog cap 16:49) usao je PRIJE sva tri tiketa (01.08. u 17:11, 02.08. u 15:22,
+03.08. u 14:44 lokalno). Dakle nije "jedan stari + dva nova" — **sva tri su prvi zivi test
+novog modela.** Bilanca: prije 01.08. 24 jedinstvena picka 16W-8L (66,7%), ROI -2,3%;
+od 01.08. 7 jedinstvenih 3W-4L (42,9%), ROI -35,6%.
+
+### A. Tiketi nisu bili neovisni (nalaz zabiljezen, popravak ODBIJEN)
+
+13 legova na tri tiketa, ali samo **10 razlicitih meceva**. Tiketi 01.08. i 03.08. dijele
+Kopriva-Galarneau (W) i **Berrettini-Navone (L)**; tiketi 02.08. i 03.08. dijele
+Draper-Atmane. **Berrettinijev poraz je sam ubio dva tiketa.** Uz to 12 od 13 legova je
+Montreal — tri "neovisna" dnevna tiketa bila su jedan ulog na jedan turnir.
+Uzrok: prosireni prozor na prekosutra + `ticket_builder` nema nikakvu provjeru je li mec
+vec bio na ranijem tiketu. Pojava je starija (Shelton 28.07., De Minaur i Musetti 29.07.,
+Fritz 31.07. — 7 meceva na po dva tiketa), ali su svi ti duplikati dobili pa se nije vidjelo.
+**Korisnik odbio dedupe:** ponekad namjerno zeli izostaviti dobar mec, pa ne zeli automatiku
+koja mu to oduzima. Nalaz ostaje zapisan radi buducih revizija.
+
+### B. Model navede cap pa ga ne primijeni — TVRDI CLAMP (implementirano)
+
+Skeniranje svih 102 hard analize na eksplicitne formulacije odstupanja dalo je 4 slucaja,
+**tri u zadnja tri dana**:
+
+| mec | model napisao | emitirao | ishod |
+|---|---|---|---|
+| Jodar-Musetti 01.08. | *"rule 16's cap of 62% … is technically triggered"* | 64% | W (analysis-only) |
+| Van Assche-Droguet 02.08. | *"cap at 60% is nearly triggered but … moderate rather than full penalty"* | 63% | **L** |
+| Fucsovics-Moutet 03.08. | *"Cap held at 60% per rule 12 — below 63% threshold"* | 63% | **L** |
+| Landaluce-Mejia 04.08. | *"start at 64% (overwhelming rating), +1pp for style"* | 65% | **L** |
+
+Dva su cista prekrsaja: Fucsovics (risk_notes doslovno kaze da je ispod praga za tiket, broj
+je tocno na pragu) i Landaluce (pravilo 2 propisuje cap 64%, model ga uzeo kao POLAZISTE i
+dodao +1pp scoutinga). Ishod te cetvorke 1W-3L naspram 25W-16L (61%) za ostale hard analize
+— **n=4, P≈0,15, statisticki nista**; izmjena se ne oslanja na uzorak nego na to da model
+krsi vlastito pravilo, dokumentirano njegovim rijecima.
+
+**Mehanizam — strukturirano polje, NE parsiranje proze.** Prvi pokusaj (regex nad prozom)
+dao je 26 "krsenja" od kojih je vecina bila puko SPOMINJANJE capa koji ne veze
+("rule 13 cap does not trigger"). Zato model sada popunjava novo JSON polje
+**`applied_caps`** (`[{"rule": "16", "cap": 62}]`) s capovima koje sam smatra vezujucima, a
+`_enforce_stated_caps()` spusta confidence na najnizi od njih. Proza se i dalje skenira, ali
+**samo za biljezenje** (`cap_prose_mismatch`) — nikad ne spusta broj.
+
+**Simulacija na stvarnim tiketima:** Van Assche 63->60 i Fucsovics 63->60 ispadaju, cime
+tiket od 02.08. ostaje s 2 noge i **uopce se ne sastavlja** (taj je tiket izgubio 50 EUR).
+Jedini dobitak koji bi clamp izbacio (Jodar 64->62) bio je na analysis-only listi — dakle
+na stvarnim tiketima **nijedan dobitnik nije kostao**.
+
+**Uz to:** pravilo 2 (hard) i sekcija SCOUTING PROFILES sada izrijekom kazu da je cap STROP,
+ne polaziste — nista (scouting, stil, uvjeti, svjezina) ne smije podici capirani pick iznad
+njega. Prompt takodjer navodi da "nearly/technically triggered" znaci TRIGGERED.
+
+**Otkriveno tijekom testiranja i popravljeno:** u prvom zivom testu model je pretjerao u
+drugom smjeru — deklarirao rule 12 kao vezuci cap dok je u key_factors argumentirao da NE
+veze. Prompt je pooštren: ako igdje pises da pravilo "does not trigger/bind/apply", to
+pravilo NE SMIJE biti u `applied_caps`, jer pretjerano deklariranje tiho brise pickove koji
+nikad nisu bili capirani. Ponovni zivi test potvrdio ispravak.
+
+### C. Vrijeme se pocinje biljeziti + smije samo HLADITI (implementirano)
+
+Dvije nezavisne auto-analize gubitaka (Berrettini i Fucsovics) predlozile su isto pravilo:
+vlaga >85% usporava teren i pomaze grinderu protiv servera. **Nije se moglo provjeriti** —
+`context_snapshot` nije sadrzavao nijedno weather polje (provjereni kljucevi svih 37 hard
+snapshota), iako vrijeme od pocetka ulazi u prompt.
+
+Pokusaj mjerenja iz teksta analiza dao je prividan signal (vrijeme kao argument ZA pick =
+10W-14L, 42%, naspram 58% prosjeka na hardu), ali **23 od 24 takva meca su iz jednog kisnog
+tjedna u Montrealu** — potpuno konfundirano. Nije izmjereno "vrijeme steti" nego "los tjedan
+u Montrealu bio je kisan". Isti tip zamke kao "dugi odmor = penal" od 31.07., koji bi nas
+kostao cetiri dobitnika. **Zato NIJE uvedeno nikakvo humidity pravilo.**
+
+Ono sto ne trazi statistiku: ista vlaga (89-92%) u istom tjednu i gradu koristena je kao
+argument **ZA** jedan pick (Van Assche — "sporiji, tezi teren odgovara njegovoj igri s
+osnovne crte", izgubio) i kao odbaceni **rizik** protiv drugog (Berrettini, izgubio).
+Varijabla koja argumentira u oba smjera u istom tjednu je narativ, ne dokaz.
+
+**Izmjena 1 — `context_snapshot` v5:** + `weather_temp_c`, `weather_humidity`,
+`weather_wind_kmh`, `weather_condition`, `weather_forecast_for`, `venue_shielded`
+(dvorana/zatvoreni krov — prognoza tada ne opisuje uvjete igre, pa se ti mecevi pri mjerenju
+moraju izdvojiti), plus `cap_enforced` i `cap_prose_mismatch` iz tocke B.
+`run_daily` sada uz formatirani string cuva i sirovi dict (`weather_raw_cache`).
+**Zastavica "mec je poceo kasnije od zakazanog" NIJE uvedena:** API-jev `timeGame` je uvijek
+null, a `date` nosi ZAKAZANI termin — stvarni pocetak nemamo ni nakon meca. Biljezi se za
+koji je termin prognoza vrijedila. (Korisnik: odgode su rijetke, mecevi uglavnom krecu na
+vrijeme.)
+
+**Izmjena 2 — asimetrija (korisnik odabrao opciju B):** vrijeme, vlaga, vjetar i kisa smiju
+SPUSTITI pouzdanost, ali je nikad ne smiju PODICI, dok se ne skupi mjerljivi dokaz.
+Obrazlozenje: cijela povijest projekta pokazuje da PRECJENJUJEMO, pa je asimetrija koja moze
+samo hladiti siguran smjer, a lako se ukine kad podaci stignu. **Izuzeti su izmjerena
+"court pace this event" i lokalna sesija (dan/noc) iz pravila 14** — to su mjereni, ne
+prognozirani podaci, i zadrzavaju dvosmjernu upotrebu.
+
+### D. Provjereno i NAMJERNO nedirano
+
+- **Tezine** — n=7 razrijesenih pickova.
+- **Underdog prag 28pp** — razrijesen tocno JEDAN novi underdog pick (Fucsovics @2.00, L),
+  Baez @2.00 jos visi. Uz to hard sezona kaze `value_bet=True` 5W-4L ROI **+3,3%** naspram
+  `value_bet=False` 14W-8L ROI **-15,1%** — dokaz ide U KORIST underdoga, ne protiv.
+- **R32 / Masters pravilo** — R32 je 2W-4L, ali to je istih tih 6 meceva, konfundirano i s
+  erom i s jednim jedinim turnirom.
+- **Klizni pragovi** — Van Assche sugerira rizik (klizni prag dao modelu prostor za
+  "moderate rather than full penalty" umjesto tvrde skale), ali n=1.
+- **Kalibracija po confidenceu** (hard, n=45): 63% -> 42,9% (n=14), 64% -> 73,7% (n=19),
+  65% -> 45,5% (n=11). Nemonotono, dakle sum na malom n — NIJE osnova za izmjenu. Ono sto
+  ostaje je obrazac ponasanja: u zadnja 4 dana **35% svih hard analiza zavrsi na tocno 63%**
+  (prag za ulaz na tiket), naspram 20,6% kroz cijelu hard sezonu — model marginalne meceve
+  gura NA prag umjesto ISPOD njega. Clamp iz tocke B djeluje upravo na to.
+
+**Napomena:** korpus ima 45 razrijesenih hard analiza, dakle revalidacijski okidac (prag 30)
+je prekoracen — vrijedi provjeriti javlja li se u dnevnom logu.
+
+**Ishod:** novi test suite `test_cap_and_weather.py` (26 asercija: clamp spusta / ne dira
+netaknuto / graceful bez polja / besmislene vrijednosti / poredak prema fair_odds / prozna
+mreza samo upozorava / prompt markeri) — sve proslo. Prompt se formatira ispravno za sve tri
+podloge (nova viticasta zagrada u JSON shemi provjerena). **Dva stvarna (ne-mock) API
+poziva:** Landaluce-Mejia — model deklarirao capove, clamp okinuo 64->60, pick ispao;
+kontrolni poziv potvrdio da clamp ne okida kad cap ne veze.
+
+---
+
 ## 2026-08-02 — Klizni pragovi + underdogovi vraceni u igru
 
 **Povod:** korisnik trazio analizu hard rezultata nakon poraza De Minaura i Sheltona, i
