@@ -177,6 +177,31 @@ try:
 finally:
     _df.get_forecast_series = _orig
 
+print("\n=== 7b. Odabir zapisa prognoze: zadnji prije meca, +1h granica ===")
+# Zapisi (Montreal, lokalno): 11:00, 14:00, 17:00, 20:00, 23:00
+_ser = []
+for h in range(0, 48, 3):
+    utc = _dt.datetime(2026, 8, 5, 15, 0) + _dt.timedelta(hours=h)   # 15:00 UTC = 11:00 lok
+    _ser.append({"utc": utc, "raw": {"main": {"temp": 20 + h, "humidity": 50 + h},
+                                     "wind": {"speed": 2.0}, "weather": [{"main": "Clear"}],
+                                     "dt_txt": utc.strftime("%Y-%m-%d %H:%M:%S")}})
+_o = _df.get_forecast_series
+_df.get_forecast_series = lambda city: _ser
+try:
+    def pick(h, m=0):
+        w = _df.weather_at_match_time("Montreal", "2026-08-05", h, -4, m)
+        return (w.get("forecast_local_time") or "")[11:]
+    check("mec tocno na zapisu (11:00) -> 11:00", pick(11) == "11:00", pick(11))
+    check("mec 30 min nakon zapisa (14:30) -> ostaje 14:00", pick(14, 30) == "14:00", pick(14, 30))
+    check("korisnikov primjer: 15:00 uz zapis 14:00 -> SLJEDECI (17:00)", pick(15) == "17:00", pick(15))
+    check("mec 59 min nakon (14:59) -> jos uvijek 14:00", pick(14, 59) == "14:00", pick(14, 59))
+    check("mec 2h nakon (13:10 od 11:00) -> sljedeci (14:00)", pick(13, 10) == "14:00", pick(13, 10))
+    check("mec 20 min nakon (14:20) -> ostaje 14:00", pick(14, 20) == "14:00", pick(14, 20))
+    check("mec 1h30 nakon (15:30) -> sljedeci (17:00)", pick(15, 30) == "17:00", pick(15, 30))
+    check("mec prije prvog zapisa -> uzima prvi, ne puca", pick(6) == "11:00", pick(6))
+finally:
+    _df.get_forecast_series = _o
+
 print("\n=== 8. Common opponents (samo log, ne prompt) ===")
 from agent.run_daily import _common_opponents
 

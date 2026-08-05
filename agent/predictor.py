@@ -1082,6 +1082,11 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             # (za Montreal kasni ~3h). Biljezi se da se kasnije vidi koliko je analiza radilo
             # na tocnom, a koliko na pomaknutom vremenu.
             "time_source": match.get("time_source"),
+            # wave_first = mec je u PRVOM valu svog turnira tog lokalnog dana (krece po
+            # rasporedu). Ostali dobivaju +1h jer cekaju prethodni mec na terenu — pa se
+            # kasnije moze izmjeriti je li ta pretpostavka bila dobra.
+            "wave_first": match.get("wave_first"),
+            "scheduled_local_time": match.get("scheduled_local_time"),
             "venue_shielded": bool(match.get("weather_shielded")),
             "p1_hand": p1.get("hand"),
             "p2_hand": p2.get("hand"),

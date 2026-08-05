@@ -1233,7 +1233,42 @@ def get_forecast_series(city: str) -> list:
     return out
 
 
-def weather_at_match_time(city: str, match_date: str, local_hour: int, utc_offset: int) -> dict:
+def _pick_forecast_entry(series: list, utc_offset: int, target_local):
+    """Bira zapis prognoze po korisnikovom pravilu (05.08.2026), ne po najblizem.
+
+    OpenWeather daje zapise svaka 3 sata. Pravilo: uzmi ZADNJI zapis prije meca, a ako je
+    mec **1 sat ili vise** nakon njega, pomakni se na SLJEDECI. Korisnikov primjer: mec u
+    15:00 uz zapise u 14:00 i 17:00 -> razlika je tocno 1h -> uzima se 17:00 (iako je 14:00
+    "blizi"). Obrazlozenje: mecevi krecu kasnije nego sto pise, pa je pristranost prema
+    kasnijem zapisu realnija od simetricnog zaokruzivanja.
+
+    Vraca (entry, gap_h) ili (None, None). gap_h je razmak izabranog zapisa od meca —
+    biljezi se u snapshot da se vidi koliko je procjena udaljena.
+    """
+    if not series:
+        return None, None
+    dated = sorted(((i["utc"] + datetime.timedelta(hours=utc_offset), i) for i in series),
+                   key=lambda x: x[0])
+    prev_idx = None
+    for idx, (local, _) in enumerate(dated):
+        if local <= target_local:
+            prev_idx = idx
+        else:
+            break
+    if prev_idx is None:
+        # Mec je prije prvog dostupnog zapisa (npr. prognoza tek pocinje) — uzmi prvi.
+        chosen = dated[0]
+    else:
+        gap_h = (target_local - dated[prev_idx][0]).total_seconds() / 3600.0
+        if gap_h >= 1.0 and prev_idx + 1 < len(dated):
+            chosen = dated[prev_idx + 1]
+        else:
+            chosen = dated[prev_idx]
+    return chosen[1], round(abs((chosen[0] - target_local).total_seconds()) / 3600.0, 1)
+
+
+def weather_at_match_time(city: str, match_date: str, local_hour, utc_offset: int,
+                          local_minute: int = 0) -> dict:
     """Prognoza za SAT KADA SE MEC IGRA, ne za podne.
 
     BUG KOJI OVO ISPRAVLJA (04.08.2026, korisnik uocio na Berrettiniju): stara implementacija
@@ -1263,13 +1298,8 @@ def weather_at_match_time(city: str, match_date: str, local_hour: int, utc_offse
         d = datetime.datetime.strptime(str(match_date)[:10], "%Y-%m-%d")
     except ValueError:
         return {}
-    target_local = d + datetime.timedelta(hours=int(local_hour))
-    best, best_gap = None, None
-    for item in series:
-        local = item["utc"] + datetime.timedelta(hours=utc_offset)
-        gap = abs((local - target_local).total_seconds()) / 3600.0
-        if best_gap is None or gap < best_gap:
-            best, best_gap = item, gap
+    target_local = d + datetime.timedelta(hours=int(local_hour), minutes=int(local_minute or 0))
+    best, best_gap = _pick_forecast_entry(series, utc_offset, target_local)
     if best is None:
         return {}
     w = _entry_to_weather(best["raw"])

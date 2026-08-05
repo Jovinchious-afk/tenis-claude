@@ -254,9 +254,73 @@ def main():
         print(f"  Vrijeme početka sa screenshota za {_n_ss_time}/{len(all_matches)} mečeva "
               f"(ostali padaju na API-jev sat).")
 
+    # KASNJENJE KASNIJIH VALOVA (05.08.2026, korisnikov zahtjev).
+    #
+    # Samo PRVI mecevi dana krecu po rasporedu; sve iza njih ceka da se prethodni na tom
+    # terenu zavrsi, pa realno pocinje kasnije nego sto pise. Korisnikovo pravilo: najraniji
+    # val dana ide tocno kako pise, SVI ostali dobivaju +1h — bez obzira koliko meceva ima
+    # u kojem terminu. Pomak vrijedi i za odabir prognoze i za oznaku dan/noc (inace bismo
+    # tvrdili da mec igra po danu, a citali prognozu za noc).
+    #
+    # "NAJRANIJI" SE ODREDJUJE PO (TURNIR, LOKALNI DAN TURNIRA), i to iz STVARNOG trenutka,
+    # ne iz sata na ekranu. Dva razloga, oba dokumentirana na stvarnim podacima:
+    #  - Po turniru, jer se kasnjenje gomila unutar jednog turnira. Ako Montreal krece u
+    #    17:00 a Cincinnati u 19:00 (po Zagrebu), Cincinnatijev prvi val ne smije dobiti +1h.
+    #  - Po LOKALNOM danu turnira, ne po zagrebackom datumu. Korisnik meceve iza ponoci
+    #    namjerno sprema pod "danas" (kladionica ih tako lista). Za Montreal je "cet 02:10"
+    #    zapravo srijeda 20:10 po lokalnom — zadnji mec istog turnirskog dana, a ne prvi mec
+    #    novog. Provjereno 05.08.: svih 23 para pada u isti montrealski dan.
+    #  - Sortiranje po stvarnom trenutku usput rjesava i zamku "sat na ekranu": "cet 00:00"
+    #    bi kao string bio najraniji, a zapravo je pretposljednji.
+    #
+    # ZASTO NE "najranije vrijeme prije ponoci": za turnire na istoku to bi puklo. Melbourne
+    # je u sijecnju Zagreb +10, pa Australian Open krece u 11:00 po Melbourneu = 01:00 po
+    # Zagrebu — SVI mecevi su ondje "poslije ponoci", a prvi je bas taj u 01:00. Grupiranje
+    # po lokalnom danu turnira radi jednako za Montreal, Dubai i Melbourne, bez iznimki.
+    _sched = {}
     for match in all_matches:
         city = _city_for_weather(match.get("tournament", ""))
         lt = df.local_match_time(match.get("start_utc", ""), city)
+        if lt:
+            match["scheduled_local_time"] = lt["local_time"]
+            _sched[id(match)] = (match.get("tournament", ""), lt["local_date"])
+
+    # Najraniji stvarni trenutak po (turnir, lokalni dan turnira).
+    _wave_start = {}
+    for match in all_matches:
+        key = _sched.get(id(match))
+        su = match.get("start_utc", "")
+        if not key or not su:
+            continue
+        if key not in _wave_start or su < _wave_start[key]:
+            _wave_start[key] = su
+
+    _n_bumped = 0
+    for match in all_matches:
+        key = _sched.get(id(match))
+        su = match.get("start_utc", "")
+        # Pomak SAMO kad vrijeme dolazi sa screenshota — kod API-jevog sata ne znamo u kojem
+        # je meč valu, pa se ne nagađa (bolje neutralno nego krivo).
+        first = (not key) or (match.get("time_source") != "screenshot") or (su == _wave_start.get(key))
+        match["wave_first"] = bool(first)
+        if first or not su:
+            match["effective_utc"] = su
+        else:
+            try:
+                base = datetime.datetime.fromisoformat(str(su).replace("Z", "+00:00"))
+                match["effective_utc"] = (base + datetime.timedelta(hours=1)).strftime(
+                    "%Y-%m-%dT%H:%M:%S.000Z")
+                _n_bumped += 1
+            except ValueError:
+                match["effective_utc"] = su
+    if _n_bumped:
+        print(f"  Kašnjenje kasnijih valova: +1h za {_n_bumped}/{len(all_matches)} mečeva "
+              f"(prvi val svakog turnira ostaje po rasporedu).")
+
+    for match in all_matches:
+        city = _city_for_weather(match.get("tournament", ""))
+        # Sve nizvodno (sesija, prognoza) koristi EFEKTIVNO vrijeme — ono kad mec realno krece.
+        lt = df.local_match_time(match.get("effective_utc") or match.get("start_utc", ""), city)
         if lt:
             match["local_time"] = lt["local_time"]
             match["session"] = lt["session"]
@@ -290,13 +354,15 @@ def main():
         # LOKALNI datum turnira, ne datum meča — večernja sesija pada u sljedeći UTC dan.
         wx_date = match.get("local_date") or match_date
         hour = int(lt_str[:2]) if lt_str[:2].isdigit() else None
-        # Ključ nosi i sat: dnevna i večernja sesija istog turnira više ne dijele prognozu.
-        cache_key = (city, wx_date, hour)
+        minute = int(lt_str[3:5]) if lt_str[3:5].isdigit() else 0
+        # Ključ nosi i puni sat:minutu — termini 18:10 i 18:30 mogu pasti na različite
+        # zapise prognoze, pa ih ne smiju dijeliti.
+        cache_key = (city, wx_date, hour, minute)
         if not city or cache_key in weather_cache:
             continue
         w = {}
         if hour is not None and off is not None:
-            w = df.weather_at_match_time(city, wx_date, hour, off)
+            w = df.weather_at_match_time(city, wx_date, hour, off, minute)
         if not w:
             # Sat ili offset nepoznat — ne pogađamo, vraćamo se na staru grubu procjenu.
             w = df.get_weather_for_tournament(city, forecast_date=match_date)
@@ -322,7 +388,8 @@ def main():
         match_date = match.get("date", today_str)
         lt_str = match.get("local_time") or ""
         hour = int(lt_str[:2]) if lt_str[:2].isdigit() else None
-        wkey = (city, match.get("local_date") or match_date, hour)
+        minute = int(lt_str[3:5]) if lt_str[3:5].isdigit() else 0
+        wkey = (city, match.get("local_date") or match_date, hour, minute)
         base_weather = weather_cache.get(wkey, "N/A")
         # Strukturirani zapis za context_snapshot v5 — ide u bazu, NE u prompt.
         match["weather_data"] = weather_raw_cache.get(wkey) or {}

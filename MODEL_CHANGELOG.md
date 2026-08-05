@@ -9,6 +9,62 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-08-05 — Kasnjenje kasnijih valova (+1h) i novo pravilo odabira prognoze
+
+**Povod:** korisnikovo zapazanje da samo PRVI mecevi dana krecu po rasporedu — sve iza njih
+ceka da se prethodni mec na tom terenu zavrsi.
+
+**Pravilo (korisnikovo):** najraniji val dana ide tocno kako pise, **svi ostali dobivaju +1h**,
+bez obzira koliko meceva ima u kojem terminu. Pomak vrijedi i za odabir prognoze i za oznaku
+dan/noc — inace bismo tvrdili da mec igra po danu, a citali prognozu za noc.
+
+**"Najraniji" se odredjuje po (turnir, LOKALNI DAN TURNIRA), iz stvarnog trenutka:**
+- **po turniru**, jer se kasnjenje gomila unutar jednog turnira; ako Montreal krece u 17:00
+  a Cincinnati u 19:00 (po Zagrebu), Cincinnatijev prvi val ne smije dobiti +1h;
+- **po lokalnom danu turnira, ne po zagrebackom datumu.** Korisnik meceve iza ponoci namjerno
+  sprema pod "danas" (kladionica ih tako lista, jer se sutra na njih vise ne moze kladiti).
+  Za Montreal je "cet 02:10" zapravo srijeda 20:10 lokalno — zadnji mec ISTOG turnirskog dana.
+  Provjereno 05.08.: svih 23 para pada u isti montrealski dan;
+- **iz stvarnog trenutka, ne iz sata na ekranu** — "cet 00:00" bi kao string bio najraniji, a
+  zapravo je pretposljednji. Kratica dana (uvedena 04.08.) to rjesava sama.
+
+**Zasto NE "najranije vrijeme prije ponoci"** (korisnikova prva formulacija): za turnire na
+istoku bi puklo. Melbourne je u sijecnju Zagreb +10, pa Australian Open krece u 11:00 po
+Melbourneu = **01:00 po Zagrebu** — ondje su SVI mecevi "poslije ponoci", a prvi je bas taj u
+01:00. Grupiranje po lokalnom danu turnira radi jednako za Montreal, Dubai i Melbourne, bez
+ijedne iznimke u kodu.
+
+**Novo pravilo odabira zapisa prognoze (korisnikovo):** OpenWeather daje zapise svaka 3 sata.
+Uzima se **zadnji zapis prije meca**, a ako je mec **1 sat ili vise** nakon njega, pomak na
+**sljedeci**. Korisnikov primjer: mec u 15:00 uz zapise 14:00 i 17:00 -> razlika tocno 1h ->
+uzima se 17:00, iako je 14:00 "blizi". Obrazlozenje: pristranost prema kasnijem zapisu je
+realnija od simetricnog zaokruzivanja kad mecevi ionako kasne. Zamjenjuje dosadasnji
+"najblizi zapis". Cache kljuc sada nosi sat I minutu (18:10 i 18:30 mogu pasti na razlicite
+zapise). `scheduled_local_time` i `wave_first` idu u `context_snapshot` — da se kasnije moze
+izmjeriti je li pretpostavka o +1h bila dobra.
+
+**Pomak se primjenjuje SAMO kad vrijeme dolazi sa screenshota.** Kod API-jevog sata ne znamo
+u kojem je mec valu, pa se ne nagadja.
+
+**Verificirano na stvarnim korisnikovim parovima (05.08., Montreal, 23 para):**
+
+| termin | pomak | raspored | efektivno | sesija | zapis | vlaga | temp |
+|---|---|---|---|---|---|---|---|
+| sri 17:00 | ne (prvi val) | 11:00 | 11:00 | day | 11:00 | 66% | 23,6 |
+| sri 18:10 | +1h | 12:10 | 13:10 | day | 14:00 | 49% | 29,9 |
+| sri 19:20 | +1h | 13:20 | 14:20 | day | 14:00 | 49% | 29,9 |
+| sri 20:50 | +1h | 14:50 | 15:50 | day | 17:00 | 50% | 31,2 |
+| cet 00:00 | +1h | 18:00 | 19:00 | **night** | 20:00 | 71% | 24,9 |
+| cet 02:10 | +1h | 20:10 | 21:10 | night | 23:00 | 75% | 23,3 |
+
+Raspon temperature kroz dan je 23,6-31,2 C — signal koji pravilo 14 ("daytime heat speeds the
+court up") dosad uopce nije vidjelo, jer je cijeli dan dobivao jedno jutarnje ocitanje.
+
+**Ishod:** 8 novih asercija (ukupno 95) — tocno na zapisu, 30/59 min nakon (ostaje), tocno 1h
+(pomak, korisnikov primjer), 1h30 i 2h (pomak), te mec prije prvog dostupnog zapisa.
+
+---
+
 ## 2026-08-04 (najkasnije) — Screenshot je izvor istine za VRIJEME pocetka
 
 **Povod:** korisnik poslao SuperSport screenshot koji pokazuje pocetak u 17:00 po Zagrebu,
