@@ -723,6 +723,16 @@ def main():
                         "match_date": m.get("date"),
                         "player1": m.get("player1"),
                         "player2": m.get("player2"),
+                        # API player ID-evi (05.08.2026, korisnikov zahtjev). Već ih imamo u
+                        # ruci dok generiramo analizu, pa spremanje ne košta NIJEDAN dodatni
+                        # API poziv. Svrha: bez njih se post-match statistika (asovi, break
+                        # lopte, postotak servisa) ne može dohvatiti za mečeve koji NISU bili
+                        # na tiketu — a to je veći dio korpusa. `ticket_matches` ih ima od
+                        # 26.07., `analyzed_matches` do sada nije.
+                        # Traži ALTER TABLE u Supabaseu — vidi schema.sql; `save_analyzed_match`
+                        # ima defenzivni fallback ako stupci još ne postoje.
+                        "player1_id": m.get("player1_id"),
+                        "player2_id": m.get("player2_id"),
                         "tournament": m.get("tournament"),
                         "tournament_level": m.get("level"),
                         "surface": m.get("surface"),

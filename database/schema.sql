@@ -96,6 +96,14 @@ CREATE TABLE IF NOT EXISTS analyzed_matches (
     -- pick/confidence, samo se bilježi dok se ne skupi dovoljan uzorak. Vidi context_version
     -- unutar JSON-a za oblik sheme.
     context_snapshot JSONB DEFAULT '{}'::jsonb,
+    -- API player ID-evi (05.08.2026). Bez njih se post-match statistika (asovi, break lopte,
+    -- postotak servisa) ne moze dohvatiti za meceve koji NISU bili na tiketu — a to je veci
+    -- dio korpusa. Spremaju se pri generiranju analize, gdje ih ionako vec imamo, pa ne kostaju
+    -- nijedan dodatni API poziv. Postojeca instanca treba:
+    --   ALTER TABLE analyzed_matches ADD COLUMN IF NOT EXISTS player1_id VARCHAR(30);
+    --   ALTER TABLE analyzed_matches ADD COLUMN IF NOT EXISTS player2_id VARCHAR(30);
+    player1_id VARCHAR(30),
+    player2_id VARCHAR(30),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

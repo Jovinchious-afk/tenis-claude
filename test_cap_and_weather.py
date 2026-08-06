@@ -296,6 +296,43 @@ ss2 = {"2026-08-04": {"x|y": {"p1": "Nakashima Brandon", "p2": "Altmaier Daniel"
 check("lookup prosljedjuje kraticu dana",
       find_screenshot_time("Brandon Nakashima", "Daniel Altmaier", ss2).startswith("2026-08-04T22:00"))
 
+print("\n=== 10. Statistike meca u analizi gubitka ===")
+from agent.feedback_analyzer import _format_match_stats as FMS, _ratio, WEIGHTS_AUTO_UPDATE_ENABLED
+
+_S = {"player1Stats": {"player1Id": 111, "aces": 9, "doubleFaults": 6, "firstServe": 49,
+                       "firstServeOf": 88, "winningOnFirstServe": 36, "winningOnFirstServeOf": 49,
+                       "breakPointWonGm": 3, "breakPointChanceGm": 4, "totalPointsWon": 79},
+      "player2Stats": {"player2Id": 222, "aces": 5, "doubleFaults": 2, "firstServe": 34,
+                       "firstServeOf": 67, "winningOnFirstServe": 22, "winningOnFirstServeOf": 34,
+                       "breakPointWonGm": 2, "breakPointChanceGm": 9, "totalPointsWon": 76}}
+
+out = FMS("Atmane", "Draper", _S, 111, 222)
+check("blok se generira (prije je BUG vracao prazno)", len(out) > 0)
+check("camelCase polja se citaju", "Dvostruke greške" in out and "=6" in out)
+check("racuna se postotak, ne samo broj", "49/88 (55.7%)" in out, out[:120])
+check("Atmane je prvi kad ID-evi odgovaraju", out.index("Atmane") < out.index("Draper"))
+
+# zamijenjen redoslijed: nasi ID-evi obrnuti -> mora zamijeniti statistike
+sw = FMS("Draper", "Atmane", _S, 222, 111)
+check("zamijenjen redoslijed se ISPRAVLJA po ID-u",
+      "Draper=5" in sw and "Atmane=9" in sw, sw[:160])
+
+check("ID-evi koji se ne poklapaju ni u jednom smjeru -> prazno",
+      FMS("A", "B", _S, 999, 888) == "")
+check("nasi ID-evi nepoznati, a statistika ih ima -> prazno (ne riskiramo zamjenu)",
+      FMS("A", "B", _S) == "")
+check("prazna statistika -> prazno", FMS("A", "B", {}) == "" and FMS("A", "B", None) == "")
+check("_ratio racuna postotak", _ratio(35, 59) == "35/59 (59.3%)")
+check("_ratio odbija dijeljenje s nulom", _ratio(3, 0) is None and _ratio(None, 5) is None)
+check("polja koja su null se izostavljaju (nema 'N/A | N/A' redaka)", "Winneri" not in out)
+
+print("\n=== 10b. Zamrznuto azuriranje tezina ===")
+check("WEIGHTS_AUTO_UPDATE_ENABLED je False (zamrznuto 05.08.)",
+      WEIGHTS_AUTO_UPDATE_ENABLED is False)
+from agent import feedback_analyzer as _fa
+check("_maybe_update_weights odmah vraca False dok je zamrznuto",
+      _fa._maybe_update_weights([{"x": 1}] * 20) is False)
+
 print("\n=== 6. Hard pravilo 2 nosi ogradu o capu ===")
 from agent.predictor import _surface_specific_rules
 h = _surface_specific_rules("Hard")

@@ -371,7 +371,19 @@ def save_analyzed_match(match_data: dict) -> None:
     data = dict(match_data)
     data["external_match_id"] = stable_match_key(
         data.get("match_date"), data.get("player1"), data.get("player2"))
-    _upsert("analyzed_matches", data, on_conflict="external_match_id")
+    try:
+        _upsert("analyzed_matches", data, on_conflict="external_match_id")
+    except Exception:
+        # Defenzivni fallback (05.08.2026): player1_id/player2_id su novi stupci i traže
+        # ALTER TABLE u Supabaseu. Dok ga korisnik ne pokrene, upsert bi padao na 400 i
+        # analiza se NE BI spremila — a to je gore od izostanka jednog polja. Isti obrazac
+        # kao `save_ticket_matches` od 26.07. Kad stupci postoje, ova grana se nikad ne pogodi.
+        stripped = {k: v for k, v in data.items() if k not in ("player1_id", "player2_id")}
+        if len(stripped) == len(data):
+            raise
+        print("  analyzed_matches: player1_id/player2_id još ne postoje — spremam bez njih "
+              "(pokreni ALTER TABLE iz schema.sql).")
+        _upsert("analyzed_matches", stripped, on_conflict="external_match_id")
 
 
 def get_unresolved_analyzed_matches(days: int = 8) -> list:

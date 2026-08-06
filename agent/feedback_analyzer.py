@@ -356,34 +356,95 @@ def _update_ticket_statuses() -> None:
         print(f"  Tiket {ticket.get('ticket_date')}: won ({won_count}W, {void_count} void, {total} ukupno)")
 
 
-def _format_match_stats(p1: str, p2: str, stats: dict) -> str:
-    """Formatira post-match statistike u čitljiv blok za Claude prompt."""
+def _ratio(won, total) -> str:
+    """'35/59 (59.3%)' — API daje sirove brojeve, a model bolje rezonira s postotkom."""
+    if won is None or not total:
+        return None
+    try:
+        return f"{won}/{total} ({won / total * 100:.1f}%)"
+    except (TypeError, ZeroDivisionError):
+        return None
+
+
+def _format_match_stats(p1: str, p2: str, stats: dict, p1_id=None, p2_id=None) -> str:
+    """Formatira post-match statistike u čitljiv blok za Claude prompt.
+
+    POPRAVLJEN BUG (05.08.2026, korisnik tražio provjeru): ova funkcija je od uvođenja
+    vraćala PRAZAN STRING za svaki meč, pa analiza gubitka NIKAD nije vidjela statistiku —
+    samo rezultat po setovima i vlastito predmečno obrazloženje. Zato su dosadašnje analize
+    bile općenite ("vjerojatno je servis popustio") umjesto konkretne ("spasio 3 od 4 break
+    lopte, a naš pick 1 od 6").
+
+    Uzrok su bila dva neslaganja imena, oba tiha:
+      - tražila je `stats["player1"]` / `["p1"]`, a podaci dolaze pod `player1Stats`;
+      - tražila je snake_case (`double_faults`, `break_points_saved`), a API vraća camelCase
+        (`doubleFaults`, `breakPointSavedGm`).
+    Nijedno polje se nije poklopilo, `lines` je ostao duljine 1 i vraćao se "".
+    Provjereno na stvarnom spremljenom meču: izlaz je bio duljine 0.
+
+    Stari nazivi ključeva namjerno se ZADRŽAVAJU kao fallback — ako izvor ikad počne slati
+    normalizirani oblik, i dalje radi.
+    """
     if not stats:
         return ""
-    lines = ["\nSTATISTIKE MEČA:"]
-    p1_stats = stats.get("player1", stats.get("p1", {})) or {}
-    p2_stats = stats.get("player2", stats.get("p2", {})) or {}
-    stat_keys = [
-        ("aces", "Ace"),
-        ("double_faults", "Dvostruke greške"),
-        ("first_serve_percentage", "1. servis %"),
-        ("first_serve_points_won", "Poeni na 1. servisu %"),
-        ("second_serve_points_won", "Poeni na 2. servisu %"),
-        ("break_points_saved", "Sačuvani BP"),
-        ("break_points_faced", "BP protiv"),
-        ("break_points_converted", "Iskorišteni BP"),
-        ("break_points_on", "BP prilike"),
-        ("return_points_won", "Return poeni %"),
-        ("total_points_won", "Ukupni poeni"),
-        ("winners", "Winneri"),
-        ("unforced_errors", "Neforsirane greške"),
+    p1_stats = stats.get("player1Stats") or stats.get("player1") or stats.get("p1") or {}
+    p2_stats = stats.get("player2Stats") or stats.get("player2") or stats.get("p2") or {}
+    if not p1_stats and not p2_stats:
+        return ""
+
+    # PORAVNANJE PO ID-u (05.08.2026) — NIJE kozmetika. Redoslijed igrača u statistici NE
+    # prati naš: provjereno na 56 mečeva koji imaju oba podatka, kod 24 (43%) se
+    # `player1Stats.player1Id` ne poklapa s našim `player1_id`. Da se statistika pripisuje
+    # po poziciji, analiza gubitka bi u gotovo pola slučajeva dobila ZAMIJENJENE brojke i
+    # izvela samouvjereno pogrešan zaključak — mjerljivo gore nego da statistike nema.
+    sid1 = str((p1_stats.get("player1Id") or "")).strip()
+    sid2 = str((p2_stats.get("player2Id") or "")).strip()
+    if p1_id and p2_id and sid1 and sid2:
+        if sid1 == str(p2_id) and sid2 == str(p1_id):
+            p1_stats, p2_stats = p2_stats, p1_stats
+        elif sid1 != str(p1_id):
+            # ID-evi postoje ali se ne poklapaju ni u jednom smjeru — ne pogađamo.
+            return ""
+    elif sid1 or sid2:
+        # Statistika nosi ID-eve, a mi svoje nemamo (stariji zapisi prije ALTER TABLE-a):
+        # orijentacija se ne može provjeriti, pa se blok izostavlja umjesto da se riskira
+        # zamjena. Novi zapisi uvijek imaju ID-eve, pa ovo s vremenom nestaje.
+        return ""
+
+    def g(s, *keys):
+        for k in keys:
+            v = s.get(k)
+            if v is not None:
+                return v
+        return None
+
+    def row(label, fn):
+        v1, v2 = fn(p1_stats), fn(p2_stats)
+        if v1 is None and v2 is None:
+            return None
+        return f"  {label}: {p1}={v1 if v1 is not None else 'N/A'} | {p2}={v2 if v2 is not None else 'N/A'}"
+
+    rows = [
+        row("Ace", lambda s: g(s, "aces")),
+        row("Dvostruke greške", lambda s: g(s, "doubleFaults", "double_faults")),
+        row("1. servis", lambda s: _ratio(g(s, "firstServe"), g(s, "firstServeOf"))),
+        row("Poeni na 1. servisu", lambda s: _ratio(g(s, "winningOnFirstServe"),
+                                                    g(s, "winningOnFirstServeOf"))),
+        row("Poeni na 2. servisu", lambda s: _ratio(g(s, "winningOnSecondServe"),
+                                                    g(s, "winningOnSecondServeOf"))),
+        row("Iskorišteni BP", lambda s: _ratio(g(s, "breakPointWonGm"), g(s, "breakPointChanceGm"))),
+        row("Sačuvani BP", lambda s: _ratio(g(s, "breakPointSavedGm"), g(s, "breakPointFacedGm"))),
+        row("Ukupni poeni", lambda s: g(s, "totalPointsWon", "total_points_won")),
+        row("Winneri", lambda s: g(s, "winners")),
+        row("Neforsirane greške", lambda s: g(s, "unforcedErrors", "unforced_errors")),
+        row("Izlasci na mrežu", lambda s: _ratio(g(s, "netApproaches"), g(s, "netApproachesOf"))),
     ]
-    for key, label in stat_keys:
-        v1 = p1_stats.get(key)
-        v2 = p2_stats.get(key)
-        if v1 is not None or v2 is not None:
-            lines.append(f"  {label}: {p1}={v1 if v1 is not None else 'N/A'} | {p2}={v2 if v2 is not None else 'N/A'}")
-    return "\n".join(lines) + "\n" if len(lines) > 1 else ""
+    rows = [r for r in rows if r]
+    if not rows:
+        return ""
+    # NAPOMENA: winners/unforcedErrors/netApproaches su kod ovog izvora često null — zato se
+    # redak izostavlja kad ga nema, umjesto da se ispisuje "N/A | N/A" i troši prostor prompta.
+    return "\nSTATISTIKE MEČA:\n" + "\n".join(rows) + "\n"
 
 
 def _analyze_lost_match(match: dict, stats: dict = None) -> str:
@@ -401,7 +462,10 @@ def _analyze_lost_match(match: dict, stats: dict = None) -> str:
 
     stats_block = ""
     if stats:
-        stats_block = _format_match_stats(p1, p2, stats)
+        # ID-evi su nužni za poravnanje statistike s našim redoslijedom igrača — vidi
+        # `_format_match_stats`. Bez njih se blok namjerno izostavlja.
+        stats_block = _format_match_stats(p1, p2, stats,
+                                          match.get("player1_id"), match.get("player2_id"))
 
     # Draw povijest + anti-halucinacijsko pravilo (A2, 26.07.2026). Povod: analiza gubitka
     # Van Assche-Carreno-Busta (23.07.) tvrdila je "his 2023 Estoril win", a naša draw baza
@@ -460,12 +524,36 @@ Be specific and concrete. Focus on model factors (ELO, surface, form, fatigue, H
         return f"Analiza nije dostupna: {str(e)[:100]}"
 
 
+# ZAMRZNUTO AUTOMATSKO AŽURIRANJE TEŽINA (05.08.2026, dogovor s korisnikom — opcija B).
+#
+# Povod: istog dana je popravljen bug zbog kojeg `_format_match_stats` NIKAD nije isporučio
+# statistiku meča u prompt (vidi njezin docstring). Analize gubitaka od sada su bitno
+# bogatije — a one hrane upravo `_maybe_update_weights`, koja mijenja ŽIVE težine za sve
+# buduće predikcije. Model je istog dana zamrznut 3-4 dana radi čiste atribucije (u 48h je
+# promijenjeno šest stvari), pa bi tiha promjena težina pokvarila upravo to mjerenje.
+#
+# Dakle: analize se i dalje generiraju i spremaju u punom obliku (to je ono što korisnik
+# želi čitati), ali se prijedlog težina NE primjenjuje automatski. Prijedlog se i dalje
+# ISPISUJE u dnevni log, pa se može pregledati prije nego mu se vrati moć.
+#
+# ODMRZAVANJE: postaviti natrag na True nakon revizije ~08.-09.08.2026. Ovo je jedini
+# prekidač — nema drugih mjesta koja diraju težine.
+WEIGHTS_AUTO_UPDATE_ENABLED = False
+
+
 def _maybe_update_weights(lost_matches: list) -> bool:
     """
     Prilagođava težine modela na temelju uzorka grešaka.
     Koristi SVE analizirane gubitke iz baze (ne samo tekući run).
     Potrebno minimalno 5 analiziranih grešaka ukupno.
+
+    Dok je `WEIGHTS_AUTO_UPDATE_ENABLED` False, izračun se preskače u cijelosti — ne troši
+    se ni Claude poziv, jer bi prijedlog ionako bio odbačen.
     """
+    if not WEIGHTS_AUTO_UPDATE_ENABLED:
+        print("  Automatsko ažuriranje težina je ZAMRZNUTO (WEIGHTS_AUTO_UPDATE_ENABLED=False, "
+              "05.08.2026) — analize gubitaka se i dalje generiraju i spremaju.")
+        return False
     # Only use losses from matches played AFTER the current weights were activated.
     # This ensures we correct the current model, not a previous version.
     weights_active_since = db.get_active_weight_version_date()

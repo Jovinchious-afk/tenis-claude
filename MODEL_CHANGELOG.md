@@ -9,6 +9,57 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-08-05 (najkasnije) — Analiza gubitka NIKAD nije vidjela statistiku meca (BUG)
+
+**Povod:** korisnik trazio provjeru generira li vecernja analiza gubitka zakljucke na temelju
+statistike meca (dvostruke greske, break lopte, postotak drugog servisa) ili samo rezultata.
+
+**Nalaz: nije — i to od uvodjenja.** `_format_match_stats` je vracala PRAZAN STRING za svaki
+mec. Dva tiha neslaganja imena:
+  - trazila je `stats["player1"]` / `["p1"]`, a podaci dolaze pod `player1Stats`;
+  - trazila je snake_case (`double_faults`, `break_points_saved`), a API vraca camelCase
+    (`doubleFaults`, `breakPointSavedGm`).
+Nijedno polje se nije poklopilo, pa se vracalo "". Provjereno na stvarnom zapisu: izlaz
+duljine 0. Statistika se uredno dohvacala i spremala (171 mec u bazi) — samo nikad nije
+dosla do Claudea. To objasnjava zasto su analize bile opcenite ("servis je popustio") umjesto
+konkretne ("iskoristio 2 od 9 break lopti").
+
+**DRUGI BUG, otkriven pri popravku prvog — statistike su bile pripisane KRIVOM IGRACU.**
+Redoslijed igraca u statistici ne prati nas: od 56 meceva koji imaju oba podatka, kod **24
+(43%)** se `player1Stats.player1Id` ne poklapa s nasim `player1_id`. Da je popravak samo
+preslikao polja po poziciji, analiza bi u gotovo pola slucajeva dobila ZAMIJENJENE brojke i
+izvela samouvjereno pogresan zakljucak — mjerljivo gore nego bez statistike. Sada se
+poravnava po ID-u; kad se ID-evi ne poklapaju ni u jednom smjeru, ili kad nasih ID-eva nema,
+blok se **namjerno izostavlja** umjesto da se pogadja (115 starijih zapisa bez ID-eva).
+
+**Uz to:** racunaju se postoci (API daje "35 od 59", model bolje rezonira s "59,3%"), a
+polja koja su kod ovog izvora cesto null (winners, unforced errors, izlasci na mrezu)
+izostavljaju se umjesto da se ispisuje "N/A | N/A".
+
+### Zamrznuto automatsko azuriranje tezina (opcija B, korisnikova odluka)
+
+Analize gubitaka hrane `_maybe_update_weights`, koja mijenja ZIVE tezine. Kako su analize od
+sada bitno bogatije, prijedlozi tezina bi se mogli promijeniti — a model je istog dana
+zamrznut 3-4 dana radi ciste atribucije. Zato je uveden prekidac
+`WEIGHTS_AUTO_UPDATE_ENABLED = False`: analize se i dalje generiraju i spremaju u punom
+obliku, ali se tezine ne miču. **ODMRZAVANJE: vratiti na True nakon revizije ~08.-09.08.2026.**
+To je jedini prekidac — nema drugih mjesta koja diraju tezine.
+
+### player1_id / player2_id u analyzed_matches
+
+Spremaju se pri generiranju analize, gdje ih ionako vec imamo — **nula dodatnih API poziva**.
+Bez njih se post-match statistika ne moze dohvatiti za meceve koji NISU bili na tiketu, a to
+je veci dio korpusa (384 analize naspram 334 tiketna zapisa), niti se moze provjeriti
+poravnanje igraca. Trazi `ALTER TABLE` (vidi schema.sql); `save_analyzed_match` ima
+defenzivni fallback pa spremanje ne pada dok se ne pokrene.
+
+**Ishod:** 13 novih asercija (ukupno 108) — ukljucujuci zamijenjen redoslijed koji se
+ispravlja po ID-u, odbijanje kad se ID-evi ne poklapaju, i provjeru da je zamrzavanje aktivno.
+Popravak provjeren na stvarnim podacima: blok se sada generira za 56/56 meceva koji imaju
+ID-eve (prije 0/171).
+
+---
+
 ## 2026-08-05 (kasno) — Tlak u zapis (context_snapshot v7)
 
 **Povod:** korisnikov prijedlog da se biljezi i atmosferski tlak, radi kasnije korelacije sa
