@@ -350,6 +350,25 @@ h = _surface_specific_rules("Hard")
 check("64% označen kao CEILING", "This 64% is a CEILING, not a base" in h)
 check("Landaluce dokumentiran", "Landaluce" in h)
 
+print("\n=== 6b. Pravilo 12 usklađeno s kodom (0/3, ne 1/3) ===")
+check("hard pravilo 12 trazi STROGO 0/3", "strictly 0/3 each" in h)
+check("izricito kaze da 1/3 NE okida", "ONE-OF-THREE IS NOT ENOUGH" in h)
+check("stara sira formulacija maknuta iz hard pravila 12",
+      "BOTH players show 1/3 or worse" not in h)
+check("mjerenje dokumentirano u pravilu", "ALL SIX WON" in h and "11W-1L" in h)
+
+# Kod je izvor istine za prag — provjeri da se stvarno poklapaju.
+from agent.run_daily import _is_declining
+m = lambda res: [{"won": x, "finished": True} for x in res]
+check("kod: 0/3 je declining", _is_declining(m([False, False, False])) is True)
+check("kod: 1/3 NIJE declining", _is_declining(m([True, False, False])) is False)
+
+# clay/grass namjerno ostaju siri — nemamo mjerenje za te podloge
+c = _surface_specific_rules("Clay")
+g = _surface_specific_rules("Grass")
+check("clay namjerno NIJE diran (nema mjerenja)", "1/3 or worse" in c)
+check("grass namjerno NIJE diran (nema mjerenja)", "1/3 or worse" in g)
+
 print("\n" + "=" * 60)
 if _fails:
     print(f"PALO: {len(_fails)}")

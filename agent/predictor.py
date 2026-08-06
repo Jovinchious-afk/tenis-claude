@@ -782,11 +782,23 @@ and MUST be enforced from day one.
    ranking-gap-deflation rule — on hard, ranking/ELO gaps are legitimately more predictive,
    so deflating them here would contradict our own documented hard-specific evidence.
 
-12. BOTH-PLAYERS-DECLINING CAP (same as grass/clay — added here for parity 2026-07-18):
-   When BOTH players show 1/3 or worse in their last 3 matches: cap confidence at 60%
-   regardless of ELO, surface record, or other factors. Do NOT assess one player's 1/3 as
-   "stable" and the other's as "declining" — they are in the same uncertainty category.
-   (Deterministic backstop: the ticket builder excludes such matches from selection
+12. BOTH-PLAYERS-DECLINING CAP (threshold TIGHTENED 2026-08-06 — see measurement below):
+   When BOTH players have LOST ALL THREE of their last 3 matches (strictly 0/3 each):
+   cap confidence at 60% regardless of ELO, surface record, or other factors. Do NOT assess
+   one player's 0/3 as "stable" and the other's as "declining" — they are in the same
+   uncertainty category.
+   ONE-OF-THREE IS NOT ENOUGH: a player at 1/3 does NOT trigger this rule. If either player
+   has won at least one of his last three, judge the match on the usual factors.
+   Why the threshold moved: the wider wording ("1/3 or worse") was never a measured
+   threshold — the single documented case that produced this rule (Butvilas-Huesler) was
+   0/3-vs-0/3, and the ticket builder's own check (`_is_declining`) has required a strict
+   0/3 since 2026-07-20, when the wider version was found to exclude 43% of a normal
+   Monday's card. The prompt was deliberately left wider at the time; that turned out to be
+   a mistake. Measured at Montreal (02.-06.08.2026, 73 resolved analyses): this rule fired
+   and capped six picks below the 63% selection floor, and ALL SIX WON. More broadly, every
+   pick that any cap pushed below the floor went 11W-1L (91.7%) against a 63.5% hard
+   baseline (P=0.034) — our caution rules were removing our best picks, not our worst.
+   (Deterministic backstop: the ticket builder excludes 0/3-vs-0/3 matches from selection
    entirely, so you need not model that consequence — just score honestly.)
 
 13. SERVE-DOMINANT OPPONENT CAP (added 2026-07-26 — distilled from THREE identical losses

@@ -9,6 +9,63 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-08-06 — Pravilo 12 uskladjeno s kodom (0/3, ne "1/3 ili losije")
+
+**Povod:** puna analiza dobitaka i gubitaka za Montreal na korisnikov zahtjev, prva koja je
+koristila novopopravljenu statistiku meca i `context_snapshot` v7.
+
+**Korpus:** Montreal 02.-06.08., **73 razrijesene analize, 44W-29L (60,3%)** — ukljucujuci
+meceve koji nikad nisu dosli na tiket, dakle nepristran uzorak.
+
+### NALAZ: nasa vlastita pravila opreza izbacivala su POBJEDNIKE
+
+Kad kod prisilno spusti pouzdanost na cap koji je model sam proglasio (`cap_enforced`), ti
+pickovi idu **11W-1L (91,7%)** naspram bazne stope 63,5% na hardu. **P(X>=11 | p=0,635) =
+0,034.** Svih 12 clampanih zavrsi ispod 63%, dakle svi ispadnu iz selekcije — nije rijec o
+dva nalaza nego o jednom: unutar iste skupine ispod praga, clampani idu 11W-1L, neclampani
+2W-1L.
+
+Po pravilima: **12 (oba igraca u padu) 6 puta, 6W-0L**; 13 dvaput (1W-1L); 16 dvaput (2W-0L);
+15 i 4 po jednom (2W-0L).
+
+**Mehanizam.** Prompt je trazio "1/3 ili losije", a kod (`_is_declining`) strogo 0/3. Ta
+razlika NIJE bila slucajna: korisnik ju je uocio 20.07. kad je siri prag izbacivao 43%
+ponedjeljkovih parova, pa je KOD zategnut, a u changelogu je zapisano da je "1/3 ili losije"
+**neprovjerena generalizacija**. Prompt je tada namjerno ostavljen siri. Posljedica: model se
+sam capira na sirem kriteriju i spusti pick ispod 63, pa ga selekcija odbaci **prije nego kod
+uopce dobije priliku primijeniti svoj strozi prag**. Sest puta u tri dana, svih sest pobijedilo.
+
+**Izmjena:** hard pravilo 12 sada trazi **strogo 0/3 za oba igraca**, uz izricitu recenicu da
+1/3 NE okida. Clay i grass NAMJERNO ostaju siri — za njih nemamo mjerenje, a izmjena bi im
+promijenila `rules_hash` usred hard sezone. Revidirati kad te podloge dodju na red.
+
+### Ostali nalazi — zabiljezeni, NISU implementirani
+
+- **Pouzdanost je na vrhu anti-prediktivna:** ispod 63 -> 86,7% (n=15), 63-64 -> 56,8%
+  (n=37), **65+ -> 47,6% (n=21)**. Na punom hard korpusu 65+ ide 14W-13L, P=0,09.
+- **Mecheve odlucuju BREAK LOPTE, ne servis** (n=26 sa statistikom): iskoristene BP 47,9%
+  (dobitci) vs 31,5% (gubici) = 16,4pp razlike; spasene BP 59,5% vs 47,9% = 11,6pp. Sve
+  servis-metrike su ispod 6pp, a dvostruke greske ne razlikuju NISTA (4,6 vs 4,4). Model
+  tezi servisu (`serve_return` 22%) a o break loptama zna samo posredno. Nije ugradivo
+  izravno (BP je ishod, ne predmecni podatak) — treba bolji predmecni proxy za clutch.
+- **Kvote:** 1,60-1,90 -> 65,2%, ROI **+13,5%** (potvrdjuje nalaz od 05.08.); <1,43 -> 68,0%
+  ali ROI -13,6%; **>1,90 -> 2W-6L, ROI -52,5%** — sto PROTURJECI sezonskom nalazu da su
+  underdogovi profitabilni. Taj je nalaz bio s trave i zemlje (n=36); ovo je prvi pravi hard
+  uzorak (n=8) i ide suprotno. Ne dirati nista dok se ne skupi vise.
+
+### Sto se IZRIJEKOM ne tvrdi
+
+**Vremenski nalazi su na ovom uzorku bezvrijedni.** Vlaga >=62% -> 70,8%, hladnije -> 76,5%,
+vjetar >=15 km/h -> 76,5%. Zvuci uvjerljivo, ali svih 39 meceva dolazi iz **pet dana** —
+dakle pet neovisnih vremenskih situacija, ne 39 — a te su tri varijable i medjusobno vezane
+(hladno-vlazno-vjetrovito je jedno stanje). Isti tip konfundiranja koji je 04.08. vec jednom
+proizveo prividan signal. Brzina terena je neupotrebljiva: svih 39 meceva oznaceno "fast".
+
+**Ishod:** 8 novih asercija (ukupno 120), ukljucujuci provjeru da se prag u promptu i u kodu
+(`_is_declining`) sada stvarno poklapaju, te da clay/grass NISU dirani.
+
+---
+
 ## 2026-08-05 (najkasnije) — Analiza gubitka NIKAD nije vidjela statistiku meca (BUG)
 
 **Povod:** korisnik trazio provjeru generira li vecernja analiza gubitka zakljucke na temelju
