@@ -386,6 +386,24 @@ def save_analyzed_match(match_data: dict) -> None:
         _upsert("analyzed_matches", stripped, on_conflict="external_match_id")
 
 
+def save_analyzed_match_stats(row_id: str, match_stats: dict) -> bool:
+    """Best-effort upis post-match statistike u analyzed_matches (05.08.2026).
+
+    Namjerno ODVOJENO od `update_analyzed_match_result`: ako stupac `match_stats` još ne
+    postoji (traži ALTER TABLE), razrješavanje ishoda mora proći svejedno — ishod je
+    važniji od statistike. Isti obrazac kao `save_match_stats` za ticket_matches.
+    """
+    if not row_id or not match_stats:
+        return False
+    try:
+        _update("analyzed_matches", {"match_stats": match_stats}, {"id": f"eq.{row_id}"})
+        return True
+    except Exception as e:
+        print(f"  analyzed_matches.match_stats preskočeno ({str(e)[:60]}) — "
+              f"pokreni ALTER TABLE iz schema.sql.")
+        return False
+
+
 def get_unresolved_analyzed_matches(days: int = 8) -> list:
     """Analize bez ishoda (actual_winner NULL) zadnjih N dana — evening update ih
     razrješava (hard revizija 2026-07-18). Prije toga je 419/419 analiza stajalo bez
@@ -394,8 +412,10 @@ def get_unresolved_analyzed_matches(days: int = 8) -> list:
     # tournament je potreban da _build_season_winner_lookup (26.07.2026) može grupirati
     # parove po turniru i otkriti tournament_id kad turnir nestane iz fixtures feeda
     return _select("analyzed_matches",
+                   # player1_id/player2_id (05.08.2026) su nužni da večernji update može
+                   # dohvatiti post-match statistiku i za mečeve koji NISU bili na tiketu.
                    select="id,external_match_id,match_date,player1,player2,"
-                          "predicted_winner,tournament",
+                          "predicted_winner,tournament,player1_id,player2_id",
                    filters={"actual_winner": "is.null", "match_date": f"gte.{since}"})
 
 

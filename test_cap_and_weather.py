@@ -326,6 +326,17 @@ check("_ratio racuna postotak", _ratio(35, 59) == "35/59 (59.3%)")
 check("_ratio odbija dijeljenje s nulom", _ratio(3, 0) is None and _ratio(None, 5) is None)
 check("polja koja su null se izostavljaju (nema 'N/A | N/A' redaka)", "Winneri" not in out)
 
+# Brzine servisa: postoje samo POSLIJE meca i samo na ~38% turnira (mjeraci).
+_S2 = {"player1Stats": dict(_S["player1Stats"], averageFirstServeSpeed=195,
+                            averageSecondServeSpeed=152, fastestServe=211),
+       "player2Stats": dict(_S["player2Stats"], averageFirstServeSpeed=178,
+                            averageSecondServeSpeed=149, fastestServe=196)}
+sp = FMS("A", "B", _S2, 111, 222)
+check("brzina 1. servisa se prikazuje", "Prosj. brzina 1. servisa" in sp and "A=195" in sp)
+check("brzina 2. servisa se prikazuje", "Prosj. brzina 2. servisa" in sp and "B=149" in sp)
+check("najbrzi servis se prikazuje", "Najbrži servis" in sp and "A=211" in sp)
+check("bez brzina se retci izostavljaju", "Prosj. brzina" not in out)
+
 print("\n=== 10b. Zamrznuto azuriranje tezina ===")
 check("WEIGHTS_AUTO_UPDATE_ENABLED je False (zamrznuto 05.08.)",
       WEIGHTS_AUTO_UPDATE_ENABLED is False)

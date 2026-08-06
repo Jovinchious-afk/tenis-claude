@@ -104,6 +104,16 @@ CREATE TABLE IF NOT EXISTS analyzed_matches (
     --   ALTER TABLE analyzed_matches ADD COLUMN IF NOT EXISTS player2_id VARCHAR(30);
     player1_id VARCHAR(30),
     player2_id VARCHAR(30),
+    -- Post-match statistika (05.08.2026): asovi, dvostruke greske, postotak 1./2. servisa,
+    -- break lopte, brzine servisa. Do sada je postojala SAMO u ticket_matches, dakle samo za
+    -- pickove koji su dosli na tiket — a to je selektiran uzorak (prosli su prag 63%).
+    -- Posljedica: uvjeti prije meca (context_snapshot) i ponasanje u mecu zivjeli su u
+    -- razlicitim tablicama i preklapali se samo na tiketnim pickovima, pa se korelacija tipa
+    -- "vlaga/tlak -> postotak prvog servisa" nije mogla racunati na punom korpusu.
+    -- Mecevi koje smo analizirali ali odbacili najvredniji su za ucenje jer pokrivaju cijeli
+    -- raspon, ne samo ono u sto smo bili sigurni.
+    --   ALTER TABLE analyzed_matches ADD COLUMN IF NOT EXISTS match_stats JSONB;
+    match_stats JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

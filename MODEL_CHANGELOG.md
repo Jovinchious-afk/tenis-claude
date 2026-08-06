@@ -84,6 +84,36 @@ je fallback.
 popustio pod opterecenjem"); nova navodi da je Draper iskoristio 2 od 9 break lopti (22,2%)
 naspram Atmaneovih 3 od 4 (75%), uz 50,7% prvog servisa — dakle konkretan, provjerljiv uzrok.
 
+### Brzine servisa + statistika za NE-tiketne meceve (korisnikov zahtjev, isti dan)
+
+**Brzine servisa** — revizija svih polja koja API vraca (342 igraceva zapisa iz 171 meca)
+pokazala je da je svih 13 polja koja koristimo popunjeno **100%**, a neiskoristene su bile
+tocno tri: prosjecna brzina 1. i 2. servisa te najbrzi servis (popunjenost ~38%, samo turniri
+s mjeracima). To je **korisnikova ideja br. 6 iz srpnja**, tada odbacena uz biljesku da
+"brzina servisa nije dostupna ni na jednom endpointu" — sto je bilo tocno ZA PREDIKCIJU
+(prije meca je ne mozemo znati), ali POSLIJE meca postoji i vec se sprema. Sada se cita;
+redak se izostavlja kad podatka nema. Nista drugo u odgovoru nije neiskoristeno.
+
+**`match_stats` u `analyzed_matches`** — do sada je post-match statistika postojala SAMO u
+`ticket_matches`, dakle samo za pickove koji su prosli prag 63% i dosli na tiket. Posljedica
+je bila nesimetrija koja je blokirala upravo ono zbog cega se korpus i gradi:
+
+| | uvjeti prije meca | statistika iz meca |
+|---|---|---|
+| `analyzed_matches` (384) | DA | **NE** |
+| `ticket_matches` (334) | NE | DA (171) |
+
+Vlaga, tlak i vjetar zivjeli su u jednoj tablici, a asovi i break lopte u drugoj, i
+preklapali se samo na tiketnim pickovima — dakle na **selektiranom i pristranom** uzorku.
+Mecevi koje smo analizirali pa odbacili najvredniji su za ucenje jer pokrivaju cijeli raspon,
+ne samo ono u sto smo bili sigurni.
+
+Sada vecernje razrjesavanje upisuje statistiku i u `analyzed_matches`. Cijena: **jedan API
+poziv po razrijesenom mecu (~10-18 po veceri), nula Claude poziva** — onih ~20 centi po
+vrtnji trosi Claude, a ovo ga ne dira. Trazi `ALTER TABLE` (schema.sql);
+`save_analyzed_match_stats` je namjerno ODVOJEN od upisa ishoda pa razrjesavanje prolazi i
+dok stupac ne postoji — ishod je vazniji od statistike.
+
 ---
 
 ## 2026-08-05 (kasno) — Tlak u zapis (context_snapshot v7)

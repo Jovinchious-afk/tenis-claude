@@ -258,6 +258,7 @@ def run_evening_update() -> dict:
         # unresolved_analyzed je dohvaćen u koraku 1b (isti upit) — ne dupliraj poziv
         unresolved = unresolved_analyzed or db.get_unresolved_analyzed_matches(days=8)
         n_resolved = 0
+        n_stats = 0
         for am in unresolved:
             fkey = ((am.get("player1") or "").lower().strip(),
                     (am.get("player2") or "").lower().strip())
@@ -272,7 +273,26 @@ def run_evening_update() -> dict:
                                                player1=am.get("player1"),
                                                player2=am.get("player2")):
                 n_resolved += 1
-        print(f"Analyzed_matches: razriješeno {n_resolved}/{len(unresolved)} analiza (8 dana).")
+                # POST-MATCH STATISTIKA I ZA NE-TIKETNE MEČEVE (05.08.2026, korisnikov
+                # zahtjev). Dosad je statistika postojala samo u `ticket_matches`, dakle
+                # samo za pickove koji su prošli prag 63% i došli na tiket — selektiran, a
+                # time i pristran uzorak. Uvjeti prije meča (`context_snapshot`) i ponašanje
+                # u meču tako su živjeli u različitim tablicama i preklapali se samo ondje,
+                # pa se korelacija "vlaga/tlak -> postotak prvog servisa" nije mogla računati
+                # na punom korpusu. Mečevi koje smo analizirali pa odbacili najvredniji su za
+                # učenje jer pokrivaju cijeli raspon, ne samo ono u što smo bili sigurni.
+                # Cijena: jedan API poziv po razriješenom meču, nula Claude poziva.
+                p1_id, p2_id = am.get("player1_id"), am.get("player2_id")
+                tid = match_to_tournament.get(fkey, "")
+                if p1_id and p2_id and tid:
+                    try:
+                        st = get_match_stats(tid, p1_id, p2_id)
+                        if st and db.save_analyzed_match_stats(am["id"], st):
+                            n_stats += 1
+                    except Exception:
+                        pass   # statistika je bonus — nikad ne smije srušiti razrješavanje
+        print(f"Analyzed_matches: razriješeno {n_resolved}/{len(unresolved)} analiza (8 dana), "
+              f"statistika spremljena za {n_stats}.")
         summary["analyzed_resolved"] = n_resolved
     except Exception as e:
         print(f"Analyzed_matches razrješavanje preskočeno (greška): {e}")
@@ -450,6 +470,14 @@ def _format_match_stats(p1: str, p2: str, stats: dict, p1_id=None, p2_id=None) -
         row("Winneri", lambda s: g(s, "winners")),
         row("Neforsirane greške", lambda s: g(s, "unforcedErrors", "unforced_errors")),
         row("Izlasci na mrežu", lambda s: _ratio(g(s, "netApproaches"), g(s, "netApproachesOf"))),
+        # BRZINE SERVISA (05.08.2026): korisnikova ideja br. 6 iz srpnja. Tada je zapisano da
+        # brzina servisa "nije dostupna ni na jednom endpointu" — to je bilo tocno ZA
+        # PREDIKCIJU (prije meca je ne mozemo znati), ali POSLIJE meca postoji i mi je vec
+        # spremamo, samo je nismo citali. Popunjena je u ~38% meceva (veci turniri imaju
+        # mjerace), pa se redak izostavlja kad je nema.
+        row("Prosj. brzina 1. servisa", lambda s: g(s, "averageFirstServeSpeed")),
+        row("Prosj. brzina 2. servisa", lambda s: g(s, "averageSecondServeSpeed")),
+        row("Najbrži servis", lambda s: g(s, "fastestServe")),
     ]
     rows = [r for r in rows if r]
     if not rows:
