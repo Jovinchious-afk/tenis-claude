@@ -303,10 +303,22 @@ def run_evening_update() -> dict:
             print(f"  Kopirano: {lm.get('player1')} vs {lm.get('player2')} (isti meč, drugi tiket)")
             continue
 
-        p1_id = name_to_id.get(p1_key, "")
-        p2_id = name_to_id.get(p2_key, "")
-        tournament_id = match_to_tournament.get((p1_key, p2_key), "")
-        stats = get_match_stats(tournament_id, p1_id, p2_id) if (p1_id and p2_id and tournament_id) else {}
+        # SPREMLJENA STATISTIKA IMA PRIORITET (05.08.2026). Prije se uvijek dohvaćalo iznova
+        # preko `name_to_id` i `match_to_tournament`, a oboje se gradi iz DANAŠNJEG rasporeda —
+        # za meč od prije tjedan dana ti igrači i turnir više nisu u feedu, pa je `stats`
+        # ispadao prazan i analiza je ostajala bez brojki. Statistika je ionako već spremljena
+        # u `ticket_matches.match_stats` u trenutku razrješavanja meča.
+        # Usput rješava i korisnikovu brigu oko recikliranja ID-eva: spremljena statistika i
+        # spremljeni `player1_id` zabilježeni su u ISTOM trenutku, pa je njihovo poravnanje
+        # interno konzistentno bez obzira što API radi s ID-evima kasnije. (Izmjereno na 66
+        # igrača kroz 12 dana: nijedan ID nije promijenio igrača — recikliraju se fixture
+        # ID-evi, ne player ID-evi. Ali ovako nam to niti ne mora biti točno.)
+        stats = lm.get("match_stats") or {}
+        if not stats:
+            p1_id = name_to_id.get(p1_key, "")
+            p2_id = name_to_id.get(p2_key, "")
+            tournament_id = match_to_tournament.get((p1_key, p2_key), "")
+            stats = get_match_stats(tournament_id, p1_id, p2_id) if (p1_id and p2_id and tournament_id) else {}
         analysis = _analyze_lost_match(lm, stats)
         if analysis:
             db.save_loss_analysis(lm["id"], analysis)

@@ -58,6 +58,32 @@ ispravlja po ID-u, odbijanje kad se ID-evi ne poklapaju, i provjeru da je zamrza
 Popravak provjeren na stvarnim podacima: blok se sada generira za 56/56 meceva koji imaju
 ID-eve (prije 0/171).
 
+### Regeneracija starih analiza (isti dan, korisnikov zahtjev)
+
+Sve postojece analize gubitaka napisane su bez statistike, pa su bile opcenite. Regenerirano
+je **19 analiza + 2 kopirane** (`scripts/regen_loss_analyses.py`), tocno one kojima se blok
+sa statistikom stvarno moze sastaviti; preostalih 105 namjerno preskoceno jer im regeneracija
+ne bi promijenila nista (nemaju spremljenu statistiku ili nemaju ID-eve).
+
+**Korisnikova briga oko recikliranja ID-eva — provjerena i rijesena.** Bojazan je legitimna
+jer se *fixture* ID-evi dokazano recikliraju (bug 31.07.). Provjera na nasim podacima: 66
+igraca kroz 12 dana, **nijedan ID nije promijenio igraca** (66 ID-eva ↔ 66 imena, nula
+sudara u oba smjera), a 10 od 10 ID-eva spremljenih prije 11 dana i danas se razrjesava u
+istog igraca. Dakle recikliraju se ID-evi MECEVA, ne igraca.
+Neovisno o tome, regeneracija ne radi **nijedan API poziv**: cita iskljucivo spremljenu
+`match_stats` i spremljeni `player1_id`, a oboje je zabiljezeno u ISTOM trenutku, pa je
+poravnanje interno konzistentno bez obzira sto API kasnije radi.
+
+**Usput popravljeno:** vecernji update je statistiku uvijek dohvacao IZNOVA preko
+`name_to_id`/`match_to_tournament`, a oboje se gradi iz DANASNJEG rasporeda — za mec od
+prije tjedan dana ti igraci i turnir vise nisu u feedu, pa je `stats` ispadao prazan i
+analiza je i dalje ostajala bez brojki. Sada spremljena statistika ima prioritet, a dohvat
+je fallback.
+
+**Primjer ucinka** (Atmane-Draper, 04.08.): stara analiza je nagadjala ("vjerojatno je
+popustio pod opterecenjem"); nova navodi da je Draper iskoristio 2 od 9 break lopti (22,2%)
+naspram Atmaneovih 3 od 4 (75%), uz 50,7% prvog servisa — dakle konkretan, provjerljiv uzrok.
+
 ---
 
 ## 2026-08-05 (kasno) — Tlak u zapis (context_snapshot v7)
