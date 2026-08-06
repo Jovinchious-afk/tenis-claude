@@ -9,6 +9,28 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-08-05 (kasno) — Tlak u zapis (context_snapshot v7)
+
+**Povod:** korisnikov prijedlog da se biljezi i atmosferski tlak, radi kasnije korelacije sa
+stilom igre i statistikom meca.
+
+**Sto:** `weather_pressure_hpa` (na razini mora) i `weather_pressure_ground_hpa` (prizemni,
+gdje ga API daje) ulaze u `context_snapshot`. Na visinskim turnirima (Bogota, Quito, Gstaad)
+te se dvije brojke bitno razlikuju, a visina je ono sto vec imamo u `altitude`.
+**SAMO SE BILJEZI — ne ulazi u prompt i ne utjece ni na jedan pick**, pa ne krsi zamrzavanje
+modela dogovoreno istog dana.
+
+**OGRADA za kasniju analizu:** "prirodni" tlak igraca NEMAMO. Iz API-ja znamo samo
+nacionalnost, ne mjesto treniranja ni nadmorsku visinu doma. Mjerljivo je zasad samo tlak na
+mecu i njegov odnos prema nadmorskoj visini turnira. Korisnikova hipoteza (razlika izmedju
+tlaka na koji je igrac naviknut i tlaka na mecu) trazi podatak koji trenutno nemamo.
+
+**Usput popravljeno:** fallback grana (`get_weather_for_tournament`, trenutno vrijeme) gradila
+je svoj dict rucno, pa bi mecevi koji na nju padnu tiho ostali bez tlaka. Sada obje grane
+koriste isti `_entry_to_weather`.
+
+---
+
 ## 2026-08-05 — Kasnjenje kasnijih valova (+1h) i novo pravilo odabira prognoze
 
 **Povod:** korisnikovo zapazanje da samo PRVI mecevi dana krecu po rasporedu — sve iza njih

@@ -1070,11 +1070,20 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         #     i ne utjece na pickove — prvo mjerimo je li signal stvaran (vidi _common_opponents).
         _wd = match.get("weather_data") or {}
         result["context_snapshot"].update({
-            "context_version": 6,
+            "context_version": 7,
             "weather_temp_c": _wd.get("temp_c"),
             "weather_humidity": _wd.get("humidity"),
             "weather_wind_kmh": _wd.get("wind_kmh"),
             "weather_condition": _wd.get("condition"),
+            # Tlak (05.08.2026, korisnikov prijedlog) — SAMO ZA BILJEZENJE, ne ide u prompt.
+            # Hipoteza: razlika izmedju tlaka na koji je igrac naviknut i tlaka na mecu utjece
+            # na kondiciju. Ne moze se provjeriti dok se ne skupi uzorak, pa se prvo skuplja.
+            # OGRADA koju treba imati na umu pri kasnijoj analizi: "prirodni" tlak igraca
+            # NEMAMO — iz API-ja znamo samo nacionalnost, ne mjesto treniranja ni nadmorsku
+            # visinu doma. Mjerljivo je zasad samo "tlak na mecu" i njegov odnos prema
+            # nadmorskoj visini turnira (`altitude`, vec postoji).
+            "weather_pressure_hpa": _wd.get("pressure_hpa"),
+            "weather_pressure_ground_hpa": _wd.get("pressure_ground_hpa"),
             "weather_forecast_for": match.get("date"),
             "weather_forecast_local_time": _wd.get("forecast_local_time"),
             "weather_hours_off": _wd.get("hours_off"),

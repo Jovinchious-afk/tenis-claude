@@ -1193,11 +1193,20 @@ _forecast_series_cache: dict = {}
 
 
 def _entry_to_weather(e: dict) -> dict:
+    m = e.get("main", {})
     return {
-        "temp_c":    e.get("main", {}).get("temp"),
-        "humidity":  e.get("main", {}).get("humidity"),
+        "temp_c":    m.get("temp"),
+        "humidity":  m.get("humidity"),
         "wind_kmh":  round(safe_float(e.get("wind", {}).get("speed", 0)) * 3.6, 1),
         "condition": e.get("weather", [{}])[0].get("main", ""),
+        # pressure (05.08.2026, korisnikov prijedlog): tlak u hPa. SAMO SE BILJEZI — ne ulazi
+        # u prompt i ne utjece ni na jedan pick. Hipoteza je da razlika izmedju tlaka na koji
+        # je igrac naviknut i tlaka na mecu utjece na kondiciju; to se ne moze provjeriti bez
+        # podataka, pa se prvo skuplja. Uz `pressure` (na razini mora) biljezi se i
+        # `grnd_level` gdje ga API daje — na visinskim turnirima (Bogota, Quito, Gstaad) ta
+        # dvojka se bitno razlikuje, a upravo je visina ono sto vec imamo u `altitude`.
+        "pressure_hpa": m.get("pressure"),
+        "pressure_ground_hpa": m.get("grnd_level"),
     }
 
 
@@ -1342,12 +1351,9 @@ def get_weather_for_tournament(city: str, forecast_date: str = None) -> dict:
                 params={"q": city, "appid": WEATHER_KEY, "units": "metric"}
             )
             if data:
-                return {
-                    "temp_c":    data.get("main", {}).get("temp"),
-                    "humidity":  data.get("main", {}).get("humidity"),
-                    "wind_kmh":  round(safe_float(data.get("wind", {}).get("speed", 0)) * 3.6, 1),
-                    "condition": data.get("weather", [{}])[0].get("main", ""),
-                }
+                # Isti oblik kao forecast grana (ukljucujuci tlak) — inace bi mecevi koji
+                # padnu na ovaj fallback tiho ostali bez tlaka i razblazili buducu korelaciju.
+                return _entry_to_weather(data)
     except Exception:
         pass
     return {}
