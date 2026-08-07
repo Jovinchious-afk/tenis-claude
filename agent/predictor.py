@@ -78,6 +78,23 @@ def _get_client() -> anthropic.Anthropic:
 # naspram 5,5 u pobjedama (p=0,028). Postavljanje na True je jednolinijska izmjena.
 _BP_TO_PROMPT = False
 
+# OGRADA NA PRAVILO "LATE-ROUND PRICING DISCIPLINE" (zapisano 07.08.2026).
+#
+# Namjerno stoji OVDJE, izvan templatea: `rules_hash` u `_model_stamp` je md5 nad
+# (surface pravila + ANALYSIS_PROMPT_TEMPLATE), pa bi svaki znak dodan unutar stringa
+# promijenio žig ere modela — a i model bi to čitao kao uputu. Python komentar uz template
+# ne mijenja ni jedno ni drugo.
+#
+# Brojke u tom pravilu (−10,2% ROI za kratke kvote u QF/SF/F, +11,2% za duže, n=59/21)
+# izmjerene su 26.07.2026 na oznakama rundi za koje je 07.08. utvrđeno da su bile krive na
+# 42,6% redaka: `_infer_rounds` je grupirao po danu umjesto po rundi, ljestvica za Masters
+# stajala je na R32, a brojanje se od 27.07. radilo NAKON screenshot-gatea. Sve troje je
+# popravljeno 07.08., ali POVIJESNE oznake nisu — prava runda se ne da pouzdano
+# rekonstruirati (nedostaju nescreenshotani mečevi, ima slobodnih prolaza).
+#
+# Pravilo je zato ZADRŽANO ali NEPOTVRĐENO: smjer je i dalje uvjerljiv, nije opovrgnuto,
+# ali brojke ne treba citirati kao izmjerene. Ponovno izmjeriti tek na uzorku skupljenom
+# od 07.08.2026 nadalje, kad oznake rundi budu pouzdane.
 ANALYSIS_PROMPT_TEMPLATE = """You are an expert tennis analyst. Evaluate the following match using only the provided data and model weights.
 
 === MATCH ===

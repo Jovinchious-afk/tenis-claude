@@ -491,6 +491,31 @@ check("prompt template nema novih polja",
       "hold_pct_from_bp" not in _pr.ANALYSIS_PROMPT_TEMPLATE
       and "return_won_weighted" not in _pr.ANALYSIS_PROMPT_TEMPLATE)
 
+print("\n=== 14. Otvorene stavke zapisane u kodu (07.08.2026) ===")
+_tb = open("agent/ticket_builder.py", encoding="utf-8").read()
+_mc = open("config/model_config.py", encoding="utf-8").read()
+_dfsrc = open("agent/data_fetcher.py", encoding="utf-8").read()
+check("prag selekcije 63% nosi nalaz uz sebe", "OTVORENO PITANJE ZA REVIZIJU" in _tb
+      and "13W-4L" in _tb)
+check("tezine nose ogradu o servisu i umoru", "fatigue_injuries" in _mc
+      and "SUPROTNIM" in _mc and "+2,33pp" in _mc)
+check("late-round pravilo nosi ogradu o krivim rundama",
+      "OGRADA NA PRAVILO" in _all and "42,6%" in _all)
+check("pristranost povrata zapisana uz izracun", "POZNATA PRISTRANOST" in _dfsrc)
+check("ograda na hold proxy zapisana uz izracun", "OGRADA NA OVAJ PROXY" in _dfsrc)
+check("krivi nazivi API polja dokumentirani", "breakPointOf" in _dfsrc)
+
+# NAJVAZNIJE: ograda o late-round pravilu NE SMIJE biti unutar prompt templatea —
+# rules_hash je md5 nad njim, a i model bi je citao kao uputu.
+check("ograda je IZVAN prompt templatea (rules_hash netaknut)",
+      "OGRADA NA PRAVILO" not in _pr.ANALYSIS_PROMPT_TEMPLATE)
+import hashlib as _hl
+_h = _hl.md5((_surface_specific_rules("Hard") + _pr.ANALYSIS_PROMPT_TEMPLATE)
+             .encode("utf-8")).hexdigest()[:8]
+# Ako ovo padne, prompt se PROMIJENIO. To je u redu kad je namjerno — tada osvjezi
+# vrijednost ovdje i zabiljezi izmjenu u MODEL_CHANGELOG. Ako nije bilo namjerno, vrati je.
+check("hard rules_hash je i dalje 0477edbb (zamrznuta era)", _h == "0477edbb", _h)
+
 print("\n" + "=" * 60)
 if _fails:
     print(f"PALO: {len(_fails)}")

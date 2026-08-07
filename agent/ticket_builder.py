@@ -256,6 +256,18 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
     # "biranja niske kvote". Ovo omogućuje povremeni opravdani 15-25 listić.
     # Od 11.07. edge se računa iz fair_odds = 100/confidence (predictor normalizacija),
     # pa je override konzistentan: prolaze samo kvote 2.0+ uz pošten confidence 58-62.
+    # OTVORENO PITANJE ZA REVIZIJU (izmjereno 07.08.2026 na Montrealu, n=62 razriješeno,
+    # bazna stopa 61,3%): sve tri neovisne provjere pokazuju da ovaj prag bira LOŠIJI kraj
+    # vlastite raspodjele.
+    #   - pickovi koje je cap spustio ISPOD praga:      11W-1L   (Fisher p=0,020)
+    #   - sve ispod praga, bez obzira na cap:           13W-4L  = 76,5%  (n=17)
+    #   - na tiketu 56,0%  naspram  izvan tiketa 64,9%  (p=0,597, nije značajno)
+    #   - korelacija pouzdanost <-> ishod:              r = -0,207 (p=0,101)
+    # Po razredima: 60-62% -> 75,0% (n=16), 63-64% -> 59,3%, 65-69% -> 50,0% (n=18, ROI -34,7%).
+    # Samo prvi red prolazi prag značajnosti, ali sva četiri reza gledaju u isti smjer.
+    # NIJE MIJENJANO: n=62 je premalo za pomicanje praga na kojem stoji cijela selekcija, a
+    # promjena bi istovremeno poništila pripisivanje za sve ostale izmjene u tijeku.
+    # Ponoviti izračun na Cincinnatiju prije bilo kakve odluke.
     conf_floor = cfg["min_confidence"]            # 63
     VALUE_MIN_CONF = 58.0
     VALUE_MIN_EDGE = 12.0

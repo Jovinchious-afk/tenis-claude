@@ -4,6 +4,23 @@ Weights are stored in Supabase (model_weights table) and can be adjusted
 automatically by the feedback loop. These are the initial defaults.
 """
 
+# DVIJE OGRADE ZA REVIZIJU (izmjereno 07.08.2026 na Montrealu — vidi MODEL_CHANGELOG).
+# Ovo su samo POCETNE vrijednosti; aktivne tezine po podlozi zive u Supabase `model_weights`
+# (hard v18, clay v17, grass v12), pa izmjena ovdje ne mijenja nista dok se ne upise nova
+# verzija. Biljezi se ovdje jer je ovo mjesto na koje se prvo gleda.
+#
+# `serve_return` (najveca tezina): mjeri se proxyjima koji su ili napuhani, ili pristrani,
+#   ili do 07.08. nisu ni stizali. `hold_pct` je linearni proxy s mnoziteljem 1,9 (API ne daje
+#   gem-ove na servisu); `return_points_won` precjenjuje za +2,33pp; break lopte su zbog krivih
+#   naziva API polja UVIJEK bile None u promptu. Prije diranja same tezine treba srediti sto
+#   ona uopce mjeri — vidi komentare u data_fetcher.get_player_stats i predictor._BP_TO_PROMPT.
+#
+# `fatigue_injuries`: u Montrealu nema nikakvog signala. Nas pick na 1. mecu turnira 62,0%
+#   (n=50), na 2. mecu 70,0% (n=10); tko je odmorniji — mi svjeziji 58,3%, jednako 63,6%,
+#   protivnik svjeziji 60,0%. Istovremeno 7 od 11 analiza gubitaka krivi umor, ali u SUPROTNIM
+#   smjerovima (jednom "underweighted", drugi put "over-weighted", treci put "misfired in the
+#   wrong direction"). Kad se ista korekcija optuzi u oba smjera, to je sum, a ne losa
+#   kalibracija. Kandidat za smanjenje — ali tek kad bude cime izmjeriti.
 DEFAULT_WEIGHTS = {
     "elo_ranking":          22.0,  # ELO (surface-specific weighted higher than ATP ranking) + opponent quality
     "surface_style":        20.0,  # Surface win rate + style matchup + playing hand
