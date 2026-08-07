@@ -9,6 +9,94 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-08-07 — Duplikati analiza, runde, ELO trag (revizija evidencije, ne modela)
+
+**Povod:** korisnik je u Supabaseu uocio da su neki Montreal mecevi oznaceni QF, a vecina
+R32, iako je rijec o istoj rundi. Provjera je otkrila da je pogresna runda simptom, a ne
+uzrok.
+
+### 1. Duplikati: 22,6% korpusa bila je ista utakmica upisana dvaput
+
+`stable_match_key` (uveden 31.07. protiv reciklaze API ID-a) sadrzi **datum**, a datum nije
+stabilan. Mecevi se dohvacaju za danas+sutra(+prekosutra), pa isti mec prvo vidimo pod
+provizornim datumom, a idui dan pod stvarnim — API ga pomakne kad se raspored slegne ili kad
+padne kisa. Kljuc se promijeni, upsert promasi postojeci redak, nastane drugi zapis.
+Oba zatim budu razrijesena istim pobjednikom jer `_build_season_winner_lookup` trazi po
+imenima, bez datuma.
+
+Izmjereno: **45 parova, 90 od 399 redaka**; kod 44 od 45 oba retka razrijesena istim
+pobjednikom. Svih 45 unutar 3 dana, nijedan izvan.
+
+**Popravak:** `find_existing_analysis` (±3 dana, korisnikov prag) trazi postojeci zapis prije
+upisa; ako ga nade, zadrzi njegov `external_match_id` a osvjezi `match_date` na noviji (to je
+datum kad je mec stvarno odigran, a na njega vezemo vrijeme i uvjete). Identitet meca je od
+sada trojka (turnir, par igraca, ±3 dana); `external_match_id` je samo ID retka.
+Povijest ociscena skriptom `scripts/merge_duplicate_analyses.py` (399 -> 354 retka,
+sigurnosna kopija prije brisanja).
+
+**Ishod na brojke:** hard 66W-39L (62,9%) -> **52W-30L (63,4%)**;
+Montreal 49W-33L (59,8%) -> **38W-24L (61,3%)**, n 82 -> 62.
+
+**ISPRAVAK NALAZA OD 06.08.:** prva, gruba deduplikacija (zadrzi najraniji redak) pokazala je
+da `cap_enforced` pada s 11W-1L na 8W-1L i da P raste s 0,034 na 0,104. **To je bilo krivo.**
+Pravilo "zadrzi najraniji" arbitrarno je bacalo bas one retke koji nose `cap_enforced` (raniji
+redak je stariji `context_version` i nema to polje). Nakon ispravnog spajanja (zadrzi bogatiji
++ dopuni polja iz blizanca) ostaje **12 razlicitih meceva, 11W-1L, P=0,034** — nalaz od 06.08.
+stoji nepromijenjen, kao i "pravilo 12: 6 puta, 6W-0L". Korpusne brojke iznad jesu bile
+napuhane; ovaj konkretni nalaz nije.
+
+### 2. Runde: tri neovisna kvara
+
+Prije popravka **170 od 399 redaka (42,6%)** sjedilo je u grupi (turnir, runda) gdje isti
+igrac igra vise puta — fizicki nemoguce. Samo "Montreal R32": 97 redaka, 68 ponovljenih
+igraca (Hurkacz "R32" 03., 04., 05. i 07.08.). Runda ide ravno u prompt i nosi vlastita
+pravila (LATE-ROUND PRICING DISCIPLINE, hot-hand), pa je kriva oznaka mijenjala pickove.
+
+- **(a)** `_infer_rounds` je grupirao po (turnir, datum) i uzimao `group[0]["round"]` kao rundu
+  cijelog dana. Dan legitimno nosi dvije runde (Wimbledon 02.07. R64+R32, Bastad 13.07.
+  R32+R16, Montreal 06.08. R32+QF), a kad bi ispravak okinuo, prepisao bi **cijelu grupu**
+  jednom oznakom i unistio manjinu koja je bila tocna. Sada se grupira po
+  **(turnir, datum, runda)**.
+- **(b)** Ljestvica za Masters stajala je na `n >= 8 -> R32`, bez precki R64/R128. Masters je
+  od 2025. zdrijeb od 96 s 12 dana igre, gdje prve dvije runde imaju po 32 meca — otud dan s
+  28 meceva kao "R32". Dodane precke R64/R128 (i R32 za ATP 250/500, R128 za GS).
+  Ogranicenje: broj meceva ne razlikuje 1. od 2. runde u zdrijebu od 96, obje imaju 32.
+- **(c)** Od uvodenja screenshot-gatea 27.07. brojanje se radilo na **filtriranom** skupu —
+  gate je na liniji prije `_infer_rounds`. Ako screenshotas 12 od 16 meceva, procjena runde
+  racunala je 12. Sada `_count_by_tournament_day` broji **prije** gatea.
+- **(d)** `_warn_impossible_rounds` ispisuje upozorenje kad isti igrac igra vise puta u istoj
+  (turnir, runda). Ne ispravlja nista — samo vice. Ovaj obrazac bio je jedini pouzdan trag da
+  su oznake krive, a nista ga nije ispisivalo.
+
+**Povijesni redci se NE ispravljaju** — prava runda se ne da pouzdano rekonstruirati (nedostaju
+nescreenshotani mecevi, ima slobodnih prolaza). Nakon spajanja duplikata udio nemogucih grupa
+pao je s 42,6% na 31,1%; ostatak je stvarna pogresna oznaka.
+**Posljedica: nalaz "QF/SF/F kratke kvote gube -10,2% ROI" stoji na tim oznakama i treba ga
+ponovno izmjeriti na cistom uzorku.**
+
+### 3. ELO cache: nije se znalo koliko je star
+
+`upsert_elo_cache` nikad nije postavljao `updated_at`, a `DEFAULT NOW()` okida samo pri
+INSERT-u — pa je stupac biljezio kad je igrac **prvi put videN**, ne kad je ELO osvjezen.
+521 od 567 redaka nosilo je 31.05. Sada se upisuje izrijekom, a dnevni run ispisuje
+"ELO cache osvjezen prije N dana" s podsjetnikom preko 7 dana. `elo_ranking` nosi 19% tezine
+na hardu, pa je slijepa tocka bila skupa.
+
+### 4. `tournament_history` dodana u schema.sql
+
+Tablica je u Supabaseu postojala (668 redaka) ali je nije bilo u shemi — podizanje baze od
+nule ostavilo bi model bez povijesti zdrijebova. Postojeca instanca ne treba nista.
+
+### Namjerno NIJE dirano
+
+- **Prosirenje prozora razrjesavanja (8 dana).** 119 analiza nikad nije dobilo ishod, ali sve
+  su iz svibnja/lipnja/srpnja i API ih vise nema; iz kolovoza nijedna nije zaglavljena.
+  Promjena bez dobitka.
+- **Nista sto mijenja pickove.** Model ostaje zamrznut do revizije; brojke na kojima bi se
+  promjena opravdavala bile su napuhane, pa se prvo cisti evidencija, pa mjeri.
+
+---
+
 ## 2026-08-06 — Pravilo 12 uskladjeno s kodom (0/3, ne "1/3 ili losije")
 
 **Povod:** puna analiza dobitaka i gubitaka za Montreal na korisnikov zahtjev, prva koja je

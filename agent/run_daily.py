@@ -146,12 +146,19 @@ def main():
     # bez ovog filtera, mečevi koje korisnik NIJE screenshotao mogli su ući na tiket
     # čim ih Odds API "pokrije", oslanjajući se samo na sretnu okolnost da manji
     # turniri dosad nisu imali live tržišta. Vidi _gate_by_screenshot.
+    # Broj mečeva po (turnir, dan) mora se izbrojati PRIJE gatea (07.08.2026). `_infer_rounds`
+    # procjenjuje rundu iz broja mečeva tog dana, a gate izbacuje sve što nije screenshotano —
+    # od 27.07. je dakle brojao samo screenshotane mečeve i mislio da je dan manji nego što
+    # jest. Ako screenshotaš 12 od 16 mečeva, procjena runde računa 12. Docstring je i dalje
+    # tvrdio "before any cap", što je bilo točno samo prije uvođenja gatea.
+    pre_gate_counts = _count_by_tournament_day(all_matches)
+
     all_matches = _gate_by_screenshot(all_matches, screenshot_today, screenshot_tomorrow,
                                       today_str, tomorrow_str,
                                       always_gated_dates={day_after_str} if fetch_day_after else None)
 
     # Fix unreliable round labels using match count per tournament per day
-    all_matches = _infer_rounds(all_matches, screenshot_odds)
+    all_matches = _infer_rounds(all_matches, screenshot_odds, pre_gate_counts)
 
     # Sortiraj po razini turnira: GS > Masters > 500 > 250 > Challenger
     from config.model_config import TOURNAMENT_LEVELS
@@ -204,6 +211,12 @@ def main():
     print("\nDohvaćam ELO ratingse s Tennis Abstract...")
     elo_data = df.get_tennis_abstract_elo()
     print(f"Dohvaćeno {len(elo_data)} ELO ratinga")
+    # Starost cachea (07.08.2026): korisnik `scripts/update_elo_cache.py` pokreće ručno
+    # prije turnira, pa mu treba vidljiv podsjetnik. Tennis Abstract osvježava tjedno.
+    _elo_age = db.elo_cache_age_days()
+    if _elo_age is not None:
+        _mark = "  <-- pokreni scripts/update_elo_cache.py" if _elo_age > 7 else ""
+        print(f"  ELO cache osvježen prije {_elo_age} dana{_mark}")
 
     # 4. Dohvati ATP rankings
     print("Dohvaćam ATP rankings...")
@@ -1125,7 +1138,20 @@ def _gate_by_screenshot(matches: list, screenshot_today: dict, screenshot_tomorr
     return kept
 
 
-def _infer_rounds(matches: list, screenshot_odds: dict = None) -> list:
+def _count_by_tournament_day(matches: list) -> dict:
+    """Broj zakazanih mečeva po (turnir, datum, runda) — mjeri se PRIJE screenshot-gatea.
+
+    Vidi poziv u glavnom toku: `_infer_rounds` procjenjuje rundu iz broja mečeva tog dana,
+    a gate izbacuje sve nescreenshotano, pa bi bez ovoga brojao filtrirani skup."""
+    from collections import defaultdict
+    counts = defaultdict(int)
+    for m in matches:
+        counts[(m.get("tournament", ""), m.get("date", ""), m.get("round", ""))] += 1
+    return dict(counts)
+
+
+def _infer_rounds(matches: list, screenshot_odds: dict = None,
+                  pre_gate_counts: dict = None) -> list:
     """
     Ispravlja NEPRAVILNE oznake runda s API-ja — ali samo kad su nemoguće ili
     neprepoznate, jer rundu ne određuje samo broj mečeva u danu (runda se
@@ -1142,10 +1168,28 @@ def _infer_rounds(matches: list, screenshot_odds: dict = None) -> list:
     ALI ako meč iz Q-grupe ima ručno unesenu screenshot kvotu, korisnik je potvrdio
     da je to glavni ždrijeb (kvalifikacije nikad ne screenshota) — tada ne vjerujemo
     Q-oznaci i izvodimo pravu rundu iz broja mečeva. Bez screenshota Q ostaje Q.
+
+    TRI POPRAVKA 07.08.2026 (korisnik uočio Montreal: dio mečeva označen QF, većina R32,
+    a radi se o istoj rundi). Izmjereno prije popravka: 170 od 399 redaka (42,6%) sjedilo
+    je u grupi (turnir, runda) gdje isti igrač igra više puta — fizički nemoguće. Samo
+    "Montreal R32": 97 redaka, 68 igrača koji se ponavljaju (npr. Hurkacz "R32" 03., 04.,
+    05. i 07.08.). Runda ide RAVNO u prompt i nosi vlastita pravila (LATE-ROUND PRICING
+    DISCIPLINE, hot-hand), pa kriva oznaka mijenja pickove.
+
+    (a) Grupiranje je sada po (turnir, datum, RUNDA), ne po (turnir, datum). Dan legitimno
+        nosi dvije runde — Wimbledon 02.07. R64+R32, Bastad 13.07. R32+R16, Montreal 06.08.
+        R32+QF. Stara verzija je uzimala `group[0]["round"]` kao rundu CIJELOG dana, a kad
+        bi ispravak okinuo, prepisala bi cijelu grupu jednom oznakom i uništila onu manjinu
+        koja je bila točna.
+    (b) Ljestvica za Masters dobila je prečke R64 i R128. Prije je stajala na `n >= 8 -> R32`,
+        pa je svaki dan s 8+ mečeva postajao "R32" — a Masters je danas ždrijeb od 96 s 12
+        dana igre, gdje druge runde imaju po 32 meča. Otud Montreal s 28 mečeva kao "R32".
+    (c) Broj mečeva dolazi iz `pre_gate_counts` (izbrojan prije screenshot-gatea).
     """
     from collections import defaultdict
 
     screenshot_odds = screenshot_odds or {}
+    pre_gate_counts = pre_gate_counts or {}
     _ROUND_ID = {"R128": 1, "R64": 2, "R32": 3, "R16": 4, "QF": 5, "SF": 6, "F": 7}
 
     def _has_screenshot(m: dict) -> bool:
@@ -1163,16 +1207,17 @@ def _infer_rounds(matches: list, screenshot_odds: dict = None) -> list:
     # Q1/Q2 se ne diraju OSIM kad grupa ima screenshot (vidi Q-tag iznimku gore).
     _TRUST_ALWAYS = {"RR", "Q1", "Q2"}
 
-    # Count all scheduled matches per (tournament, date) — before any cap
+    # Grupiranje po (turnir, datum, RUNDA) — vidi (a) u docstringu.
     counts: dict = defaultdict(list)
     for m in matches:
-        key = (m.get("tournament", ""), m.get("date", ""))
+        key = (m.get("tournament", ""), m.get("date", ""), m.get("round", ""))
         counts[key].append(m)
 
-    for (tournament, date), group in counts.items():
-        n = len(group)
+    for (tournament, date, current_round), group in counts.items():
+        # Broj iz PRE-GATE prebrojavanja; pad na veličinu grupe ako ga nema (npr. pri
+        # izravnom pozivu iz testova).
+        n = pre_gate_counts.get((tournament, date, current_round), len(group))
         level = group[0].get("level", "")
-        current_round = group[0].get("round", "")
 
         if current_round in _TRUST_ALWAYS:
             # Q-tag iznimka: ako je BILO KOJI meč iz ove grupe screenshotan, API je
@@ -1191,21 +1236,31 @@ def _infer_rounds(matches: list, screenshot_odds: dict = None) -> list:
             continue  # API-jeva oznaka je fizički moguća — vjeruj joj
 
         if "Grand Slam" in level:
-            if n >= 16:   inferred = "R64"
+            if n >= 32:   inferred = "R128"
+            elif n >= 16: inferred = "R64"
             elif n >= 8:  inferred = "R32"
             elif n >= 5:  inferred = "R16"
             elif n == 4:  inferred = "QF"
             elif n in (2, 3): inferred = "SF"
             else:         inferred = "F"   # n == 1 → genuine final
         elif "Masters 1000" in level:
-            if n >= 8:    inferred = "R32"
+            # Ždrijeb od 96 (od 2025. Masters traju 12 dana): prve dvije runde imaju po
+            # 32 meča, pa prečke R64/R128 moraju postojati — vidi (b) u docstringu.
+            # OGRANIČENJE: broj mečeva sam po sebi NE razlikuje 1. od 2. runde u ždrijebu
+            # od 96 — obje imaju 32 meča. Dan s 32+ mečeva ovdje dobiva "R128". To je
+            # namjeran izbor, ne rješenje: procjena okida samo kad je API-jeva oznaka
+            # fizički nemoguća, a redoslijed rundi API obično pogodi.
+            if n >= 32:   inferred = "R128"
+            elif n >= 17: inferred = "R64"
+            elif n >= 9:  inferred = "R32"
             elif n >= 5:  inferred = "R16"
             elif n == 4:  inferred = "QF"
             elif n in (2, 3): inferred = "SF"
             else:         inferred = "F"
         else:
             # ATP 500/250 — manji ždrijebi (28-32), ali R16 svejedno ima 7-8 mečeva
-            if n >= 8:    inferred = "R16"
+            if n >= 16:   inferred = "R32"
+            elif n >= 8:  inferred = "R16"
             elif n >= 4:  inferred = "QF"
             elif n in (2, 3): inferred = "SF"
             else:         inferred = "F"
@@ -1216,7 +1271,30 @@ def _infer_rounds(matches: list, screenshot_odds: dict = None) -> list:
                 m["round"] = inferred
                 m["round_id"] = _ROUND_ID.get(inferred, 0)
 
+    _warn_impossible_rounds(matches)
     return matches
+
+
+def _warn_impossible_rounds(matches: list) -> None:
+    """Prijavi ako isti igrač igra više od jednom u istoj (turnir, runda).
+
+    Ne ispravlja ništa — samo viče. Ovakav obrazac je bio jedini pouzdan trag da su oznake
+    runda krive (Montreal: 68 igrača ponovljeno unutar "R32"), a nitko ga nije gledao jer
+    ga ništa nije ispisivalo. Za dan-po-dan pokretanje uhvatit će samo ono što je vidljivo
+    unutar jednog runa, ali to je dovoljno da se problem primijeti rano."""
+    from collections import defaultdict
+    seen = defaultdict(lambda: defaultdict(int))
+    for m in matches:
+        key = (m.get("tournament", ""), m.get("round", ""))
+        for p in (m.get("player1", ""), m.get("player2", "")):
+            if p:
+                seen[key][p] += 1
+    for (tournament, rnd), players in seen.items():
+        rep = {p: n for p, n in players.items() if n > 1}
+        if rep and rnd not in ("RR", ""):
+            print(f"  UPOZORENJE runda: {tournament} '{rnd}' — isti igrač igra više puta "
+                  f"({', '.join(f'{p} x{n}' for p, n in list(rep.items())[:4])}). "
+                  f"Oznaka runde je vjerojatno kriva.")
 
 
 def _extract_player_news(player_name: str, all_news: str) -> str:

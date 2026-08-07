@@ -369,6 +369,85 @@ g = _surface_specific_rules("Grass")
 check("clay namjerno NIJE diran (nema mjerenja)", "1/3 or worse" in c)
 check("grass namjerno NIJE diran (nema mjerenja)", "1/3 or worse" in g)
 
+print("\n=== 11. Runde: grupiranje, ljestvica, brojanje prije gatea (07.08.2026) ===")
+from agent.run_daily import _infer_rounds, _count_by_tournament_day
+
+def mk(t, d, rnd, p1, p2, level="ATP Masters 1000"):
+    return {"tournament": t, "date": d, "round": rnd, "player1": p1, "player2": p2,
+            "level": level}
+
+# (a) mjesoviti dan: dvije runde istog dana ne smiju se stopiti u jednu oznaku
+mixed = ([mk("T", "2026-08-06", "R32", f"A{i}", f"B{i}") for i in range(7)]
+         + [mk("T", "2026-08-06", "QF", f"C{i}", f"D{i}") for i in range(4)])
+_infer_rounds(mixed)
+check("mjesoviti dan: R32 grupa ostaje R32",
+      all(m["round"] == "R32" for m in mixed[:7]))
+check("mjesoviti dan: QF grupa ostaje QF (4 meca je legitimno)",
+      all(m["round"] == "QF" for m in mixed[7:]))
+
+# stara verzija bi cijeli dan prepisala oznakom prvog meca — provjeri da vise ne
+mixed2 = ([mk("T", "2026-08-06", "QF", f"C{i}", f"D{i}") for i in range(5)]
+          + [mk("T", "2026-08-06", "R32", f"A{i}", f"B{i}") for i in range(7)])
+_infer_rounds(mixed2)
+check("nemoguc QF (5 meceva) se ispravlja", mixed2[0]["round"] != "QF")
+check("...a susjedna R32 grupa ostaje netaknuta",
+      all(m["round"] == "R32" for m in mixed2[5:]))
+
+# (b) Masters ljestvica vise ne staje na R32
+big = [mk("M", "2026-08-03", "R32", f"P{i}", f"Q{i}") for i in range(28)]
+_infer_rounds(big)
+check("Masters, 28 meceva -> R64 (prije: uvijek R32)", big[0]["round"] == "R64")
+big32 = [mk("M", "2026-08-02", "R32", f"P{i}", f"Q{i}") for i in range(32)]
+_infer_rounds(big32)
+check("Masters, 32 meca -> R128", big32[0]["round"] == "R128")
+mid = [mk("M", "2026-08-05", "R16", f"P{i}", f"Q{i}") for i in range(12)]
+_infer_rounds(mid)
+check("Masters, 12 meceva -> R32", mid[0]["round"] == "R32")
+gs = [mk("G", "2026-07-01", "R64", f"P{i}", f"Q{i}", level="Grand Slam") for i in range(40)]
+_infer_rounds(gs)
+check("Grand Slam, 40 meceva -> R128", gs[0]["round"] == "R128")
+small = [mk("S", "2026-07-19", "R16", f"P{i}", f"Q{i}", level="ATP 250") for i in range(16)]
+_infer_rounds(small)
+check("ATP 250, 16 meceva -> R32", small[0]["round"] == "R32")
+
+# (c) broj mecheva dolazi iz pre-gate prebrojavanja, ne iz filtrirane liste
+full = [mk("W", "2026-08-05", "R32", f"P{i}", f"Q{i}") for i in range(24)]
+counts = _count_by_tournament_day(full)
+check("_count_by_tournament_day broji po (turnir, dan, runda)",
+      counts.get(("W", "2026-08-05", "R32")) == 24)
+# kao da je screenshotano samo 6 od 24 — kopije, da prvi poziv ne zagadi drugi
+gated = [dict(m) for m in full[:6]]
+_infer_rounds(gated, None, counts)
+check("gate ne smanjuje procjenu runde (6 vidljivih, 24 stvarnih -> R64)",
+      gated[0]["round"] == "R64")
+gated_naive = [dict(m) for m in full[:6]]
+_infer_rounds(gated_naive)          # bez pre-gate brojeva
+check("bez pre-gate brojeva ista lista daje drugu rundu (dokaz da (c) radi)",
+      gated_naive[0]["round"] != "R64")
+
+# RR i kvalifikacije se i dalje ne diraju
+rr = [mk("F", "2026-11-12", "RR", f"P{i}", f"Q{i}") for i in range(6)]
+_infer_rounds(rr)
+check("round-robin ostaje netaknut", all(m["round"] == "RR" for m in rr))
+q = [mk("Q", "2026-07-16", "Q2", f"P{i}", f"Q{i}", level="ATP 250") for i in range(9)]
+_infer_rounds(q)
+check("kvalifikacije bez screenshota ostaju Q2", all(m["round"] == "Q2" for m in q))
+
+print("\n=== 12. Spajanje duplikata analiza (±3 dana) ===")
+import inspect
+from database import supabase_client as _db
+check("find_existing_analysis postoji", hasattr(_db, "find_existing_analysis"))
+_src = inspect.getsource(_db.save_analyzed_match)
+check("save_analyzed_match trazi postojeci zapis prije upisa",
+      "find_existing_analysis" in _src)
+check("zadrzava postojeci external_match_id",
+      'data["external_match_id"] = existing["external_match_id"]' in _src)
+check("prozor je 3 dana",
+      inspect.signature(_db.find_existing_analysis).parameters["window_days"].default == 3)
+check("elo_cache_age_days postoji", hasattr(_db, "elo_cache_age_days"))
+check("upsert_elo_cache izricito upisuje updated_at",
+      '"updated_at": now' in inspect.getsource(_db.upsert_elo_cache))
+
 print("\n" + "=" * 60)
 if _fails:
     print(f"PALO: {len(_fails)}")

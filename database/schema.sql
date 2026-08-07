@@ -167,6 +167,24 @@ CREATE TABLE IF NOT EXISTS player_scouting (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Povijest ždrijebova po turniru i sezoni (tko je koga pobijedio u kojoj rundi).
+-- Puni je data_fetcher iz API-ja i koristi se kao anti-halucinacijska provjera: model ne
+-- smije tvrditi da je igrač "prošlogodišnji finalist" ako to ovdje ne piše.
+-- ZAPISANO NAKNADNO 07.08.2026 — tablica je u Supabaseu postojala od ranije (668 redaka),
+-- ali je nikad nije bilo u ovoj datoteci, pa bi podizanje baze od nule ostavilo model bez
+-- povijesti ždrijebova. Postojeća instanca ne treba ništa.
+CREATE TABLE IF NOT EXISTS tournament_history (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tournament_name TEXT,
+    season_id       VARCHAR(30),
+    season_year     INTEGER,
+    round_name      VARCHAR(40),
+    winner_name     TEXT,
+    loser_name      TEXT,
+    score           VARCHAR(100),
+    fetched_at      TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Ručno unesene kvote sa screenshotova kladionice (Streamlit upload, Claude vision ekstrakcija)
 CREATE TABLE IF NOT EXISTS screenshot_odds (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

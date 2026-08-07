@@ -364,13 +364,78 @@ def _norm_player_key(name: str) -> str:
     return " ".join(s.lower().replace("-", " ").split())
 
 
+def find_existing_analysis(tournament: str, player1: str, player2: str,
+                           match_date, window_days: int = 3) -> dict:
+    """Traži VEĆ POSTOJEĆU analizu istog meča u rasponu ±window_days dana.
+
+    ZAŠTO (07.08.2026, korisnikov nalaz): `stable_match_key` sadrži datum, a datum NIJE
+    stabilan. Mečeve dohvaćamo za danas+sutra(+prekosutra), pa isti meč prvo vidimo pod
+    provizornim datumom, a idući dan pod stvarnim — API ga pomakne kad se raspored slegne
+    ili kad padne kiša. Ključ se time promijeni, upsert promaši postojeći redak i nastane
+    DRUGI zapis za isti meč. Izmjereno na 399 redaka: 45 parova, 90 redaka (22,6% korpusa),
+    a kod 44 od 45 su OBA retka razriješena istim pobjednikom — jer `_build_season_winner_lookup`
+    traži pobjednika po imenima, bez datuma. Kalibracija je te mečeve brojala dvaput
+    (Montreal: 82 "razriješena" retka = zapravo 62 meča; cap_enforced 11W-1L = zapravo 8W-1L,
+    P 0,034 -> 0,104).
+
+    Identitet meča je zato od danas trojka (turnir, par igrača, ±3 dana), a NE `external_match_id`
+    — taj je sada samo neizmjenjivi ID retka. Prag od 3 dana je korisnikov; provjeren na
+    postojećim podacima: svih 45 duplikata pada unutar 3 dana, nijedan izvan.
+
+    Siguran je jer se u eliminacijskom ždrijebu isti par ne može sresti dvaput. Round-robin
+    (ATP Finals) je jedina iznimka, ali ondje se par sretne jednom po skupini pa ni to ne
+    smeta unutar 3 dana.
+    """
+    if not (tournament and player1 and player2 and match_date):
+        return {}
+    try:
+        d = datetime.date.fromisoformat(str(match_date)[:10])
+    except ValueError:
+        return {}
+    lo = (d - datetime.timedelta(days=window_days)).isoformat()
+    hi = (d + datetime.timedelta(days=window_days)).isoformat()
+    # Filtrira se SAMO po datumu, a turnir/igrači se uspoređuju u Pythonu. Razlog: nazivi
+    # turnira sadrže razmake, crtice i apostrofe ("Libema Open - 's-Hertogenbosch"), pa bi
+    # `eq.` filter ovisio o tome kako PostgREST tumači te znakove. Prozor je ionako 7 dana
+    # (nekoliko desetaka redaka), pa je usporedba u Pythonu jeftinija od tog rizika.
+    rows = _select("analyzed_matches",
+                   select="id,external_match_id,match_date,player1,player2,tournament",
+                   filters={"and": f"(match_date.gte.{lo},match_date.lte.{hi})"})
+    want = tuple(sorted([_norm_player_key(player1), _norm_player_key(player2)]))
+    tkey = " ".join(str(tournament).lower().split())
+    for r in rows:
+        if " ".join(str(r.get("tournament") or "").lower().split()) != tkey:
+            continue
+        if tuple(sorted([_norm_player_key(r.get("player1")),
+                         _norm_player_key(r.get("player2"))])) == want:
+            return r
+    return {}
+
+
 def save_analyzed_match(match_data: dict) -> None:
     """Upsert analize. Ključ je STABILAN (datum+igrači), ne API fixture id — vidi
     stable_match_key za razlog. external_match_id se prepisuje ovdje da pozivatelji
-    ne moraju znati za promjenu."""
+    ne moraju znati za promjenu.
+
+    Od 07.08.2026 prije upisa traži postojeći zapis istog meča u ±3 dana (vidi
+    `find_existing_analysis`). Ako ga nađe, ZADRŽAVA njegov `external_match_id` pa upsert
+    pogodi taj redak umjesto da otvori novi — ali `match_date` se osvježi na NOVIJI datum,
+    jer je to datum kad je meč stvarno odigran, a na njega vežemo vrijeme i vremenske uvjete.
+    """
     data = dict(match_data)
     data["external_match_id"] = stable_match_key(
         data.get("match_date"), data.get("player1"), data.get("player2"))
+    existing = find_existing_analysis(data.get("tournament"), data.get("player1"),
+                                      data.get("player2"), data.get("match_date"))
+    if existing and existing.get("external_match_id") != data["external_match_id"]:
+        old_date = str(existing.get("match_date") or "")[:10]
+        new_date = str(data.get("match_date") or "")[:10]
+        data["external_match_id"] = existing["external_match_id"]
+        # Noviji datum pobjeđuje; stariji ostaje samo ako je novi prazan.
+        if old_date > new_date:
+            data["match_date"] = existing["match_date"]
+        print(f"  Spojeno s postojećom analizom ({old_date} -> {new_date}): "
+              f"{data.get('player1')} vs {data.get('player2')}")
     try:
         _upsert("analyzed_matches", data, on_conflict="external_match_id")
     except Exception:
@@ -484,15 +549,39 @@ def get_elo_cache() -> dict:
 
 
 def upsert_elo_cache(entries: list) -> None:
-    """Upsert list of ELO dicts with keys: player_name, elo_overall, elo_hard, elo_clay, elo_grass."""
+    """Upsert list of ELO dicts with keys: player_name, elo_overall, elo_hard, elo_clay, elo_grass.
+
+    `updated_at` se upisuje IZRIJEKOM (07.08.2026). Prije toga se oslanjalo na
+    `DEFAULT NOW()` iz sheme, a taj okida samo pri INSERT-u — pa je stupac bilježio kad je
+    igrač PRVI PUT viđen, ne kad je ELO osvježen. Posljedica: 521 od 567 redaka nosilo je
+    31.05. i nije se dalo utvrditi je li cache star tjedan ili dva mjeseca, iako
+    `elo_ranking` nosi 19% težine na hardu. Korisnik skriptu pokreće ručno prije turnira,
+    pa mu treba vidljiv trag kada je to zadnji put bilo."""
     if not entries:
         return
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     # Batch in chunks of 200
     for i in range(0, len(entries), 200):
-        batch = entries[i:i+200]
+        batch = [{**e, "updated_at": now} for e in entries[i:i+200]]
         _rest("POST", "elo_cache", body=batch,
               prefer="return=minimal,resolution=merge-duplicates",
               params={"on_conflict": "player_name"})
+
+
+def elo_cache_age_days():
+    """Koliko je dana prošlo od zadnjeg osvježavanja ELO cachea (None ako se ne zna).
+
+    Gleda NAJNOVIJI `updated_at` — jedan zapis dovoljan je jer skripta upsertira cijelu
+    tablicu odjednom. Redci upisani prije 07.08.2026 nose datum prvog viđenja, pa za njih
+    ova brojka pretjeruje; ispravlja se pri prvom sljedećem pokretanju skripte."""
+    rows = _select("elo_cache", select="updated_at", order="updated_at.desc", limit=1)
+    if not rows or not rows[0].get("updated_at"):
+        return None
+    try:
+        ts = datetime.datetime.fromisoformat(str(rows[0]["updated_at"]).replace("Z", "+00:00"))
+        return (datetime.datetime.now(datetime.timezone.utc) - ts).days
+    except ValueError:
+        return None
 
 
 # ── Screenshot Odds (ručno unesene kvote sa screenshotova kladionice) ─────────
