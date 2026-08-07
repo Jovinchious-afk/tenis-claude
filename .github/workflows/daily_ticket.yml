@@ -36,6 +36,12 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Generate daily ticket
+        # ZA REVIZIJU (uoceno 07.08.2026): dodati PYTHONUNBUFFERED: "1" u env ispod.
+        # Bez toga Python puferira stdout pa se ispis pojavljuje u nakupinama — u runu od
+        # 27.07. bilo je 4,5 minute tisine pa sve odjednom. Kad je run 02.08. prekinut na
+        # 20 minuta, iz loga se NIJE moglo vidjeti gdje je zapeo; timeout je podignut na 35
+        # na temelju zakljucivanja, ne mjerenja. Jedna varijabla, nula utjecaja na pickove —
+        # ali mijenja izgled logova, pa ide zajedno s ostalim izmjenama na reviziji, ne usput.
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}

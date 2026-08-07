@@ -9,6 +9,65 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-08-07 (c) — Natpisi podloge u selekciji + dvije stavke na popis za reviziju
+
+**Povod:** pregled GitHub Actions logova od 27.07. (potpun run) i 02.08. (prekinut run) na
+korisnikov zahtjev. Pipeline je ispravan; nista u logici nije mijenjano.
+
+### Popravljeno: dva zaostala natpisa podloge (samo ISPIS, nula utjecaja na pickove)
+
+Confidence floor prosiren je na hard 18.07., ali dva ispisa nose natpise iz doba kad je
+vrijedio samo za travu i zemlju:
+
+- skupni ispis je i na hard kartici pisao **"Grass/clay disciplina"** — log od 27.07. tako
+  javlja "Grass/clay disciplina: izbaceno 8 pickova" na kartici koja je bila cijela hard;
+- value-override je hard pick nazivao **"grass"**, jer je jedini izbor bio
+  `"clay" if _is_clay(p) else "grass"`.
+
+Ponasanje je oba puta bilo ispravno (`_needs_conf_floor` pokriva sve tri podloge) — krivo se
+samo zvalo, sto zbunjuje pri citanju logova. Uveden `_surface_label()` koji vraca
+grass/clay/hard/'?', a skupni ispis sada i razlaze broj po podlozi
+("izbaceno 4 ... — clay 1, grass 1, hard 2").
+
+### Sto je log POTVRDIO, a vec je bilo popravljeno
+
+- **Pravilo 12:** 27.07. je izbacilo OSAM meceva, a obrazlozenja modela pokazuju da bi sedam
+  od njih po pravilu od 06.08. (strogo 0/3) ostalo u igri — ukljucujuci jedan gdje je model
+  napisao *"Brooksby 2/3 borderline"* i svejedno primijenio cap. Samo Norrie/Kovacevic je
+  bio stvarno 0/3 na obje strane. To je 23% kartice (`Valjane predikcije: 23/31`).
+- **Runde:** `Round fix: Montreal (2026-08-03) — R16 -> R32 (22 matches)` i
+  `Washington — R12 -> F` — oba obrasca popravljena 07.08.
+- **Vrijeme:** `Montreal (2026-08-03): Humidity 98% (forecast)` — neusklaen sat, popravljeno 04.08.
+- **Prekid 02.08.:** `timeout-minutes` 20 -> 35, popravljeno istog dana.
+
+### Dodano na popis za reviziju (zapisano uz kod, NIJE implementirano)
+
+1. **`PYTHONUNBUFFERED=1`** u workflow. Python puferira stdout pa se ispis pojavljuje u
+   nakupinama (27.07.: 4,5 minute tisine pa sve odjednom). Kad je run 02.08. prekinut na 20
+   minuta, iz loga se NIJE moglo vidjeti gdje je zapeo — timeout je podignut zakljucivanjem,
+   ne mjerenjem. Biljeska stoji u `.github/workflows/daily_ticket.yml`.
+2. **Broj protivnika u `_avg_opponent_elo`.** Protivnici bez ELO-a se tiho ispustaju, a oni
+   koji nedostaju sustavno su SLABIJI (kvalifikanti, challengeri, wildcardi izvan
+   `elo_cache`; nekoliko desetaka `ELO MISS` po runu). Prosjek zato ispada PREVISOK, pa igrac
+   koji je punio omjer protiv slabe konkurencije izgleda kao da je pobjedjivao jake — a to je
+   bas nas "kvalitetom prilagodjen" signal forme. Velicina ucinka je NEPOZNATA jer ne
+   biljezimo koliko je protivnika uslo u prosjek. Biljeska stoji uz funkciju.
+
+### Izmjereno usput (n=325 razrijesenih nogu, sve podloge) — NISTA nije mijenjano
+
+Tocnost pickova **60,9%**; za nulu uz prosjecnu kvotu 1,60 treba **62,6%**. Manjak je 1,7pp,
+ROI po ravnom ulogu -5,2%. Po razredima kvota nijedna razlika nije znacajna (svi P > 0,13),
+ukljucujuci ">1,90 nosi +11,9% ROI" (P=0,558) — smjer se poklapa s nalazom s trave i zemlje,
+dokaz nije.
+
+Tiketi: 4 para 2W-19L, 5 parova 1W-14L, 6 parova 1W-7L; ukupno 4W-41L (-43%). Noge su blizu
+nule, tiketi gube 43% — razlika je mnozenje blago negativnog ruba kroz 4-6 nogu, dodatno
+pogorsano time sto noge dijele turnir i uvjete pa padaju zajedno. Ilustracija iz loga: tiket
+od 27.07. imao je **5 od 6 tocnih pogodaka i svejedno propao** (Tommy Paul @1,35).
+Ovo je odluka o strategiji (broj parova / minimalna kvota), ne kod — ceka korisnika.
+
+---
+
 ## 2026-08-07 (b) — Break lopte nikad nisu stigle do modela + servis/povrat u snapshot
 
 **Povod:** korisnik odobrio biljezenje `hold_pct` / `return_pct` / `serve_points_won` uz

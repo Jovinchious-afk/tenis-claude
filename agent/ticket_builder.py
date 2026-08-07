@@ -76,6 +76,23 @@ def _is_hard(p) -> bool:
     return "hard" in (p.get("match", {}).get("surface", "") or "").lower()
 
 
+def _surface_label(p) -> str:
+    """Naziv podloge za ISPIS (grass/clay/hard/'?'), nikad za odluku.
+
+    Dodano 07.08.2026 jer su dva ispisa u selekciji imala zaostale natpise iz doba kad je
+    confidence floor vrijedio samo za travu i zemlju: skupni ispis je i na hard kartici
+    pisao "Grass/clay disciplina", a value-override je hard pick nazivao "grass" (jedini
+    izbor bio je `"clay" if _is_clay(p) else "grass"`). Ponašanje je oba puta bilo ispravno
+    — krivo se samo zvalo, što zbunjuje pri čitanju logova s GitHub Actionsa."""
+    if _is_clay(p):
+        return "clay"
+    if _is_grass(p):
+        return "grass"
+    if _is_hard(p):
+        return "hard"
+    return "?"
+
+
 def _needs_conf_floor(p) -> bool:
     """Podloge s confidence floorom u selekciji: grass (22.06.) + clay (11.07.) + hard (18.07.).
     Clay dokaz: pickovi ispod 63% nisu ni ulazili u clay korpus, ali zona 66-70% pobjeđivala
@@ -243,8 +260,10 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
     if min_odds_override is not None:
         cfg["min_combined_odds"] = min_odds_override
 
-    # ── Grass + clay selekcijska disciplina + value-override ────────────────
-    # Osnovno: grass/clay pick prolazi samo ako je modelov VLASTITI confidence >= 63%.
+    # ── Selekcijska disciplina (SVE podloge) + value-override ───────────────
+    # Naslov je do 07.08.2026 glasio "Grass + clay" — zaostatak iz doba prije 18.07., kad je
+    # floor prosiren i na hard. `_needs_conf_floor` pokriva sve tri podloge.
+    # Osnovno: pick prolazi samo ako je modelov VLASTITI confidence >= 63%.
     # Grass: filtrira coinflipove (n=73, lipanj 2026: grass <63% pobjeđivali ~40%).
     # Clay (revizija 2026-07-11): prošireno s grassa — ista strukturna bolest, gora
     # kalibracija (66-70% zona pobjeđivala 38%, prosjek conf 69% vs stvarnih 53%).
@@ -282,17 +301,22 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
     value_candidates.sort(key=lambda p: _pick_edge(p), reverse=True)
     value_keep = {id(p) for p in value_candidates[:VALUE_MAX_PICKS]}
 
-    n_before = len(predictions)
-    predictions = [p for p in predictions
-                   if not _needs_conf_floor(p)
-                   or (p.get("confidence") or 0) >= conf_floor
-                   or id(p) in value_keep]
-    n_dropped = n_before - len(predictions)
+    def _passes_floor(p) -> bool:
+        return (not _needs_conf_floor(p)
+                or (p.get("confidence") or 0) >= conf_floor
+                or id(p) in value_keep)
+
+    dropped_by_floor = [p for p in predictions if not _passes_floor(p)]
+    predictions = [p for p in predictions if _passes_floor(p)]
+    n_dropped = len(dropped_by_floor)
     if n_dropped:
-        print(f"  Grass/clay disciplina: izbačeno {n_dropped} pickova ispod {conf_floor}% "
-              f"(modelov confidence, ne kvota).")
+        from collections import Counter
+        _by_surf = Counter(_surface_label(p) for p in dropped_by_floor)
+        _detail = ", ".join(f"{k} {v}" for k, v in sorted(_by_surf.items()))
+        print(f"  Selekcijska disciplina: izbačeno {n_dropped} pickova ispod {conf_floor}% "
+              f"(modelov confidence, ne kvota) — {_detail}.")
     for p in value_candidates[:VALUE_MAX_PICKS]:
-        surf = "clay" if _is_clay(p) else "grass"
+        surf = _surface_label(p)
         print(f"  Value-override ({surf}): {p.get('pick','')} conf={p.get('confidence',0):.0f}% "
               f"edge={_pick_edge(p):.1f}pp — zadržan ispod floora zbog izraženog value-a.")
 

@@ -1054,7 +1054,18 @@ def _previous_tournament_level(matches: list) -> str:
 
 
 def _avg_opponent_elo(matches: list, elo_data: dict) -> str:
-    """Compute average ELO of last 10 opponents — quality-of-opposition signal."""
+    """Compute average ELO of last 10 opponents — quality-of-opposition signal.
+
+    ZA REVIZIJU (uoceno 07.08.2026 iz GitHub Actions logova): protivnici bez ELO-a se TIHO
+    ISPUSTAJU, a oni koji nedostaju sustavno su SLABIJI igraci — kvalifikanti, challengeri,
+    wildcardi kojih nema u `elo_cache` (559 igraca). U logu od 27.07. ima nekoliko desetaka
+    `ELO MISS` redaka po jednom runu. Posljedica ide u jednom smjeru: prosjek ispada
+    PREVISOK, pa igrac koji je punio omjer protiv slabe konkurencije izgleda kao da je
+    pobjedjivao jake. A ovo je bas nas "kvalitetom prilagodjen" signal forme.
+    Koliko je to veliko NE ZNAMO jer ne biljezimo koliko je protivnika uslo u prosjek.
+    Prijedlog za reviziju: vratiti i broj koristenih protivnika i spremiti ga u
+    context_snapshot, pa da se pristranost moze izmjeriti umjesto naslucivati.
+    Do tada ne dirati — ispravak bez mjerenja samo bi pomaknuo gresku u drugom smjeru."""
     from agent import data_fetcher as _df
     elos = []
     for m in matches[:10]:

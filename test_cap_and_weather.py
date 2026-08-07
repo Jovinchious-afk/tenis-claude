@@ -516,6 +516,37 @@ _h = _hl.md5((_surface_specific_rules("Hard") + _pr.ANALYSIS_PROMPT_TEMPLATE)
 # vrijednost ovdje i zabiljezi izmjenu u MODEL_CHANGELOG. Ako nije bilo namjerno, vrati je.
 check("hard rules_hash je i dalje 0477edbb (zamrznuta era)", _h == "0477edbb", _h)
 
+print("\n=== 15. Natpisi podloge u selekciji (07.08.2026) ===")
+from agent import ticket_builder as _tbm
+_mk = lambda s: {"match": {"surface": s}}
+check("hard se zove 'hard' (prije: 'grass')", _tbm._surface_label(_mk("Hard")) == "hard")
+check("indoor hard se zove 'hard'", _tbm._surface_label(_mk("Indoor Hard")) == "hard")
+check("clay se zove 'clay'", _tbm._surface_label(_mk("Clay")) == "clay")
+check("grass se zove 'grass'", _tbm._surface_label(_mk("Grass")) == "grass")
+check("nepoznata podloga daje '?', ne pogadja", _tbm._surface_label(_mk("Carpet")) == "?")
+_tbsrc = open("agent/ticket_builder.py", encoding="utf-8").read()
+# stari natpisi smiju ostati SAMO u docstringu koji objasnjava popravak
+_code = "\n".join(l for l in _tbsrc.splitlines()
+                  if not l.strip().startswith("#") and "pisao \"Grass/clay" not in l
+                  and "izbor bio je" not in l)
+check("stari skupni natpis maknut iz koda", "Grass/clay disciplina" not in _code)
+check("stari grass/clay ternar maknut iz koda",
+      '"clay" if _is_clay(p) else "grass"' not in _code)
+check("floor pokriva sve tri podloge",
+      all(_tbm._needs_conf_floor(_mk(s)) for s in ("Hard", "Clay", "Grass")))
+
+print("\n=== 16. Stavke na popisu za reviziju zapisane u kodu ===")
+_rdsrc = open("agent/run_daily.py", encoding="utf-8").read()
+_wf = open(".github/workflows/daily_ticket.yml", encoding="utf-8").read()
+check("avg_opponent_elo nosi biljesku o pristranosti",
+      "ZA REVIZIJU" in _rdsrc and "PREVISOK" in _rdsrc)
+check("workflow nosi biljesku o PYTHONUNBUFFERED",
+      "PYTHONUNBUFFERED" in _wf and "ZA REVIZIJU" in _wf)
+check("timeout je 35 (popravljeno nakon prekida 02.08.)", "timeout-minutes: 35" in _wf)
+check("PYTHONUNBUFFERED jos NIJE aktiviran (samo biljeska)",
+      'PYTHONUNBUFFERED: "1"' not in _wf.replace("# ", "").split("env:")[1]
+      if "env:" in _wf else True)
+
 print("\n" + "=" * 60)
 if _fails:
     print(f"PALO: {len(_fails)}")
