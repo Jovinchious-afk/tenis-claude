@@ -1246,6 +1246,18 @@ def _infer_rounds(matches: list, screenshot_odds: dict = None,
         if max_for_current is not None and n <= max_for_current:
             continue  # API-jeva oznaka je fizički moguća — vjeruj joj
 
+        # ZA REVIZIJU (uoceno 07.08.2026): ljestvice ispod mogu vratiti ISTU oznaku koja je
+        # maloprije proglasena nemogucom, pa se kriva oznaka ne popravi. Uzrok: pragovi
+        # (`>= 4`, `>= 8`) ukljucuju i maksimum runde ISPOD, a ovamo se dolazi samo kad je
+        # n VECI od maksimuma trenutne oznake — dakle prava runda je nuzno RANIJA (veca).
+        # Pogodjeni slucajevi:
+        #   ATP 250/500: oznaka QF  uz n=5..7   -> `n >= 4`  vrati QF  (max QF je 4)
+        #   ATP 250/500: oznaka R16 uz n=9..15  -> `n >= 8`  vrati R16 (max R16 je 8)
+        #   sve razine:  oznaka SF  uz n=3      -> `n in (2,3)` vrati SF (max SF je 2)
+        # Steta je ogranicena — NE stvara novu krivu oznaku, samo ne popravi staru.
+        # Popravak bi bio "inferred mora biti strogo ranija runda od current_round", ali to
+        # mijenja rundu koja ide u prompt, dakle i pickove; model je zamrznut. Ne dirati bez
+        # odluke na reviziji.
         if "Grand Slam" in level:
             if n >= 32:   inferred = "R128"
             elif n >= 16: inferred = "R64"

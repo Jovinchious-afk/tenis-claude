@@ -42,6 +42,14 @@ grass/clay/hard/'?', a skupni ispis sada i razlaze broj po podlozi
 
 ### Dodano na popis za reviziju (zapisano uz kod, NIJE implementirano)
 
+0. **Ljestvica procjene runde moze vratiti istu nemogucu oznaku.** Pragovi (`>= 4`, `>= 8`)
+   ukljucuju i maksimum runde ISPOD, a do procjene se dolazi samo kad je n VECI od maksimuma
+   trenutne oznake — dakle prava runda je nuzno ranija. Pogodjeni slucajevi: ATP 250/500
+   oznaka `QF` uz n=5..7 vrati `QF`; oznaka `R16` uz n=9..15 vrati `R16`; sve razine oznaka
+   `SF` uz n=3 vrati `SF`. Steta je ogranicena — ne stvara novu krivu oznaku, samo ne popravi
+   staru. Popravak ("inferred mora biti strogo ranija runda od current_round") mijenja rundu
+   koja ide u prompt, dakle i pickove. Biljeska stoji uz ljestvice u `_infer_rounds`.
+
 1. **`PYTHONUNBUFFERED=1`** u workflow. Python puferira stdout pa se ispis pojavljuje u
    nakupinama (27.07.: 4,5 minute tisine pa sve odjednom). Kad je run 02.08. prekinut na 20
    minuta, iz loga se NIJE moglo vidjeti gdje je zapeo — timeout je podignut zakljucivanjem,
