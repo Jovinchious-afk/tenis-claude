@@ -9,6 +9,62 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-08-07 (b) — Break lopte nikad nisu stigle do modela + servis/povrat u snapshot
+
+**Povod:** korisnik odobrio biljezenje `hold_pct` / `return_pct` / `serve_points_won` uz
+pitanje moze li se to uopce izvuci iz API-ja. Provjera sirovog odgovora otkrila je vecu stvar.
+
+### NALAZ: `break_points_saved` i `break_points_converted` UVIJEK su bili None
+
+`get_player_stats` je citao `breakPointOf` / `breakPointSave` / `breakPoint`, a API vraca
+`breakPointFacedGm` / `breakPointSavedGm` / `breakPointChanceGm` / `breakPointWonGm`.
+`.get()` na nepostojeci kljuc vraca None bez greske, pa je prompt od prvog dana ispisivao
+doslovno **"BP saved: None | BP converted: None"** za oba igraca. Nista to nije javljalo.
+
+Zasto je to skupo: analiza Montreala istog dana pokazala je da break lopte odlucuju mec —
+tko napravi vise breakova od protivnika ide **14W-1L**, tko manje **1W-12L**; nas pick u
+porazima prima **8,8** break lopti naspram **5,5** u pobjedama (p=0,028), dok razlika u
+iskoristenosti vlastitih prilika nije znacajna (p=0,380). Jedina varijabla koja cisto
+razdvaja pobjede od poraza bila je jedina koju model nije vidio.
+
+**Nazivi popravljeni, ali prompt NAMJERNO ostaje nepromijenjen** — zastavica
+`predictor._BP_TO_PROMPT = False`. Otvaranje tog podatka mijenja pickove, a model je zamrznut
+radi cistog pripisivanja do revizije 08.-09.08. Vrijednost se od danas biljezi i mjeri.
+Na reviziji je to izmjena jedne linije.
+
+### Dvije pristranosti u postojecim brojkama (utvrdjeno, NIJE mijenjano)
+
+**1. `return_points_won` sustavno precjenjuje za +2,33pp.** Racuna se kao NEPONDERIRANI
+prosjek povrata na 1. i 2. servis, a prvi servis nosi ~60% return-poena i povrat je ondje
+bitno tezi (~31% naspram ~51%). Izmjereno na 14 igraca: raspon +2,0 do +2,7, uvijek isti smjer.
+Pravilo 13 ima pragove na 40%, "unutar 1pp od 42%", 43-45% i 45%+ — koraci od 1pp na velicini
+pomaknutoj za 2,3pp. Rulu je 02.08. dodan "sliding threshold" bas jer se *"defused by a hair
+in THREE straight losses"*; dokumentirani primjer u samom pravilu je "De Minaur 42.5%", a
+njegov stvarni ponderirani povrat je **40,3%**.
+
+**2. `hold_pct` je proxy s mnoziteljem 1,9.** API ne daje broj gem-ova na servisu (provjereno
+na sirovom odgovoru), pa se pravi hold% ne moze izracunati — korisnikova pretpostavka bila je
+tocna. Posljedica mnozitelja: prompt vidi razliku gotovo dvostruko vecu nego sto jest, pa
+pragovi stvarno znace: "hold gap >= 3pp" -> 1,58pp poena na servisu, ">= 5pp odlucujuci" ->
+2,63pp, "protivnik drzi >= 82%" -> 64,2% poena na servisu. Izmjereno na 58 nastupa u Montrealu:
+prosjek 62,5%, **SD 7,9pp**. Pravila razlucuju na razlikama 3-5x manjima od sluma unutar meca.
+
+Obje vrijednosti ostaju nepromijenjene u promptu jer su pragovi pravila empirijski ugadjani
+PROTIV njih; ispravak broja bez ponovnog ugadjanja pragova pomaknuo bi ponasanje u
+neizmjerenom smjeru. Ispravljene verzije (`return_points_won_weighted`, `hold_pct_from_bp`)
+se od danas biljeze usporedno.
+
+### context_snapshot v8 (samo biljezenje, nula dodatnih API poziva)
+
+Po igracu: `serve_pts_won`, `hold_pct`, `hold_pct_from_bp`, `return_won`,
+`return_won_weighted`, `bp_saved`, `bp_converted`, `first_serve_pct`; plus `bp_in_prompt`.
+Sve dolazi iz `get_player_stats` koji se ionako vec poziva.
+
+Svrha: bez ovoga se ne moze izmjeriti KOLIKO CESTO pravila 13 i 16 uopce okinu ni kako prolaze
+pickovi na koje su okinula — a to je preduvjet za bilo kakvu odluku o pragovima na reviziji.
+
+---
+
 ## 2026-08-07 — Duplikati analiza, runde, ELO trag (revizija evidencije, ne modela)
 
 **Povod:** korisnik je u Supabaseu uocio da su neki Montreal mecevi oznaceni QF, a vecina

@@ -448,6 +448,49 @@ check("elo_cache_age_days postoji", hasattr(_db, "elo_cache_age_days"))
 check("upsert_elo_cache izricito upisuje updated_at",
       '"updated_at": now' in inspect.getsource(_db.upsert_elo_cache))
 
+print("\n=== 13. Break lopte + servis/povrat (07.08.2026) ===")
+from agent import predictor as _pr
+from agent import data_fetcher as _df
+
+# (a) nazivi polja: kod mora traziti ono sto API stvarno vraca
+_src = inspect.getsource(_df.get_player_stats)
+check("trazi breakPointFacedGm (ne breakPointOf)", 'bps.get("breakPointFacedGm")' in _src)
+check("trazi breakPointSavedGm", 'bps.get("breakPointSavedGm")' in _src)
+check("trazi breakPointChanceGm", 'bpr.get("breakPointChanceGm")' in _src)
+check("trazi breakPointWonGm", 'bpr.get("breakPointWonGm")' in _src)
+check("stari krivi nazivi vise se ne koriste",
+      'bps.get("breakPointOf")' not in _src and 'bpr.get("breakPoint")' not in _src)
+
+# (b) ponderirani povrat mora biti NIZI od neponderiranog (1. servis nosi vise poena)
+_o1of, _o1w, _o2of, _o2w = 30954, 21400, 19187, 9285      # stvarni Norrie brojevi
+_r1 = (_o1of - _o1w) / _o1of * 100
+_r2 = (_o2of - _o2w) / _o2of * 100
+_unw = (_r1 + _r2) / 2
+_wei = ((_o1of - _o1w) + (_o2of - _o2w)) / (_o1of + _o2of) * 100
+check("ponderirani povrat je nizi od neponderiranog", _wei < _unw)
+check("razlika je oko 2,4pp (Norrie)", 2.0 < (_unw - _wei) < 2.8,
+      f"{_unw - _wei:.2f}")
+
+# (c) prompt MORA ostati nepromijenjen dok traje zamrzavanje
+check("_BP_TO_PROMPT je False (zamrznuto do revizije)", _pr._BP_TO_PROMPT is False)
+_psrc = inspect.getsource(_pr.build_analysis_prompt) if hasattr(_pr, "build_analysis_prompt") else ""
+_all = open("agent/predictor.py", encoding="utf-8").read()
+check("prompt cita BP kroz zastavicu, ne izravno",
+      'p1_bp_saved=p1.get("break_points_saved") if _BP_TO_PROMPT else None' in _all)
+check("p2 isto", 'p2_bp_saved=p2.get("break_points_saved") if _BP_TO_PROMPT else None' in _all)
+
+# (d) context_snapshot v8 nosi i ono sto prompt vidi i ispravljene vrijednosti
+for f in ("p1_serve_pts_won", "p1_hold_pct", "p1_hold_pct_from_bp", "p1_return_won",
+          "p1_return_won_weighted", "p1_bp_saved", "p1_bp_converted", "p1_first_serve_pct",
+          "bp_in_prompt"):
+    check(f"snapshot biljezi {f}", f'"{f}"' in _all)
+check("context_version podignut na 8", '"context_version": 8' in _all)
+
+# (e) nove vrijednosti ne smiju procuriti u prompt template
+check("prompt template nema novih polja",
+      "hold_pct_from_bp" not in _pr.ANALYSIS_PROMPT_TEMPLATE
+      and "return_won_weighted" not in _pr.ANALYSIS_PROMPT_TEMPLATE)
+
 print("\n" + "=" * 60)
 if _fails:
     print(f"PALO: {len(_fails)}")

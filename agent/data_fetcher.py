@@ -533,10 +533,40 @@ def get_player_stats(player_id: str) -> dict:
     ret_won_2nd  = _pct(opp_ss_of - (opp_w2s or 0), opp_ss_of) if opp_ss_of else None
     ret_pct = round((((ret_won_1st or 0) + (ret_won_2nd or 0)) / 2), 1) if ret_won_1st else None
 
-    bp_faced  = safe_float(bps.get("breakPointOf"))
-    bp_saved  = safe_float(bps.get("breakPointSave"))
-    bp_opp    = safe_float(bpr.get("breakPointOf"))
-    bp_conv   = safe_float(bpr.get("breakPoint"))
+    # POZNATA PRISTRANOST (utvrdjeno 07.08.2026, NIJE popravljeno — vidi zasto ispod).
+    # `ret_pct` gore je NEPONDERIRANI prosjek povrata na 1. i 2. servis. Prvi servis nosi
+    # ~60% svih return-poena, a povrat je ondje bitno tezi (~31% naspram ~51% na drugom),
+    # pa prosjek bez pondera sustavno PRECJENJUJE povrat. Izmjereno na 14 igraca iz naseg
+    # korpusa: +2,33pp u prosjeku, raspon +2,0 do +2,7, i UVIJEK u istom smjeru.
+    # Zasto to nije sitnica: pravilo 13 (SERVE-DOMINANT OPPONENT CAP) ima pragove na 40%,
+    # "unutar 1pp od 42%", 43-45% i 45%+ — dakle korake od 1pp na velicini koja je pomaknuta
+    # za 2,3pp. Rulu je 02.08. dodan "sliding threshold" bas zato sto se "defused by a hair
+    # in THREE straight losses"; dokumentirani primjer u pravilu je "De Minaur 42.5%", a
+    # njegov stvarni ponderirani povrat je 40,3%.
+    # ZASTO NIJE POPRAVLJENO ODMAH: pragovi pravila 13 empirijski su ugadjani PROTIV ove
+    # pristrane vrijednosti. Ispravak broja bez ponovnog ugadjanja pragova pomaknuo bi
+    # ponasanje u neizmjerenom smjeru, a model je zamrznut. Tocna vrijednost se od danas
+    # BILJEZI (`return_points_won_weighted`) da se razlika moze izmjeriti prije odluke.
+    ret_pct_weighted = None
+    if opp_fs_in and opp_ss_of:
+        _ret_won = (opp_fs_in - (opp_w1s or 0)) + (opp_ss_of - (opp_w2s or 0))
+        ret_pct_weighted = round(_ret_won / (opp_fs_in + opp_ss_of) * 100, 1)
+
+    # NAZIVI POLJA BILI SU KRIVI OD POCETKA (utvrdjeno 07.08.2026). Kod je trazio
+    # `breakPointOf` / `breakPointSave` / `breakPoint`, a API vraca `breakPointFacedGm` /
+    # `breakPointSavedGm` / `breakPointChanceGm` / `breakPointWonGm`. `.get()` na nepostojeci
+    # kljuc vraca None bez ijedne greske, pa su `break_points_saved` i `break_points_converted`
+    # UVIJEK bili None — a prompt ih ispisuje ("BP saved: {p1_bp_saved} | BP converted:
+    # {p1_break_conv}"), dakle model je od prvog dana citao "BP saved: None | BP converted: None".
+    # Zasto je to skupo: analiza Montreala (07.08.) pokazala je da break lopte odlucuju mec —
+    # tko napravi vise breakova od protivnika ide 14W-1L, tko manje 1W-12L — a nas pick u
+    # porazima prima 8,8 break lopti naspram 5,5 u pobjedama (p=0,028). Jedina varijabla koja
+    # razdvaja pobjede od poraza bila je jedina koju model nije vidio.
+    # Stari nazivi zadrzani u komentaru da se pri sljedecoj promjeni API-ja zna sto je bilo.
+    bp_faced  = safe_float(bps.get("breakPointFacedGm"))
+    bp_saved  = safe_float(bps.get("breakPointSavedGm"))
+    bp_opp    = safe_float(bpr.get("breakPointChanceGm"))
+    bp_conv   = safe_float(bpr.get("breakPointWonGm"))
 
     # Total serve points = first serve attempts (fs_of) = all service points played
     total_serve_pts = safe_float(fs_of) or 1
@@ -546,10 +576,34 @@ def get_player_stats(player_id: str) -> dict:
     # Hold% proxy: derived from service points won % (high correlation)
     # True hold% requires service games won data which API doesn't expose directly
     # Proxy formula: calibrated from ATP tour data (serve pts won 65%→~90% hold)
+    #
+    # POTVRDJENO 07.08.2026 pregledom sirovog odgovora: API doista NE daje broj gem-ova na
+    # servisu. Dostupno je samo `firstServeOfGm` (poeni), pa se pravi hold% ne moze izracunati.
+    # OGRADA NA OVAJ PROXY: mnozitelj 1,9 znaci da prompt vidi razliku gotovo DVOSTRUKO vecu
+    # nego sto jest. Pragovi u pravilima izrazeni su na toj napuhanoj skali, pa stvarno znace:
+    #   "hold gap >= 3pp" (pravilo 16) -> 1,58pp razlike u poenima na servisu
+    #   "hold gap >= 5pp je odlucujuci" -> 2,63pp
+    #   "protivnik drzi >= 82%" (pravilo 13) -> 64,2% poena na servisu
+    # Izmjereno na 58 igracevih nastupa u Montrealu: prosjek 62,5%, SD 7,9pp. Pravila dakle
+    # razlucuju na razlikama tri do pet puta manjima od sluma unutar jednog meca.
     hold_pct = None
     if serve_pts_won_pct:
         # Linear approximation: 60%=75hold, 65%=85hold, 70%=93hold, 75%=97hold
         hold_pct = round(min(99, max(50, (serve_pts_won_pct - 50) * 1.9 + 55)), 1)
+
+    # Alternativna procjena hold% iz STVARNO IZGUBLJENIH BREAKOVA (07.08.2026, samo se
+    # biljezi — ne ide u prompt i ne mijenja nijedan pick). Izgubljeni breakovi su
+    # `breakPointFacedGm - breakPointSavedGm`, sto je tocno ono sto hold% mjeri; jedina
+    # pretpostavka je broj gem-ova, procijenjen iz poena na servisu uz ~6,5 poena po gemu
+    # (ATP prosjek). To je bitno manje osjetljivo od linearnog mnozitelja 1,9 iznad.
+    # Na 14 provjerenih igraca linearni proxy stoji +1,63pp iznad ove procjene (raspon
+    # +0,3 do +2,5). Skuplja se da se prije revizije zna koja procjena bolje predvidja.
+    hold_pct_from_bp = None
+    if total_serve_pts > 100 and bp_faced is not None and bp_saved is not None:
+        _games = total_serve_pts / 6.5
+        _breaks = max(0.0, bp_faced - bp_saved)
+        if _games > 0:
+            hold_pct_from_bp = round(min(99.0, max(30.0, (1 - _breaks / _games) * 100)), 1)
 
     # Break% proxy: return points won is best available signal
     # True break% = return games won / return games played (not in API)
@@ -567,7 +621,14 @@ def get_player_stats(player_id: str) -> dict:
         "hold_pct":                hold_pct,
         "break_points_saved":      _pct(bp_saved, bp_faced),
         "break_points_converted":  _pct(bp_conv, bp_opp),
+        "break_points_faced":      bp_faced,
+        "break_points_chances":    bp_opp,
         "return_points_won":       ret_pct,
+        # Ispravno ponderirani povrat (07.08.2026) — SAMO ZA BILJEZENJE. `return_points_won`
+        # iznad ostaje nepromijenjen jer ga cita prompt, a pragovi pravila 13 ugadjani su
+        # protiv njega. Vidi obrazlozenje kod izracuna.
+        "return_points_won_weighted": ret_pct_weighted,
+        "hold_pct_from_bp":        hold_pct_from_bp,
         "break_pct":               break_pct,
     }
 

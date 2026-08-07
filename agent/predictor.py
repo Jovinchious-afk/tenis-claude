@@ -62,6 +62,22 @@ def _get_client() -> anthropic.Anthropic:
     return _client
 
 
+# Puštaju li se break-lopta statistike u prompt (07.08.2026).
+#
+# Do 07.08. su `break_points_saved` i `break_points_converted` bili UVIJEK None jer je
+# `get_player_stats` tražio krive nazive polja (`breakPointOf` umjesto `breakPointFacedGm`
+# itd.) — `.get()` na nepostojeći ključ ne baca grešku, pa je model od prvog dana čitao
+# "BP saved: None | BP converted: None" i to nitko nije primijetio.
+#
+# Nazivi su popravljeni, ali zastavica ostaje False jer bi otvaranje tog podatka promijenilo
+# pickove, a model je zamrznut radi čistog pripisivanja do revizije 08.-09.08. Vrijednosti se
+# od danas bilježe u `context_snapshot` (v8) pa se prije odluke može izmjeriti što bi donijele.
+#
+# Analiza Montreala (07.08.) sugerira da je dobitak velik: tko napravi više breakova od
+# protivnika ide 14W-1L, tko manje 1W-12L, a naš pick u porazima prima 8,8 break lopti
+# naspram 5,5 u pobjedama (p=0,028). Postavljanje na True je jednolinijska izmjena.
+_BP_TO_PROMPT = False
+
 ANALYSIS_PROMPT_TEMPLATE = """You are an expert tennis analyst. Evaluate the following match using only the provided data and model weights.
 
 === MATCH ===
@@ -939,8 +955,15 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         p2_tb_record=_format_wl_record(p2.get("tiebreak_record"), "tiebreaks"),
         p1_decider_record=_format_wl_record(p1.get("decider_record"), "deciding sets"),
         p2_decider_record=_format_wl_record(p2.get("decider_record"), "deciding sets"),
-        p1_bp_saved=p1.get("break_points_saved", "N/A"),
-        p1_break_conv=p1.get("break_points_converted", "N/A"),
+        # NAMJERNO None, IAKO PODATAK OD 07.08.2026 POSTOJI. Do tog dana su ova dva polja
+        # bila None zbog krivih naziva kljuceva u `get_player_stats` (vidi ondje) — dakle
+        # model je cijelo vrijeme citao "BP saved: None". Naziv je popravljen, ali otvaranje
+        # tog podatka prema promptu MIJENJA PICKOVE, a model je zamrznut radi cistog
+        # pripisivanja do revizije 08.-09.08. Zato se vrijednost od danas BILJEZI u
+        # context_snapshot (v8) i mjeri, a prompt ostaje doslovno isti kao u zamrznutoj eri.
+        # NA REVIZIJI: zamijeniti s p1.get("break_points_saved") i p1.get("break_points_converted").
+        p1_bp_saved=p1.get("break_points_saved") if _BP_TO_PROMPT else None,
+        p1_break_conv=p1.get("break_points_converted") if _BP_TO_PROMPT else None,
         p1_return_won=p1.get("return_points_won", "N/A"),
         p1_matches_7d=p1.get("matches_7d", 0),
         p1_sets_7d=p1.get("sets_7d", 0) or "N/A",
@@ -963,8 +986,8 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         p2_aces=p2.get("aces_per_game", "N/A"),
         p2_first_serve_won=p2.get("first_serve_points_won", "N/A"),
         p2_second_serve_won=p2.get("second_serve_points_won", "N/A"),
-        p2_bp_saved=p2.get("break_points_saved", "N/A"),
-        p2_break_conv=p2.get("break_points_converted", "N/A"),
+        p2_bp_saved=p2.get("break_points_saved") if _BP_TO_PROMPT else None,
+        p2_break_conv=p2.get("break_points_converted") if _BP_TO_PROMPT else None,
         p2_return_won=p2.get("return_points_won", "N/A"),
         p2_matches_7d=p2.get("matches_7d", 0),
         p2_sets_7d=p2.get("sets_7d", 0) or "N/A",
@@ -1082,7 +1105,7 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         #     i ne utjece na pickove — prvo mjerimo je li signal stvaran (vidi _common_opponents).
         _wd = match.get("weather_data") or {}
         result["context_snapshot"].update({
-            "context_version": 7,
+            "context_version": 8,
             "weather_temp_c": _wd.get("temp_c"),
             "weather_humidity": _wd.get("humidity"),
             "weather_wind_kmh": _wd.get("wind_kmh"),
@@ -1114,6 +1137,41 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             "common_opponents": match.get("common_opponents") or None,
             "cap_enforced": None,
             "cap_prose_mismatch": None,
+            # v8 (07.08.2026, korisnikov zahtjev): servis/povrat/break lopte — SAMO ZA
+            # BILJEZENJE. Nijedan pick se ne mijenja; sve dolazi iz `get_player_stats` koji
+            # se ionako vec poziva, pa NEMA dodatnih API poziva.
+            #
+            # Zasto bas ovo: analiza Montreala (07.08., n=62 / n=29 sa statistikom) pokazala je
+            # da 10 od 11 analiza gubitaka imenuje servis kao promaseni faktor, a da u mecu
+            # razlikuju samo poeni osvojeni na servisu (1. servis +8,8pp p=0,004, 2. servis
+            # +10,1pp p=0,008) — dok asovi (p=0,463) i dvostruke greske (p=0,417) ne razlikuju
+            # nista. Bez ovih polja u bazi ne moze se izmjeriti KOLIKO CESTO pravila 13 i 16
+            # uopce okinu ni kako prolaze pickovi na koje su okinula.
+            #
+            # Za svaku velicinu biljezi se i ono sto prompt vidi i ispravljena vrijednost, da
+            # se razlika moze izmjeriti prije nego se odluci sto mijenjati:
+            #   hold_pct           -> linearni proxy (x1,9), ono sto prompt cita
+            #   hold_pct_from_bp   -> procjena iz stvarno izgubljenih breakova
+            #   return_won         -> neponderirani prosjek, ono sto prompt cita (+2,33pp pristran)
+            #   return_won_weighted-> ispravno ponderirano
+            #   bp_saved/bp_conv   -> od 07.08. konacno postoje; prompt ih JOS NE VIDI (_BP_TO_PROMPT)
+            "p1_serve_pts_won": p1.get("serve_points_won"),
+            "p2_serve_pts_won": p2.get("serve_points_won"),
+            "p1_hold_pct": p1.get("hold_pct"),
+            "p2_hold_pct": p2.get("hold_pct"),
+            "p1_hold_pct_from_bp": p1.get("hold_pct_from_bp"),
+            "p2_hold_pct_from_bp": p2.get("hold_pct_from_bp"),
+            "p1_return_won": p1.get("return_points_won"),
+            "p2_return_won": p2.get("return_points_won"),
+            "p1_return_won_weighted": p1.get("return_points_won_weighted"),
+            "p2_return_won_weighted": p2.get("return_points_won_weighted"),
+            "p1_bp_saved": p1.get("break_points_saved"),
+            "p2_bp_saved": p2.get("break_points_saved"),
+            "p1_bp_converted": p1.get("break_points_converted"),
+            "p2_bp_converted": p2.get("break_points_converted"),
+            "p1_first_serve_pct": p1.get("first_serve_pct"),
+            "p2_first_serve_pct": p2.get("first_serve_pct"),
+            "bp_in_prompt": _BP_TO_PROMPT,
         })
         _enforce_stated_caps(result)
         result["context_snapshot"]["cap_enforced"] = result.get("cap_enforced")
