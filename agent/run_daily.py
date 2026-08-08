@@ -1084,7 +1084,12 @@ def _avg_opponent_elo(matches: list, elo_data: dict) -> str:
     (`_avg_opponent_elo_n`, ide u context_snapshot v9). Sama vrijednost je NEPROMIJENJENA —
     prompt dobiva isti string kao i dosad, pa se nijedan pick ne mijenja. Kad se skupi
     uzorak, usporediti WR mecheva gdje je prosjek racunat iz 9-10 protivnika naspram onih
-    iz 4-5; ako se razlikuju, pristranost je stvarna i tek onda je treba ispravljati."""
+    iz 4-5; ako se razlikuju, pristranost je stvarna i tek onda je treba ispravljati.
+
+    ZA REVIZIJU (08.08.2026 12:30): neovisno o pristranosti, promptu bi uz vrijednost trebao
+    ici i BROJ protivnika iz kojeg je izracunata — model danas cita "Avg opponent ELO: 1712"
+    jednako uvjerljivo bez obzira dolazi li iz deset protivnika ili iz cetiri. Vidi
+    DECISION_INPUTS.md tocku 4; ide u paket s ostalim mjerama pouzdanosti."""
     from agent import data_fetcher as _df
     elos = []
     for m in matches[:10]:

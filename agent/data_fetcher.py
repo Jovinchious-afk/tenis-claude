@@ -586,6 +586,13 @@ def get_player_stats(player_id: str) -> dict:
     #   "protivnik drzi >= 82%" (pravilo 13) -> 64,2% poena na servisu
     # Izmjereno na 58 igracevih nastupa u Montrealu: prosjek 62,5%, SD 7,9pp. Pravila dakle
     # razlucuju na razlikama tri do pet puta manjima od sluma unutar jednog meca.
+    #
+    # ZA REVIZIJU (08.08.2026 12:30): uz vrijednost bi promptu trebalo dolaziti i koliko je
+    # ona pouzdana. Model cita "Hold % (est.): 82,4%" kao cinjenicu, bez ikakve naznake da je
+    # to procjena s rasponom od ~8pp. Hipoteza je da je to isti korijen kao obrnuta
+    # kalibracija iznad 61% (deklarirano 65-67% -> stvarnih 52,2%, n=23): model je siguran
+    # jer mu nista ne govori koliko bi trebao biti nesiguran. Vidi DECISION_INPUTS.md
+    # tocku 4; ide u isti paket kao ispravak povrata i prag 63%, ne zasebno.
     hold_pct = None
     if serve_pts_won_pct:
         # Linear approximation: 60%=75hold, 65%=85hold, 70%=93hold, 75%=97hold

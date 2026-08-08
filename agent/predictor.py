@@ -88,6 +88,11 @@ def _get_client() -> anthropic.Anthropic:
 # `context_version` (8 -> 9). Rezati po hashu ovdje bi spojilo dvije različite ere u jednu.
 _BP_TO_PROMPT = True
 
+# CJELOVIT POPIS ULAZA U ODLUKU: vidi `DECISION_INPUTS.md` (08.08.2026 12:30) — što ulazi u
+# prompt, što u deterministički kod, a što se samo bilježi. Ondje je i otvorena zamjerka o
+# tome da se nesigurne procjene ovdje prikazuju bez ikakve mjere pouzdanosti (npr.
+# `Hold % (est.)` čija je varijacija od meča do meča 7,9pp, a pravila razlučuju na 1,6-2,6pp).
+#
 # OGRADA NA PRAVILO "LATE-ROUND PRICING DISCIPLINE" (zapisano 07.08.2026).
 #
 # Namjerno stoji OVDJE, izvan templatea: `rules_hash` u `_model_stamp` je md5 nad

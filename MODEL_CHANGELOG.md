@@ -7,6 +7,10 @@ selekcijska logika i strateške odluke koje se ne vide iz baze.
 
 Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
+**Referenca ulaza:** `DECISION_INPUTS.md` (od 08.08.2026 12:30) drži popis SVEGA što ulazi u
+odluku o picku — prompt, deterministički kod i ono što se samo bilježi. Kad se nešto od toga
+promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
+
 ---
 
 ## 2026-08-08 11:35 — PUNA HARD REVIZIJA (90 rijesenih analiza)
