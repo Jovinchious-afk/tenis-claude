@@ -59,17 +59,26 @@ def main():
 
     # 1b. Hard revalidacijski okidač (preporuka D, 18.07.2026): hard pravila v1 su pisana
     # BLIND (0 stvarnih pickova u korpusu kad su pisana — vidi MODEL_CHANGELOG.md). Javi
-    # svaki dan dok prag ne bude ručno riješen, umjesto da čekamo da netko ručno primijeti
-    # (isti tip rizika kao "revalidirati nakon 30+ pickova" ostane trajno odgođeno).
+    # svaki dan dok prag ne bude ručno riješen, umjesto da čekamo da netko ručno primijeti.
+    #
+    # ODRAĐENO 08.08.2026 (puna hard revizija na 90 riješenih analiza — vidi MODEL_CHANGELOG).
+    # Okidač je od 18.07. vikao svaki dan; sad se javlja tek na SLJEDEĆI prag, da opet
+    # postane koristan kad se korpus udvostruči umjesto da postane šum koji svi preskaču.
+    _HARD_REVALIDATED_AT = 90        # stanje korpusa na dan zadnje pune revizije
+    _HARD_NEXT_TRIGGER = 180         # sljedeća revizija kad se udvostruči
     try:
         _hard_resolved_n = sum(
             1 for m in db.get_resolved_analyzed_matches(limit=2000)
             if "hard" in (m.get("surface") or "").lower()
         )
-        if _hard_resolved_n >= 30:
-            print(f"  ⚠️ HARD REVALIDACIJA: {_hard_resolved_n} riješenih hard pickova u "
-                  f"analyzed_matches (prag 30 dosegnut) — vrijeme za punu reviziju hard "
-                  f"pravila kao za clay/grass (hard v1 je pisan blind, vidi MODEL_CHANGELOG.md).")
+        if _hard_resolved_n >= _HARD_NEXT_TRIGGER:
+            print(f"  ⚠️ HARD REVALIDACIJA: {_hard_resolved_n} riješenih hard analiza "
+                  f"(prag {_HARD_NEXT_TRIGGER} dosegnut, zadnja revizija bila na "
+                  f"{_HARD_REVALIDATED_AT}) — vrijeme za novu punu reviziju.")
+        else:
+            print(f"  Hard korpus: {_hard_resolved_n} riješenih analiza "
+                  f"(zadnja revizija 08.08.2026 na {_HARD_REVALIDATED_AT}, "
+                  f"sljedeća na {_HARD_NEXT_TRIGGER}).")
     except Exception as e:
         print(f"  Hard revalidacijski okidač preskočen (greška: {e})")
 
@@ -538,6 +547,12 @@ def main():
             # Avg opponent ELO last 10 — quality-adjusted form signal
             p1_avg_opp_elo = _avg_opponent_elo(p1_form.get("matches", []), elo_data)
             p2_avg_opp_elo = _avg_opponent_elo(p2_form.get("matches", []), elo_data)
+            # Koliko je protivnika stvarno uslo u taj prosjek (08.08.2026 11:35) — samo
+            # biljezenje, ne ulazi u prompt. Vidi `_avg_opponent_elo_n`.
+            match["avg_opp_elo_n"] = {
+                "p1": _avg_opponent_elo_n(p1_form.get("matches", []), elo_data),
+                "p2": _avg_opponent_elo_n(p2_form.get("matches", []), elo_data),
+            }
 
             # Common opponents — samo za context_snapshot, NE ulazi u prompt (vidi helper).
             match["common_opponents"] = _common_opponents(
@@ -1065,7 +1080,11 @@ def _avg_opponent_elo(matches: list, elo_data: dict) -> str:
     Koliko je to veliko NE ZNAMO jer ne biljezimo koliko je protivnika uslo u prosjek.
     Prijedlog za reviziju: vratiti i broj koristenih protivnika i spremiti ga u
     context_snapshot, pa da se pristranost moze izmjeriti umjesto naslucivati.
-    Do tada ne dirati — ispravak bez mjerenja samo bi pomaknuo gresku u drugom smjeru."""
+    STANJE 08.08.2026 11:35: broj koristenih protivnika se od danas BILJEZI
+    (`_avg_opponent_elo_n`, ide u context_snapshot v9). Sama vrijednost je NEPROMIJENJENA —
+    prompt dobiva isti string kao i dosad, pa se nijedan pick ne mijenja. Kad se skupi
+    uzorak, usporediti WR mecheva gdje je prosjek racunat iz 9-10 protivnika naspram onih
+    iz 4-5; ako se razlikuju, pristranost je stvarna i tek onda je treba ispravljati."""
     from agent import data_fetcher as _df
     elos = []
     for m in matches[:10]:
@@ -1078,6 +1097,25 @@ def _avg_opponent_elo(matches: list, elo_data: dict) -> str:
     if not elos:
         return "N/A"
     return str(round(sum(elos) / len(elos)))
+
+
+def _avg_opponent_elo_n(matches: list, elo_data: dict) -> dict:
+    """Koliko je protivnika stvarno uslo u `_avg_opponent_elo`, i koliko ih je bilo ukupno.
+
+    Uvedeno 08.08.2026 11:35 — SAMO ZA BILJEZENJE, ne ulazi u prompt. Vidi obrazlozenje
+    u `_avg_opponent_elo`: protivnici bez ELO-a se ispustaju, a nedostaju sustavno slabiji,
+    pa prosjek ispada previsok. Bez ovog broja se velicina te pristranosti ne moze izmjeriti."""
+    from agent import data_fetcher as _df
+    total = used = 0
+    for m in matches[:10]:
+        opp = m.get("opponent", "")
+        if not opp:
+            continue
+        total += 1
+        e = _df.find_player_elo(opp, elo_data).get("elo_overall", 0)
+        if e and e > 1000:
+            used += 1
+    return {"used": used, "total": total}
 
 
 def _city_for_weather(tournament_name: str) -> str:

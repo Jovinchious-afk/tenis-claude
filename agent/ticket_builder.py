@@ -113,7 +113,26 @@ def _needs_conf_floor(p) -> bool:
 # za marginalne favorite) ostaje kao kvalitativna kočnica. Revalidirati s prvih ~30
 # stvarnih hard pickova (okidač u run_daily).
 # GS je podbacivao vs ATP 250 na obje podloge → na hard GS-u (US Open) prag je 65%.
-_HARD_CAUTION_ZONE = (1.43, 1.90)   # uključivo — max 1 po tiketu (vidi _find_best_combination)
+# GRANICA POMAKNUTA 1.90 -> 1.60 (08.08.2026 11:35, uz korisnikovo odobrenje).
+# Zona 1.43-1.90 tretirala je kao jednu cjelinu dvije suprotne polovice. Izmjereno na SVIM
+# hard analizama s kvotom i ishodom, NEFILTRIRANO tiketom (n=84):
+#     1.30-1.43   62,5% pogodak, treba 73,8%  ->  ROI -15,4%  (n=16)
+#     1.43-1.60   57,9% pogodak, treba 66,7%  ->  ROI -13,4%  (n=19)
+#     1.60-1.90   61,5% pogodak, treba 58,4%  ->  ROI  +6,5%  (n=26)   <- JEDINI pozitivan
+#     1.90-2.30   33,3% pogodak                 ->  ROI -36,7%  (n=6)
+# Ograničenje "max 1 po tiketu" tako je gušilo baš raspon koji nam jedini donosi novac, i
+# uzrokovalo analysis-only 04.08. (nije bilo dovoljno parova IZVAN zone da se složi listić).
+#
+# VAŽNA NIJANSA da se ovo kasnije ne pročita krivo: zona i ostatak imaju praktički jednak
+# postotak pogotka (60,4% naspram 61,1%, Fisher p=1,000). Razlika u ROI-u ne dolazi od toga
+# što ondje bolje biramo, nego od toga što su ondje CIJENE poštenije — izvan zone plaćamo
+# cijenu koja pretpostavlja točnost kakvu ne isporučujemo (60,9% naspram 62,6% potrebnih).
+# Zato ovo NIJE dokaz da su srednje kvote "bolji pickovi", nego da su bolje plaćeni.
+#
+# Korisnikova uputa uz ovu izmjenu (08.08.2026): model ne smije izbjegavati veliku kvotu
+# zato što je velika — traži se intrinzična vrijednost para, uz spremnost na 2.00+ kad
+# podaci i sportska argumentacija to nose.
+_HARD_CAUTION_ZONE = (1.43, 1.60)   # uključivo — max 1 po tiketu (vidi _find_best_combination)
 _HARD_CAUTION_ZONE_MAX = 1
 _HARD_GS_MIN_CONF = 65.0
 

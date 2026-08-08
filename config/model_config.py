@@ -71,6 +71,18 @@ TICKET_CONFIG = {
 # kombiniranu kvotu ~6.0 za 4 para, ~9.3 za 5 i ~14.6 za 6 parova da bi tiket bio na nuli.
 # Fiksni donji prag 6.0 znači da su tiketi s 5-6 parova pri dnu raspona matematički
 # nepovoljni — kandidat za sljedeću reviziju (min_combined_odds koji skalira s brojem nogu).
+#
+# POTVRĐENO MJERENJEM 08.08.2026 11:35: stvarni pogodak je 60,9% po nozi (198/325), dakle
+# NIŽI od 63% na kojem je gornji račun rađen — prag za nulu je time još viši. Ishodi po
+# broju parova: 4 para 2W-19L, 5 parova 1W-14L, 6 parova 1W-7L (ukupno 4W-41L, ROI -43%),
+# dok su same noge tek 1,7pp od nule. Gubitak dolazi iz množenja, ne iz loših pickova.
+#
+# KORISNIKOVA UPUTA UZ TO (08.08.2026): granice 4-6 parova i 6-40 kvote OSTAJU nepromijenjene,
+# i cilj NIJE uvijek slagati četiri para pri dnu raspona. Naprotiv — pet ili šest parova je
+# poželjno kad ih prati odgovarajuća kvota (20, 32), a odluku o riziku i graničnoj korisnosti
+# donosi model. Ono što ovaj račun kaže nije "manje parova", nego "ako uzimaš više parova,
+# moraš biti plaćen za njih": šesterac na kvoti 6,5 je matematički osuđen, šesterac na 32 nije.
+# Zato je kandidat za reviziju SKALIRAJUĆI donji prag, ne pomicanje broja parova.
 SURFACE_TICKET_OVERRIDES = {}
 
 # Max kandidata po turniru po danu (danas vs sutra)

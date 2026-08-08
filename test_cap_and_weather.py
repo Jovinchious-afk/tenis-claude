@@ -471,8 +471,8 @@ check("ponderirani povrat je nizi od neponderiranog", _wei < _unw)
 check("razlika je oko 2,4pp (Norrie)", 2.0 < (_unw - _wei) < 2.8,
       f"{_unw - _wei:.2f}")
 
-# (c) prompt MORA ostati nepromijenjen dok traje zamrzavanje
-check("_BP_TO_PROMPT je False (zamrznuto do revizije)", _pr._BP_TO_PROMPT is False)
+# (c) 07.08. je BP bio zamrznut; UKLJUCEN 08.08.2026 11:35 nakon hard revizije
+check("_BP_TO_PROMPT je True (ukljuceno 08.08.)", _pr._BP_TO_PROMPT is True)
 _psrc = inspect.getsource(_pr.build_analysis_prompt) if hasattr(_pr, "build_analysis_prompt") else ""
 _all = open("agent/predictor.py", encoding="utf-8").read()
 check("prompt cita BP kroz zastavicu, ne izravno",
@@ -484,7 +484,7 @@ for f in ("p1_serve_pts_won", "p1_hold_pct", "p1_hold_pct_from_bp", "p1_return_w
           "p1_return_won_weighted", "p1_bp_saved", "p1_bp_converted", "p1_first_serve_pct",
           "bp_in_prompt"):
     check(f"snapshot biljezi {f}", f'"{f}"' in _all)
-check("context_version podignut na 8", '"context_version": 8' in _all)
+check("context_version podignut na 9 (v8 07.08., v9 08.08.)", '"context_version": 9' in _all)
 
 # (e) nove vrijednosti ne smiju procuriti u prompt template
 check("prompt template nema novih polja",
@@ -540,12 +540,54 @@ _rdsrc = open("agent/run_daily.py", encoding="utf-8").read()
 _wf = open(".github/workflows/daily_ticket.yml", encoding="utf-8").read()
 check("avg_opponent_elo nosi biljesku o pristranosti",
       "ZA REVIZIJU" in _rdsrc and "PREVISOK" in _rdsrc)
-check("workflow nosi biljesku o PYTHONUNBUFFERED",
-      "PYTHONUNBUFFERED" in _wf and "ZA REVIZIJU" in _wf)
+check("PYTHONUNBUFFERED je aktiviran 08.08. (07.08. je bila samo biljeska)",
+      'PYTHONUNBUFFERED: "1"' in _wf)
 check("timeout je 35 (popravljeno nakon prekida 02.08.)", "timeout-minutes: 35" in _wf)
-check("PYTHONUNBUFFERED jos NIJE aktiviran (samo biljeska)",
-      'PYTHONUNBUFFERED: "1"' not in _wf.replace("# ", "").split("env:")[1]
-      if "env:" in _wf else True)
+check("timeout ostaje 35 (nije se diralo 08.08.)", "timeout-minutes: 35" in _wf)
+
+print("\n=== 17. Revizija 08.08.2026: sto je ukljuceno, sto nije ===")
+import hashlib as _h2
+_prsrc = open("agent/predictor.py", encoding="utf-8").read()
+_tb2 = open("agent/ticket_builder.py", encoding="utf-8").read()
+_rd2 = open("agent/run_daily.py", encoding="utf-8").read()
+_wf2 = open(".github/workflows/daily_ticket.yml", encoding="utf-8").read()
+
+# A — bez utjecaja na pickove
+check("ELO se biljezi u snapshot", '"p1_elo_overall"' in _prsrc and '"elo_gap_surface"' in _prsrc)
+check("context_version podignut na 9", '"context_version": 9' in _prsrc)
+check("broj protivnika u avg_opp_elo se biljezi", "_avg_opponent_elo_n" in _rd2)
+check("PYTHONUNBUFFERED aktiviran", 'PYTHONUNBUFFERED: "1"' in _wf2)
+check("hard okidac vise ne vristi na 30", "_HARD_NEXT_TRIGGER = 180" in _rd2)
+# ELO NE smije uci u prompt (samo biljezenje)
+check("ELO polja NISU u prompt templateu",
+      "elo_gap_surface" not in _pr.ANALYSIS_PROMPT_TEMPLATE
+      and "avg_opp_elo_n" not in _pr.ANALYSIS_PROMPT_TEMPLATE)
+
+# B — mijenja pickove
+check("break lopte idu u prompt", _pr._BP_TO_PROMPT is True)
+check("zona opreza suzena na 1.43-1.60", _tbm._HARD_CAUTION_ZONE == (1.43, 1.60))
+check("max 1 po tiketu ostaje", _tbm._HARD_CAUTION_ZONE_MAX == 1)
+check("1.60-1.90 vise NIJE u zoni opreza",
+      not (_tbm._HARD_CAUTION_ZONE[0] <= 1.75 <= _tbm._HARD_CAUTION_ZONE[1]))
+check("1.50 je JOS UVIJEK u zoni opreza",
+      _tbm._HARD_CAUTION_ZONE[0] <= 1.50 <= _tbm._HARD_CAUTION_ZONE[1])
+
+# D — namjerno NEpromijenjeno
+check("edge cap ostaje 28 (kocnica na uvjerenje, ne na kvotu)", _tbm._UNDERDOG_EDGE_CAP == 28.0)
+check("underdog prag ostaje 2.00", _tbm._UNDERDOG_MIN_ODDS == 2.00)
+check("prag selekcije ostaje 63", _tbm.TICKET_CONFIG["min_confidence"] == 63.0
+      if hasattr(_tbm, "TICKET_CONFIG") else True)
+check("granice tiketa nedirnute (4-6 parova, 6-40)",
+      _mc.count('"min_matches": 4') == 1 and _mc.count('"max_matches": 6') == 1
+      and '"min_combined_odds": 6.0' in _mc and '"max_combined_odds": 40.0' in _mc)
+check("return_points_won JOS NIJE ispravljen u promptu", "POZNATA PRISTRANOST" in _dfsrc)
+
+# zamka: rules_hash se NIJE promijenio, pa se era mora rezati po bp_in_prompt
+_hh = _h2.md5((_surface_specific_rules("Hard") + _pr.ANALYSIS_PROMPT_TEMPLATE)
+              .encode("utf-8")).hexdigest()[:8]
+check("rules_hash i dalje 0477edbb (tekst prompta nedirnut)", _hh == "0477edbb", _hh)
+check("zamka o rezanju ere dokumentirana", "ZAMKA ZA BUDUĆU ANALIZU" in _prsrc)
+check("bp_in_prompt se biljezi kao oznaka ere", '"bp_in_prompt": _BP_TO_PROMPT' in _prsrc)
 
 print("\n" + "=" * 60)
 if _fails:

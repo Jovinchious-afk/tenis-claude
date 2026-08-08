@@ -62,21 +62,31 @@ def _get_client() -> anthropic.Anthropic:
     return _client
 
 
-# Puštaju li se break-lopta statistike u prompt (07.08.2026).
+# Puštaju li se break-lopta statistike u prompt.
 #
-# Do 07.08. su `break_points_saved` i `break_points_converted` bili UVIJEK None jer je
+# Do 07.08.2026 su `break_points_saved` i `break_points_converted` bili UVIJEK None jer je
 # `get_player_stats` tražio krive nazive polja (`breakPointOf` umjesto `breakPointFacedGm`
 # itd.) — `.get()` na nepostojeći ključ ne baca grešku, pa je model od prvog dana čitao
 # "BP saved: None | BP converted: None" i to nitko nije primijetio.
 #
-# Nazivi su popravljeni, ali zastavica ostaje False jer bi otvaranje tog podatka promijenilo
-# pickove, a model je zamrznut radi čistog pripisivanja do revizije 08.-09.08. Vrijednosti se
-# od danas bilježe u `context_snapshot` (v8) pa se prije odluke može izmjeriti što bi donijele.
+# UKLJUČENO 08.08.2026 11:35 uz korisnikovo odobrenje (do tada False, dok je model bio
+# zamrznut radi čistog pripisivanja). Dokaz iz hard analize 08.08.2026 (n=42 meča sa
+# statistikom poravnatom na naš pick):
+#   - tko napravi više breakova od protivnika ide 21W-1L, tko manje 1W-17L;
+#   - naš pick u PORAZIMA prima 8,6 break lopti naspram 5,0 u pobjedama (p=0,002);
+#   - "primljene break lopte" je najjača pojedinačna korelacija s ishodom u cijelom
+#     skupu (r=-0,44, p=0,002) — jača od iskoristivosti vlastitih prilika (r=+0,19,
+#     p=0,250, dakle neznačajna);
+#   - svih 16 analiza gubitaka na hardu imenuje servis/hold kao promašeni faktor.
+# Drugim riječima: gubimo jer našem igraču servis bude napadnut, ne jer propušta prilike —
+# a to je jedina varijabla koju model do danas nije vidio.
 #
-# Analiza Montreala (07.08.) sugerira da je dobitak velik: tko napravi više breakova od
-# protivnika ide 14W-1L, tko manje 1W-12L, a naš pick u porazima prima 8,8 break lopti
-# naspram 5,5 u pobjedama (p=0,028). Postavljanje na True je jednolinijska izmjena.
-_BP_TO_PROMPT = False
+# ZAMKA ZA BUDUĆU ANALIZU: `rules_hash` se ovom izmjenom NIJE promijenio (0477edbb), jer se
+# tekst prompta nije dirao — mijenja se samo vrijednost koja se u njega upisuje. Era prije
+# i poslije break lopti zato se NE razdvaja po rules_hashu, nego po
+# `context_snapshot.bp_in_prompt` (False do 08.08.2026 11:35, True poslije) ili po
+# `context_version` (8 -> 9). Rezati po hashu ovdje bi spojilo dvije različite ere u jednu.
+_BP_TO_PROMPT = True
 
 # OGRADA NA PRAVILO "LATE-ROUND PRICING DISCIPLINE" (zapisano 07.08.2026).
 #
@@ -1122,7 +1132,7 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         #     i ne utjece na pickove — prvo mjerimo je li signal stvaran (vidi _common_opponents).
         _wd = match.get("weather_data") or {}
         result["context_snapshot"].update({
-            "context_version": 8,
+            "context_version": 9,
             "weather_temp_c": _wd.get("temp_c"),
             "weather_humidity": _wd.get("humidity"),
             "weather_wind_kmh": _wd.get("wind_kmh"),
@@ -1189,6 +1199,22 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             "p1_first_serve_pct": p1.get("first_serve_pct"),
             "p2_first_serve_pct": p2.get("first_serve_pct"),
             "bp_in_prompt": _BP_TO_PROMPT,
+            # v9 (08.08.2026 11:35): ELO — SAMO ZA BILJEZENJE, ne mijenja nijedan pick.
+            # `elo_ranking` nosi 19% tezine na hardu, a ELO se dosad nigdje nije zapisivao,
+            # pa se korelacija "ELO <-> ishod" doslovno nije mogla izracunati — 19% modela
+            # bilo je slijepa tocka. Utvrdjeno u hard analizi 08.08.2026.
+            # Uz sirove ocjene biljezi se i RAZLIKA, jer je ona ono sto model zapravo koristi.
+            "p1_elo_overall": p1.get("elo_overall"),
+            "p2_elo_overall": p2.get("elo_overall"),
+            "p1_elo_surface": p1.get(elo_key),
+            "p2_elo_surface": p2.get(elo_key),
+            "elo_gap_overall": (round(safe_float(p1.get("elo_overall")) - safe_float(p2.get("elo_overall")), 1)
+                                if p1.get("elo_overall") and p2.get("elo_overall") else None),
+            "elo_gap_surface": (round(safe_float(p1.get(elo_key)) - safe_float(p2.get(elo_key)), 1)
+                                if p1.get(elo_key) and p2.get(elo_key) else None),
+            "elo_surface_key": elo_key,
+            # Koliko je protivnika uslo u avg_opp_elo (vidi run_daily._avg_opponent_elo_n).
+            "avg_opp_elo_n": match.get("avg_opp_elo_n"),
         })
         _enforce_stated_caps(result)
         result["context_snapshot"]["cap_enforced"] = result.get("cap_enforced")

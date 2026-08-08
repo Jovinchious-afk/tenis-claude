@@ -9,6 +9,106 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 
 ---
 
+## 2026-08-08 11:35 — PUNA HARD REVIZIJA (90 rijesenih analiza)
+
+Ovo je revizija koju je `run_daily` trazio svaki dan od 18.07. (okidac na 30 rijesenih hard
+pickova; danas ih je 90). Okidac je premjesten na sljedeci prag (180) da ne postane sum.
+
+**Korpus:** hard od 01.08.2026, **90 analiza / 78 rijeseno / bazna stopa 60,3%**; 42 meca sa
+statistikom poravnatom na nas pick preko player ID-a; 16 analiza gubitaka.
+
+### A — UKLJUCENO, ne dira izbor igraca
+
+- **ELO u `context_snapshot` (v9).** `elo_ranking` nosi 19% tezine na hardu, a ELO se nigdje
+  nije zapisivao — korelacija "ELO <-> ishod" doslovno se nije mogla izracunati. Biljeze se
+  sirove ocjene, ocjena po podlozi i RAZLIKA (ono sto model zapravo koristi).
+- **Broj protivnika u `avg_opp_elo`** (`_avg_opponent_elo_n`). Protivnici bez ELO-a se tiho
+  ispustaju, a nedostaju sustavno slabiji, pa prosjek ispada previsok. Vrijednost je
+  NEPROMIJENJENA; biljezi se samo koliko ih je uslo, da se pristranost moze izmjeriti.
+- **`PYTHONUNBUFFERED=1`** u workflow — logovi vise ne kasne u nakupinama.
+- **Hard okidac utisan** s 30 na 180; dnevni ispis sada javlja stanje korpusa umjesto da vristi.
+
+### B — UKLJUCENO, mijenja izbor igraca
+
+- **Break lopte idu u prompt** (`_BP_TO_PROMPT` False -> True). Do 07.08. su bile `None` zbog
+  krivih naziva API polja; model ih nikad nije vidio. Dokaz (n=42): tko napravi vise breakova
+  od protivnika ide **21W-1L**, tko manje **1W-17L**; nas pick u porazima prima **8,6** break
+  lopti naspram **5,0** u pobjedama (p=0,002); "primljene BP" je najjaca pojedinacna
+  korelacija s ishodom (**r=-0,44, p=0,002**), dok iskoristivost vlastitih prilika NIJE
+  znacajna (r=+0,19, p=0,250). Svih **16/16** analiza gubitaka imenuje servis/hold.
+  Zakljucak: gubimo jer nasem igracu servis bude napadnut, ne jer propusta prilike.
+- **Zona opreza suzena 1.43-1.90 -> 1.43-1.60.** Stara zona spajala je dvije suprotne
+  polovice (n=84, nefiltrirano tiketom): 1.43-1.60 ROI **-13,4%**, 1.60-1.90 ROI **+6,5%**
+  (jedini pozitivan raspon). Pravilo "max 1 po tiketu" guslo je bas ono sto donosi novac i
+  uzrokovalo analysis-only 04.08. Nijansa koja se ne smije procitati krivo: postotak pogotka
+  je u zoni i izvan nje PRAKTICKI JEDNAK (60,4% vs 61,1%, Fisher p=1,000) — razlika je u
+  CIJENAMA, ne u kvaliteti pickova.
+
+**ZAMKA:** `rules_hash` se ovim NIJE promijenio (0477edbb) jer tekst prompta nije diran.
+Eru prije/poslije break lopti rezati po **`context_snapshot.bp_in_prompt`** (False do
+08.08. 11:35) ili po `context_version` (8 -> 9), NIKAKO po hashu.
+
+### C — NIJE mijenjano, ceka veci uzorak
+
+- **Prag selekcije 63%.** Kalibracija je iznad 61% monotono OBRNUTA: deklarirano 58-60% ->
+  stvarnih 84,6% (n=13); 63-64% -> 57,1% (n=35); 65-67% -> **52,2%** (n=23, ROI -29,9%).
+  Nasa pouzdanost korelira s ishodom **negativno** (r=-0,18), a trzisna kvota **pozitivno**
+  (r=+0,15) — suprotni predznaci su nalaz. `cap_enforced` pickovi idu **12W-2L (85,7%)**.
+  Najveci potencijalni dobitak i najveci rizik; n=78 je premalo za prag na kojem stoji
+  cijela selekcija.
+- **Ispravci `return_points_won` (+2,33pp) i `hold_pct` (x1,9).** Oba su tocna, ali oba
+  guraju model prema VISE opreza — a oprez je vec prejak. Idu tek zajedno s pragom.
+- **Tezine.** `serve_return` (23%, najveca) mjeri se kroz pokvarene posrednike; dizanje ili
+  spustanje broja prije popravka mjeri krivo ravnalo. `fatigue_injuries` (12%) nema signala
+  (1. mec 62,0% n=50, 2. mec 70,0% n=10; svjeziji 58,3% vs protivnik svjeziji 60,0%), ali ga
+  10/16 analiza gubitaka krivi u SUPROTNIM smjerovima — to je sum, ne losa kalibracija.
+- **Pravila u promptu formulirana kroz kvote** ("late-round picks at odds <= 1.60"). Model
+  kvotu NE VIDI (jedino `_odds_alert` pri omjeru >=6:1), pa su mu ta pravila neprovediva —
+  u najgorem slucaju ga navode da cijenu pogadja iz vlastite pouzdanosti. Treba ih prepisati
+  u jezik koji ima pred sobom; svaka izmjena teksta mijenja pickove pa ide u isti paket.
+
+### D — NIJE mijenjano, i ne planira se
+
+- **`_UNDERDOG_EDGE_CAP = 28` ostaje.** Ne brani veliku kvotu nego preveliko NESLAGANJE s
+  trzistem. Dokumentirano: Collignon @2,82 uz conf 71 (35,5pp) izgubio, @2,79 uz conf 64
+  (28,2pp) dobio — dva dana razmaka, isti igrac. Problem je bila glasnoca, ne cijena.
+- **`_UNDERDOG_MIN_ODDS = 2.00` ostaje.** Na hardu imamo cetiri picka >=2,00 u cijeloj
+  sezoni (2W-2L, ROI 0,0%) — nema dokaza ni za popustanje ni za pooostravanje.
+- **Vremenske zone** (rok listopad), **tlak** (n=8), **LATE-ROUND pravilo** (krive oznake
+  rundi), **rubni slucaj ljestvice rundi**, **mrtva zona na travi** — svi cekaju svoj uvjet.
+
+### Kvaliteta match stats varijabli (odgovor na korisnikovo pitanje)
+
+Od 398 igracevih nastupa: 13 polja popunjeno 100% (asovi, dvostruke greske, servis, sve
+cetiri break-lopta velicine). Sedam polja (`winners`, `unforcedErrors`, brzine servisa,
+izlasci na mrezu) popunjeno je 32,7% — i to **iskljucivo za Wimbledon (65/65), 0/134 na svim
+ATP turnirima**. Nije kvar: slamovi imaju bogatiji feed. Na hard sezoni se nikad nece pojaviti.
+
+Trebaju li nam: na Wimbledon uzorku `winneri - UE` razdvaja jako (+10,9, p<0,001), ali
+korelira **r=+0,46** s razlikom u breakovima koju vec imamo za svaki mec, a sve su to
+POSTMECNE velicine — za predikciju bi trebao sezonski prosjek po igracu, kojeg API ne nudi
+ni u jednom endpointu. **Preporuka: ne traziti vanjski izvor.**
+Sporedno: asovi na TRAVI razdvajaju (p=0,005), na hardu ne (p=0,392) — trag za grass reviziju.
+
+### Odbaceni prijedlog (da se ne predlaze ponovno)
+
+"Primljene break lopte na 100 servisnih poena" kao nova predmecna varijabla — izmjereno na
+16 igraca, korelacija sa `serve_points_won` je **r=-0,99**. Prakticki linearna preslika, nula
+nove informacije. Ne fali nam varijabla; fali postovanje prema sumu (SD unutar meca je 7,9pp,
+a pragovi pravila razlucuju na 1,6-2,6pp).
+
+### Zasto usporedba starog i novog modela NIJE moguca
+
+Cetiri ere po `rules_hash`: `023d06d4`/v14 (n=4), `2e455012`/v14 (n=19, 57,9%),
+`612a7b17`/v18 (n=39, **66,7%**), `0477edbb`/v18 (n=16, **50,0%**). Stari vs novi: 56,5% vs
+61,8%, Fisher **p=0,800**.
+**Ali usporedba je zbunjena rundama:** `612a7b17` je 100% R32, a `0477edbb` je QF 8 / R16 4 /
+R32 4 — usporedjujemo razlicite runde, ne razlicite modele. Uz to su se tezine v14->v18
+promijenile ISTOG DANA kad i pravila (tezine 04.08. 09:05, pravila 13:28), pa se ni to dvoje
+ne da razdvojiti. Zakljucak: na ovom uzorku se ne moze utvrditi je li model bolji ili gori.
+
+---
+
 ## 2026-08-07 (c) — Natpisi podloge u selekciji + dvije stavke na popis za reviziju
 
 **Povod:** pregled GitHub Actions logova od 27.07. (potpun run) i 02.08. (prekinut run) na
