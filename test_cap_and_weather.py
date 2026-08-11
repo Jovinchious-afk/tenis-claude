@@ -589,6 +589,57 @@ check("rules_hash i dalje 0477edbb (tekst prompta nedirnut)", _hh == "0477edbb",
 check("zamka o rezanju ere dokumentirana", "ZAMKA ZA BUDUĆU ANALIZU" in _prsrc)
 check("bp_in_prompt se biljezi kao oznaka ere", '"bp_in_prompt": _BP_TO_PROMPT' in _prsrc)
 
+print("\n=== 18. Screenshot-iskljucivost po PARU (11.08.2026 18:44) ===")
+import io as _io2, contextlib as _cl
+from agent.run_daily import _gate_by_screenshot as _gate
+_ss = {"Jodar Rafael|Fils Arthur":
+       {"p1": "Jodar Rafael", "p2": "Fils Arthur", "p1_odds": 2.1, "p2_odds": 1.7},
+       "Mensik Jakub|Shelton Ben":
+       {"p1": "Mensik Jakub", "p2": "Shelton Ben", "p1_odds": 2.0, "p2_odds": 1.75}}
+_mkm = lambda a, b, d, t: {"player1": a, "player2": b, "date": d, "tournament": t, "round": "R128"}
+_pool_matches = [
+    _mkm("Rafael Jodar", "Arthur Fils", "2026-08-11", "Montreal"),
+    _mkm("Jakub Mensik", "Ben Shelton", "2026-08-12", "Montreal"),   # poslije ponoci
+    _mkm("Billy Harris", "Kyrian Jacquet", "2026-08-11", "Cincinnati"),
+    _mkm("Marcos Giron", "Henrique Rocha", "2026-08-12", "Cincinnati"),
+]
+def _rungate(a, b):
+    _b = _io2.StringIO()
+    with _cl.redirect_stdout(_b):
+        return _gate([dict(x) for x in _pool_matches], a, b)
+
+_k = _rungate(_ss, {})
+_names = {x["player1"] for x in _k}
+check("screenshot samo DANAS: par s API datumom SUTRA ipak prolazi (poslije ponoci)",
+      "Jakub Mensik" in _names)
+check("screenshot samo DANAS: nescreenshotani SUTRASNJI mec PADA (bug od 11.08.)",
+      "Marcos Giron" not in _names)
+check("screenshot samo DANAS: nescreenshotani DANASNJI mec pada",
+      "Billy Harris" not in _names)
+check("prolaze tocno screenshotani parovi", len(_k) == 2)
+check("BEZ screenshota ne prolazi NISTA (prije: prolazilo sve)", _rungate({}, {}) == [])
+check("screenshot samo SUTRA gata jednako", len(_rungate({}, _ss)) == 2)
+# potpis vise ne prima datume — datum nije kriterij
+import inspect as _i2
+_par = list(_i2.signature(_gate).parameters)
+check("potpis bez datumskih parametara",
+      _par == ["matches", "screenshot_today", "screenshot_tomorrow"], str(_par))
+check("rani izlaz kad nema nijednog meca", "zaustavljam prije analize" in _rd2 if "_rd2" in dir()
+      else "zaustavljam prije analize" in open("agent/run_daily.py", encoding="utf-8").read())
+
+print("\n=== 19. Kvalifikacije: R128 izvan Grand Slama ===")
+_mkp = lambda lvl, rnd, ss=False: {"match": {"level": lvl, "round": rnd, "has_screenshot_odds": ss}}
+check("Masters R128 pada (Cincinnati kvalifikacije 11.08.)",
+      _tbm._is_main_tour(_mkp("ATP Masters 1000", "R128")) is False)
+check("ATP 500 R128 i dalje pada", _tbm._is_main_tour(_mkp("ATP 500", "R128")) is False)
+check("Grand Slam R128 PROLAZI (ondje je to prava prva runda)",
+      _tbm._is_main_tour(_mkp("Grand Slam", "R128")) is True)
+check("Masters R64 prolazi", _tbm._is_main_tour(_mkp("ATP Masters 1000", "R64")) is True)
+check("QF nije kvalifikacija", _tbm._is_main_tour(_mkp("ATP 250", "QF")) is True)
+check("Q2 pada", _tbm._is_main_tour(_mkp("ATP 250", "Q2")) is False)
+check("screenshot override i dalje nadjacava round-tag",
+      _tbm._is_main_tour(_mkp("ATP Masters 1000", "R128", ss=True)) is True)
+
 print("\n" + "=" * 60)
 if _fails:
     print(f"PALO: {len(_fails)}")

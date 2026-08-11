@@ -50,6 +50,11 @@ Težine su hard v18; žive u Supabase `model_weights`, ne u kodu.
 - Grand Slam traži **65%** (hard i clay)
 - grass mrtva zona 1,43-1,60 (na travi nikad na tiket)
 - najviše **6 kandidata po turniru po danu**
+- **NIJE na screenshotu** — od 11.08.2026 18:44 meč prolazi samo ako je njegov par na
+  screenshotu (danas ∪ sutra), bez obzira na datum koji mu API dodijeli; bez ijednog
+  screenshota run staje odmah. Vidi `_gate_by_screenshot`.
+- **R128 izvan Grand Slama** — Masters ima ždrijeb od 96, ATP 250/500 od 28-32; R128 ondje ne
+  postoji pa je oznaka kvalifikacijska (Cincinnati 11.08.). Screenshot poništava tu provjeru.
 
 **Ograničava listić:**
 

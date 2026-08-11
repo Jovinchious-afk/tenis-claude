@@ -148,13 +148,10 @@ def main():
     if screenshot_odds:
         print(f"  Učitano {len(screenshot_odds)} screenshot kvota (imaju prioritet nad Odds API).")
 
-    # Screenshot-isključivost (korisnikov zahtjev 27.07.2026): kad je dan screenshotan,
-    # mečevi koji NISU na screenshotu se izbacuju PRIJE analize — ne samo s tiketa/
-    # analysis-only, nego iz cijele obrade (štedi ELO/kvote/vrijeme/Claude pozive).
-    # Povod: The Odds API je uživo vratio prave (ali drukčije!) kvote za Washington —
-    # bez ovog filtera, mečevi koje korisnik NIJE screenshotao mogli su ući na tiket
-    # čim ih Odds API "pokrije", oslanjajući se samo na sretnu okolnost da manji
-    # turniri dosad nisu imali live tržišta. Vidi _gate_by_screenshot.
+    # Screenshot-isključivost (korisnikov zahtjev 27.07.2026, PREPISANA 11.08.2026 18:44):
+    # meč prolazi ako i samo ako je njegov PAR na screenshotu (danas ∪ sutra) — datum nije
+    # kriterij. Sve ostalo se izbacuje PRIJE analize, dakle iz cijele obrade, ne samo s
+    # tiketa. Puno obrazloženje i incident koji je to iznudio: vidi `_gate_by_screenshot`.
     # Broj mečeva po (turnir, dan) mora se izbrojati PRIJE gatea (07.08.2026). `_infer_rounds`
     # procjenjuje rundu iz broja mečeva tog dana, a gate izbacuje sve što nije screenshotano —
     # od 27.07. je dakle brojao samo screenshotane mečeve i mislio da je dan manji nego što
@@ -162,9 +159,16 @@ def main():
     # tvrdio "before any cap", što je bilo točno samo prije uvođenja gatea.
     pre_gate_counts = _count_by_tournament_day(all_matches)
 
-    all_matches = _gate_by_screenshot(all_matches, screenshot_today, screenshot_tomorrow,
-                                      today_str, tomorrow_str,
-                                      always_gated_dates={day_after_str} if fetch_day_after else None)
+    all_matches = _gate_by_screenshot(all_matches, screenshot_today, screenshot_tomorrow)
+
+    # Rani izlaz (11.08.2026 18:44): bez ijednog screenshot para nema što analizirati, a
+    # nastavak bi potrošio ELO, kvote, vrijeme i Claude pozive na mečeve koji ionako ne
+    # smiju proći. Povod: run u 15:08 istog dana analizirao je 21 kvalifikacijski meč
+    # (21 Claude poziv) jer je screenshot tablica tada bila prazna.
+    if not all_matches:
+        print("\nNema nijednog meča sa screenshota — zaustavljam prije analize.")
+        print("Uploadaj kvote screenshot za 'danas' i/ili 'sutra' pa pokreni ponovno.")
+        return
 
     # Fix unreliable round labels using match count per tournament per day
     all_matches = _infer_rounds(all_matches, screenshot_odds, pre_gate_counts)
@@ -1137,35 +1141,49 @@ def _city_for_weather(tournament_name: str) -> str:
     return tournament_name.strip()
 
 
-def _gate_by_screenshot(matches: list, screenshot_today: dict, screenshot_tomorrow: dict,
-                         today_str: str, tomorrow_str: str,
-                         always_gated_dates: set = None) -> list:
-    """Screenshot-isključivost (korisnikov zahtjev 27.07.2026): ako je korisnik za dan D
-    uploadao barem jedan screenshot par, SAMO ti parovi tog dana smiju dalje u obradu —
-    svi ostali mečevi tog dana (bez obzira što o njima kaže The Odds API ili API-jeva
-    round-oznaka) se izbacuju ovdje, prije ELO/kvota/vremena/Claude analize. Dan bez
-    ikakvog uploada ostaje nepromijenjen (Odds API fallback kao dosad).
+def _gate_by_screenshot(matches: list, screenshot_today: dict, screenshot_tomorrow: dict) -> list:
+    """Screenshot-isključivost. JEDNO pravilo, bez iznimaka:
 
-    Provjera imena ide preko SPOJENOG (danas+sutra) skupa, NE strogo po danu koji API
-    prijavi za taj meč: Washington/Los Cabos večernji mečevi znaju po satu ispasti u
-    idući Zagreb kalendarski dan (SAD zapadna obala je ~9-10h iza), pa API zna meč koji
-    je korisnik screenshotao pod "danas" označiti sutrašnjim datumom. Isti par ne igra
-    dva puta unutar ta dva dana (eliminacijski turnir), pa spajanje ne nosi rizik.
+        meč prolazi ako i samo ako je njegov PAR na screenshotu (danas ∪ sutra);
+        ako screenshota nema, ne prolazi ništa.
 
-    `always_gated_dates` (01.08.2026): datumi za koje gate vrijedi BEZ OBZIRA što za njih
-    ne postoji vlastiti screenshot slot — koristi se za PREKOSUTRA. Korisnik pod "Sutra"
-    zna uploadati i ponedjeljak (SuperSport ima kvote ranije nego naš API ima raspored),
-    pa te parove treba tražiti i dan dalje. Bez ovog popisa prekosutra bi prošao
-    NEFILTRIRAN (nema screenshota za taj datum → gate neaktivan) i povukao bi cijeli
-    turnir u analizu — točno suprotno od isključivosti koju korisnik traži.
+    PREPISANO 11.08.2026 18:44 nakon incidenta koji je stara verzija propustila.
+    Stara je gate aktivirala PO DANU — samo za datum koji ima vlastiti screenshot:
+
+        gate_active = (d == today_str and gate_today) or (d == tomorrow_str and gate_tomorrow) ...
+
+    Dvije rupe koje je to ostavljalo:
+      (1) korisnik uploada SAMO "danas" -> `gate_tomorrow` je False -> svaki sutrašnji meč
+          prolazi NEPROVJEREN. Dogodilo se 11.08.2026: uploadana su 4 montrealska
+          četvrtfinala pod "danas", a listić je izašao s 3 Cincinnati kvalifikacijska meča
+          i 1 Montrealom — sve četiri noge s datumom 12.08., dana bez ijednog screenshota.
+      (2) nema screenshota uopće -> `return matches` -> prolazi SVE. Tako je run u 15:08
+          istog dana analizirao 21 kvalifikacijski meč (21 Claude poziv) na praznoj tablici.
+
+    ZAŠTO PO PARU, A NE PO DANU — korisnikovo objašnjenje 11.08.2026: SuperSport stavlja
+    mečeve koji počinju poslije ponoći (01:00, 02:00) pod "DANAS", jer se sutra više ne može
+    kladiti na nešto što je odigrano. API takav meč datira SUTRAŠNJIM danom. Provjera po
+    datumu bi ga zato promašila; provjera po imenima ga hvata bez obzira na datum.
+    Provjereno na stvarnim podacima 11.08.: od 4 uploadana para njih 2 (Menšik/Shelton,
+    Merida/Tien) API datira 12.08. — oba ispravno prolaze, dok svih 21 Cincinnati pada.
+
+    Nestali su `gate_today`, `gate_tomorrow`, `always_gated_dates`, usporedba datuma i
+    `return matches` fallback — svi su bili zakrpe na simptom, a ne na uzrok.
+
+    NAPOMENA: par sa screenshota koji se ne nađe među dohvaćenim mečevima NIJE nužno greška
+    i namjerno se ne prijavljuje kao upozorenje (korisnikova odluka 11.08.2026). Obrnuti smjer
+    je češći i benigan: kad je meč jednostran, SuperSport ne ponudi kvotu na obje strane pa
+    par uopće ne uđe na screenshot — a takav pick ionako pada na pragu 1,06
+    (`ticket_builder`, kombinacija i analysis-only). Ne "popravljati" to.
+
+    Vrijeme početka meča se ovdje NE dira: `find_screenshot_time` traži par po imenima kroz
+    sve screenshot dane i izvršava se poslije, pa nijedan sat sa screenshota ne može nestati.
     """
-    gate_today = bool(screenshot_today)
-    gate_tomorrow = bool(screenshot_tomorrow)
-    always_gated_dates = always_gated_dates or set()
-    if not gate_today and not gate_tomorrow:
-        return matches
-
     pool = {**screenshot_today, **screenshot_tomorrow}
+    if not pool:
+        print("  Screenshot-isključivost: nema nijedne screenshot kvote — "
+              "nijedan meč ne ulazi u obradu.")
+        return []
 
     def _in_pool(m: dict) -> bool:
         return bool(df.find_match_odds(m.get("player1", ""), m.get("player2", ""),
@@ -1173,14 +1191,7 @@ def _gate_by_screenshot(matches: list, screenshot_today: dict, screenshot_tomorr
 
     kept, dropped = [], []
     for m in matches:
-        d = m.get("date", "")
-        gate_active = ((d == today_str and gate_today)
-                       or (d == tomorrow_str and gate_tomorrow)
-                       or d in always_gated_dates)
-        if gate_active and not _in_pool(m):
-            dropped.append(m)
-        else:
-            kept.append(m)
+        (kept if _in_pool(m) else dropped).append(m)
 
     if dropped:
         tours = sorted({m.get("tournament", "").split(" - ")[0] for m in dropped})
@@ -1189,6 +1200,7 @@ def _gate_by_screenshot(matches: list, screenshot_today: dict, screenshot_tomorr
         for m in dropped:
             print(f"    - {m.get('date')} {m.get('tournament', '')} {m.get('round', '')} "
                   f"{m.get('player1')} vs {m.get('player2')}")
+    print(f"  Screenshot-isključivost: zadržano {len(kept)} od {len(pool)} screenshot parova.")
     return kept
 
 

@@ -51,7 +51,16 @@ def _is_main_tour(p) -> bool:
     # izbacio SVE mečeve i s tiketa i iz analysis-only prikaza → prazan email.
     rnd = str(m.get("round", "")).upper().strip()
     is_quali_round = rnd.startswith("Q") and rnd != "QF"
-    if ("250" in level or "500" in level) and (rnd == "R128" or is_quali_round):
+    if is_quali_round:
+        return False
+    # R128 kao oznaka kvalifikacija: PROSIRENO s 250/500 na Masters 1000 (11.08.2026 18:44).
+    # Povod: 11.08. su tri Cincinnati kvalifikacijska meca zavrsila na tiketu s oznakom
+    # `ATP Masters 1000` + `R128`, pa ih ova zastita nije ni pogledala. Masters je od 2025.
+    # zdrijeb od 96 — R128 ondje NE POSTOJI, jednako kao ni na ATP 250/500 (zdrijeb 28-32).
+    # Grand Slam je jedini gdje je R128 stvarna prva runda glavnog zdrijeba, pa je izuzet.
+    # Ovo je pojas uz tregere: od 11.08. screenshot-gate ionako izbacuje sve sto korisnik
+    # nije uploadao, a kvalifikacije nikad ne screenshota.
+    if "Grand Slam" not in level and rnd == "R128":
         return False
     return True
 

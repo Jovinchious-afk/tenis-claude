@@ -13,6 +13,63 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-08-11 18:44 — Screenshot-iskljucivost prepisana: gate po PARU, ne po danu
+
+**Incident.** Korisnik je 11.08. uploadao 4 montrealska cetvrtfinala pod "danas" i nista pod
+"sutra". Listic je izasao s **3 Cincinnati KVALIFIKACIJSKA meca i 1 Montrealom — sve cetiri
+noge s datumom 12.08.**, dana bez ijednog screenshota. Nijedan od korisnikova 4 para nije bio
+na listicu. To krsi njegovo apsolutno pravilo: nikad par koji nije na screenshotu.
+
+### Tri kvara
+
+1. **Gate se aktivirao PO DANU, samo za datum koji ima vlastiti screenshot.**
+   `gate_active = (d == today_str and gate_today) or (d == tomorrow_str and gate_tomorrow) ...`
+   Upload samo "danas" -> `gate_tomorrow` False -> **svaki sutrasnji mec prolazi neprovjeren.**
+2. **Bez ijednog screenshota `return matches`** -> prolazi SVE. Tako je run u 15:08 istog dana
+   analizirao **21 kvalifikacijski mec (21 Claude poziv)** na praznoj tablici.
+3. **`_is_main_tour` je R128-zastitu primjenjivao samo na ATP 250/500**, pa je
+   `ATP Masters 1000` + `R128` (Cincinnati kvalifikacije) prosao kao glavni zdrijeb.
+
+### Popravak
+
+**Jedno pravilo bez iznimaka:** mec prolazi ako i samo ako je njegov PAR na screenshotu
+(danas u sutra); nema screenshota -> ne prolazi nista. Nestali su `gate_today`,
+`gate_tomorrow`, `always_gated_dates`, usporedba datuma i `return matches` fallback — sve
+zakrpe na simptom. Potpis funkcije vise ni ne prima datume.
+
+**ZASTO PO PARU** (korisnikovo objasnjenje): SuperSport stavlja meceve koji pocinju poslije
+ponoci (01:00, 02:00) pod **"DANAS"**, jer se sutra vise ne moze kladiti na odigrano. API
+takav mec datira SUTRASNJIM danom. Provjera po datumu ga promasi; provjera po imenima ga
+hvata. Potvrdjeno na stvarnim podacima 11.08.: od 4 uploadana para njih **2 (Mensik/Shelton,
+Merida/Tien) API datira 12.08.** — oba prolaze, dok svih 21 Cincinnati pada.
+
+- **Rani izlaz** kad nema nijednog screenshot para: run stane prije ELO-a, kvota, vremena i
+  Claude analize umjesto da potrosi pozive na meceve koji ionako ne smiju proci.
+- **R128-zastita prosirena** s 250/500 na sve osim Grand Slama. Masters je od 2025. zdrijeb od
+  96 — R128 ondje ne postoji; GS je jedini gdje je to prava prva runda. Screenshot override
+  (`has_screenshot_odds`) i dalje nadjacava round-tag.
+- **Upozorenje za nenadjen par NIJE dodano** (korisnikova odluka): obrnuti smjer je cesci i
+  benigan — kad je mec jednostran SuperSport ne ponudi kvotu na obje strane pa par ne udje na
+  screenshot, a takav pick ionako pada na pragu 1,06. Zapisano kao komentar da se ne
+  "popravlja" ono sto nije pokvareno.
+
+### Sto NIJE dirano
+
+**Vrijeme pocetka meca sa screenshota** — provjereno: `find_screenshot_time` trazi par po
+imenima kroz sve screenshot dane i izvrsava se POSLIJE gatea, pa nijedan sat ne moze nestati.
+Testirano i prebacivanje preko ponoci: screenshot 11.08. + "sri 01:00" -> 12.08. 01:00 Zagreb.
+Takodjer nedirnuti: prozor dohvata (danas+sutra+prekosutra), prag 1,06, pragovi/tezine/pravila.
+
+### Ciscenje baze
+
+Obrisan listic `2ab399ee` (pending, kvota 9,20, 4 noge) i **21 Cincinnati kvalifikacijska
+analiza** — potonje bi ih vecernji update razrijesio i uveo u hard kalibracijski korpus kao
+obicne pickove. Oboje uz sigurnosnu kopiju prije brisanja.
+
+**Ocekivana posljedica:** vise analysis-only dana. To je smisao izmjene, ne kvar.
+
+---
+
 ## 2026-08-08 11:35 — PUNA HARD REVIZIJA (90 rijesenih analiza)
 
 Ovo je revizija koju je `run_daily` trazio svaki dan od 18.07. (okidac na 30 rijesenih hard
