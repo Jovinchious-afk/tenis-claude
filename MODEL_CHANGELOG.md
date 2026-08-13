@@ -13,6 +13,131 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-08-13 12:47 — PUNA REVIZIJA NAKON MONTREALA (84 rijesene analize)
+
+Revizija prije pocetka Cincinnatija. Korpus: **92 Montreal analize, 84 rijesene, bazna stopa
+61,9%**; 51 mec sa statistikom poravnatom po player ID; 18 analiza gubitaka; 12 razlicitih dana.
+
+### NALAZ 1 (najvazniji): nijedna predmecna varijabla ne razlikuje pobjedu od poraza
+
+Korelacija s ishodom, n=84:
+
+| varijabla | r | p |
+|---|---|---|
+| trzisna kvota (koju iskljucujemo) | **+0,181** | 0,096 |
+| **nasa pouzdanost** | **-0,147** | 0,179 |
+| ELO razlika (ukupni) | +0,141 | 0,197 |
+| razlika u poenima na servisu (sezona) | **+0,041** | 0,773 |
+| razlika u povratu / holdu / asovima | +0,02..+0,04 | >0,75 |
+
+U MECU servis odlucuje sve (poeni na servisu <-> ishod **r=+0,660**, primljene BP/100
+**r=-0,551**, asovi r=+0,064 dakle nista). Ali SEZONSKA razlika u servisu ne predvidja tko
+ce bolje servirati:
+
+    u mecu, poeni na servisu:                 SD = 8,0pp  (102 nastupa)
+    tipicna sezonska razlika medju igracima:       2,5pp  (61 igrac)
+    -> sum je 3,2x veci od signala
+
+**Posljedica:** popravci `return_points_won` (+2,33pp) i `hold_pct` (x1,9) POVUCENI su s
+popisa prioriteta — ispravljali bi mjerenje velicine cija je prediktivna snaga r=0,04.
+**Tezine NISU mijenjane** iz istog razloga: preraspodjela postotaka medju varijablama s
+r=0,02-0,14 je preraspodjela suma.
+Ograda: uz n=84 pouzdano se hvata tek r~0,21; slabiji stvarni efekti mogli su promaknuti.
+
+### NALAZ 2: kalibracija je dobra OSIM iznad 64%
+
+| model tvrdi | stvarno | razlika | n | ROI |
+|---|---|---|---|---|
+| <60% | 78,6% | +18,8 | 14 | +18,4% |
+| 63-64% | 62,5% | **-0,7** | 40 | -2,5% |
+| **65-67%** | **50,0%** | **-16,1** | 20 | **-34,8%** |
+| ukupno | 61,9% | -1,3 | 84 | -6,9% |
+
+Ovo ISPRAVLJA nalaz od 08.08. ("monotono obrnuto iznad 61%"): glavni razred 63-64% je na
+n=40 gotovo savrseno kalibriran. Problem je koncentriran u 65-67%.
+**Bez tog razreda cijeli korpus ide s -6,9% na +1,8% ROI.**
+
+### PROMJENA A — strop pouzdanosti na 64% (`_enforce_confidence_ceiling`)
+
+Uzrok je strukturni: ljestvica se zasici oko 67%, pa "67%" nije izjava o jakom uvjerenju nego
+udaranje u strop. U tom je razredu nas broj **prosjecno 10,7pp ISPOD trzisne cijene** (17 od
+20 pickova), dakle birali smo teske favorite a ocjenjivali ih nize od trzista.
+
+Provjerio sam sve podjele tog razreda i **nijedna ga ne spasava** (unutar 10pp od trzista
+3W-5L; vise od 10pp ispod 6W-5L). Zato NIJE uveden mjereni kriterij "dodatne potvrde" nego
+DEKLARACIJA: iznad 64% model mora ispuniti `above_64_basis` s (a) najmanje DVIJE neovisne
+mjerene potvrde koje sadrze BROJKU, iz razlicitih kategorija, i (b) jednom recenicom sto bi
+moralo biti istina da pick izgubi. Inace kod tvrdo spusta na 64 i biljezi `ceiling_enforced`.
+Ista mehanika koja vec radi kod `_enforce_stated_caps` (capirani 12W-3L u Montrealu).
+Strop se primjenjuje PRIJE capova, da nizi cap ne bude ponisten.
+
+### PROMJENA B — trzisna cijena kao PROVJERA, nikad kao ulaz
+
+Korisnikova odluka: kvota i dalje NE ulazi u procjenu vjerojatnosti. Novo je da je model
+VIDI (kao implicirani postotak, ne kvotu) i mora popuniti `market_check` kad se razidje za
+vise od 10pp.
+
+Povod: pickovi gdje smo bili vise od 10pp IZNAD trzista isli su **2W-6L (ROI -52,5%)**, a oni
+unutar 10pp 36W-21L (ROI 0,0%). Veliko razilazenje prema gore bilo je upozorenje o NAMA, ne
+otkrice o trzistu. Prompt to izricito kaze i trazi imenovanu mjerenu cinjenicu za svaki
+veliki razmak.
+
+### PROMJENA C — runde na razini TURNIRA (`_verify_late_rounds`)
+
+Korisnik uocio da su neki mecevi oznaceni SF a bili su QF. Provjera: u Montrealu **10 mecheva
+oznaceno "SF"** (turnir ih smije imati 2), 11 "QF" (smije 4), 65 "R32" (smije 16); Shelton i
+Nakashima pojavljuju se u "SF" po TRI puta. Rekonstrukcija iz redoslijeda mecheva pokazala je
+da je **51 od 92 oznake (55%) kriva**.
+
+Zasto `_infer_rounds` (07.08.) to nije uhvatio: grupira po (turnir, DATUM, runda) i ispravlja
+tek kad broj prijedje maksimum. Svaki je dan imao TOCNO 2 "SF" — za jedan dan moguce, kroz
+turnir nije, a jedan run vidi samo 2-3 dana. Novo: `db.get_tournament_rounds` dovlaci povijest
+turnira, pa se ukupni broj provjerava kroz sve dane; visak se spusta za jednu rundu, zadrzavaju
+se NAJKASNIJI (prava zavrsnica je na kraju). Na Montrealu: **SF 10->2, QF 11->4, oba bez
+ijednog ponovljenog igraca.**
+OGRANICENO NA F/SF/QF namjerno — ondje je ukupan broj nedvosmislen bez obzira na velicinu
+zdrijeba. Verzija koja je dirala i rane runde spustila je 30 mecheva u nepostojeci "R128".
+Rane runde ostaju krive i to se bez punog zdrijeba ne da popraviti.
+
+**Posljedica za ranije nalaze:** sve sto smo zakljucili "po rundama" stajalo je na ovim
+oznakama. Usporedba: po API oznakama QF 40,0% / SF 70,0%; po rekonstruiranim QF 62,5% /
+SF 66,7%.
+
+### Sto je jos izmjereno, a NIJE mijenjano
+
+- **Kvote:** 1,43-1,60 ROI **-18,9%** (n=22), 1,60-1,90 **+14,1%** (n=23) — potvrdjuje
+  suzavanje zone od 08.08. Iznad 1,90 sada 3W-6L; korisnik zeli prostor za 2,00+, ali jedini
+  dokaz koji imamo ide suprotno. Ne mijenjano.
+- **Statistika meca (n=51):** dvostruke greske su SADA znacajne (-1,7, p=0,019; nisu bile na
+  n=42), asovi i dalje nisu nista (p=0,636). Vise breakova od protivnika 27W-1L, manje 1W-19L.
+- **Provjera onoga sto smo pustili 08.08.:** sezonski `bp_saved` predvidja in-match obranu s
+  r=+0,02, `bp_converted` s r=-0,29 — dakle break-lopta prosjeci NE predvidjaju ponasanje u
+  mecu. Jedini koji predvidja je `serve_points_won` (r=+0,54, p=0,004). Era s BP u promptu
+  10W-4L (+10,1% ROI) ali n=14, P=0,588 — ne dokazuje nista.
+- **Vrijeme:** oblacno 17W-3L (85,0%, P=0,037) ali nosi ga samo **5 dana**; kisa 7W-9L. I dalje
+  neupotrebljivo.
+- **Analize gubitaka: 18/18** imenuje servis/hold, 17/18 break lopte, H2H 2/18, scouting 0/18.
+- **Supabase je cist:** 0 duplikata, 0 pobjednika koji nisu igrac, 0 neslaganja
+  `prediction_correct`, 0 sirocadi, 0 neslaganja `matches_count`, performance_log konzistentan.
+- **Scouting Excel <-> Supabase:** 150 igraca, **0 razlika u sadrzaju**; lookup nalazi i imena
+  s crticom (Auger-Aliassime, Struff) preko fuzzy podudaranja.
+
+### Scouting — nalazi, NIJE mijenjano (ceka korisnika)
+
+- **Brandon Nakashima** — profil kaze *"serve only modest"*, a sezonski ima **67,2% poena na
+  servisu** (medijan polja 63,5%, medju 5 najboljih od 61) i 9,6 asova/100; u Montrealu 70,9%
+  i 10,7 asova po mecu, polufinale. Jedino jednoznacno proturjecje.
+- **Pet igraca iz TOP 50 nema profil** (Low/Insufficient se uopce ne prikazuju modelu):
+  Cobolli (9), **Tien (16)**, Vacherot (19), **Jodar (25)**, Fery (36). Tien i Jodar su igrali
+  polufinale Montreala; njihovi profili doslovno kazu *"2026 breakout -> VALIDATE"*.
+- Provjereni i ODBACENI kao nedovoljno potkrijepljeni: Griekspoor (profil "+servis", sezonski
+  64,8% iznad medijana — dva losa meca nisu dokaz), Navone (profil tocno navodi servis kao
+  slabost, 58,2% najnize u polju), Landaluce, Paul, Fearnley.
+
+**`rules_hash` (hard): 0477edbb -> 2b08e904.** `context_version` 9 -> 10.
+
+---
+
 ## 2026-08-11 18:44 — Screenshot-iskljucivost prepisana: gate po PARU, ne po danu
 
 **Incident.** Korisnik je 11.08. uploadao 4 montrealska cetvrtfinala pod "danas" i nista pod

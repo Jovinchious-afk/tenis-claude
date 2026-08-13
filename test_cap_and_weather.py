@@ -484,7 +484,7 @@ for f in ("p1_serve_pts_won", "p1_hold_pct", "p1_hold_pct_from_bp", "p1_return_w
           "p1_return_won_weighted", "p1_bp_saved", "p1_bp_converted", "p1_first_serve_pct",
           "bp_in_prompt"):
     check(f"snapshot biljezi {f}", f'"{f}"' in _all)
-check("context_version podignut na 9 (v8 07.08., v9 08.08.)", '"context_version": 9' in _all)
+check("context_version podignut na 10 (v8 07.08., v9 08.08., v10 13.08.)", '"context_version": 10' in _all)
 
 # (e) nove vrijednosti ne smiju procuriti u prompt template
 check("prompt template nema novih polja",
@@ -514,7 +514,7 @@ _h = _hl.md5((_surface_specific_rules("Hard") + _pr.ANALYSIS_PROMPT_TEMPLATE)
              .encode("utf-8")).hexdigest()[:8]
 # Ako ovo padne, prompt se PROMIJENIO. To je u redu kad je namjerno — tada osvjezi
 # vrijednost ovdje i zabiljezi izmjenu u MODEL_CHANGELOG. Ako nije bilo namjerno, vrati je.
-check("hard rules_hash je i dalje 0477edbb (zamrznuta era)", _h == "0477edbb", _h)
+check("hard rules_hash je 2b08e904 (era od 13.08.2026)", _h == "2b08e904", _h)
 
 print("\n=== 15. Natpisi podloge u selekciji (07.08.2026) ===")
 from agent import ticket_builder as _tbm
@@ -554,7 +554,7 @@ _wf2 = open(".github/workflows/daily_ticket.yml", encoding="utf-8").read()
 
 # A — bez utjecaja na pickove
 check("ELO se biljezi u snapshot", '"p1_elo_overall"' in _prsrc and '"elo_gap_surface"' in _prsrc)
-check("context_version podignut na 9", '"context_version": 9' in _prsrc)
+check("context_version podignut na 10", '"context_version": 10' in _prsrc)
 check("broj protivnika u avg_opp_elo se biljezi", "_avg_opponent_elo_n" in _rd2)
 check("PYTHONUNBUFFERED aktiviran", 'PYTHONUNBUFFERED: "1"' in _wf2)
 check("hard okidac vise ne vristi na 30", "_HARD_NEXT_TRIGGER = 180" in _rd2)
@@ -585,7 +585,9 @@ check("return_points_won JOS NIJE ispravljen u promptu", "POZNATA PRISTRANOST" i
 # zamka: rules_hash se NIJE promijenio, pa se era mora rezati po bp_in_prompt
 _hh = _h2.md5((_surface_specific_rules("Hard") + _pr.ANALYSIS_PROMPT_TEMPLATE)
               .encode("utf-8")).hexdigest()[:8]
-check("rules_hash i dalje 0477edbb (tekst prompta nedirnut)", _hh == "0477edbb", _hh)
+# Prompt JE mijenjan 13.08.2026 (strop 64 + trzisna provjera) -> hash se MORAO promijeniti.
+# Ako ovo padne, prompt je diran: osvjezi vrijednost i zabiljezi izmjenu u MODEL_CHANGELOG.
+check("hard rules_hash je 2b08e904 (era od 13.08.2026)", _hh == "2b08e904", _hh)
 check("zamka o rezanju ere dokumentirana", "ZAMKA ZA BUDUĆU ANALIZU" in _prsrc)
 check("bp_in_prompt se biljezi kao oznaka ere", '"bp_in_prompt": _BP_TO_PROMPT' in _prsrc)
 
@@ -639,6 +641,86 @@ check("QF nije kvalifikacija", _tbm._is_main_tour(_mkp("ATP 250", "QF")) is True
 check("Q2 pada", _tbm._is_main_tour(_mkp("ATP 250", "Q2")) is False)
 check("screenshot override i dalje nadjacava round-tag",
       _tbm._is_main_tour(_mkp("ATP Masters 1000", "R128", ss=True)) is True)
+
+print("\n=== 20. Strop pouzdanosti na 64% (13.08.2026 12:47) ===")
+from agent.predictor import _enforce_confidence_ceiling as _ceil, _market_line, _CONF_CEILING
+_mk = lambda c, **kw: {**{"pick": "A", "confidence": c}, **kw}
+_r = _mk(67); _ceil(_r)
+check("67 bez obrazlozenja pada na 64", _r["confidence"] == 64.0)
+check("clamp se biljezi", (_r.get("ceiling_enforced") or {}).get("from") == 67.0)
+_r = _mk(64); _ceil(_r)
+check("64 se ne dira", _r["confidence"] == 64 and _r.get("ceiling_enforced") is None)
+_r = _mk(60); _ceil(_r)
+check("ispod stropa se ne dira", _r["confidence"] == 60)
+_ok = {"confirmations": ["hard ELO +180", "hold 86.4% vs 78.1%"],
+       "what_would_beat_it": "ako servira ispod 60% prvog"}
+_r = _mk(67, above_64_basis=_ok); _ceil(_r)
+check("67 s DVIJE mjerene potvrde + downside prolazi", _r["confidence"] == 67)
+_r = _mk(67, above_64_basis={"confirmations": ["serves well", "moves well"],
+                             "what_would_beat_it": "x"}); _ceil(_r)
+check("potvrde bez brojke ne vrijede", _r["confidence"] == 64.0)
+_r = _mk(67, above_64_basis={"confirmations": ["hard ELO +180", "hold 86.4%"]}); _ceil(_r)
+check("bez recenice o porazu ne prolazi", _r["confidence"] == 64.0)
+_r = _mk(67, above_64_basis={"confirmations": ["hard ELO +180"],
+                             "what_would_beat_it": "x"}); _ceil(_r)
+check("jedna potvrda nije dovoljna", _r["confidence"] == 64.0)
+_r = _mk(0, above_64_basis=None); _ceil(_r)
+check("preskocen mec (conf 0) se ne dira", _r["confidence"] == 0)
+check("strop je 64", _CONF_CEILING == 64.0)
+# redoslijed: strop PRVI, pa capovi (cap smije spustiti i ispod 64)
+_all2 = open("agent/predictor.py", encoding="utf-8").read()
+check("strop se primjenjuje PRIJE capova",
+      _all2.index("_enforce_confidence_ceiling(result)") < _all2.index("_enforce_stated_caps(result)"))
+
+print("\n=== 21. Trzisna cijena kao PROVJERA, ne ulaz ===")
+_ml = _market_line(1.28, 3.60, "Rublev", "Shang")
+check("prikazuje impliciranu vjerojatnost, ne kvotu", "78%" in _ml and "1.28" not in _ml)
+check("bez kvota vraca N/A", _market_line(0, 0, "A", "B") == "N/A")
+check("prompt nosi Market check redak", "Market check (NOT an input" in _pr.ANALYSIS_PROMPT_TEMPLATE)
+check("prompt izricito kaze da NIJE ulaz",
+      "must NOT enter your estimate" in _pr.ANALYSIS_PROMPT_TEMPLATE)
+check("prompt trazi obrazlozenje samo iznad 10pp",
+      "differs by more than 10pp" in _pr.ANALYSIS_PROMPT_TEMPLATE)
+check("mjerenje 2W-6L zapisano u pravilu", "2W-6L" in _pr.ANALYSIS_PROMPT_TEMPLATE)
+check("stara zabrana oslanjanja na kvotu i dalje stoji",
+      "independent of bookmaker odds" in _pr.ANALYSIS_PROMPT_TEMPLATE)
+check("nova polja u JSON shemi",
+      '"above_64_basis"' in _pr.ANALYSIS_PROMPT_TEMPLATE
+      and '"market_check"' in _pr.ANALYSIS_PROMPT_TEMPLATE)
+check("context_version podignut na 10", '"context_version": 10' in _all2)
+
+print("\n=== 22. Runde na razini TURNIRA (13.08.2026) ===")
+from agent.run_daily import _verify_late_rounds, _LATE_ROUND_TOTAL
+import io as _io3, contextlib as _cl3
+def _vr(today, hist):
+    _b = _io3.StringIO()
+    with _cl3.redirect_stdout(_b):
+        _verify_late_rounds(today, hist)
+    return today
+_mkr = lambda d, r, i: {"tournament": "T", "date": d, "round": r,
+                        "player1": f"A{i}", "player2": f"B{i}"}
+# Montreal obrazac: cetiri dana po dva "SF"
+_t = [_mkr("2026-08-13", "SF", 1), _mkr("2026-08-13", "SF", 2)]
+_h = [{"tournament": "T", "match_date": d, "round": "SF"}
+      for d in ("2026-08-10", "2026-08-10", "2026-08-11", "2026-08-11",
+                "2026-08-12", "2026-08-12")]
+_vr(_t, _h)
+check("dva SF od danas OSTAJU SF (najkasniji su pravi)",
+      all(m["round"] == "SF" for m in _t))
+_t2 = [_mkr("2026-08-12", "SF", 1), _mkr("2026-08-12", "SF", 2)]
+_vr(_t2, _h + [{"tournament": "T", "match_date": "2026-08-13", "round": "SF"}] * 2)
+check("raniji 'SF' se spusta u QF kad ih je previse",
+      all(m["round"] == "QF" for m in _t2))
+_t3 = [_mkr("2026-08-13", "SF", 1), _mkr("2026-08-13", "SF", 2)]
+_vr(_t3, [])
+check("bez povijesti se 2 SF ne diraju", all(m["round"] == "SF" for m in _t3))
+_t4 = [_mkr("2026-08-13", "R32", i) for i in range(20)]
+_vr(_t4, [])
+check("rane runde se NE diraju (bez punog zdrijeba ne znamo)",
+      all(m["round"] == "R32" for m in _t4))
+check("ukupni brojevi samo za zavrsnice",
+      set(_LATE_ROUND_TOTAL) == {"F", "SF", "QF"})
+check("get_tournament_rounds postoji", hasattr(_db, "get_tournament_rounds"))
 
 print("\n" + "=" * 60)
 if _fails:

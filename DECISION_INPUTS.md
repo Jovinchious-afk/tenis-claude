@@ -1,6 +1,6 @@
 # Što ulazi u odluku o picku — referentni popis
 
-**Stanje na dan 08.08.2026 12:30.** Popisano na korisnikov zahtjev jer se dosad nigdje nije
+**Stanje na dan 13.08.2026 12:47.** Popisano na korisnikov zahtjev jer se dosad nigdje nije
 vidjelo na jednom mjestu — ulazi su razasuti po promptu (`agent/predictor.py`),
 determinističkom kodu (`agent/ticket_builder.py`) i zapisu (`context_snapshot`).
 
@@ -34,9 +34,12 @@ Težine su hard v18; žive u Supabase `model_weights`, ne u kodu.
   izvor koji nikad ne nadjačava mjerene brojke. Dopušteni utjecaj skalira s pouzdanošću
   profila: High/Med-High ±3pp, Med ±2pp, **Med-Low samo kao sumnja** (nikad kao potpora
   picku), Low i Insufficient se uopće ne prikazuju
-- **`odds_alert`** — jedino mjesto gdje tržište dolazi do modela, i to samo pri omjeru kvota
-  ≥6:1, kao upozorenje na moguću ozljedu/povlačenje. **Kvota inače NE ulazi u procjenu
-  vjerojatnosti** (korisnikov izričit zahtjev; prompt to i kaže eksplicitno)
+- **`odds_alert`** — upozorenje na moguću ozljedu/povlačenje pri omjeru kvota ≥6:1
+- **`market_check`** *(novo 13.08.2026 12:47)* — tržišna cijena kao **PROVJERA, ne ulaz**.
+  Model svoj broj i dalje formira bez nje; tek nakon toga uspoređuje i, ako se razilazi za
+  više od 10pp, mora imenovati mjerenu činjenicu koja to opravdava. Povod: pickovi >10pp
+  IZNAD tržišta išli su 2W-6L (ROI −52,5%). **Kvota i dalje NE ulazi u procjenu
+  vjerojatnosti** — to je korisnikovo stalno pravilo.
 - **24 pravila**: 16 hard-specifičnih + 8 univerzalnih
 
 ## 2. Ulazi u ODLUKU — deterministički kod, nakon analize
@@ -53,19 +56,26 @@ Težine su hard v18; žive u Supabase `model_weights`, ne u kodu.
 - **NIJE na screenshotu** — od 11.08.2026 18:44 meč prolazi samo ako je njegov par na
   screenshotu (danas ∪ sutra), bez obzira na datum koji mu API dodijeli; bez ijednog
   screenshota run staje odmah. Vidi `_gate_by_screenshot`.
+- **runde na razini TURNIRA** *(novo 13.08.2026 12:47)* — turnir smije imati najviše 1 F,
+  2 SF i 4 QF kroz SVE dane; višak se spušta za rundu. Dnevna provjera je propuštala deset
+  "polufinala" jer je svaki dan imao točno dva. Vidi `_verify_late_rounds`.
 - **R128 izvan Grand Slama** — Masters ima ždrijeb od 96, ATP 250/500 od 28-32; R128 ondje ne
   postoji pa je oznaka kvalifikacijska (Cincinnati 11.08.). Screenshot poništava tu provjeru.
 
 **Ograničava listić:**
 
 - **4-6 parova**, ukupna kvota **6-40** (korisnikove fiksne granice)
+- **strop pouzdanosti 64%** *(novo 13.08.2026 12:47)* — iznad 64 model mora ispuniti
+  `above_64_basis` s dvije mjerene potvrde (s brojkama, iz različitih kategorija) i rečenicom
+  što bi ga oborilo; inače kod tvrdo spušta na 64 i bilježi `ceiling_enforced`. Razred 65-67%
+  isporučivao je 50,0% uz ROI −34,8% (n=20)
 - najviše **1 pick iz zone 1,43-1,60** *(suženo s 1,43-1,90 dana 08.08.2026 11:35)*
 
 **Bira kombinaciju** (`_score_combo`): umnožak pouzdanosti kao glavni kriterij, plus bonus za
 value (edge 3-20pp za favorite, 3-28pp za pickove ≥2,00), plus bonus za pouzdanost ≥72, minus
 kazna za najslabiji pick ispod 68, minus kazna za svaki par preko četiri.
 
-## 3. Bilježi se, ali NE utječe na odluku — 61 polje u `context_snapshot` v9
+## 3. Bilježi se, ali NE utječe na odluku — `context_snapshot` v10
 
 Vremenski uvjeti u punom obliku (temperatura, vlaga, vjetar, tlak na razini mora i na tlu,
 uvjet, koliko je prognoza udaljena od sata meča); je li teren natkriven; je li meč u prvom

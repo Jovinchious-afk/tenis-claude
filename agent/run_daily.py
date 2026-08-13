@@ -173,6 +173,17 @@ def main():
     # Fix unreliable round labels using match count per tournament per day
     all_matches = _infer_rounds(all_matches, screenshot_odds, pre_gate_counts)
 
+    # Provjera runda na razini CIJELOG TURNIRA (13.08.2026 12:47). `_infer_rounds` gleda
+    # jedan dan i zato je promasilo deset "polufinala" u Montrealu — svaki je dan imao
+    # tocno 2 SF, sto je za jedan dan moguce, a kroz turnir nije. Trazi povijest turnira iz
+    # baze jer jedan run vidi samo 2-3 dana. Vidi `_verify_late_rounds`.
+    try:
+        _tours = {m.get("tournament", "") for m in all_matches if m.get("tournament")}
+        _hist = db.get_tournament_rounds(_tours) if _tours else []
+        all_matches = _verify_late_rounds(all_matches, _hist)
+    except Exception as e:
+        print(f"  Provjera runda na razini turnira preskocena (greska: {e})")
+
     # Sortiraj po razini turnira: GS > Masters > 500 > 250 > Challenger
     from config.model_config import TOURNAMENT_LEVELS
     all_matches.sort(key=lambda m: (
@@ -1350,6 +1361,81 @@ def _infer_rounds(matches: list, screenshot_odds: dict = None,
                 m["round_id"] = _ROUND_ID.get(inferred, 0)
 
     _warn_impossible_rounds(matches)
+    return matches
+
+
+_ROUND_ORDER = ["R128", "R64", "R32", "R16", "QF", "SF", "F"]
+# Ukupan broj mecheva koji runda moze imati u CIJELOM turniru — nedvosmisleno samo za
+# zavrsnice. Rane runde ovise o velicini zdrijeba (96 vs 128 vs 32) i mi ionako vidimo
+# samo screenshotane meceve, pa se NE diraju.
+_LATE_ROUND_TOTAL = {"F": 1, "SF": 2, "QF": 4}
+
+
+def _verify_late_rounds(matches: list, db_history: list = None) -> list:
+    """Provjera oznaka runde na razini CIJELOG TURNIRA, ne pojedinog dana.
+
+    POVOD (13.08.2026 12:47, korisnik uocio): API je u Montrealu cetiri dana zaredom
+    (10.-13.08.) sve zvao "SF". U bazi je zavrsilo **10 mecheva oznacenih SF** (turnir ih
+    smije imati 2), 11 "QF" (smije 4) i 65 "R32" (smije 16); Shelton i Nakashima pojavljuju
+    se u "SF" po TRI puta.
+
+    ZASTO to `_infer_rounds` nije uhvatio: ono grupira po (turnir, DATUM, runda) i ispravlja
+    tek kad broj mecheva PRIJEDJE maksimum za tu oznaku. Svaki je dan imao TOCNO 2 meca
+    oznacena SF — za jedan dan fizicki moguce, pa je provjera prosla. Nemoguce je tek kad se
+    zbroji kroz sve dane, a jedan dnevni run vidi samo 2-3 dana.
+
+    KAKO RADI: spoji danasnje meceve s povijescu turnira iz baze, prebroji oznake kroz sve
+    dane i, ako ih je vise nego sto turnir smije imati, zadrzi NAJKASNIJE (prava zavrsnica je
+    na kraju) a ranije spusti za jednu rundu. Ponavlja dok se ne slegne.
+
+    OGRANICENO NA F/SF/QF namjerno: ondje je ukupan broj nedvosmislen bez obzira na velicinu
+    zdrijeba. Provjereno na Montrealu — SF 10->2 i QF 11->4, oba bez ijednog ponovljenog
+    igraca. Prelijevanje zavrsi u R16/R32, koji ostaju krivi; to se bez punog zdrijeba ne da
+    popraviti i NE pokusavam, jer bi svaka procjena ondje bila gadjanje (testirano: verzija
+    koja je dirala i rane runde spustila je 30 mecheva u nepostojeci "R128").
+    """
+    if not matches:
+        return matches
+    from collections import defaultdict
+    pool = defaultdict(list)          # turnir -> [(datum, dict-ili-None, oznaka)]
+    for m in matches:
+        r = m.get("round")
+        if r in _ROUND_ORDER:
+            pool[m.get("tournament", "")].append([m.get("date", ""), m, r])
+    for h in (db_history or []):
+        r = h.get("round")
+        if r in _ROUND_ORDER and h.get("tournament") in pool:
+            pool[h["tournament"]].append([h.get("match_date", ""), None, r])
+
+    changed_total = 0
+    for tournament, entries in pool.items():
+        for _ in range(8):
+            by_round = defaultdict(list)
+            for e in entries:
+                by_round[e[2]].append(e)
+            moved = False
+            for rnd in ("F", "SF", "QF"):
+                lst = by_round.get(rnd, [])
+                mx = _LATE_ROUND_TOTAL[rnd]
+                if len(lst) > mx:
+                    lst.sort(key=lambda x: x[0])
+                    idx = _ROUND_ORDER.index(rnd)
+                    for e in lst[:len(lst) - mx]:
+                        e[2] = _ROUND_ORDER[idx - 1]
+                        moved = True
+            if not moved:
+                break
+        for date, m, rnd in entries:
+            if m is not None and m.get("round") != rnd:
+                print(f"  Runda (razina turnira): {tournament} ({date}) — "
+                      f"{m.get('round')} → {rnd}")
+                m["round"] = rnd
+                m["round_id"] = {"R128": 1, "R64": 2, "R32": 3, "R16": 4,
+                                 "QF": 5, "SF": 6, "F": 7}.get(rnd, 0)
+                changed_total += 1
+    if changed_total:
+        print(f"  Runda (razina turnira): ispravljeno {changed_total} oznaka "
+              f"(turnir smije imati najvise 1 F, 2 SF, 4 QF ukupno).")
     return matches
 
 

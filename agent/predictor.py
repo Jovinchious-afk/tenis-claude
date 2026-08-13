@@ -177,6 +177,7 @@ Altitude: {altitude}
 Venue type: {venue_type}
 Local start time at the venue: {local_time} ({session} session)
 Court pace this event (share of sets going to a tiebreak): {court_pace}
+Market check (NOT an input — see MARKET PRICE rule below): {market_line}
 Tournament draw history — verified API data, last 3 seasons (F/SF/QF/R16):
 {tournament_draw_history}
 STRICT ANTI-HALLUCINATION RULE:
@@ -391,10 +392,48 @@ Respond ONLY in the following JSON format (no additional text):
   "risk_notes": "brief explanation of main risks (max 80 chars)",
   "handicap_option": "handicap option description or null",
   "applied_caps": [{{"rule": "16", "cap": 62}}],
+  "above_64_basis": null,
+  "market_check": null,
   "key_factors": ["1. Rating: ...", "2. Serve/return: ...", "3. Form vs opponent quality: ...", "4. Style matchup: ...", "5. Fatigue & conditions: ...", "6. Own read: ..."],
   "analysis": "2-3 sentences of key match analysis",
   "skip_reason": null
 }}
+
+CONFIDENCE CEILING AT 64% (added 2026-08-13, measured on the full Montreal hard corpus):
+Anything you state above 64% has, on our own record, been worse than useless. Measured on
+84 resolved hard analyses:
+  - your 63-64% band delivered 62.5% (n=40) — essentially perfect calibration;
+  - your 65-67% band delivered 50.0% (n=20) with ROI -34.8%;
+  - removing that band alone turns the whole corpus from -6.9% ROI to +1.8%.
+The reason is structural, not bad luck: your scale saturates near 67%, so "67%" is not a
+statement of strong belief — it is the ceiling being hit, and it gets applied to matches
+whose real gap ranges from near-even to overwhelming. In that band your number sat on
+average 10.7pp BELOW the market price, meaning you were picking heavy favourites while
+rating them lower than the market did, and still calling it high confidence.
+THEREFORE: 64% is a hard ceiling unless you can fill "above_64_basis" with BOTH of:
+  (a) at least TWO independent MEASURED confirmations, each naming the number
+      (e.g. "hard ELO +180", "hold 86.4% vs 78.1%", "3-0 H2H on hard"), from DIFFERENT
+      categories — two serve numbers are ONE confirmation, not two; and
+  (b) one sentence saying what would have to be true for this pick to lose.
+If you cannot supply both, state 64 or lower. Do not treat 64 as a target either — most
+matches belong below it. An unjustified number above 64 is clamped to 64 by code, and the
+clamp is logged, so writing it anyway gains you nothing.
+
+MARKET PRICE — A CHECK, NEVER AN INPUT (added 2026-08-13, user's explicit instruction):
+The bookmaker price for this match is shown in the CONDITIONS block as "Market check".
+It is NOT a probability input and must NOT enter your estimate. Form your number from the
+statistical factors and weights ALONE, exactly as before. Only AFTER you have your number,
+compare it with the price, and fill "market_check":
+  - if your probability is within 10pp of the market's, write null;
+  - if it differs by more than 10pp in either direction, write ONE sentence naming the
+    concrete measured fact that justifies the disagreement.
+Why this direction matters, measured on our corpus: picks where we sat MORE THAN 10pp ABOVE
+the market went 2W-6L (ROI -52.5%) — when we most disagreed upward, we were most wrong.
+Picks within 10pp of the market went 36W-21L (ROI 0.0%). So a large gap is a warning about
+US, not a discovery about the market. If you cannot name a concrete measured fact for the
+gap, that is itself evidence your number is too extreme — move it toward the market and say
+so. You are NOT being asked to copy the price; you are being asked to notice when you have
+drifted far from it without a reason you can name.
 
 KEY_FACTORS FORMAT (mandatory structure, added 2026-07-31):
 Entries 1-5 are FIXED and must ALWAYS be present, in this exact order, each prefixed with
@@ -1053,6 +1092,7 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         p1_titles=_format_titles(p1.get("titles") or {}),
         p2_titles=_format_titles(p2.get("titles") or {}),
         odds_alert=_odds_alert(odds_p1, odds_p2, match["player1"], match["player2"]),
+        market_line=_market_line(odds_p1, odds_p2, match["player1"], match["player2"]),
 
         w_elo_ranking=weights.get("elo_ranking", 22),
         w_surface_style=weights.get("surface_style", 20),
@@ -1137,7 +1177,7 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         #     i ne utjece na pickove — prvo mjerimo je li signal stvaran (vidi _common_opponents).
         _wd = match.get("weather_data") or {}
         result["context_snapshot"].update({
-            "context_version": 9,
+            "context_version": 10,
             "weather_temp_c": _wd.get("temp_c"),
             "weather_humidity": _wd.get("humidity"),
             "weather_wind_kmh": _wd.get("wind_kmh"),
@@ -1221,10 +1261,17 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             # Koliko je protivnika uslo u avg_opp_elo (vidi run_daily._avg_opponent_elo_n).
             "avg_opp_elo_n": match.get("avg_opp_elo_n"),
         })
+        # Redoslijed je bitan: strop na 64 ide PRVI (moze spustiti 67 -> 64), pa tek onda
+        # capovi koje je model sam proglasio (mogu spustiti i ispod 64). Obrnuto bi strop
+        # ponistio niži cap. Oba PRIJE `_normalize_fair_odds`, koji fair_odds izvodi iz
+        # confidencea pa mora vidjeti konačan broj.
+        _enforce_confidence_ceiling(result)
         _enforce_stated_caps(result)
         result["context_snapshot"]["cap_enforced"] = result.get("cap_enforced")
         result["context_snapshot"]["cap_prose_mismatch"] = result.get("cap_prose_mismatch")
-        # NAKON clampa — fair_odds se izvodi iz confidencea, pa mora vidjeti spušteni broj.
+        result["context_snapshot"]["ceiling_enforced"] = result.get("ceiling_enforced")
+        result["context_snapshot"]["market_check"] = result.get("market_check")
+        result["context_snapshot"]["above_64_basis"] = result.get("above_64_basis")
         _normalize_fair_odds(result, match)
         return result
     except Exception as e:
@@ -1281,6 +1328,55 @@ _CAP_PROSE_RE = re.compile(
 _CAP_NEGATION_RE = re.compile(
     r"\b(?:does\s+not|doesn't|not\s+fully|never|avoid\w*|no\s+cap|would\s+(?:apply|trigger)|"
     r"cannot|is\s+not)\b", re.I)
+
+
+_CONF_CEILING = 64.0
+_CEILING_MIN_CONFIRMATIONS = 2
+
+
+def _enforce_confidence_ceiling(result: dict) -> None:
+    """Tvrdi strop na 64% osim ako model ne obrazlozi (13.08.2026 12:47).
+
+    MJERENJE (84 razrijesene hard analize, pun Montreal):
+        razred 63-64%  ->  62,5% stvarno (n=40)   kalibracija gotovo savrsena
+        razred 65-67%  ->  50,0% stvarno (n=20)   ROI -34,8%
+        bez razreda 65+, cijeli korpus ide s -6,9% na +1,8% ROI
+
+    Uzrok je strukturni, ne pehov: modelova ljestvica se zasici oko 67%, pa "67%" nije
+    izjava o jakom uvjerenju nego udaranje u strop — i onda se lijepi na meceve cija se
+    stvarna razlika krece od gotovo izjednacene do premocne. U tom je razredu nas broj
+    prosjecno **10,7pp ISPOD** trzisne cijene (17 od 20 pickova), dakle birali smo teske
+    favorite a ocjenjivali ih nize od trzista, i to zvali visokom pouzdanoscu.
+
+    Zato NIJE trazena "dodatna potvrda" nekim mjerenim kriterijem — provjerio sam sve
+    podjele tog razreda i nijedna ga ne spasava (unutar 10pp od trzista 3W-5L, vise od 10pp
+    ispod 6W-5L). Trazi se DEKLARACIJA: dva neovisna mjerena potvrdjivaca s brojkama i
+    jedna recenica o tome sto bi moralo biti istina da pick izgubi. Ista mehanika koja vec
+    radi kod `_enforce_stated_caps` (capirani pickovi 12W-3L u Montrealu).
+
+    Clamp se BILJEZI (`ceiling_enforced`) da se za mjesec dana moze izmjeriti je li strop
+    pomogao ili je samo maknuo dobre pickove zajedno s losima.
+    """
+    conf = safe_float(result.get("confidence") or 0)
+    if conf <= _CONF_CEILING or not result.get("pick"):
+        return
+    basis = result.get("above_64_basis")
+    items, has_downside = [], False
+    if isinstance(basis, dict):
+        items = [str(x) for x in (basis.get("confirmations") or []) if str(x).strip()]
+        has_downside = bool(str(basis.get("what_would_beat_it") or "").strip())
+    elif isinstance(basis, list):
+        items = [str(x) for x in basis if str(x).strip()]
+    elif isinstance(basis, str) and basis.strip():
+        items = [p for p in re.split(r";|\||\n", basis) if p.strip()]
+    # Potvrda mora sadrzavati BROJKU — "he serves well" nije mjereni potvrdjivac.
+    measured = [x for x in items if re.search(r"\d", x)]
+    ok = len(measured) >= _CEILING_MIN_CONFIRMATIONS and (has_downside or not isinstance(basis, dict))
+    if not ok:
+        result["confidence"] = _CONF_CEILING
+        result["ceiling_enforced"] = {"from": conf, "to": _CONF_CEILING,
+                                      "measured_confirmations": len(measured),
+                                      "had_downside": has_downside}
 
 
 def _enforce_stated_caps(result: dict) -> None:
@@ -1452,6 +1548,27 @@ def _round_context(round_str: str, level: str, round_id: int = 0) -> str:
     if r == "F":
         return f"Final ({fmt}). Both finalists proven over 6+ matches."
     return f"Round: {round_str} ({fmt})."
+
+
+def _market_line(odds_p1: float, odds_p2: float, name_p1: str, name_p2: str) -> str:
+    """Trzisna cijena kao PROVJERA, nikad kao ulaz (13.08.2026 12:47, korisnikov zahtjev).
+
+    Korisnikovo pravilo je i dalje da kvota NE ulazi u procjenu vjerojatnosti. Ovo je
+    srednji put koji je odobrio: model svoj broj formira kao i dosad, a cijenu vidi tek da
+    primijeti KAD SE JAKO RAZISAO s trzistem i da to izrijekom obrazlozi.
+
+    Povod (izmjereno na 84 razrijesene hard analize): pickovi gdje smo bili vise od 10pp
+    IZNAD trzista isli su 2W-6L (ROI -52,5%), a oni unutar 10pp 36W-21L (ROI 0,0%). Veliko
+    razilazenje prema gore bilo je upozorenje o NAMA, ne otkrice o trzistu. Uz to je trzisna
+    cijena jedina velicina u cijelom korpusu koja korelira s ishodom u ISPRAVNOM smjeru
+    (r=+0,181), dok nasa pouzdanost korelira negativno (r=-0,147).
+
+    Prikazuje se kao implicirana vjerojatnost, ne kao kvota, da se ne cita kao isplata."""
+    o1, o2 = safe_float(odds_p1), safe_float(odds_p2)
+    if not o1 or not o2 or o1 <= 0 or o2 <= 0:
+        return "N/A"
+    return (f"{name_p1} {1/o1*100:.0f}% / {name_p2} {1/o2*100:.0f}% "
+            f"(implied by the bookmaker, overround not removed)")
 
 
 def _odds_alert(odds_p1: float, odds_p2: float, name_p1: str, name_p2: str) -> str:
