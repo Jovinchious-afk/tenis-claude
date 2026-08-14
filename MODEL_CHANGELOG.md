@@ -13,6 +13,62 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-08-14 11:02 — NEOBJAVLJEN RASPORED ZA SUTRA: bez uvjeta i bez oznake dan/noc
+
+**Povod (korisnikovo zapazanje):** kad kladionica jos nema raspored za sutra, ne ostavlja
+termin praznim nego cijeli dan nabije na jedan placeholder sat. Model tada cita prognozu za
+krivi sat i svrsta vecernje meceve u "day" — a oboje zavrsi u `analyzed_matches` kao da je
+izmjereno, pa truje bas one podatke na kojima ucimo model.
+
+**Dokaz, dva korisnikova screenshota istog jutra (14.08.2026):**
+
+| rubrika | parova | termini |
+|---|---|---|
+| "danas" (14.08) | 22 | 17:00 x5, 18:10 x5, 19:20 x6, 20:30 x4, 01:00, 02:10 |
+| "sutra" (15.08) | 10 | **17:00 x10** |
+
+Prvi je stvaran objavljen raspored, drugi je placeholder.
+
+**Pravilo:** ako 4+ meceva jednog turnira dijeli NAJRANIJI termin **sutrasnje** liste, cijela
+sutrasnja lista tog turnira ide bez vremenskih uvjeta i bez oznake dan/noc.
+
+**Zasto samo "sutra":** rubrika "danas" se uvijek lijepi svjeza, s objavljenim rasporedom
+(korisnikova odluka). Podatak to potvrdjuje — gornji stvarni raspored za 14.08 ima 5 meceva u
+prvom terminu, pa bi detekcija vezana na podatak umjesto na rubriku ubila weather za svih 22
+meca kojima je sat bio tocan. **Prvotni prijedlog (detekcija po obliku podatka, bez obzira na
+rubriku) je zato odbacen**, kao i predlozeni dodatni prag "udio >=50%" — rubrika ga cini
+nepotrebnim. Isti par sutra dolazi pod "danas" i tada dobiva pravi sat i pravu prognozu, pa se
+za ucenje modela nista trajno ne gubi.
+
+**Prag 4+** je korisnikova odluka (prvo predlozio 3+, pa podigao) kao ograda prema danima kad
+je sutrasnji raspored ipak objavljen i vise terena stvarno krece istovremeno.
+
+**Sto se tocno mijenja za oznaceni mec:**
+
+- prognoza se **uopce ne dohvaca** — preskacu se OBA poziva, i satni i grubi fallback po danu
+  (da se preskocio samo prvi, kod bi tiho pao na drugi i spremio dnevni prosjek kao izmjeren)
+- `weather`, `local_time`, `session` u snapshotu ostaju prazni, a ne priblizni
+- u prompt ide recenica koja kaze ZASTO podatka nema i da izostanak nije prednost ni za koga
+- `wave_first` ostaje prazan umjesto laznog `true` (kladionica sve lista na isti sat, pa bi
+  inace svi ispali "prvi val"); placeholder ne definira ni pocetak vala ostalim mecevima
+- zadrzava se `scheduled_local_time` (sto je kladionica tvrdila) i `time_source`
+
+**Zasto i dan/noc, ne samo uvjeti:** `session` po pravilu 14 smije **dizati** pouzdanost, dok
+uvjeti smiju samo spustati. Da su maknuti samo uvjeti, u promptu bi ostala ona od dvije
+varijable koja moze napraviti vecu stetu. Na sutrasnjoj listi bi svih 10 meceva dobilo `day`.
+
+**Mec i dalje ide u analizu i smije na tiket** — gubi samo uvjete i sat.
+
+**Zapis:** `context_snapshot` **v11** + `schedule_provisional` i `scheduled_start_source_date`.
+**`rules_hash` se NIJE promijenio** (`2b08e904`) jer je predlozak prompta netaknut — mijenja se
+samo vrijednost koja se u njega ubacuje. Era se zato **ne smije rezati po hashu, nego po
+`context_version` >= 11**. Ista zamka kao kod `_BP_TO_PROMPT` 08.08.2026.
+
+**Provjereno na stvarnim podacima:** od 32 uploadana para oznaceno je tocno 10 sutrasnjih,
+nijedan od 22 danasnjih. Novi test `test_provisional_schedule.py` (25 asercija).
+
+---
+
 ## 2026-08-13 12:47 — PUNA REVIZIJA NAKON MONTREALA (84 rijesene analize)
 
 Revizija prije pocetka Cincinnatija. Korpus: **92 Montreal analize, 84 rijesene, bazna stopa

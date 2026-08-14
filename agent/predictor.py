@@ -1101,7 +1101,13 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         w_fatigue_injuries=weights.get("fatigue_injuries", 11),
         w_h2h_context=weights.get("h2h_context", 4),
         w_tournament_trajectory=weights.get("tournament_trajectory", 4),
-        local_time=match.get("local_time") or "unknown",
+        # Neobjavljen raspored za sutra (14.08.2026 11:02): sat je kladionicin placeholder,
+        # pa se ne prosljedjuje ni vrijeme ni oznaka dan/noc. Ovo je BITNO jer `session`
+        # po pravilu 14 smije dizati pouzdanost (za razliku od uvjeta, koji smiju samo
+        # spustati) — laznu oznaku "day" model bi smio iskoristiti kao argument ZA pick.
+        local_time=("Unknown — tomorrow's schedule is not final"
+                    if match.get("schedule_provisional")
+                    else (match.get("local_time") or "unknown")),
         session=match.get("session") or "unknown",
         court_pace=match.get("court_pace_str") or "no data",
         surface_specific_rules=_surface_specific_rules(surface),
@@ -1177,7 +1183,7 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         #     i ne utjece na pickove — prvo mjerimo je li signal stvaran (vidi _common_opponents).
         _wd = match.get("weather_data") or {}
         result["context_snapshot"].update({
-            "context_version": 10,
+            "context_version": 11,
             "weather_temp_c": _wd.get("temp_c"),
             "weather_humidity": _wd.get("humidity"),
             "weather_wind_kmh": _wd.get("wind_kmh"),
@@ -1198,6 +1204,17 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             # (za Montreal kasni ~3h). Biljezi se da se kasnije vidi koliko je analiza radilo
             # na tocnom, a koliko na pomaknutom vremenu.
             "time_source": match.get("time_source"),
+            # v11 (14.08.2026 11:02, korisnikov zahtjev): raspored za sutra jos nije bio
+            # objavljen — kladionica je cijeli dan listala na jedan placeholder sat, pa su
+            # uvjeti i oznaka dan/noc NAMJERNO prazni. Ovo polje postoji da se te mecheve
+            # kasnije moze izrezati iz svake analize vremena: bez njega bi izgledali kao
+            # obicni mecevi kojima prognoza slucajno nedostaje.
+            # NAPOMENA O EROVIMA: `rules_hash` se ovom izmjenom NIJE promijenio (predlozak
+            # prompta je netaknut, mijenja se samo vrijednost koja se u njega ubacuje), pa
+            # se era NE smije rezati po hashu — rezi po `context_version` >= 11. Ista zamka
+            # kao kod `_BP_TO_PROMPT` 08.08.2026.
+            "schedule_provisional": bool(match.get("schedule_provisional")),
+            "scheduled_start_source_date": match.get("time_screenshot_date"),
             # wave_first = mec je u PRVOM valu svog turnira tog lokalnog dana (krece po
             # rasporedu). Ostali dobivaju +1h jer cekaju prethodni mec na terenu — pa se
             # kasnije moze izmjeriti je li ta pretpostavka bila dobra.

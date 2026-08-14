@@ -933,11 +933,16 @@ def screenshot_start_utc(date_str: str, hhmm: str, day_abbr: str = "") -> str:
         return ""
 
 
-def find_screenshot_time(player1: str, player2: str, screenshot_by_date: dict) -> str:
-    """Trazi vrijeme pocetka za par kroz screenshotove svih dana; vraca ISO UTC ili ''.
+def find_screenshot_entry(player1: str, player2: str, screenshot_by_date: dict) -> tuple:
+    """Trazi par kroz screenshotove svih dana; vraca (datum_rubrike, zapis) ili ("", {}).
 
     `screenshot_by_date` je {datum: odds_dict} — datum je NUZAN jer sat sam po sebi ne
     odredjuje dan, a isti par se u dva dana ne ponavlja (eliminacijski turnir).
+
+    Izdvojeno iz `find_screenshot_time` 14.08.2026 11:02 (korisnikov zahtjev): od danas
+    nije dovoljno znati SAT, nego i iz KOJE rubrike dolazi. Rubrika "sutra" nosi
+    kladionicin placeholder sat dok raspored jos nije objavljen — vidi
+    `_detect_provisional_schedule` u run_daily.
     """
     for date_str, odds in (screenshot_by_date or {}).items():
         for val in (odds or {}).values():
@@ -946,8 +951,16 @@ def find_screenshot_time(player1: str, player2: str, screenshot_by_date: dict) -
                 continue
             if ((_name_match(player1, val.get("p1", "")) and _name_match(player2, val.get("p2", "")))
                     or (_name_match(player1, val.get("p2", "")) and _name_match(player2, val.get("p1", "")))):
-                return screenshot_start_utc(date_str, t, val.get("start_day", ""))
-    return ""
+                return date_str, val
+    return "", {}
+
+
+def find_screenshot_time(player1: str, player2: str, screenshot_by_date: dict) -> str:
+    """Trazi vrijeme pocetka za par kroz screenshotove svih dana; vraca ISO UTC ili ''."""
+    date_str, val = find_screenshot_entry(player1, player2, screenshot_by_date)
+    if not date_str:
+        return ""
+    return screenshot_start_utc(date_str, val.get("start_time", ""), val.get("start_day", ""))
 
 
 def get_screenshot_odds(date_str: str) -> dict:

@@ -280,16 +280,60 @@ def main():
     screenshot_by_date = {today_str: screenshot_today, tomorrow_str: screenshot_tomorrow}
     _n_ss_time = 0
     for match in all_matches:
-        ss_utc = df.find_screenshot_time(match["player1"], match["player2"], screenshot_by_date)
+        ss_date, ss_entry = df.find_screenshot_entry(
+            match["player1"], match["player2"], screenshot_by_date)
+        ss_utc = df.screenshot_start_utc(
+            ss_date, ss_entry.get("start_time", ""), ss_entry.get("start_day", "")
+        ) if ss_date else ""
         if ss_utc:
             match["start_utc"] = ss_utc
             match["time_source"] = "screenshot"
+            # Iz KOJE rubrike ("danas"/"sutra") dolazi sat — vidi _detect_provisional_schedule.
+            match["time_screenshot_date"] = ss_date
             _n_ss_time += 1
         else:
             match["time_source"] = "api"
     if _n_ss_time:
         print(f"  Vrijeme početka sa screenshota za {_n_ss_time}/{len(all_matches)} mečeva "
               f"(ostali padaju na API-jev sat).")
+
+    # NEOBJAVLJEN RASPORED ZA SUTRA (14.08.2026 11:02, korisnikov zahtjev).
+    #
+    # Kad kladionica jos nema raspored za sutra, ne ostavi termin praznim nego cijeli dan
+    # nabije na jedan placeholder sat. Izmjereno na korisnikova dva screenshota istog jutra:
+    #   14.08 "danas": 22 para, 6 razlicitih termina (17:00 x5, 18:10 x5, 19:20 x6, 20:30 x4)
+    #   15.08 "sutra": 10 parova, SVIH 10 na 17:00
+    # Prvi je stvaran objavljen raspored, drugi je placeholder. Posljedica placeholdera:
+    # prognoza se cita za krivi sat, a `session` svrsta vecernje meceve u "day" — i jedno i
+    # drugo zatim zavrsi u `analyzed_matches` kao da je izmjereno, pa truje bas one podatke
+    # na kojima ucimo model.
+    #
+    # ZASTO SAMO "SUTRA", A NE GDJE GOD SE OBLIK PREPOZNA: rubrika "danas" se uvijek lijepi
+    # svjeza, s objavljenim rasporedom, pa joj se vjeruje bez iznimke (korisnikova odluka).
+    # Podatak to i potvrdjuje: gornji stvarni raspored za 14.08 ima 5 meceva u prvom terminu,
+    # dakle detekcija vezana na podatak umjesto na rubriku ubila bi weather za svih 22 meca
+    # kojima je sat bio tocan. Isti par sutra ionako dolazi pod "danas" i tada dobiva pravi
+    # sat i pravu prognozu, pa se za ucenje modela nista trajno ne gubi.
+    #
+    # PRAG 4+ (korisnikova odluka; prvo je predlozio 3+): visi prag stiti od dana kad je
+    # sutrasnji raspored ipak objavljen i vise terena stvarno krece istovremeno.
+    #
+    # Usporedjuje se STVARNI TRENUTAK, ne sat na ekranu — inace bi "sub 01:00" bio "najraniji"
+    # a zapravo je zadnji (ista zamka koja je vec dokumentirana kod kasnjenja valova).
+    # Detekcija je PO TURNIRU: placeholder na jednom turniru ne smije povuci drugi kojemu je
+    # raspored objavljen. Kad turnir padne, pada MU CIJELA sutrasnja lista (korisnikova
+    # odluka) — ako raspored nije objavljen, nije objavljen ni za usamljeni kasniji termin,
+    # koji je najvjerojatnije samo drugi placeholder (vecernja sesija).
+    _provisional_tours = _detect_provisional_schedule(all_matches, tomorrow_str)
+    _n_prov = 0
+    for match in all_matches:
+        prov = (match.get("time_screenshot_date") == tomorrow_str
+                and match.get("tournament", "") in _provisional_tours)
+        match["schedule_provisional"] = prov
+        _n_prov += bool(prov)
+    if _n_prov:
+        print(f"  Raspored za sutra nije objavljen ({', '.join(sorted(_provisional_tours))}): "
+              f"{_n_prov} mečeva bez vremenskih uvjeta i bez oznake dan/noć.")
 
     # KASNJENJE KASNIJIH VALOVA (05.08.2026, korisnikov zahtjev).
     #
@@ -322,12 +366,14 @@ def main():
             match["scheduled_local_time"] = lt["local_time"]
             _sched[id(match)] = (match.get("tournament", ""), lt["local_date"])
 
-    # Najraniji stvarni trenutak po (turnir, lokalni dan turnira).
+    # Najraniji stvarni trenutak po (turnir, lokalni dan turnira). Mečevi s neobjavljenim
+    # rasporedom se NE broje — njihov placeholder sat bi krivo definirao početak vala za
+    # ostale mečeve istog turnirskog dana kojima je sat poznat.
     _wave_start = {}
     for match in all_matches:
         key = _sched.get(id(match))
         su = match.get("start_utc", "")
-        if not key or not su:
+        if not key or not su or match.get("schedule_provisional"):
             continue
         if key not in _wave_start or su < _wave_start[key]:
             _wave_start[key] = su
@@ -336,6 +382,13 @@ def main():
     for match in all_matches:
         key = _sched.get(id(match))
         su = match.get("start_utc", "")
+        # Neobjavljen raspored: ne znamo ni sat ni redoslijed, pa nema ni pomaka ni oznake
+        # vala. `wave_first` ostaje prazan (None), a ne lažni True — sve mečeve takvog dana
+        # kladionica ionako lista na isti sat, pa bi svi ispali "prvi val".
+        if match.get("schedule_provisional"):
+            match["wave_first"] = None
+            match["effective_utc"] = su
+            continue
         # Pomak SAMO kad vrijeme dolazi sa screenshota — kod API-jevog sata ne znamo u kojem
         # je meč valu, pa se ne nagađa (bolje neutralno nego krivo).
         first = (not key) or (match.get("time_source") != "screenshot") or (su == _wave_start.get(key))
@@ -357,7 +410,11 @@ def main():
     for match in all_matches:
         city = _city_for_weather(match.get("tournament", ""))
         # Sve nizvodno (sesija, prognoza) koristi EFEKTIVNO vrijeme — ono kad mec realno krece.
-        lt = df.local_match_time(match.get("effective_utc") or match.get("start_utc", ""), city)
+        # Kod neobjavljenog rasporeda se `local_time`/`session` NAMJERNO ne postavljaju: sat
+        # je placeholder, pa bi oznaka dan/noc bila izmisljena. Brzina terena se racuna dalje
+        # jer ne ovisi o satu (dolazi iz rezultata sezone).
+        lt = (df.local_match_time(match.get("effective_utc") or match.get("start_utc", ""), city)
+              if not match.get("schedule_provisional") else None)
         if lt:
             match["local_time"] = lt["local_time"]
             match["session"] = lt["session"]
@@ -384,6 +441,11 @@ def main():
     weather_cache = {}
     weather_raw_cache = {}
     for match in all_matches:
+        # Neobjavljen raspored za sutra: preskacu se OBA dohvata — i onaj po satu meca i
+        # grubi fallback po danu. Da se preskocio samo prvi, kod bi tiho pao na drugi i
+        # spremio dnevni prosjek kao da je izmjeren za taj mec.
+        if match.get("schedule_provisional"):
+            continue
         city = _city_for_weather(match.get("tournament", ""))
         match_date = match.get("date", today_str)
         lt_str = match.get("local_time") or ""
@@ -421,6 +483,13 @@ def main():
             weather_cache[cache_key] = "N/A"
 
     for match in all_matches:
+        # Neobjavljen raspored: umjesto praznog "N/A" ide recenica koja modelu kaze ZASTO
+        # podatka nema i da izostanak ne smije citati kao prednost bilo kojeg igraca.
+        if match.get("schedule_provisional"):
+            match["weather"] = _PROVISIONAL_WEATHER_NOTE
+            match["weather_data"] = {}
+            match["weather_shielded"] = False
+            continue
         city = _city_for_weather(match.get("tournament", ""))
         match_date = match.get("date", today_str)
         lt_str = match.get("local_time") or ""
@@ -1225,6 +1294,43 @@ def _count_by_tournament_day(matches: list) -> dict:
     for m in matches:
         counts[(m.get("tournament", ""), m.get("date", ""), m.get("round", ""))] += 1
     return dict(counts)
+
+
+# Koliko mečeva mora dijeliti NAJRANIJI termin sutrašnje liste da ju proglasimo
+# neobjavljenom. 4+ je korisnikova odluka (14.08.2026 11:02) — prvo je predložio 3+, pa
+# podigao za sigurnosnu ogradu prema danima kad raspored za sutra ipak jest objavljen i
+# više terena stvarno kreće istovremeno. Puno obrazloženje: vidi poziv u glavnom toku.
+_PROVISIONAL_MIN_SAME_START = 4
+
+# Ide u prompt umjesto uvjeta kad raspored za sutra nije objavljen. Namjerno je recenica, a
+# ne golo "N/A": model inace prazan podatak zna procitati kao blagi signal.
+_PROVISIONAL_WEATHER_NOTE = (
+    "Unknown — tomorrow's schedule is not final (the bookmaker lists the whole day at one "
+    "placeholder start time, so the real start hour is not known). Weather was deliberately "
+    "NOT fetched for this match. Do NOT reason about temperature, humidity, wind, rain or "
+    "day/night conditions here, and do not treat this absence as favouring either player."
+)
+
+
+def _detect_provisional_schedule(matches: list, tomorrow_str: str) -> set:
+    """Turniri kojima sutrašnja lista nosi placeholder satnicu umjesto objavljenog rasporeda.
+
+    Gleda SAMO mečeve čije vrijeme dolazi iz rubrike "sutra" (`time_screenshot_date`);
+    rubrici "danas" se vjeruje uvijek. Vraća skup naziva turnira.
+    """
+    by_tour: dict = {}
+    for m in matches:
+        if m.get("time_screenshot_date") != tomorrow_str:
+            continue
+        su = m.get("start_utc") or ""
+        if su:
+            by_tour.setdefault(m.get("tournament", ""), []).append(su)
+    flagged = set()
+    for tour, starts in by_tour.items():
+        # Najraniji STVARNI trenutak, ne najmanji sat na ekranu (mečevi iza ponoći).
+        if starts.count(min(starts)) >= _PROVISIONAL_MIN_SAME_START:
+            flagged.add(tour)
+    return flagged
 
 
 def _infer_rounds(matches: list, screenshot_odds: dict = None,

@@ -28,7 +28,13 @@ Težine su hard v18; žive u Supabase `model_weights`, ne u kodu.
 
 - **Runda i kontekst runde** — rane runde dopuštaju iznenađenja, završnice favoriziraju dokazane
 - **Vremenski uvjeti** — smiju **samo SPUŠTATI** pouzdanost, nikad je dizati (asimetrija namjerna)
-- **Lokalno vrijeme početka i sesija** (dan/noć)
+- **Lokalno vrijeme početka i sesija** (dan/noć) — za razliku od uvjeta, sesija po pravilu 14
+  smije djelovati **u oba smjera**
+- **Oboje otpada kad raspored za sutra nije objavljen** *(novo 14.08.2026 11:02)*. Kad 4+
+  mečeva jednog turnira dijeli najraniji termin **sutrašnje** liste, kladionica je cijeli dan
+  nabila na jedan placeholder sat: prognoza se tada ne dohvaća uopće, a `local_time`/`session`
+  ostaju prazni umjesto približni. Rubrici „danas" se vjeruje uvijek. Meč i dalje ide u analizu
+  i smije na tiket. Zapis: `context_snapshot.schedule_provisional` (v11)
 - **Povijest ždrijeba turnira** — anti-halucinacijska provjera tvrdnji o prošlim rezultatima
 - **Scouting profili** (`player_scouting`, 150 igrača iz korisnikova Excela) — SEKUNDARNI
   izvor koji nikad ne nadjačava mjerene brojke. Dopušteni utjecaj skalira s pouzdanošću
