@@ -240,6 +240,39 @@ check("nijedna odluka o selekciji ne gleda tržište", not _sel,
       f"sumnjivi redci: {_sel[:2]}")
 
 
+print("\n=== 10. Cijene svake kladionice zasebno (15.08.2026) ===")
+
+_evt = {"id": "abc", "sport_key": "tennis_atp_x", "home_team": "A Player",
+        "away_team": "B Player", "commence_time": "2026-08-15T15:00:00Z",
+        "bookmakers": [
+            {"key": "softbook", "markets": [{"key": "h2h", "outcomes": [
+                {"name": "A Player", "price": 1.70}, {"name": "B Player", "price": 2.20}]}]},
+            {"key": "pinnacle", "markets": [{"key": "h2h", "outcomes": [
+                {"name": "A Player", "price": 1.80}, {"name": "B Player", "price": 2.10}]}]}]}
+_rows = mkt.flatten_lines([_evt], captured_utc="2026-08-15T09:00:00Z")
+check("jedan redak po kladionici", len(_rows) == 2)
+check("čuva se sirova kvota obje strane",
+      {r["bookmaker"]: (r["odds_p1"], r["odds_p2"]) for r in _rows}["pinnacle"] == (1.80, 2.10))
+check("oštra kuća je označena",
+      [r["is_sharp"] for r in _rows if r["bookmaker"] == "pinnacle"] == [True])
+check("meka kuća nije označena kao oštra",
+      [r["is_sharp"] for r in _rows if r["bookmaker"] == "softbook"] == [False])
+check("sati do početka izračunati (15:00 - 09:00 = 6h)",
+      all(abs(r["hours_to_start"] - 6.0) < 0.01 for r in _rows))
+check("de-vig po kladionici se razlikuje",
+      len({r["p1_devig"] for r in _rows}) == 2)
+check("kuća bez h2h tržišta se preskače",
+      mkt.flatten_lines([dict(_evt, bookmakers=[{"key": "x", "markets": [
+          {"key": "totals", "outcomes": []}]}])]) == [])
+check("prazan ulaz -> prazan izlaz", mkt.flatten_lines([]) == [])
+
+from database import supabase_client as _db
+check("save_market_lines postoji", hasattr(_db, "save_market_lines"))
+check("prazan upis ne zove bazu", _db.save_market_lines([]) == 0)
+check("tablica opisana u schema.sql",
+      "market_lines" in open("database/schema.sql", encoding="utf-8").read())
+
+
 print("\n" + "=" * 60)
 if _fails:
     print(f"PALO: {len(_fails)}")

@@ -207,6 +207,65 @@ def consensus_index(tour: str = "atp", regions: str = DEFAULT_REGIONS) -> list:
     return out
 
 
+def flatten_lines(events: list, captured_utc: str = None) -> list:
+    """Svaka kladionica -> jedan redak, za tablicu `market_lines`.
+
+    ZASTO SE CUVA SVAKA KUCA, A NE SAMO MEDIJAN (korisnikova ideja 15.08.2026):
+    medijan skriva TKO odstupa, a to je vjerojatno informativnije od toga KOLIKO se
+    odstupa. Pinnacle koji ide ispod SuperSporta nije isto sto i jedna meka kuca koja
+    kasni s azuriranjem. Dohvat je ionako vec placen — sve kuce dolaze u istom odgovoru,
+    pa je biljezenje besplatno. Ne moze se analizirati ono sto se nije zapisalo.
+
+    UPOZORENJE ZA KASNIJU ANALIZU (zapisano namjerno, prije nego podaci postoje):
+    ovdje ce biti ~46 kladionica. Ako se kasnije trazi "koja kuca predvidja pobjednika",
+    to je 46 istovremenih testova i **neka ce izgledati znacajno cisto slucajno** — na
+    p<0,05 ocekuje se 2-3 laznih. U ovoj sesiji su tri takva nalaza vec pala na provjeri
+    izvan uzorka (pojas kvota, prag 63%, favorit-autsajder pristranost). Pravilo prije
+    ijednog zakljucka: hipotezu zapisati PRIJE gledanja, podijeliti uzorak na pola i
+    traziti da se drzi u obje polovice.
+    """
+    import datetime
+    now = captured_utc or datetime.datetime.now(datetime.timezone.utc).strftime(
+        "%Y-%m-%dT%H:%M:%SZ")
+    rows = []
+    for e in events or []:
+        home, away = e.get("home_team", ""), e.get("away_team", "")
+        start = e.get("commence_time")
+        hrs = None
+        if start:
+            try:
+                st = datetime.datetime.fromisoformat(str(start).replace("Z", "+00:00"))
+                nw = datetime.datetime.fromisoformat(now.replace("Z", "+00:00"))
+                hrs = round((st - nw).total_seconds() / 3600.0, 2)
+            except ValueError:
+                pass
+        for bm in e.get("bookmakers", []) or []:
+            for mk_ in bm.get("markets", []) or []:
+                if mk_.get("key") != "h2h":
+                    continue
+                pr = {o.get("name"): o.get("price") for o in mk_.get("outcomes", []) or []}
+                o1, o2 = pr.get(home), pr.get(away)
+                p1, _ = devig(o1, o2)
+                if p1 is None:
+                    continue
+                rows.append({
+                    "captured_at": now,
+                    "event_id": e.get("id"),
+                    "sport_key": e.get("sport_key") or "",
+                    "commence_time": start,
+                    # Koliko je sati ostalo do pocetka — zamjenjuje oznaku "open/close".
+                    # Isti mec vidimo vise puta (danas kao sutrasnji, sutra kao danasnji),
+                    # pa se pomak cijene mjeri po ovome, bez rucnog oznacavanja faze.
+                    "hours_to_start": hrs,
+                    "player1": home, "player2": away,
+                    "bookmaker": bm.get("key"),
+                    "odds_p1": o1, "odds_p2": o2,
+                    "p1_devig": round(p1, 6),
+                    "is_sharp": bm.get("key") in SHARP_BOOKS,
+                })
+    return rows
+
+
 def expected_value(p_true: float, odds_offered: float) -> float:
     """Ocekivani prinos po jedinici uloga: p x kvota - 1. Pozitivno = isplativa oklada.
 

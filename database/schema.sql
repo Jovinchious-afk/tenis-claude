@@ -81,6 +81,38 @@ CREATE TABLE IF NOT EXISTS ticket_matches (
     resolved_at TIMESTAMP WITH TIME ZONE
 );
 
+-- Cijene POJEDINAČNIH kladionica (2026-08-15 10:12, korisnikova ideja).
+-- Zašto svaka kuća, a ne samo medijan: medijan skriva TKO odstupa, a to je vjerojatno
+-- informativnije od toga koliko. Pinnacle koji ode ispod SuperSporta nije isto što i jedna
+-- meka kuća koja kasni. Dohvat je ionako plaćen (sve kuće dolaze u istom odgovoru), pa je
+-- bilježenje besplatno — a ne može se analizirati ono što se nije zapisalo.
+-- Volumen: ~32 meča × ~46 kuća = ~1500 redaka po pokretanju.
+--
+-- UPOZORENJE ZA ANALIZU: ~46 kuća znači 46 istovremenih testova. Na p<0,05 očekuje se
+-- 2-3 lažno "značajne" kuće ČISTO SLUČAJNO. Hipotezu zapisati prije gledanja i tražiti da
+-- se drži u obje polovice uzorka.
+CREATE TABLE IF NOT EXISTS market_lines (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    captured_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    event_id VARCHAR(80) NOT NULL,
+    sport_key VARCHAR(80),
+    commence_time TIMESTAMP WITH TIME ZONE,
+    -- Sati do početka meča. Zamjenjuje oznaku "otvaranje/zatvaranje": isti meč vidimo više
+    -- puta (danas kao sutrašnji, sutra kao današnji), pa se pomak cijene mjeri po ovome.
+    hours_to_start DECIMAL(8,2),
+    player1 VARCHAR(150),
+    player2 VARCHAR(150),
+    bookmaker VARCHAR(60) NOT NULL,
+    odds_p1 DECIMAL(10,4),
+    odds_p2 DECIMAL(10,4),
+    p1_devig DECIMAL(9,6),          -- poštena vjerojatnost za player1 kod TE kuće
+    is_sharp BOOLEAN DEFAULT FALSE, -- Pinnacle / Betfair exchange / Matchbook
+    UNIQUE (event_id, bookmaker, captured_at)
+);
+CREATE INDEX IF NOT EXISTS idx_market_lines_event ON market_lines(event_id);
+CREATE INDEX IF NOT EXISTS idx_market_lines_players ON market_lines(player1, player2);
+CREATE INDEX IF NOT EXISTS idx_market_lines_captured ON market_lines(captured_at DESC);
+
 -- Širi pool analiziranih mečeva (uključuje i mečeve koji nisu ušli u tiket)
 CREATE TABLE IF NOT EXISTS analyzed_matches (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

@@ -316,10 +316,24 @@ def main():
     _mkt_index = []
     try:
         import agent.market as mkt
-        _mkt_index = mkt.consensus_index("atp")
+        # Sirovi dogadjaji se cuvaju da se iz njih mogu zapisati SVE kladionice pojedinacno
+        # (korisnikova ideja 15.08.2026) — medijan skriva TKO odstupa, a to je vjerojatno
+        # informativnije od toga koliko. Dohvat je isti, pa je zapis besplatan.
+        _mkt_events = []
+        for _sk in mkt.active_tennis_keys("atp"):
+            for _ev in mkt.fetch_odds(_sk):
+                _ev["sport_key"] = _sk
+                _mkt_events.append(_ev)
+        _mkt_index = [dict(mkt.consensus(_e), sport_key=_e.get("sport_key"))
+                      for _e in _mkt_events if mkt.consensus(_e)]
         if _mkt_index:
             print(f"Tržišni konsenzus: {len(_mkt_index)} mečeva "
                   f"(kredita preostalo: {mkt.LAST_USAGE.get('remaining')})")
+            _lines = mkt.flatten_lines(_mkt_events)
+            _saved = db.save_market_lines(_lines)
+            if _saved:
+                print(f"  Zapisano {_saved} redaka cijena "
+                      f"({len(set(l['bookmaker'] for l in _lines))} kladionica).")
     except Exception as e:
         print(f"  Tržišni konsenzus preskočen ({str(e)[:80]}) — ostatak radi normalno.")
 

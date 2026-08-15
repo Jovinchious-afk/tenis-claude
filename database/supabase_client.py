@@ -151,6 +151,29 @@ def delete_ticket(ticket_id: str) -> bool:
 _OPTIONAL_TM_COLS = ("player1_id", "player2_id", "market_snapshot")
 
 
+def save_market_lines(rows: list) -> int:
+    """Sprema cijene POJEDINACNIH kladionica u `market_lines`. Vraca broj upisanih.
+
+    Best-effort, isti obrazac kao `save_match_stats`: ako tablica jos ne postoji, upis se
+    tiho preskace i ostatak runa radi normalno (vidi CREATE TABLE u database/schema.sql).
+    Upsert po (event_id, bookmaker, captured_at) — ponovno pokretanje istog dana ne stvara
+    duplikate.
+    """
+    if not rows:
+        return 0
+    try:
+        # U komadima: jedan run zna dati 1500+ redaka (32 meca x 46 kladionica).
+        n = 0
+        for i in range(0, len(rows), 500):
+            _upsert("market_lines", rows[i:i + 500],
+                    on_conflict="event_id,bookmaker,captured_at")
+            n += len(rows[i:i + 500])
+        return n
+    except Exception as e:
+        print(f"  market_lines preskoceno ({str(e)[:70]}) — pokreni CREATE TABLE iz schema.sql.")
+        return 0
+
+
 def save_ticket_matches(matches: list) -> None:
     if not matches:
         return
