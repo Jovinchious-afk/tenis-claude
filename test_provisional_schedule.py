@@ -152,7 +152,7 @@ check("prompt dobiva eksplicitan razlog umjesto sata",
       "Unknown — tomorrow's schedule is not final" in _pr)
 check("snapshot bilježi schedule_provisional", '"schedule_provisional"' in _pr)
 check("snapshot bilježi iz koje rubrike je sat", '"scheduled_start_source_date"' in _pr)
-check("context_version 12", '"context_version": 12' in _pr)
+check("context_version 13", '"context_version": 13' in _pr)
 check("rules_hash NIJE dirnut (predložak prompta netaknut)",
       pr._model_stamp("hard")["rules_hash"] == "2b08e904")
 check("nova polja ne cure u predložak prompta",
@@ -172,8 +172,62 @@ check("besmislena dob se odbacuje", df._get_age({"age": 99, "birthday": ""}) is 
 
 check("dob NE ide u prompt dok traje mjerenje", pr._AGE_TO_PROMPT is False)
 check("dob se ipak biljezi u snapshot", '"age_in_prompt"' in _pr)
-check("context_version 12", '"context_version": 12' in _pr)
+check("context_version 13", '"context_version": 13' in _pr)
 check("rules_hash i dalje netaknut", pr._model_stamp("hard")["rules_hash"] == "2b08e904")
+
+
+print("\n=== 9. Tržišni konsenzus — samo mjeri, ne odlučuje (15.08.2026) ===")
+
+from agent import market as mkt
+
+# de-vig: dvije kvote 2.00/2.00 -> 50/50; marža se mora maknuti
+_p1, _p2 = mkt.devig(2.0, 2.0)
+check("devig 2.00/2.00 -> 50/50", abs(_p1 - 0.5) < 1e-9 and abs(_p2 - 0.5) < 1e-9)
+_p1, _p2 = mkt.devig(1.5, 2.5)
+check("devig zbroj je uvijek 1", abs(_p1 + _p2 - 1.0) < 1e-9)
+check("devig favorita drži iznad 50%", _p1 > 0.5)
+check("besmislene kvote -> (None, None)", mkt.devig(0, 2.0) == (None, None))
+check("kvota 1.00 se odbacuje", mkt.devig(1.0, 5.0) == (None, None))
+
+check("EV: p=0,55 uz kvotu 2,00 = +10%", abs(mkt.expected_value(0.55, 2.0) - 0.1) < 1e-9)
+check("EV: poštena oklada = 0", abs(mkt.expected_value(0.5, 2.0)) < 1e-9)
+check("EV bez kvote -> None", mkt.expected_value(0.5, None) is None)
+
+# consensus: medijan preko kuća, oštre odvojeno
+_ev = {"home_team": "A Player", "away_team": "B Player", "bookmakers": [
+    {"key": "softbook1", "markets": [{"key": "h2h", "outcomes": [
+        {"name": "A Player", "price": 2.0}, {"name": "B Player", "price": 2.0}]}]},
+    {"key": "softbook2", "markets": [{"key": "h2h", "outcomes": [
+        {"name": "A Player", "price": 1.9}, {"name": "B Player", "price": 2.1}]}]},
+    {"key": "pinnacle", "markets": [{"key": "h2h", "outcomes": [
+        {"name": "A Player", "price": 1.8}, {"name": "B Player", "price": 2.2}]}]},
+]}
+_c = mkt.consensus(_ev)
+check("consensus računa preko svih kuća", _c["n_books"] == 3)
+check("oštre kuće se broje odvojeno", _c["n_sharp"] == 1)
+check("p_best uzima oštru kuću kad postoji", abs(_c["p_best"] - _c["p_sharp"]) < 1e-9)
+check("p_median se razlikuje od p_sharp", _c["p_median"] != _c["p_sharp"])
+check("spread bilježi neslaganje kuća", _c["spread"] > 0)
+
+# uparivanje: SuperSport piše "Prezime Ime", API "Ime Prezime"
+_idx = [dict(_c, home="Alexander Zverev", away="Cameron Norrie")]
+check("uparuje obrnut redoslijed imena",
+      bool(mkt.find_for_pair(_idx, "Zverev Alexander", "Norrie Cameron")))
+_f = mkt.find_for_pair(_idx, "Norrie Cameron", "Zverev Alexander")
+check("preokreće vjerojatnost kad je par obrnut",
+      _f.get("flipped") is True and abs(_f["p_best"] - (1 - _c["p_best"])) < 1e-9)
+check("nepoznat par -> {}", mkt.find_for_pair(_idx, "Neki Igrac", "Drugi Igrac") == {})
+
+# najvažnije: tržište NE smije doći do prompta
+check("market_p NIJE u predlošku prompta", "market_p" not in pr.ANALYSIS_PROMPT_TEMPLATE)
+check("snapshot bilježi market_p", '"market_p"' in _pr)
+check("snapshot bilježi EV picka", '"market_ev_pick"' in _pr)
+check("context_version 13", '"context_version": 13' in _pr)
+check("rules_hash i dalje netaknut", pr._model_stamp("hard")["rules_hash"] == "2b08e904")
+check("ticket_builder ne zna za market (selekcija nedirnuta)",
+      "market_ev" not in inspect.getsource(sys.modules.get("agent.ticket_builder")
+                                           or __import__("agent.ticket_builder",
+                                                         fromlist=["x"])))
 
 
 print("\n" + "=" * 60)

@@ -13,6 +13,61 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-08-15 10:12 — TRZISNI KONSENZUS: uveden kao MJERENJE; selekcija NIJE prebacena
+
+**Korisnik je povukao vlastito pravilo** da kvota ne smije biti prediktivna varijabla i dao
+punu slobodu. Kupio je The Odds API 20K plan (30 USD/mj) da se mehanizam moze provjeriti.
+
+### Sto je izmjereno PRIJE gradnje (i zasto selekcija nije prebacena)
+
+**1. SuperSport nije darezljiv.** Uzivo, 10 parova, konsenzus 46 kladionica:
+marza SuperSporta **5,42%** naspram trzisne **5,29%**. Prakticki isto.
+
+**2. Prilika gotovo da nema.** Kroz dva dana i 32 uparena para, **samo 3 (9%)** su imala
+pozitivan EV; najbolji **+3,28%**, medijan najboljeg EV po mecu **−2,70%**.
+**Uz 1-2 prilike dnevno NEMA od cega sloziti tiket od 4-6 parova** — prebacivanje selekcije
+na EV danas bi znacilo nula listica. Zato se prvo skuplja uzorak.
+
+**3. Povijesni test mehanizma je bio NEGATIVAN.** Na 12 povijesnih snimki (161 dogadjaj,
+3106 oklada), meke kuce naspram ostre reference (Pinnacle/Betfair/Matchbook):
+
+| prag EV | n | pogodak | stvarni ROI | ocekivani ROI | P |
+|---|---|---|---|---|---|
+| EV > +0% | 116 | 38,8% | −15,4% | +12,8% | 0,131 |
+| EV > +2% | 36 | 11,1% | **−70,9%** | +39,3% | **0,011** |
+| EV > +3% | 34 | 5,9% | **−86,1%** | +41,4% | **0,002** |
+
+Ocekivani EV od +39% je besmislen — prava vrijednost je +2-5%. Takav broj znaci **pokvarenu
+cijenu, ne darezljivu**: snimke su u 10:00 UTC kad je trziste tanko (min 3 kladionice), pa
+"vrijednost" dolazi od zastarjelih ili suspendiranih cijena. Kontrola to potvrdjuje: ostre
+kuce ondje NISU bolje od mekih (Brier 0,2241 vs 0,2212). **Zakljucak: prividna vrijednost na
+tankim ranojutarnjim snimkama nije stvarna vrijednost.**
+
+Nasuprot tome, **cisti uzivo podaci daju razumne brojke** (+1,8% i +3,3% na 22-46 kladionica),
+sto upucuje da je problem bio u kvaliteti snimke, a ne u mehanizmu. Zato mjerimo dalje.
+
+### Sto je implementirano
+
+Novi modul **`agent/market.py`**: aktivni turnirski kljucevi (besplatan poziv), dohvat cijena,
+multiplikativni de-vig, konsenzus medijanom preko kuca + zasebno preko **ostrih** (Pinnacle,
+Betfair exchange, Matchbook — provjereno da regija `us` donosi Pinnacle), EV, i uparivanje
+imena **presjekom tokena** (SuperSport pise "Prezime Ime", API "Ime Prezime" — uparivanje po
+zadnjoj rijeci dalo je 0 od 10 parova).
+
+`run_daily` dohvaca konsenzus i uz svaki mec biljezi `market_p`, `market_ev_p1/p2`,
+`market_gap_pp`, broj kuca i marzu. `context_snapshot` **v13**.
+
+**NISTA OD TOGA NE UTJECE NA PICKOVE:** ne ulazi u prompt (testom potvrdjeno),
+`ticket_builder` ne zna za njega, `rules_hash` ostaje `2b08e904`.
+
+### Trosak
+
+`/sports` je besplatan; `/sports/{key}/odds` = broj regija (nama 3: eu,uk,us). Uz 1-2 aktivna
+ATP turnira to je **3-6 kredita po pokretanju**, dakle ~150/mjesec od 20.000. Povijesni upit
+je 10x skuplji (koristen samo za ovu provjeru, potroseno ~130).
+
+---
+
 ## 2026-08-15 09:19 — DOB: popravljen tihi bug, ali NAMJERNO ostaje izvan prompta
 
 **Povod:** korisnik pitao (informativno) postoji li obrazac po dobi — npr. dobivaju li igraci

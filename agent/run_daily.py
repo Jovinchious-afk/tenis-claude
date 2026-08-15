@@ -297,6 +297,51 @@ def main():
         print(f"  Vrijeme početka sa screenshota za {_n_ss_time}/{len(all_matches)} mečeva "
               f"(ostali padaju na API-jev sat).")
 
+    # ── TRŽIŠNI KONSENZUS (15.08.2026 10:12, korisnikov zahtjev) ──────────────────────
+    #
+    # SAMO SE MJERI I BILJEŽI — ne bira pickove, ne ulazi u prompt, ne mijenja tiket.
+    #
+    # Povod: dvije revizije pokazale su da nemamo prednost pred tržištem (61,1% naspram
+    # 62,4% poštene cijene), pa gubitak dolazi od marže, ne od lošeg tenisa. Jedino
+    # preostalo mjesto gdje prednost može biti je razlika u cijeni među kladionicama.
+    #
+    # ZAŠTO SE SELEKCIJA NIJE ODMAH PREBACILA NA EV (izmjereno istog dana, prije uvođenja):
+    # SuperSportova marža je 5,42%, tržišna 5,29% — praktički ista. Od 32 uparena para kroz
+    # dva dana samo su 3 imala pozitivan EV (9%), najbolji +3,28%. Uz 1-2 prilike dnevno
+    # NEMA od čega složiti tiket od 4-6 parova, pa bi prebacivanje selekcije značilo nula
+    # listića. Zato se prvo skuplja uzorak; odluka o strukturi je korisnikova.
+    #
+    # Isti obrazac kao break lopte i dob: podatak se PRVO mjeri, tek onda eventualno ulazi
+    # u odluku.
+    _mkt_index = []
+    try:
+        import agent.market as mkt
+        _mkt_index = mkt.consensus_index("atp")
+        if _mkt_index:
+            print(f"Tržišni konsenzus: {len(_mkt_index)} mečeva "
+                  f"(kredita preostalo: {mkt.LAST_USAGE.get('remaining')})")
+    except Exception as e:
+        print(f"  Tržišni konsenzus preskočen ({str(e)[:80]}) — ostatak radi normalno.")
+
+    _n_mkt = 0
+    for match in all_matches:
+        try:
+            c = mkt.find_for_pair(_mkt_index, match["player1"], match["player2"]) if _mkt_index else {}
+        except Exception:
+            c = {}
+        if not c:
+            continue
+        match["market_p"] = c.get("p_best")
+        match["market_p_median"] = c.get("p_median")
+        match["market_p_sharp"] = c.get("p_sharp")
+        match["market_n_books"] = c.get("n_books")
+        match["market_n_sharp"] = c.get("n_sharp")
+        match["market_overround"] = c.get("overround")
+        match["market_spread"] = c.get("spread")
+        _n_mkt += 1
+    if _n_mkt:
+        print(f"  Upareno s tržištem: {_n_mkt}/{len(all_matches)} mečeva.")
+
     # NEOBJAVLJEN RASPORED ZA SUTRA (14.08.2026 11:02, korisnikov zahtjev).
     #
     # Kad kladionica jos nema raspored za sutra, ne ostavi termin praznim nego cijeli dan
@@ -677,6 +722,21 @@ def main():
             match["odds_p1"] = odds.get("p1_odds", 0)
             match["odds_p2"] = odds.get("p2_odds", 0)
             match["odds_available"] = bool(odds)  # False = kvote nisu nađene u Odds API
+
+            # EV naspram tržišnog konsenzusa (15.08.2026 10:12) — SAMO ZA MJERENJE.
+            # Pozitivan EV znači da SuperSport plaća više nego što konsenzus 20-46 kuća
+            # kaže da meč vrijedi. Ne utječe ni na jedan pick; skuplja se uzorak da se za
+            # 2-3 tjedna vidi pobjeđuju li označeni pickovi stvarno češće.
+            _mp = match.get("market_p")
+            if _mp and match["odds_p1"] and match["odds_p2"]:
+                import agent.market as _mk
+                match["market_ev_p1"] = _mk.expected_value(_mp, match["odds_p1"])
+                match["market_ev_p2"] = _mk.expected_value(1.0 - _mp, match["odds_p2"])
+                # Razlika naše i tržišne procjene u postotnim bodovima — pozitivno znači
+                # da SuperSport našeg p1 drži SLABIJIM nego ostatak tržišta.
+                _ss_p1, _ = _mk.devig(match["odds_p1"], match["odds_p2"])
+                match["market_gap_pp"] = (round(100 * (_mp - _ss_p1), 2)
+                                          if _ss_p1 is not None else None)
             # Screenshot = korisnikova potvrda glavnog ždrijeba (izvor istine da meč
             # NIJE kvalifikacija). _is_main_tour koristi ovu zastavicu da propusti meč
             # čak i ako je API ostavio Q/R128 oznaku. Provjera samo protiv screenshota.

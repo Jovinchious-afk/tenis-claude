@@ -1208,7 +1208,25 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         #     i ne utjece na pickove — prvo mjerimo je li signal stvaran (vidi _common_opponents).
         _wd = match.get("weather_data") or {}
         result["context_snapshot"].update({
-            "context_version": 12,
+            "context_version": 13,
+            # v13 (15.08.2026 10:12, korisnikov zahtjev): TRZISNI KONSENZUS.
+            # Cijene 20-46 kladionica (The Odds API), razvigane i spojene medijanom.
+            # `market_p` je vjerojatnost za NASEG player1 po trzistu; `market_ev_pick` je
+            # ocekivani prinos ako se kladi NAS pick po SuperSport kvoti.
+            # SVE JE SAMO ZA MJERENJE — ne bira pickove, ne ulazi u prompt.
+            # Izmjereno pri uvodjenju: SuperSport marza 5,42% vs trzisna 5,29%; samo 3 od
+            # 32 uparena para kroz dva dana imala su pozitivan EV. Zato se selekcija NIJE
+            # prebacila na EV — nema od cega sloziti tiket od 4-6 parova.
+            "market_p": match.get("market_p"),
+            "market_p_sharp": match.get("market_p_sharp"),
+            "market_n_books": match.get("market_n_books"),
+            "market_overround": match.get("market_overround"),
+            "market_spread": match.get("market_spread"),
+            "market_gap_pp": match.get("market_gap_pp"),
+            "market_ev_pick": (
+                match.get("market_ev_p1")
+                if (result.get("pick") or "").strip().lower() == (match.get("player1") or "").strip().lower()
+                else match.get("market_ev_p2")),
             # v12 (15.08.2026 09:19): dob je od danas STVARNO popunjena (bila None u svih
             # 320 redaka zbog krivog naziva kljuca). `age_in_prompt` biljezi je li u toj
             # analizi dob dosla modelu — vidi `_AGE_TO_PROMPT` za razlog zasto je False.
