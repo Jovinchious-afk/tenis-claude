@@ -13,6 +13,52 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-08-15 09:19 — DOB: popravljen tihi bug, ali NAMJERNO ostaje izvan prompta
+
+**Povod:** korisnik pitao (informativno) postoji li obrazac po dobi — npr. dobivaju li igraci
+24-27 cesce one od 32-35. Pri provjeri se pokazalo da **dob uopce nije prikupljana**.
+
+**Bug:** `_get_age` je trazio `dateOfBirth` / `dob` / `birthDate` / `born`, a endpoint
+`/atp/player/profile/{id}` vraca datum rodjenja pod kljucem **`birthday`**. Nijedan naziv se
+nije poklopio → `None` u **svih 320 redaka** `analyzed_matches` otkad polje postoji, a u
+promptu je doslovno pisalo **"Age: N/A" za svaki mec koji smo ikad analizirali**. Tiho, bez
+ijedne poruke o gresci — ista vrsta greske kao break lopte 07.08.
+
+**Popravljeno:** `birthday` dodan kao prvi kandidat. Provjereno na stvarnim odgovorima:
+Nakashima 25, Norrie 30, Shelton 23, Djokovic 39.
+
+**`hand` se NE moze popraviti:** isti profil nema polje o ruci kojom igrac igra (ni `hand`,
+ni `plays`, ni `playingHand`), pa je `p1_hand` prazan string u svih 114 zapisa. Treba drugi
+izvor ili se odustaje.
+
+### Zasto dob NE ide u prompt (`_AGE_TO_PROMPT = False`)
+
+**1. Izmjereno — dob nema prediktivnu vrijednost.** Dob je retroaktivno dohvacena za **242
+meca** (sve podloge, SVI mecevi a ne samo nasi pickovi; 152 profila):
+
+| provjera | rezultat |
+|---|---|
+| mladji pobjedjuje | 117-110 = **51,5%** (P=0,691) |
+| razlika 1-2 g. / 3-5 / 6-8 / 9+ | 52,1% / 48,8% / 61,8% / 49,2% — nijedna P<0,22 |
+| 10 dobnih duela po skupinama | **nijedan** ne prolazi prag (najbolji P=0,238) |
+| **mladji vs ono sto trziste ocekuje** | 50,7% naspram **50,8%** → **−0,1pp, P=1,000** |
+| samo razlike 6+ godina | +2,2pp, P=0,751 |
+
+Zadnji red je presudan: **trziste dob vec ima u cijeni**, nema ostatka za iskoristiti. Isti
+zakljucak kao za sve ostale predmecne varijable iz revizija 13.08. i 15.08.
+
+**2. Atribucija.** 15.08. traje dogovoreno mjerenje ucinka stropa 64% (korisnik: cekamo 4-5
+dana Cincinnatija prije ijedne izmjene modela). Pustanje nove varijable u prompt usred tog
+prozora pokvarilo bi upravo ono sto mjerimo.
+
+Dob se od danas **biljezi** u `context_snapshot` i bit ce dostupna za buduce analize bez
+rucnog dohvata. Za ukljucivanje u prompt dovoljno je `_AGE_TO_PROMPT = True`.
+
+**Zapis:** `context_version` 11 → **12**, novo polje `age_in_prompt`. **`rules_hash` ostaje
+`2b08e904`** (predlozak prompta netaknut) — eru rezati po `context_version`, ne po hashu.
+
+---
+
 ## 2026-08-14 11:02 — NEOBJAVLJEN RASPORED ZA SUTRA: bez uvjeta i bez oznake dan/noc
 
 **Povod (korisnikovo zapazanje):** kad kladionica jos nema raspored za sutra, ne ostavlja

@@ -88,6 +88,29 @@ def _get_client() -> anthropic.Anthropic:
 # `context_version` (8 -> 9). Rezati po hashu ovdje bi spojilo dvije različite ere u jednu.
 _BP_TO_PROMPT = True
 
+# DOB U PROMPTU — NAMJERNO ISKLJUCENA (15.08.2026 09:19).
+#
+# Dohvat dobi je danas popravljen (`_get_age` je trazio kriv naziv kljuca, pa je u promptu
+# stajalo "Age: N/A" za svaki meč ikad — vidi data_fetcher). Od sada dob POSTOJI, ali
+# NAMJERNO ne ide u prompt, nego samo u `context_snapshot`, iz dva razloga:
+#
+# 1. IZMJERENO: dob nema prediktivnu vrijednost. Retroaktivno dohvacena dob za 242 meca
+#    (sve podloge, svi mecevi a ne samo nasi pickovi): mladji pobjeduje 51,5% (P=0,691);
+#    nijedan dobni duel ne prolazi prag (testirano 10 celija, nijedna p<0,05); po velicini
+#    razlike u godinama nista (1-2 g. 52,1%, 3-5 g. 48,8%, 6-8 g. 61,8%, 9+ g. 49,2%).
+#    Presudno: mladji pobjeduje 50,7% a trziste ocekuje 50,8% — razlika -0,1pp, P=1,000.
+#    Trziste dob vec ima u cijeni; nema ostatka za iskoristiti.
+# 2. ATRIBUCIJA: 15.08. traje dogovoreno mjerenje ucinka stropa 64% (korisnik: cekamo 4-5
+#    dana Cincinnatija prije ijedne izmjene modela). Pustanje nove varijable u prompt usred
+#    tog prozora pokvarilo bi upravo ono sto mjerimo.
+#
+# Isti obrazac kao kod break lopti 07.08.: podatak se PRVO skuplja i mjeri, tek onda
+# eventualno ulazi u odluku. Za ukljucivanje je dovoljno postaviti ovo na True.
+#
+# ZAMKA ZA BUDUCU ANALIZU: `rules_hash` se ovim NE mijenja (predlozak prompta je netaknut),
+# pa se era prije/poslije dobi NE smije rezati po hashu nego po `context_version` >= 12.
+_AGE_TO_PROMPT = False
+
 # CJELOVIT POPIS ULAZA U ODLUKU: vidi `DECISION_INPUTS.md` (08.08.2026 12:30) — što ulazi u
 # prompt, što u deterministički kod, a što se samo bilježi. Ondje je i otvorena zamjerka o
 # tome da se nesigurne procjene ovdje prikazuju bez ikakve mjere pouzdanosti (npr.
@@ -1009,7 +1032,8 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         format="Best of 3" if "Grand Slam" not in match.get("level", "") else "Best of 5",
         round_context=_round_context(match.get("round", ""), match.get("level", ""), match.get("round_id", 0)),
 
-        p1_age=p1.get("age", "N/A"), p1_hand=_format_hand(p1.get("hand", "")),
+        p1_age=(p1.get("age") or "N/A") if _AGE_TO_PROMPT else "N/A",
+        p1_hand=_format_hand(p1.get("hand", "")),
         p1_country=p1.get("nationality") or "N/A",
         p1_ranking=p1.get("ranking", "N/A"), p1_ranking_trend=p1.get("ranking_trend", "N/A"),
         p1_elo_overall=p1.get("elo_overall", 1500), p1_elo_surface=p1.get(elo_key, 1500),
@@ -1044,7 +1068,8 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         p1_form_trend=p1.get("form_trend", "N/A"),
         p1_news=p1.get("news", "No news") or "No news",
 
-        p2_age=p2.get("age", "N/A"), p2_hand=_format_hand(p2.get("hand", "")),
+        p2_age=(p2.get("age") or "N/A") if _AGE_TO_PROMPT else "N/A",
+        p2_hand=_format_hand(p2.get("hand", "")),
         p2_country=p2.get("nationality") or "N/A",
         p2_ranking=p2.get("ranking", "N/A"), p2_ranking_trend=p2.get("ranking_trend", "N/A"),
         p2_elo_overall=p2.get("elo_overall", 1500), p2_elo_surface=p2.get(elo_key, 1500),
@@ -1183,7 +1208,11 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         #     i ne utjece na pickove — prvo mjerimo je li signal stvaran (vidi _common_opponents).
         _wd = match.get("weather_data") or {}
         result["context_snapshot"].update({
-            "context_version": 11,
+            "context_version": 12,
+            # v12 (15.08.2026 09:19): dob je od danas STVARNO popunjena (bila None u svih
+            # 320 redaka zbog krivog naziva kljuca). `age_in_prompt` biljezi je li u toj
+            # analizi dob dosla modelu — vidi `_AGE_TO_PROMPT` za razlog zasto je False.
+            "age_in_prompt": bool(_AGE_TO_PROMPT),
             "weather_temp_c": _wd.get("temp_c"),
             "weather_humidity": _wd.get("humidity"),
             "weather_wind_kmh": _wd.get("wind_kmh"),

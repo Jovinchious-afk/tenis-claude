@@ -152,11 +152,28 @@ check("prompt dobiva eksplicitan razlog umjesto sata",
       "Unknown — tomorrow's schedule is not final" in _pr)
 check("snapshot bilježi schedule_provisional", '"schedule_provisional"' in _pr)
 check("snapshot bilježi iz koje rubrike je sat", '"scheduled_start_source_date"' in _pr)
-check("context_version 11", '"context_version": 11' in _pr)
+check("context_version 12", '"context_version": 12' in _pr)
 check("rules_hash NIJE dirnut (predložak prompta netaknut)",
       pr._model_stamp("hard")["rules_hash"] == "2b08e904")
 check("nova polja ne cure u predložak prompta",
       "schedule_provisional" not in pr.ANALYSIS_PROMPT_TEMPLATE)
+
+
+print("\n=== 8. Dob: popravljen dohvat, ali NAMJERNO izvan prompta (15.08.2026) ===")
+
+check("_get_age cita `birthday` (stvarni naziv iz API-ja)",
+      df._get_age({"birthday": "2001-08-03T00:00:00.000Z"}) is not None)
+check("dob iz `birthday` je smislena", 20 <= (df._get_age({"birthday": "2001-08-03T00:00:00.000Z"}) or 0) <= 30)
+check("stari nazivi i dalje rade (fallback)",
+      df._get_age({"dateOfBirth": "1995-05-22"}) is not None)
+check("izravno polje `age` ima prednost", df._get_age({"age": 27}) == 27)
+check("nema podatka -> None", df._get_age({}) is None)
+check("besmislena dob se odbacuje", df._get_age({"age": 99, "birthday": ""}) is None)
+
+check("dob NE ide u prompt dok traje mjerenje", pr._AGE_TO_PROMPT is False)
+check("dob se ipak biljezi u snapshot", '"age_in_prompt"' in _pr)
+check("context_version 12", '"context_version": 12' in _pr)
+check("rules_hash i dalje netaknut", pr._model_stamp("hard")["rules_hash"] == "2b08e904")
 
 
 print("\n" + "=" * 60)

@@ -445,12 +445,26 @@ def get_h2h_stats(player1_id: str, player2_id: str) -> dict:
 
 def _get_age(p: dict) -> int:
     """Extract age from API response. Tries direct age field first,
-    then calculates from dateOfBirth if age is missing."""
+    then calculates from dateOfBirth if age is missing.
+
+    POPRAVLJEN BUG (15.08.2026 09:19): dob je bila `None` u SVIH 320 redaka
+    `analyzed_matches` otkad polje postoji, pa je u promptu doslovno pisalo "Age: N/A" za
+    svaki meč koji smo ikad analizirali. Uzrok: ovaj endpoint (`/atp/player/profile/{id}`)
+    vraca datum rodjenja pod kljucem **`birthday`**, a ovdje su se trazili samo
+    `dateOfBirth`/`dob`/`birthDate`/`born` — nijedan ne postoji u odgovoru. Provjereno na
+    stvarnom odgovoru za Nakashimu: `birthday='2001-08-03T00:00:00.000Z'`.
+    Ista vrsta tihe greske kao kod break lopti (07.08.) — kriv naziv kljuca, `None` od
+    prvog dana, bez ijedne poruke o gresci.
+
+    NAPOMENA O `hand`: ista provjera pokazala je da profil NEMA polje o ruci kojom igrac
+    igra (ni `hand`, ni `plays`, ni `playingHand`), pa je `p1_hand` prazan string u svih
+    114 zapisa. To se ovdje NE moze popraviti — treba drugi izvor.
+    """
     age = safe_int(p.get("age") or p.get("playerAge") or p.get("currentAge"))
     if age and 14 <= age <= 45:
         return age
     # Try calculating from date of birth
-    dob_raw = (p.get("dateOfBirth") or p.get("dob") or
+    dob_raw = (p.get("birthday") or p.get("dateOfBirth") or p.get("dob") or
                p.get("birthDate") or p.get("born") or "")
     if dob_raw:
         try:
