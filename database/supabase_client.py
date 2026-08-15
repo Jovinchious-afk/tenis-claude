@@ -148,7 +148,7 @@ def delete_ticket(ticket_id: str) -> bool:
 # Stupci dodani 2026-07-26 (A1) koji možda još ne postoje na starijim instancama baze.
 # Ako insert padne zbog njih, ponavljamo bez njih — spremanje tiketa NIKAD ne smije pasti
 # zbog opcionalnog polja (vidi ALTER TABLE u database/schema.sql).
-_OPTIONAL_TM_COLS = ("player1_id", "player2_id")
+_OPTIONAL_TM_COLS = ("player1_id", "player2_id", "market_snapshot")
 
 
 def save_ticket_matches(matches: list) -> None:
@@ -160,8 +160,8 @@ def save_ticket_matches(matches: list) -> None:
     # Fallback: možda tablica nema opcionalne stupce — probaj bez njih
     stripped = [{k: v for k, v in m.items() if k not in _OPTIONAL_TM_COLS} for m in matches]
     if stripped != matches:
-        print("  Upis tiketa bez player1_id/player2_id (stupci ne postoje — pokreni ALTER TABLE "
-              "iz database/schema.sql da razrješavanje rezultata bude otpornije).")
+        print("  Upis tiketa bez opcionalnih stupaca (player1_id/player2_id/market_snapshot "
+              "ne postoje — pokreni ALTER TABLE iz database/schema.sql).")
         _insert("ticket_matches", stripped)
 
 

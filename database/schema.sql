@@ -46,6 +46,16 @@ CREATE TABLE IF NOT EXISTS ticket_matches (
     --   ALTER TABLE ticket_matches ADD COLUMN IF NOT EXISTS player2_id VARCHAR(30);
     player1_id VARCHAR(30),
     player2_id VARCHAR(30),
+    -- Tržišni konsenzus U TRENUTKU OKLADE (2026-08-15 10:12). Cijene 20-46 kladionica,
+    -- razvigane i spojene medijanom: {p, p_sharp, ev_p1, ev_p2, gap_pp, n_books, overround}.
+    -- ZAŠTO OVDJE, a ne samo u analyzed_matches.context_snapshot: ondje se redak istog meča
+    -- PREPISUJE kad se par analizira i sutradan (par sa "sutra" screenshota analizira se
+    -- dvaput), pa bi se izgubila cijena po kojoj je oklada stvarno odigrana. `ticket_matches`
+    -- se nikad ne prepisuje, pa je ovo jedino mjesto gdje bet-time cijena preživi.
+    -- Postojeća baza:
+    --   ALTER TABLE ticket_matches ADD COLUMN IF NOT EXISTS market_snapshot JSONB;
+    -- Kod radi i BEZ ovog stupca (vidi _OPTIONAL_TM_COLS) — tada se samo ne bilježi.
+    market_snapshot JSONB,
     pick VARCHAR(150) NOT NULL,
     odds DECIMAL(10,4) NOT NULL,
     match_date DATE NOT NULL,

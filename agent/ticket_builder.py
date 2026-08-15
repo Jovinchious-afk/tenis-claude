@@ -464,6 +464,19 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
             # rezultata i kad turnir nestane iz fixtures feeda (slučaj Bublik-Halys 25.07.).
             "player1_id": str(m.get("player1_id") or "") or None,
             "player2_id": str(m.get("player2_id") or "") or None,
+            # Trziste U TRENUTKU OKLADE (15.08.2026 10:12). Namjerno se sprema OVDJE, a ne
+            # samo u analyzed_matches: ondje se redak istog meca prepisuje kad se par
+            # analizira i sutradan, pa bi se izgubila cijena po kojoj je oklada STVARNO
+            # odigrana. `ticket_matches` se nikad ne prepisuje. Bez ovoga bi se mjerilo
+            # predvidja li EV od sutra ishod jucerasnje oklade — sto nije isto pitanje.
+            # Stupac je OPCIONALAN (vidi _OPTIONAL_TM_COLS): ako ne postoji, upis prolazi
+            # bez njega i sve ostalo radi normalno.
+            "market_snapshot": ({"p": m.get("market_p"), "p_sharp": m.get("market_p_sharp"),
+                                 "ev_p1": m.get("market_ev_p1"), "ev_p2": m.get("market_ev_p2"),
+                                 "gap_pp": m.get("market_gap_pp"),
+                                 "n_books": m.get("market_n_books"),
+                                 "overround": m.get("market_overround")}
+                                if m.get("market_p") is not None else None),
             "result": "pending",
         })
 
@@ -914,6 +927,19 @@ def build_analysis_only_ticket(predictions: list) -> dict:
             # rezultata i kad turnir nestane iz fixtures feeda (slučaj Bublik-Halys 25.07.).
             "player1_id": str(m.get("player1_id") or "") or None,
             "player2_id": str(m.get("player2_id") or "") or None,
+            # Trziste U TRENUTKU OKLADE (15.08.2026 10:12). Namjerno se sprema OVDJE, a ne
+            # samo u analyzed_matches: ondje se redak istog meca prepisuje kad se par
+            # analizira i sutradan, pa bi se izgubila cijena po kojoj je oklada STVARNO
+            # odigrana. `ticket_matches` se nikad ne prepisuje. Bez ovoga bi se mjerilo
+            # predvidja li EV od sutra ishod jucerasnje oklade — sto nije isto pitanje.
+            # Stupac je OPCIONALAN (vidi _OPTIONAL_TM_COLS): ako ne postoji, upis prolazi
+            # bez njega i sve ostalo radi normalno.
+            "market_snapshot": ({"p": m.get("market_p"), "p_sharp": m.get("market_p_sharp"),
+                                 "ev_p1": m.get("market_ev_p1"), "ev_p2": m.get("market_ev_p2"),
+                                 "gap_pp": m.get("market_gap_pp"),
+                                 "n_books": m.get("market_n_books"),
+                                 "overround": m.get("market_overround")}
+                                if m.get("market_p") is not None else None),
             "result": "pending",
         })
 

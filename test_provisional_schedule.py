@@ -224,10 +224,20 @@ check("snapshot bilježi market_p", '"market_p"' in _pr)
 check("snapshot bilježi EV picka", '"market_ev_pick"' in _pr)
 check("context_version 13", '"context_version": 13' in _pr)
 check("rules_hash i dalje netaknut", pr._model_stamp("hard")["rules_hash"] == "2b08e904")
-check("ticket_builder ne zna za market (selekcija nedirnuta)",
-      "market_ev" not in inspect.getsource(sys.modules.get("agent.ticket_builder")
-                                           or __import__("agent.ticket_builder",
-                                                         fromlist=["x"])))
+# ticket_builder SMIJE zapisati tržište uz odigrani pick, ali NE SMIJE po njemu birati.
+_tb = inspect.getsource(__import__("agent.ticket_builder", fromlist=["x"]))
+check("ticket_builder zapisuje tržište uz pick", '"market_snapshot"' in _tb)
+check("ticket_builder ne uvozi market modul", "import agent.market" not in _tb
+      and "from agent import market" not in _tb)
+# Jedino dopusteno spominjanje trzista je gradnja retka za bazu (market_snapshot).
+# Svako pojavljivanje u sortiranju, filtriranju ili sastavljanju kombinacije bilo bi
+# prelazak na EV-selekciju, a to jos NIJE odluceno.
+_sel = [ln.strip() for ln in _tb.splitlines()
+        if "market" in ln and not ln.strip().startswith("#")
+        and any(w in ln for w in ("sort", "candidates", "combo", "_selection_ok",
+                                  "_pick_edge", "append(p)"))]
+check("nijedna odluka o selekciji ne gleda tržište", not _sel,
+      f"sumnjivi redci: {_sel[:2]}")
 
 
 print("\n" + "=" * 60)
