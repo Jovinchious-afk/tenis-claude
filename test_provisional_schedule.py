@@ -152,9 +152,9 @@ check("prompt dobiva eksplicitan razlog umjesto sata",
       "Unknown — tomorrow's schedule is not final" in _pr)
 check("snapshot bilježi schedule_provisional", '"schedule_provisional"' in _pr)
 check("snapshot bilježi iz koje rubrike je sat", '"scheduled_start_source_date"' in _pr)
-check("context_version 13", '"context_version": 13' in _pr)
-check("rules_hash NIJE dirnut (predložak prompta netaknut)",
-      pr._model_stamp("hard")["rules_hash"] == "2b08e904")
+check("context_version 14 (revizija 17.08.2026)", '"context_version": 14' in _pr)
+check("rules_hash PROMIJENJEN — prompt je dirnut namjerno 17.08.2026",
+      pr._model_stamp("hard")["rules_hash"] == "0295e3b0")
 check("nova polja ne cure u predložak prompta",
       "schedule_provisional" not in pr.ANALYSIS_PROMPT_TEMPLATE)
 
@@ -172,8 +172,9 @@ check("besmislena dob se odbacuje", df._get_age({"age": 99, "birthday": ""}) is 
 
 check("dob NE ide u prompt dok traje mjerenje", pr._AGE_TO_PROMPT is False)
 check("dob se ipak biljezi u snapshot", '"age_in_prompt"' in _pr)
-check("context_version 13", '"context_version": 13' in _pr)
-check("rules_hash i dalje netaknut", pr._model_stamp("hard")["rules_hash"] == "2b08e904")
+check("context_version 14 (revizija 17.08.2026)", '"context_version": 14' in _pr)
+check("rules_hash 0295e3b0 (era nakon 17.08.2026)",
+      pr._model_stamp("hard")["rules_hash"] == "0295e3b0")
 
 
 print("\n=== 9. Tržišni konsenzus — samo mjeri, ne odlučuje (15.08.2026) ===")
@@ -222,8 +223,9 @@ check("nepoznat par -> {}", mkt.find_for_pair(_idx, "Neki Igrac", "Drugi Igrac")
 check("market_p NIJE u predlošku prompta", "market_p" not in pr.ANALYSIS_PROMPT_TEMPLATE)
 check("snapshot bilježi market_p", '"market_p"' in _pr)
 check("snapshot bilježi EV picka", '"market_ev_pick"' in _pr)
-check("context_version 13", '"context_version": 13' in _pr)
-check("rules_hash i dalje netaknut", pr._model_stamp("hard")["rules_hash"] == "2b08e904")
+check("context_version 14 (revizija 17.08.2026)", '"context_version": 14' in _pr)
+check("rules_hash 0295e3b0 (era nakon 17.08.2026)",
+      pr._model_stamp("hard")["rules_hash"] == "0295e3b0")
 # ticket_builder SMIJE zapisati tržište uz odigrani pick, ali NE SMIJE po njemu birati.
 _tb = inspect.getsource(__import__("agent.ticket_builder", fromlist=["x"]))
 check("ticket_builder zapisuje tržište uz pick", '"market_snapshot"' in _tb)
@@ -271,6 +273,90 @@ check("save_market_lines postoji", hasattr(_db, "save_market_lines"))
 check("prazan upis ne zove bazu", _db.save_market_lines([]) == 0)
 check("tablica opisana u schema.sql",
       "market_lines" in open("database/schema.sql", encoding="utf-8").read())
+
+
+# ============================================================================
+print("\n=== 11. Revizija 17.08.2026: raspršenost pouzdanosti + mjerene kazne ===")
+
+# --- strop 64 -> 70 ---
+check("strop podignut na 70", pr._CONF_CEILING == 70.0)
+_r = {"confidence": 74.0, "pick": "A", "above_64_basis": None}
+pr._enforce_confidence_ceiling(_r)
+check("74 bez obrazloženja -> clamp na 70", _r["confidence"] == 70.0)
+check("clamp se bilježi", bool(_r.get("ceiling_enforced")))
+
+_r = {"confidence": 68.0, "pick": "A", "above_64_basis": None}
+pr._enforce_confidence_ceiling(_r)
+check("68 PROLAZI (prije bi bilo srezano na 64)", _r["confidence"] == 68.0)
+check("prolaz se ne bilježi kao clamp", _r.get("ceiling_enforced") is None)
+
+_r = {"confidence": 76.0, "pick": "A",
+      "above_64_basis": {"confirmations": ["hard ELO +180", "serve pts 68.4 vs 61.3"],
+                         "what_would_beat_it": "ako Faria servira iznad 65%"}}
+pr._enforce_confidence_ceiling(_r)
+check("76 s dvije mjerene potvrde + downside PROLAZI", _r["confidence"] == 76.0)
+
+# --- mjerene kazne ---
+check("kazne postoje", hasattr(pr, "_apply_measured_penalties"))
+check("Med-Low kazna 4pp", pr._SCOUTING_MEDLOW_PENALTY == 4.0)
+check("tržišni autsajder kazna 5pp", pr._MARKET_UNDERDOG_PENALTY == 5.0)
+
+_m = {"player1": "Jack Draper", "player2": "Martin Landaluce", "market_p": 0.45}
+_r = {"confidence": 64.0, "pick": "Jack Draper"}
+pr._apply_measured_penalties(_r, _m, {"scouting": {"confidence": "Med-Low"}},
+                             {"scouting": {"confidence": "High"}})
+check("Med-Low + autsajder = -9pp", _r["confidence"] == 55.0)
+check("kazne se bilježe pojedinačno", len(_r["measured_penalties"]["applied"]) == 2)
+
+_r = {"confidence": 64.0, "pick": "Martin Landaluce"}
+pr._apply_measured_penalties(_r, _m, {"scouting": {"confidence": "Med-Low"}},
+                             {"scouting": {"confidence": "High"}})
+check("kazna gleda scouting NAŠEG picka, ne player1", _r["confidence"] == 64.0)
+
+# Korisnikovo pravilo (08.08.2026): ne kažnjavati kvotu zato što je velika.
+_r = {"confidence": 64.0, "pick": "X"}
+pr._apply_measured_penalties(_r, {"player1": "X", "player2": "Y", "market_p": 0.55},
+                             {"scouting": {}}, {"scouting": {}})
+check("visoka kvota uz tržišnu podršku NIJE kažnjena", _r["confidence"] == 64.0)
+
+_r = {"confidence": 64.0, "pick": "X"}
+pr._apply_measured_penalties(_r, {"player1": "X", "player2": "Y"},
+                             {"scouting": {}}, {"scouting": {}})
+check("bez tržišne cijene nema kazne", _r.get("measured_penalties") is None)
+
+# --- prompt ---
+check("prompt traži raspon pouzdanosti", "CONFIDENCE MUST SPREAD" in _pr)
+check("stari strop 64 maknut iz prompta", "CONFIDENCE CEILING AT 64%" not in _pr)
+check("hold% označen kao izvedena veličina", "DERIVED from the number to its left" in _pr)
+check("pragovi potvrde bazdareni na serve_pts_won",
+      "USE THE SERVE-POINTS-WON GAP, NOT THE HOLD GAP" in _pr)
+check("tržišni autsajder objašnjen u promptu",
+      "de-vigged consensus at or below 50%" in _pr)
+check("izričito NIJE pravilo protiv velikih kvota",
+      "This is NOT a rule against big odds" in _pr)
+check("snapshot bilježi sirovi servisni jaz", '"serve_gap_raw_pp"' in _pr)
+check("snapshot bilježi kazne", '"measured_penalties"' in _pr)
+
+# --- drugo hvatanje cijena ---
+import os as _os
+check("skripta za zatvaranje linije postoji",
+      _os.path.exists("scripts/capture_market_close.py"))
+_cap = open("scripts/capture_market_close.py", encoding="utf-8").read()
+check("zatvaranje linije ne dira selekciju",
+      "Ne ulazi ni u jednu odluku" in _cap and "build_ticket" not in _cap)
+check("workflow za zatvaranje linije postoji",
+      _os.path.exists(".github/workflows/market_close.yml"))
+_wf = open(".github/workflows/market_close.yml", encoding="utf-8").read()
+check("workflow ima cron", "cron:" in _wf)
+check("workflow ima ODDS_API_KEY", "ODDS_API_KEY" in _wf)
+
+# --- što NIJE dirano (attribution) ---
+_tb = open("agent/ticket_builder.py", encoding="utf-8").read()
+check("prag 63% nije diran", '"min_confidence": 63.0' in
+      open("config/model_config.py", encoding="utf-8").read())
+check("ticket_builder i dalje ne gleda tržište pri selekciji",
+      "market_p" not in _tb.split("def build_ticket")[1].split("def ")[0]
+      if "def build_ticket" in _tb else True)
 
 
 print("\n" + "=" * 60)

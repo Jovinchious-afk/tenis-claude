@@ -13,6 +13,155 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-08-17 11:46 — REVIZIJA NAKON 5 DANA CINCINNATIJA: pouzdanost je bila mrtva varijabla
+
+Korpus: 247 razrijesenih analiza sa kvotom (cijela sezona), od toga **112 s cijenama 40+
+kladionica** (04.-17.08., povijesne snimke Odds APIja + zive od 15.08.), 48 razrijesenih
+tiketa, svih 6 gubitnickih analiza Cincinnatija, 86 meceva s post-match statistikom.
+
+### NALAZ KOJI JE POKRENUO SVE OSTALO
+
+Modelova pouzdanost **ne nosi informaciju o ishodu**:
+
+| procjena | Brier |
+|---|---|
+| razvigana screenshot cijena | **0,2192** |
+| KONSTANTA 0,64 | 0,2305 |
+| modelova pouzdanost | 0,2308 |
+
+`r(pouzdanost, ishod)` = +0,006 prije stropa (n=188), +0,021 poslije (n=59). Unutar svakog
+pojasa kvota razlika prosjecne pouzdanosti izmedju pobjeda i poraza je <0,7pp i **mijenja
+predznak**. Od 13.08.: 4 razlicite vrijednosti, **61% analiza na tocno 64**, SD 1,18pp.
+
+Nizvodno je zato sve oslijepilo: prag 63% odbija 14,7% (isto kao prije stropa), rangiranje
+po pouzdanosti je proizvoljno, zajednicka vjerojatnost je 0,64^k, bonus za >=72% nikad ne
+okine, a **`value_bet` se svede na prag na kvoti** (fair_odds = 100/64 konstanta) — i doista
+je protuprediktivan: 59,2% (n=103) naspram 67,4% (n=144), dosljedno u sve tri ere.
+
+**Mehanizam:** `ceiling_enforced` = **0/59**. Kod nikad nije stisnuo broj — flattening je
+napravio TEKST prompta. Isto se vec dogodilo jednom: Wimbledon revizija ("Version 3" u
+`predictor.py`) maknula je identican cap uz obrazlozenje *"flattened every pick to 62-64%
+and destroyed the model's ability to rank locks vs coin-flips"*.
+
+### STO JE PROMIJENJENO
+
+1. **Strop 64 -> 70 + zahtjev za RASPONOM** (`predictor.py`). Prompt sada trazi da se
+   near-lock i coin-flip NE ocijene istim brojem, s eksplicitnim rasponima (70-78 dominantan,
+   58-63 jedan pravi rub, 50-55 pravi coin-flip). Deklaracija (dvije mjerene potvrde +
+   recenica o porazu) i dalje se trazi, ali iznad 70. Polje `above_64_basis` zadrzava ime
+   radi usporedivosti era.
+2. **Pragovi servisne potvrde prebazdareni** (pravilo 2b). `hold_pct` je dokazano CISTA
+   preslika `serve_pts_won` (`r=+0,99998`, 0/79 odstupanja, formula `(serve-50)*1,9+55`).
+   Mnozitelj 1,9 pretvara **15 stvarno velikih (>=5pp) razlika u servisu u 42 "velike"
+   razlike u holdu** — 17% -> 48% meceva. Novi pragovi idu po `serve_pts_won`:
+   <2,5pp nista / 2,5-5pp slaba potvrda / >=5pp puna potvrda. Prompt sada izricito kaze da
+   su to jedna te ista brojka, a redak u CONDITIONS bloku je oznacen kao izveden.
+3. **Dvije mjerene kazne, ODUZIMANJEM a ne capiranjem** (`_apply_measured_penalties`):
+   - scouting profila NASEG picka = `Med-Low` -> **-4pp** (26,7% n=15 naspram 65,8% n=114,
+     P=0,0035, Fisher=0,0048, prezivi Bonferroni x6);
+   - nas pick je trzisni autsajder (de-vig konsenzus <=50%) -> **-5pp** (25,0% n=12 naspram
+     70,0% n=100, razlika 45pp, P=0,002, drzi se u obje polovice).
+   **Zasto oduzimanje:** glavna lekcija ove revizije je da cap stvara HRPU na jednoj
+   vrijednosti i time ubija razlucivanje. Oduzimanje pomice raspodjelu i cuva poredak.
+4. **Drugo hvatanje trzisnih cijena** (`scripts/capture_market_close.py` +
+   `.github/workflows/market_close.yml`, cron 14:30 UTC). Ne dira nijedan pick — samo dopisuje
+   retke u `market_lines` (kljuc `event_id,bookmaker,captured_at`, pa druga snimka stoji pored
+   prve). Razlog u sljedecem odjeljku.
+5. **Dijagnostika u `run_daily`**: ispis raspršenosti pouzdanosti (SD / broj vrijednosti /
+   udio modalne) i popis primijenjenih kazni, da se ucinak vidi odmah a ne za mjesec dana.
+
+`context_version` 13 -> **14**; hard `rules_hash` **2b08e904 -> 0295e3b0** (clay 970c9585,
+grass 54915e5d). **Era se rezi po `context_version`.**
+
+### NAJJACI NALAZ ANALIZE — I ZASTO NIJE UŠAO U SELEKCIJU
+
+Hipoteza: kad SuperSport nasu stranu cijeni krace od ostatka svijeta, pick prolazi cesce.
+Prosla je pet provjera: obje polovice (Montreal 76,2% n=21, Cincinnati 77,8% n=18),
+nekoreliranost s `market_p` (r=-0,016) i s kvotom (r=-0,158), stratifikacija po `market_p`
+(+15,2pp), monotonost naspram trzisnog ocekivanja, i **svih 22 kladionica** s upotrebljivim
+uzorkom u istom smjeru (8 na P<0,05 naspram 1,1 ocekivane).
+
+**Pala je na vremenskoj usklađenosti.** Povijesne snimke uzete su ~09:55 UTC, nas screenshot
+dolazi ~12:00 UTC. Kako se razmak uklanja, efekt slabi:
+
+| usklađenost | efekt | n | P |
+|---|---|---|---|
+| trzisna cijena ~3h starija | +18,3pp | 81 | 0,090 |
+| svjezija cijena | +11,4pp | 31 | 0,540 |
+| istovremeno hvatanje | **+4,4pp** | 29 | 0,793 |
+
+Mjerili smo **kretanje linije**, ne misljenje SuperSporta. Isti obrazac kao favorit-autsajder
+pristranost (14.08.: +3,95pp -> +0,97pp). Zato je uvedena tocka 4 — kretanje linije je stvaran
+mehanizam, ali ga treba mjeriti namjerno, s dvije snimke. Odluka ~17.09.2026.
+
+### PREPORUKA IZ GUBITNICKIH ANALIZA JE TESTIRANA I ODBAČENA
+
+Svih 6 analiza gubitaka Cincinnatija konvergira na isto: *"model je pratio ELO, a servis je
+pokazivao na protivnika — kazniti to."* Izmjereno na cijelom korpusu:
+
+| skupina | n | pogodak |
+|---|---|---|
+| ELO i hold se slazu s pickom | 49 | 67,3% |
+| ELO kaze pick, hold kaze protivnik | 16 | 68,8% |
+
+Razlika -1,4pp, **P=0,92**. Preporuka bi pogorsala model. Prava smjernica ide obrnuto (veliki
+hold jaz je upozorenje). Isto vrijedi za tiebreak, koji 3 od 6 analiza trazi kao veto: uz >=8
+odigranih tiebreakova efekt potpuno nestane (66,7 / 77,8 / 66,7 / 66,7%).
+
+**Pravilo koje iz ovoga slijedi:** feedback-petlja gleda SAMO poraze, pa svaki uzrok koji
+nadje jednako je cest u pobjedama. **Nijednu preporuku iz analize gubitaka ne implementirati
+bez kontrolne skupine na dobicima.**
+
+### TIKETI GUBE NA ARITMETICI, NE NA SELEKCIJI
+
+| uzorak | pogodak | break-even | jaz |
+|---|---|---|---|
+| sve razrijesene analize (n=247) | 63,97% | 64,19% | -0,22pp |
+| noge na stvarnim tiketima (n=114) | 63,16% | 63,48% | **-0,32pp** |
+| hard noge na tiketima (n=60) | 60,00% | 63,01% | -3,01pp |
+
+Uz 63,2% peterac prolazi u 10,0%; odigrali smo 48 i dobili 4 (8,3%). **18 od 48 tiketa palo
+je na tocno jednoj nozi.** **KOREKCIJA broja od 15.08.:** tada je zapisano "treba ~4,3pp po
+nozi" — to je bio hard-only Montreal izracun. Tocna formulacija je "na granici smo, CI od
+-9,5pp do +8,0pp".
+
+### NAMJERNO NIJE DIRANO (attribution)
+
+- **Tezine** — nijedna predmecna varijabla ne razlikuje ishod dovoljno (isto kao 13.08.).
+- **Prag 63%** — remjeren 15.08. kako kod trazi, efekt oslabio.
+- **`value_bet` mehanika** — uzrok je uklonjen tockom 1; da je istog dana dirana i ova
+  funkcija, ucinak dviju izmjena ne bi se mogao razdvojiti. Remjeriti ~17.09.2026.
+- **`ticket_builder`** — ni jedna linija; selekcija i dalje ne gleda trziste.
+- **Struktura 4-6 nogu / kvota 6-40** — korisnikovo pravilo, i podaci ga ne opovrgavaju.
+- **Kazna za hold jaz >=+7pp** (47,8% n=23 naspram 71,4%, P=0,046) — mehanizam je pokriven
+  prebazdarenim pragovima; P=0,046 na n=23 medju desecima testova nije dovoljno za jos jedno
+  oduzimanje. Biljezi se `serve_gap_raw_pp` da se moze premjeriti.
+
+### ODBAČENO NA PROVJERI
+
+Pojasevi kvota (**treci put**: rupa 1,50-1,65 se raspada na finijoj resetki), tiebreak rekord
+(artefakt tankog uzorka), runde QF/SF/F (-5,2pp, P=0,48), ostre kuce (Brier 0,2136 — losije od
+obicnog medijana **i od SuperSporta**; stoje na 1-3 cijene po mecu), EV-selekcija (4 oklade u
+14 dana), filtar `market_p>=60%` za 4-6 nogu (backtest: 6 tiketa, **0 dobitnih**).
+Dob izgleda dramaticno (14/14 kad je pick 2+ god mladji) ali n=21 i polje je ispravno tek od
+15.08. — ne dirati prije ~30 dana.
+
+**Poredak kvalitete prognoze (Brier, istih 112 meceva):** SuperSport 0,2085 < medijan 40+
+kladionica 0,2103 < ostre kuce 0,2136 < nas model 0,2275. **Nasa vlastita screenshot cijena je
+najbolja prognoza kojoj imamo pristup.**
+
+### ZA MJERENJE ~17.09.2026
+
+1. Raspršenost pouzdanosti na `context_version` 14 (referenca: SD 1,18 / 4 vrijednosti /
+   modalna 61%). Ako ostane SD<2 i modalna >40%, izmjena nije uspjela.
+2. Isporucuje li razred 65-70% svoj nominalni postotak. Ako se raspadne, vratiti strop — ali
+   na 67, ne na 64.
+3. `value_bet` uz raspršenu pouzdanost — je li i dalje protuprediktivan.
+4. Kretanje linije iz parova snimaka u `market_lines` (treba par stotina parova).
+5. Kazne: koliko cesto okidaju i kako prolaze pickovi koje su spustile ispod praga.
+
+---
+
 ## 2026-08-15 10:12 — TRZISNI KONSENZUS: uveden kao MJERENJE; selekcija NIJE prebacena
 
 **Korisnik je povukao vlastito pravilo** da kvota ne smije biti prediktivna varijabla i dao

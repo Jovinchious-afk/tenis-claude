@@ -1,0 +1,49 @@
+name: Market Close Capture
+
+# Drugo hvatanje trzisnih cijena, blizu pocetka meceva (17.08.2026 11:46).
+#
+# ZASTO: dnevni run snima cijene u trenutku slaganja tiketa. Jedna snimka po mecu daje
+# raspon medju kladionicama, ali ne i KRETANJE linije. Revizija 17.08.2026 pokazala je da
+# je najjaci nalaz analize ("SuperSport krace od svijeta" -> 76,9%) zapravo bio artefakt
+# tri sata razmaka izmedju nase i trzisne cijene: efekt pada +18,3 -> +11,4 -> +4,4pp kako
+# se vrijeme poravnava. Kretanje linije je stvaran mehanizam — ali ga treba mjeriti
+# namjerno, s dvije snimke, umjesto slucajno kroz vremenski pomak.
+#
+# NE MIJENJA NIJEDAN PICK. Samo dopisuje retke u `market_lines`; kljuc je
+# (event_id, bookmaker, captured_at) pa druga snimka stoji pored prve, ne preko nje.
+#
+# CRON: 14:30 UTC. Meceve u Cincinnatiju pocinju ~15:00 UTC, a korisnik slaze tiket oko
+# 12:00 UTC — dakle ovo hvata prvi val ~30 min prije pocetka. Za kasnije mecheve (US
+# vecernja sesija) snimka je ranija nego sto bi idealno bila; ako se pokaze da treba,
+# doda se drugi termin. GitHub cron zna kasniti 5-15 min pri velikom opterecenju, sto je
+# ovdje bezopasno.
+on:
+  schedule:
+    - cron: '30 14 * * *'
+  workflow_dispatch:
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Capture closing lines
+        env:
+          PYTHONUNBUFFERED: "1"
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: python scripts/capture_market_close.py

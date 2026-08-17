@@ -152,7 +152,7 @@ Form (last 5): {p1_form_5} | Form (last 10): {p1_form_10}
 Avg opponent ELO (last 10): {p1_avg_opp_elo} — quality-adjusted form signal
 {surface} form (6 months): {p1_surface_form}
 --- Serve dominance ---
-Total serve points won: {p1_serve_pts_won}% | Hold % (est.): {p1_hold_pct}%
+Total serve points won: {p1_serve_pts_won}% | Hold % (DERIVED from the number to its left, not measured): {p1_hold_pct}%
 1st serve %: {p1_first_serve_pct} | 1st serve pts won: {p1_first_serve_won}
 2nd serve pts won: {p1_second_serve_won} | Aces/match: {p1_aces}
 BP saved: {p1_bp_saved} | BP converted: {p1_break_conv}
@@ -174,7 +174,7 @@ Form (last 5): {p2_form_5} | Form (last 10): {p2_form_10}
 Avg opponent ELO (last 10): {p2_avg_opp_elo} — quality-adjusted form signal
 {surface} form (6 months): {p2_surface_form}
 --- Serve dominance ---
-Total serve points won: {p2_serve_pts_won}% | Hold % (est.): {p2_hold_pct}%
+Total serve points won: {p2_serve_pts_won}% | Hold % (DERIVED from the number to its left, not measured): {p2_hold_pct}%
 1st serve %: {p2_first_serve_pct} | 1st serve pts won: {p2_first_serve_won}
 2nd serve pts won: {p2_second_serve_won} | Aces/match: {p2_aces}
 BP saved: {p2_bp_saved} | BP converted: {p2_break_conv}
@@ -243,6 +243,16 @@ Curated analyst scouting notes (qualitative priors, snapshot-dated). Usage rules
     Med-Low         -> ASYMMETRIC: it may raise DOUBT about a pick, but it may never be
                        cited as support FOR one. If the only thing backing your pick is a
                        Med-Low profile, you do not have that evidence at all.
+                       DETERMINISTIC BACKSTOP (added 2026-08-17 11:46): when the profile of
+                       the player YOU pick is Med-Low, code subtracts 4pp from your final
+                       number automatically. Do NOT subtract it yourself as well — state
+                       your honest number and let the deduction happen once.
+                       The measurement behind it: picks whose own profile was Med-Low went
+                       26.7% (n=15, ROI -51%) against 65.8% (n=114) for Med / Med-High /
+                       High. P=0.0035. Note the direction of the irony — profiles rated
+                       Low or Insufficient did BETTER (87.5% and 76.9%), because those are
+                       withheld from this prompt entirely, so nothing was built on them.
+                       Med-Low is the band you can see and therefore lean on.
   Reason (measured 2026-07-31): the three scouting profiles that turned out to be plainly
   wrong — Van Assche ("needs a weapon", then beat Rublev and won Estoril), Halys (who then
   beat three of our picks in one week and took the title) and Majchrzak — were ALL Med-Low,
@@ -323,12 +333,12 @@ than priced", which is a far more modest and defensible statement. Calibrate acc
 
 Key analytical priorities:
 - Surface-specific ELO outweighs ATP ranking. A player ranked #15 with clay ELO 1750 is better on clay than a #8 with clay ELO 1680.
-- Hold% and serve dominance are the strongest predictors in ATP tennis (especially hard/grass). A player who wins 70%+ of serve points rarely loses service games.
+- Serve dominance matters in ATP tennis (a player who wins 70%+ of serve points rarely loses service games), but read it off "Total serve points won" — "Hold %" is derived from that same number and is not a second signal. Measured caution (17.08.2026): the SEASON-AVERAGE serve gap does not predict who serves better on the day — within-match variation is roughly three times the typical gap between two players.
 - Average opponent ELO context: if a player has 8/10 form but avg opponent ELO was 1600, that form is less significant than 7/10 against avg ELO 1900.
 - H2H: only apply meaningfully if H2H has 3+ recent matches on same/similar surface. Small or old H2H samples are noise — downweight them.
 - Tournament trajectory: only meaningful from R3 onwards (2+ wins tracked in this tournament). For R1/R2 or when tournament path shows "N/A", this factor has no data — redistribute its 4% weight mentally to recent_form. Never penalise a player for having no tournament path data.
 - Fatigue compounds across rounds: a player who played a 3-hour match yesterday is not the same as one who had 2 days rest, especially in BoF5.
-- Confidence calibration (CRITICAL): Historical data shows the model is systematically overconfident. Apply these strict rules: only reach 68% when 4+ independent factors clearly favour the same pick. Only exceed 70% when the edge is overwhelming across ALL factor categories. If 1-2 factors favour the pick but others are neutral or mixed — cap at 64%. A well-calibrated 68% pick should genuinely win ~68% of the time; if unsure, go lower.
+- Confidence calibration (CRITICAL, rewritten 17.08.2026 11:46): your numbers must SPREAD across matches — see "CONFIDENCE MUST SPREAD" below, which is the governing instruction. Reach 68%+ only when 4+ independent factors clearly favour the same pick, and exceed 70% only when the edge is overwhelming across ALL factor categories. If 1-2 factors favour the pick but others are neutral or mixed, the honest number is 58-64% — pick a value inside that range that reflects HOW mixed it is, rather than defaulting to its top. A well-calibrated 68% pick should genuinely win ~68% of the time; a coin-flip scored at 52% is a correct analysis, not a failed one.
 {surface_specific_rules}
 
 INTERNAL CONSISTENCY (mandatory): "risk_notes" and "key_factors" must not contradict each
@@ -422,25 +432,44 @@ Respond ONLY in the following JSON format (no additional text):
   "skip_reason": null
 }}
 
-CONFIDENCE CEILING AT 64% (added 2026-08-13, measured on the full Montreal hard corpus):
-Anything you state above 64% has, on our own record, been worse than useless. Measured on
-84 resolved hard analyses:
-  - your 63-64% band delivered 62.5% (n=40) — essentially perfect calibration;
-  - your 65-67% band delivered 50.0% (n=20) with ROI -34.8%;
-  - removing that band alone turns the whole corpus from -6.9% ROI to +1.8%.
-The reason is structural, not bad luck: your scale saturates near 67%, so "67%" is not a
-statement of strong belief — it is the ceiling being hit, and it gets applied to matches
-whose real gap ranges from near-even to overwhelming. In that band your number sat on
-average 10.7pp BELOW the market price, meaning you were picking heavy favourites while
-rating them lower than the market did, and still calling it high confidence.
-THEREFORE: 64% is a hard ceiling unless you can fill "above_64_basis" with BOTH of:
-  (a) at least TWO independent MEASURED confirmations, each naming the number
-      (e.g. "hard ELO +180", "hold 86.4% vs 78.1%", "3-0 H2H on hard"), from DIFFERENT
-      categories — two serve numbers are ONE confirmation, not two; and
-  (b) one sentence saying what would have to be true for this pick to lose.
-If you cannot supply both, state 64 or lower. Do not treat 64 as a target either — most
-matches belong below it. An unjustified number above 64 is clamped to 64 by code, and the
-clamp is logged, so writing it anyway gains you nothing.
+CONFIDENCE MUST SPREAD — THE SINGLE MOST IMPORTANT INSTRUCTION HERE
+(REPLACES the hard 64% ceiling, which was in force 13.08.-17.08.2026; measured 17.08.2026)
+
+Your confidence number currently carries NO information about the outcome. This is not a
+figure of speech, it is a measurement on 247 resolved analyses:
+  - Brier score of your confidence            0.2308
+  - Brier score of a CONSTANT 0.64            0.2305  <- writing "64" every time scores better
+  - Brier score of the de-vigged market price 0.2192
+  - correlation between your number and the result: r = +0.02
+Within every price band, the average confidence you gave to winners and to losers differed
+by less than 0.7pp, and the sign flipped from band to band. In the last five days 61% of
+your analyses sat on EXACTLY 64 and the whole range spanned four distinct values.
+This is expensive: the ticket builder ranks candidates by your number, computes joint
+probability from it, and derives "value" from it. When the number is a constant, all three
+mechanisms are blind, and the selection is effectively arbitrary.
+The cause is the ceiling itself. It was never enforced by code even once (0 clamps in 59
+picks) — you simply learned to write the ceiling value. The same thing happened once before:
+the Wimbledon revision REMOVED an identical 64% cap because it "flattened every pick to
+62-64% and destroyed the model's ability to rank locks vs coin-flips".
+
+THEREFORE, the ceiling is removed and replaced by a distribution requirement:
+  - A near-certain favourite and a genuine coin-flip must NOT receive the same number.
+    If you find yourself writing 63 or 64 for both, one of them is wrong.
+  - Use the full range honestly. A dominant, multi-category edge belongs at 70-78%.
+    A single real edge with live risks belongs at 58-63%. A true coin-flip belongs at
+    50-55% — and scoring it there is CORRECT behaviour, not a failure to find a pick.
+  - Most matches still belong below 65%. Spreading does not mean inflating.
+  - Above 70% you must fill "above_64_basis" with BOTH of:
+      (a) at least TWO independent MEASURED confirmations, each naming the number
+          (e.g. "hard ELO +180", "serve points won 68.4% vs 61.3%", "3-0 H2H on hard"),
+          from DIFFERENT categories — and note that "serve points won" and "hold %" are
+          THE SAME MEASUREMENT (see the serve block), so they are one confirmation; and
+      (b) one sentence saying what would have to be true for this pick to lose.
+    Above 70 without both is clamped to 70 by code and the clamp is logged.
+    (The field is still called "above_64_basis" for historical continuity — the threshold
+    it guards is now 70, not 64.)
+The discipline you are being asked for is honesty about spread, not caution about level.
+A number that is always the same cannot be wrong, but it also cannot be useful.
 
 MARKET PRICE — A CHECK, NEVER AN INPUT (added 2026-08-13, user's explicit instruction):
 The bookmaker price for this match is shown in the CONDITIONS block as "Market check".
@@ -457,6 +486,19 @@ US, not a discovery about the market. If you cannot name a concrete measured fac
 gap, that is itself evidence your number is too extreme — move it toward the market and say
 so. You are NOT being asked to copy the price; you are being asked to notice when you have
 drifted far from it without a reason you can name.
+
+ONE SPECIFIC CASE, MEASURED ON 40+ BOOKMAKERS (added 2026-08-17 11:46):
+When you pick the player the WHOLE MARKET has as the underdog — not merely a big price, but
+a de-vigged consensus at or below 50% — our record is 25.0% (n=12) where the market itself
+expected 43.0%. Picking the market's favourite: 70.0% (n=100) against 64.2% expected. The
+gap between the two situations is 45pp (P=0.002) and it holds in both halves of the sample.
+Code now subtracts 5pp from such a pick automatically, so you do not need to; state your
+honest number. What you SHOULD do is treat this as a prompt to re-read your own reasoning:
+if the entire market disagrees with you, the burden is on the specific measured fact you can
+name, not on the general feeling that the price looks generous.
+This is NOT a rule against big odds. A pick at 2.40 whom the market rates 55% is untouched;
+a pick at 1.95 whom the market rates 46% is not. The penalty is for disagreeing with the
+world, never for the size of the number.
 
 KEY_FACTORS FORMAT (mandatory structure, added 2026-07-31):
 Entries 1-5 are FIXED and must ALWAYS be present, in this exact order, each prefixed with
@@ -804,13 +846,23 @@ and MUST be enforced from day one.
    The three categories are STRICTLY SEPARATE — do not split one signal into two:
    (a) RATING: hard ELO, ATP ranking AND hard W-L record are ALL ONE CATEGORY. Quoting
        "ELO gap 104" plus "hard record 68% vs 62%" is ONE confirmation, not two.
-   (b) SERVE/RETURN: counts ONLY if hold% differs by >= 3pp OR return-points-won by
-       >= 2pp. Smaller gaps are noise — a 1.2pp return edge is NOT a confirmation
-       (documented: Mensik vs Nakashima cited exactly that and lost).
-       SLIDING, NOT A SWITCH (added 2026-08-02): a value that clears the threshold by
-       less than 2pp is a WEAK confirmation, not a full one — it may lift confidence by
-       at most 1pp. Only a margin of 5pp or more counts as a full confirmation. Barely
-       clearing a floor is not evidence, it is a coin-flip dressed as evidence.
+   (b) SERVE/RETURN — THRESHOLDS RE-BASED 2026-08-17 11:46, read this carefully:
+       "Hold %" is NOT an independent measurement. It is computed from "Total serve points
+       won" by the formula (serve - 50) x 1.9 + 55. Verified on our own corpus:
+       r = +0.99998 between the two, with zero deviations in 79 analyses. Quoting both is
+       quoting ONE number twice, and the x1.9 multiplier makes every gap look nearly twice
+       as large as it is: gaps of 5pp or more occur in 17% of matches when measured on
+       serve points won, but in 48% of matches when read off hold%. Under the old
+       thresholds, half of all matches therefore earned a "full serve confirmation".
+       USE THE SERVE-POINTS-WON GAP, NOT THE HOLD GAP:
+         - serve points won differs by < 2.5pp   -> NO confirmation (this is the median gap)
+         - 2.5pp to 5pp                          -> WEAK confirmation, at most +1pp
+         - 5pp or more                           -> FULL confirmation (top ~17% of matches)
+         - return points won differs by >= 2pp   -> counts, as before
+       A large HOLD gap on its own is not evidence of anything: our picks whose hold edge
+       exceeded +7pp went 47.8% (n=23) against 71.4% (n=56) for everything else, and sat
+       13.9pp BELOW what the market expected of them. When you see a big hold gap, look at
+       the serve-points number it came from before treating it as a finding.
    (c) FORM adjusted for opponent quality (avg opponent ELO must actually differ).
 
    Scoring:
@@ -1208,7 +1260,11 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         #     i ne utjece na pickove — prvo mjerimo je li signal stvaran (vidi _common_opponents).
         _wd = match.get("weather_data") or {}
         result["context_snapshot"].update({
-            "context_version": 13,
+            # v14 (17.08.2026 11:46): strop 64 -> 70 + zahtjev za rasponom pouzdanosti,
+            # pragovi servisne potvrde prebazdareni na serve_pts_won, dvije mjerene kazne
+            # (`measured_penalties`). Ovo je granica ere za svaku buducu analizu
+            # raspršenosti pouzdanosti — rezati po `context_version`, NIKAKO po rules_hash.
+            "context_version": 14,
             # v13 (15.08.2026 10:12, korisnikov zahtjev): TRZISNI KONSENZUS.
             # Cijene 20-46 kladionica (The Odds API), razvigane i spojene medijanom.
             # `market_p` je vjerojatnost za NASEG player1 po trzistu; `market_ev_pick` je
@@ -1297,6 +1353,16 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             "p2_hold_pct": p2.get("hold_pct"),
             "p1_hold_pct_from_bp": p1.get("hold_pct_from_bp"),
             "p2_hold_pct_from_bp": p2.get("hold_pct_from_bp"),
+            # v14 (17.08.2026 11:46): SIROVI jaz u poenima na servisu, bez mnozitelja 1,9.
+            # Prompt od danas bazdari potvrdu po OVOJ velicini (pravilo 2b), pa mora
+            # postojati u bazi da se prag moze premjeriti. Odgovor na pitanje koje je kod
+            # postavljao od 07.08. ("koja procjena bolje predvidja"): nijedna — hold_pct
+            # r=-0,163, hold_pct_from_bp r=-0,157, serve_pts_won r=-0,164 (n=79). Problem
+            # nije bio izbor procjene nego POJACANJE: jazovi >=5pp su 17% meceva mjereno na
+            # serve_pts_won, a 48% mjereno na hold_pct.
+            "serve_gap_raw_pp": (
+                round(safe_float(p1.get("serve_points_won")) - safe_float(p2.get("serve_points_won")), 2)
+                if p1.get("serve_points_won") and p2.get("serve_points_won") else None),
             "p1_return_won": p1.get("return_points_won"),
             "p2_return_won": p2.get("return_points_won"),
             "p1_return_won_weighted": p1.get("return_points_won_weighted"),
@@ -1325,15 +1391,19 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             # Koliko je protivnika uslo u avg_opp_elo (vidi run_daily._avg_opponent_elo_n).
             "avg_opp_elo_n": match.get("avg_opp_elo_n"),
         })
-        # Redoslijed je bitan: strop na 64 ide PRVI (moze spustiti 67 -> 64), pa tek onda
-        # capovi koje je model sam proglasio (mogu spustiti i ispod 64). Obrnuto bi strop
-        # ponistio niži cap. Oba PRIJE `_normalize_fair_odds`, koji fair_odds izvodi iz
-        # confidencea pa mora vidjeti konačan broj.
+        # Redoslijed je bitan: strop (od 17.08.2026 na 70) ide PRVI, pa capovi koje je model
+        # sam proglasio (mogu spustiti i ispod stropa) — obrnuto bi strop ponistio nizi cap.
+        # Mjerene kazne (17.08.2026) idu ZADNJE i oduzimaju od vec capirane vrijednosti: one
+        # opisuju stanje svijeta koje model nije uzeo u obzir, pa se primjenjuju na njegov
+        # konacan sud, ne prije njega. Sve PRIJE `_normalize_fair_odds`, koji fair_odds
+        # izvodi iz confidencea pa mora vidjeti konacan broj.
         _enforce_confidence_ceiling(result)
         _enforce_stated_caps(result)
+        _apply_measured_penalties(result, match, p1, p2)
         result["context_snapshot"]["cap_enforced"] = result.get("cap_enforced")
         result["context_snapshot"]["cap_prose_mismatch"] = result.get("cap_prose_mismatch")
         result["context_snapshot"]["ceiling_enforced"] = result.get("ceiling_enforced")
+        result["context_snapshot"]["measured_penalties"] = result.get("measured_penalties")
         result["context_snapshot"]["market_check"] = result.get("market_check")
         result["context_snapshot"]["above_64_basis"] = result.get("above_64_basis")
         _normalize_fair_odds(result, match)
@@ -1394,32 +1464,46 @@ _CAP_NEGATION_RE = re.compile(
     r"cannot|is\s+not)\b", re.I)
 
 
-_CONF_CEILING = 64.0
+_CONF_CEILING = 70.0
 _CEILING_MIN_CONFIRMATIONS = 2
 
 
 def _enforce_confidence_ceiling(result: dict) -> None:
-    """Tvrdi strop na 64% osim ako model ne obrazlozi (13.08.2026 12:47).
+    """Strop podignut 64 -> 70 (17.08.2026 11:46). Deklaracija se i dalje trazi IZNAD stropa.
 
-    MJERENJE (84 razrijesene hard analize, pun Montreal):
-        razred 63-64%  ->  62,5% stvarno (n=40)   kalibracija gotovo savrsena
-        razred 65-67%  ->  50,0% stvarno (n=20)   ROI -34,8%
-        bez razreda 65+, cijeli korpus ide s -6,9% na +1,8% ROI
+    POVIJEST I RAZLOG PROMJENE
+    Strop 64 uveden je 13.08.2026 12:47 jer je razred 65-67% davao 50,0% (n=20, ROI -34,8%)
+    dok je razred 63-64% davao 62,5% (n=40). Mjera je bila ispravno motivirana, ali je
+    imala nuspojavu koju je revizija 17.08.2026 izmjerila na 247 razrijesenih analiza:
 
-    Uzrok je strukturni, ne pehov: modelova ljestvica se zasici oko 67%, pa "67%" nije
-    izjava o jakom uvjerenju nego udaranje u strop — i onda se lijepi na meceve cija se
-    stvarna razlika krece od gotovo izjednacene do premocne. U tom je razredu nas broj
-    prosjecno **10,7pp ISPOD** trzisne cijene (17 od 20 pickova), dakle birali smo teske
-    favorite a ocjenjivali ih nize od trzista, i to zvali visokom pouzdanoscu.
+        Brier modelove pouzdanosti      0,2308
+        Brier KONSTANTE 0,64            0,2305   <- konstanta je bolja od modela
+        Brier razvigane trzisne cijene  0,2192
+        r(pouzdanost, ishod)            +0,006 prije stropa, +0,021 poslije
 
-    Zato NIJE trazena "dodatna potvrda" nekim mjerenim kriterijem — provjerio sam sve
-    podjele tog razreda i nijedna ga ne spasava (unutar 10pp od trzista 3W-5L, vise od 10pp
-    ispod 6W-5L). Trazi se DEKLARACIJA: dva neovisna mjerena potvrdjivaca s brojkama i
-    jedna recenica o tome sto bi moralo biti istina da pick izgubi. Ista mehanika koja vec
-    radi kod `_enforce_stated_caps` (capirani pickovi 12W-3L u Montrealu).
+    Unutar svakog pojasa kvota razlika prosjecne pouzdanosti izmedju pobjeda i poraza je
+    manja od 0,7pp i mijenja predznak. Od 13.08.: 4 razlicite vrijednosti, 61% analiza na
+    TOCNO 64, SD 1,18pp. Broj je prestao nositi informaciju.
 
-    Clamp se BILJEZI (`ceiling_enforced`) da se za mjesec dana moze izmjeriti je li strop
-    pomogao ili je samo maknuo dobre pickove zajedno s losima.
+    Skupo je jer `ticket_builder` po tom broju rangira (`sort(key=confidence)`), racuna
+    zajednicku vjerojatnost (prod(conf/100) = 0,64^k, konstanta) i izvodi `value_bet`
+    (fair_odds = 100/64 = 1,5625, pa se zastavica svede na "kvota > 1,5625" — i doista je
+    protuprediktivna: 59,2% n=103 naspram 67,4% n=144, dosljedno u sve tri ere).
+
+    KLJUCNI NALAZ O MEHANIZMU: `ceiling_enforced` je bio 0/59 — kod nikad nije stisnuo broj.
+    Flattening nije napravio clamp nego TEKST prompta; model se sam cenzurirao. Isto se vec
+    jednom dogodilo: Wimbledon revizija (`predictor.py` "Version 3") maknula je identican
+    cap uz obrazlozenje "flattened every pick to 62-64% and destroyed the model's ability to
+    rank locks vs coin-flips". Vracen je 13.08. i proizveo isto stanje.
+
+    ZASTO 70, A NE POTPUNO UKIDANJE: problematican razred bio je 65-67%, ali on je bio
+    problematican u svijetu gdje je 67 bio zasicen vrh ljestvice. Uz zahtjev za rasponom
+    (vidi prompt) 70+ ostaje mjesto na kojem model mora obrazloziti, jer je to jedini dio
+    ljestvice na kojem nemamo nikakav korpus. Ispod 70 model sada smije slobodno raspodijeliti.
+
+    ZA MJERENJE ZA ~30 DANA: usporediti SD pouzdanosti i udio modalne vrijednosti prije/poslije
+    (`context_version` 13 vs 14), i provjeriti isporucuje li razred 65-70% svoj nominalni
+    postotak. Ako se razred 65+ ponovno raspadne, vratiti strop — ali na 67, ne na 64.
     """
     conf = safe_float(result.get("confidence") or 0)
     if conf <= _CONF_CEILING or not result.get("pick"):
@@ -1504,6 +1588,81 @@ def _enforce_stated_caps(result: dict) -> None:
                                         "confidence": result.get("confidence")}
 
 
+_SCOUTING_MEDLOW_PENALTY = 4.0
+_MARKET_UNDERDOG_PENALTY = 5.0
+
+
+def _apply_measured_penalties(result: dict, match: dict, p1: dict, p2: dict) -> None:
+    """Dvije mjerene kazne, ODUZIMANJEM a ne capiranjem (17.08.2026 11:46).
+
+    ZASTO ODUZIMANJE, NE CAP — to je glavna lekcija revizije od 17.08.: strop na 64 nije
+    samo ogranicio vrh ljestvice nego je stvorio HRPU na tocno jednoj vrijednosti (61%
+    analiza na 64), cime je pouzdanost prestala razlikovati mecheve. Cap ravna, oduzimanje
+    pomice cijelu raspodjelu i cuva poredak. Obje kazne se zbrajaju i obje se biljeze.
+
+    1. SCOUTING "Med-Low" NA NASEM PICKU  ->  -4pp
+       Izmjereno na 129 razrijesenih analiza s poznatom pouzdanoscu profila:
+           Med-Low        26,7% (n=15)   ROI -51%
+           Med/Med-High/High  65,8% (n=114)
+       Razlika -39,1pp, P=0,0035, Fisher=0,0048; prezivi Bonferroni za 6 razina (x6=0,021).
+       Prompt VEC ima pravilo o Med-Low (asimetricno: smije podici sumnju, ne smije biti
+       potpora) — i ono ocito ne provodi samo od sebe. Isti obrazac kao kod hot-hand pravila
+       u srpnju: prompt REGISTRIRA, kod PROVODI.
+       Ironija koja objasnjava mehanizam: Low i Insufficient prolaze BOLJE (87,5% i 76,9%)
+       jer su izbaceni iz prompta pa se model na njih ne oslanja. Med-Low model vidi,
+       tretira kao upotrebljiv, i pojede se. Pogodjeni: Draper x2, Darderi x2, Collignon x2,
+       Popyrin x2 — svi na hardu.
+       -4pp je odabrano tako da tipican pick od 64 padne na 60, dakle ispod praga 63, ali da
+       ga stvarno jak pick (68+) prezivi.
+
+    2. NAS PICK JE TRZISNI AUTSAJDER (market_p <= 50%)  ->  -5pp
+       Izmjereno na 112 meceva s cijenama 40+ kladionica:
+           model bira trzisnog favorita    70,0% (n=100), trziste ocekivalo 64,2%
+           model bira trzisnog autsajdera  25,0% (n=12),  trziste ocekivalo 43,0%
+       Razlika +45,0pp, P=0,002. Drzi se u obje polovice (Montreal 0/4, Cincinnati 3/8).
+       Uzorak je malen (n=12) — zato kazna, ne veto.
+       ODNOS PREMA KORISNIKOVU PRAVILU O VELIKIM KVOTAMA (08.08.2026): korisnik je izricito
+       trazio da model NE izbjegava veliku kvotu zato sto je velika. Ovo nije to pravilo:
+       ne kaznjava se kvota nego NESLAGANJE S CIJELIM TRZISTEM. Pick s kvotom 2,40 kojemu
+       trziste daje 55% nije pogodjen; pick s kvotom 1,95 kojemu trziste daje 46% jest.
+       Korisnik je 17.08.2026 izricito odobrio ulazak tudjih kvota u predikciju.
+
+    NIJE UVEDENO, IAKO JE IZMJERENO: kazna za hold jaz >= +7pp (47,8% n=23 naspram 71,4%
+    n=56, P=0,046). Mehanizam je pokriven ponovnim bazdarenjem pragova u pravilu 2(b), a
+    P=0,046 na n=23 medju desecima testova nije dovoljno da se jos jednom oduzima. Biljezi
+    se `serve_gap_raw_pp` da se moze premjeriti.
+    """
+    conf = safe_float(result.get("confidence") or 0)
+    pick = str(result.get("pick") or "")
+    if conf <= 0 or not pick:
+        return
+
+    pick_l = pick.lower()
+    p1_name = str(match.get("player1") or "").lower()
+    pick_is_p1 = bool(pick_l and p1_name and (pick_l in p1_name or p1_name in pick_l))
+    applied = []
+
+    # --- 1. scouting pouzdanost profila NASEG picka ---
+    scout = (p1 if pick_is_p1 else p2).get("scouting") or {}
+    if str(scout.get("confidence") or "").strip() == "Med-Low":
+        applied.append({"rule": "scouting_med_low", "penalty": _SCOUTING_MEDLOW_PENALTY})
+
+    # --- 2. trzisni autsajder ---
+    mp = safe_float(match.get("market_p"))          # vjerojatnost za NASEG player1
+    if mp:
+        p_pick = mp if pick_is_p1 else (1.0 - mp)
+        if p_pick <= 0.50:
+            applied.append({"rule": "market_underdog", "penalty": _MARKET_UNDERDOG_PENALTY,
+                            "market_p_pick": round(p_pick, 4)})
+
+    if not applied:
+        return
+    total = sum(a["penalty"] for a in applied)
+    result["confidence"] = max(0.0, round(conf - total, 1))
+    result["measured_penalties"] = {"from": conf, "to": result["confidence"],
+                                    "applied": applied}
+
+
 def _normalize_fair_odds(result: dict, match: dict) -> None:
     """Veže fair_odds uz confidence i value uz stvarnu kvotu (clay revizija 2026-07-11).
 
@@ -1513,7 +1672,18 @@ def _normalize_fair_odds(result: dict, match: dict) -> None:
     gubitaka (15W-14L). Sada: fair_odds = 100/confidence (jedna izvorna procjena, ne
     dvije nepovezane), a value = edge >= 3pp prema stvarnoj tržišnoj kvoti picka.
     LLM kvote ionako ne vidi (model misli neovisno o tržištu), pa njegov value flag
-    nije imao informacijsku osnovu."""
+    nije imao informacijsku osnovu.
+
+    NALAZ 17.08.2026 11:46 — NAMJERNO NIJE POPRAVLJANO OVDJE: dok je pouzdanost bila
+    zaglavljena na 64 (vidi `_enforce_confidence_ceiling`), `fair_odds` je bio konstanta
+    1,5625 pa se cijela `value` mehanika svela na prag na kvoti (`value=True` <=> kvota
+    >= ~1,64). Zastavica je zato bila PROTUPREDIKTIVNA: 59,2% (n=103) naspram 67,4%
+    (n=144), i to dosljedno u sve tri ere (-9,0 / -6,6 / -11,3pp).
+    Uzrok je uklonjen podizanjem stropa i zahtjevom za rasponom, ne ovdje. Da je istog
+    dana dirana i ova funkcija, ucinak dviju izmjena ne bi se mogao razdvojiti.
+    ZA MJERENJE ~17.09.2026: ponoviti usporedbu value=True/False na `context_version` 14.
+    Ako je zastavica i uz raspršenu pouzdanost i dalje protuprediktivna, tek onda dirati
+    `ticket_builder` (koji joj daje prednost pri rangiranju)."""
     conf = safe_float(result.get("confidence") or 0)
     if conf <= 0 or not result.get("pick"):
         return

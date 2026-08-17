@@ -71,17 +71,30 @@ Težine su hard v18; žive u Supabase `model_weights`, ne u kodu.
 **Ograničava listić:**
 
 - **4-6 parova**, ukupna kvota **6-40** (korisnikove fiksne granice)
-- **strop pouzdanosti 64%** *(novo 13.08.2026 12:47)* — iznad 64 model mora ispuniti
-  `above_64_basis` s dvije mjerene potvrde (s brojkama, iz različitih kategorija) i rečenicom
-  što bi ga oborilo; inače kod tvrdo spušta na 64 i bilježi `ceiling_enforced`. Razred 65-67%
-  isporučivao je 50,0% uz ROI −34,8% (n=20)
+- **strop pouzdanosti 70%** *(podignut s 64 dana 17.08.2026 11:46)* — iznad 70 model mora
+  ispuniti `above_64_basis` (ime polja je povijesno) s dvije mjerene potvrde s brojkama iz
+  različitih kategorija i rečenicom što bi ga oborilo; inače kod spušta na 70 i bilježi
+  `ceiling_enforced`. **Zašto je podignut:** strop 64 nikad nije stisnuo nijedan broj
+  (`ceiling_enforced` 0/59) — model se sam cenzurirao, pa je 61% analiza sjelo na točno 64 i
+  pouzdanost je prestala nositi informaciju (Brier 0,2308 naspram 0,2305 za konstantu 0,64).
 - najviše **1 pick iz zone 1,43-1,60** *(suženo s 1,43-1,90 dana 08.08.2026 11:35)*
+
+**Mjerene kazne — oduzimaju od pouzdanosti** *(novo 17.08.2026 11:46,
+`_apply_measured_penalties`)*. Oduzimanje, a ne capiranje, jer cap stvara hrpu na jednoj
+vrijednosti i time ubija razlučivanje — to je glavna lekcija revizije od 17.08.:
+
+- scouting profil **NAŠEG picka = `Med-Low`** → **−4pp** (26,7% n=15 naspram 65,8% n=114,
+  P=0,0035; Low/Insufficient prolaze bolje jer su izbačeni iz prompta pa se na njih ne oslanja)
+- **naš pick je tržišni autsajder** (de-vig konsenzus 40+ kladionica ≤50%) → **−5pp**
+  (25,0% n=12 naspram 70,0% n=100, razlika 45pp, P=0,002). **Nije pravilo protiv velikih
+  kvota:** kažnjava se neslaganje s cijelim tržištem, ne veličina kvote — pick s kvotom 2,40
+  kojemu tržište daje 55% nije pogođen.
 
 **Bira kombinaciju** (`_score_combo`): umnožak pouzdanosti kao glavni kriterij, plus bonus za
 value (edge 3-20pp za favorite, 3-28pp za pickove ≥2,00), plus bonus za pouzdanost ≥72, minus
 kazna za najslabiji pick ispod 68, minus kazna za svaki par preko četiri.
 
-## 3. Bilježi se, ali NE utječe na odluku — `context_snapshot` v10
+## 3. Bilježi se, ali NE utječe na odluku — `context_snapshot` v14
 
 Vremenski uvjeti u punom obliku (temperatura, vlaga, vjetar, tlak na razini mora i na tlu,
 uvjet, koliko je prognoza udaljena od sata meča); je li teren natkriven; je li meč u prvom
@@ -91,6 +104,16 @@ modela (`rules_hash` + `weights_version`); je li cap okinuo i koje pravilo; ELO 
 koliko je protivnika ušlo u prosjek kvalitete; te **ispravljene verzije** povrata
 (`return_won_weighted`) i holda (`hold_pct_from_bp`) usporedno s onima koje model stvarno
 koristi.
+
+Od **15.08.2026**: tržišni konsenzus 40+ kladionica (`market_p`, `market_p_sharp`,
+`market_n_books`, `market_overround`, `market_spread`, `market_gap_pp`, `market_ev_pick`),
+cijena **svake kladionice zasebno** u tablici `market_lines`, i cijena u trenutku oklade u
+`ticket_matches.market_snapshot`.
+Od **17.08.2026**: `serve_gap_raw_pp` (sirovi jaz u poenima na servisu, bez množitelja 1,9)
+i `measured_penalties` (koja je kazna okinula i koliko je oduzela). Od istog dana radi i
+**drugo hvatanje cijena** pred početak mečeva (`scripts/capture_market_close.py`, cron 14:30
+UTC) — dopisuje se u `market_lines` pored prve snimke, pa se kretanje linije može mjeriti
+namjerno umjesto slučajno.
 
 Svrha: svaka buduća hipoteza mora se moći provjeriti retroaktivno umjesto pogađati.
 

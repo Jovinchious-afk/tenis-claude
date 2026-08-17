@@ -852,6 +852,28 @@ def main():
     valid_predictions = [p for p in predictions if not p.get("skip_reason")]
     print(f"Valjane predikcije: {len(valid_predictions)}/{len(predictions)}")
 
+    # RASPRSENOST POUZDANOSTI — dijagnostika, ne odluka (17.08.2026 11:46).
+    # Revizija je pokazala da je pouzdanost postala konstanta (61% analiza na tocno 64,
+    # SD 1,18pp, Brier losiji od konstante 0,64) i da je time cijela selekcija oslijepila.
+    # Strop je podignut 64 -> 70 uz zahtjev za rasponom; ovo je najbrza provjera je li to
+    # uopce proradilo. Referentne vrijednosti iz ere stropa 64: SD 1,18 / 4 vrijednosti /
+    # modalna 61%. Ako i dalje bude SD < 2 i modalna > 40%, izmjena NIJE uspjela i nema
+    # smisla ceka ti mjesec dana da se to vidi iz baze.
+    _confs = [p.get("confidence") or 0 for p in valid_predictions if (p.get("confidence") or 0) > 0]
+    if len(_confs) >= 3:
+        import statistics as _st
+        _mode_n = max(_confs.count(c) for c in set(_confs))
+        print(f"Raspršenost pouzdanosti: SD {_st.pstdev(_confs):.2f}pp | "
+              f"{len(set(_confs))} razlicitih vrijednosti | raspon {min(_confs):.0f}-{max(_confs):.0f} | "
+              f"modalna vrijednost {100 * _mode_n / len(_confs):.0f}% analiza")
+    _pen = [p for p in valid_predictions if p.get("measured_penalties")]
+    if _pen:
+        print(f"Mjerene kazne primijenjene na {len(_pen)} pickova:")
+        for _p in _pen:
+            _m = _p["measured_penalties"]
+            _rules = ", ".join(a["rule"] for a in _m["applied"])
+            print(f"  {str(_p.get('pick'))[:26]:26s} {_m['from']:.0f} -> {_m['to']:.0f}  ({_rules})")
+
     # 8. Generiraj tiket ili analysis-only zapis
     print("\nGeneriram tiket...")
     if analysis_only_mode or len(valid_predictions) < 4:

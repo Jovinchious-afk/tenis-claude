@@ -484,8 +484,8 @@ for f in ("p1_serve_pts_won", "p1_hold_pct", "p1_hold_pct_from_bp", "p1_return_w
           "p1_return_won_weighted", "p1_bp_saved", "p1_bp_converted", "p1_first_serve_pct",
           "bp_in_prompt"):
     check(f"snapshot biljezi {f}", f'"{f}"' in _all)
-check("context_version podignut na 13 (v8 07.08., v9 08.08., v10 13.08., v11 14.08.)",
-      '"context_version": 13' in _all)
+check("context_version podignut na 14 (v12/v13 15.08., v14 17.08.)",
+      '"context_version": 14' in _all)
 
 # (e) nove vrijednosti ne smiju procuriti u prompt template
 check("prompt template nema novih polja",
@@ -515,7 +515,7 @@ _h = _hl.md5((_surface_specific_rules("Hard") + _pr.ANALYSIS_PROMPT_TEMPLATE)
              .encode("utf-8")).hexdigest()[:8]
 # Ako ovo padne, prompt se PROMIJENIO. To je u redu kad je namjerno — tada osvjezi
 # vrijednost ovdje i zabiljezi izmjenu u MODEL_CHANGELOG. Ako nije bilo namjerno, vrati je.
-check("hard rules_hash je 2b08e904 (era od 13.08.2026)", _h == "2b08e904", _h)
+check("hard rules_hash je 0295e3b0 (era od 17.08.2026)", _h == "0295e3b0", _h)
 
 print("\n=== 15. Natpisi podloge u selekciji (07.08.2026) ===")
 from agent import ticket_builder as _tbm
@@ -555,7 +555,7 @@ _wf2 = open(".github/workflows/daily_ticket.yml", encoding="utf-8").read()
 
 # A — bez utjecaja na pickove
 check("ELO se biljezi u snapshot", '"p1_elo_overall"' in _prsrc and '"elo_gap_surface"' in _prsrc)
-check("context_version podignut na 13", '"context_version": 13' in _prsrc)
+check("context_version podignut na 14", '"context_version": 14' in _prsrc)
 check("broj protivnika u avg_opp_elo se biljezi", "_avg_opponent_elo_n" in _rd2)
 check("PYTHONUNBUFFERED aktiviran", 'PYTHONUNBUFFERED: "1"' in _wf2)
 check("hard okidac vise ne vristi na 30", "_HARD_NEXT_TRIGGER = 180" in _rd2)
@@ -588,7 +588,7 @@ _hh = _h2.md5((_surface_specific_rules("Hard") + _pr.ANALYSIS_PROMPT_TEMPLATE)
               .encode("utf-8")).hexdigest()[:8]
 # Prompt JE mijenjan 13.08.2026 (strop 64 + trzisna provjera) -> hash se MORAO promijeniti.
 # Ako ovo padne, prompt je diran: osvjezi vrijednost i zabiljezi izmjenu u MODEL_CHANGELOG.
-check("hard rules_hash je 2b08e904 (era od 13.08.2026)", _hh == "2b08e904", _hh)
+check("hard rules_hash je 0295e3b0 (era od 17.08.2026)", _hh == "0295e3b0", _hh)
 check("zamka o rezanju ere dokumentirana", "ZAMKA ZA BUDUĆU ANALIZU" in _prsrc)
 check("bp_in_prompt se biljezi kao oznaka ere", '"bp_in_prompt": _BP_TO_PROMPT' in _prsrc)
 
@@ -643,33 +643,41 @@ check("Q2 pada", _tbm._is_main_tour(_mkp("ATP 250", "Q2")) is False)
 check("screenshot override i dalje nadjacava round-tag",
       _tbm._is_main_tour(_mkp("ATP Masters 1000", "R128", ss=True)) is True)
 
-print("\n=== 20. Strop pouzdanosti na 64% (13.08.2026 12:47) ===")
+print("\n=== 20. Strop pouzdanosti: 64% -> 70% (revizija 17.08.2026 11:46) ===")
+# Strop je 13.08. postavljen na 64 jer je razred 65-67% davao 50,0% (n=20, ROI -34,8%).
+# Revizija 17.08. izmjerila je nuspojavu: pouzdanost je postala konstanta (Brier 0,2308
+# naspram 0,2305 za konstantu 0,64; 61% analiza na tocno 64), pa je selekcija oslijepila.
+# Strop je podignut na 70; zahtjev za DEKLARACIJOM iznad stropa ostaje nepromijenjen.
 from agent.predictor import _enforce_confidence_ceiling as _ceil, _market_line, _CONF_CEILING
 _mk = lambda c, **kw: {**{"pick": "A", "confidence": c}, **kw}
+_r = _mk(74); _ceil(_r)
+check("74 bez obrazlozenja pada na 70", _r["confidence"] == 70.0)
+check("clamp se biljezi", (_r.get("ceiling_enforced") or {}).get("from") == 74.0)
 _r = _mk(67); _ceil(_r)
-check("67 bez obrazlozenja pada na 64", _r["confidence"] == 64.0)
-check("clamp se biljezi", (_r.get("ceiling_enforced") or {}).get("from") == 67.0)
-_r = _mk(64); _ceil(_r)
-check("64 se ne dira", _r["confidence"] == 64 and _r.get("ceiling_enforced") is None)
+check("67 sada PROLAZI (13.08.-17.08. bilo srezano na 64)", _r["confidence"] == 67)
+_r = _mk(70); _ceil(_r)
+check("70 se ne dira", _r["confidence"] == 70 and _r.get("ceiling_enforced") is None)
 _r = _mk(60); _ceil(_r)
 check("ispod stropa se ne dira", _r["confidence"] == 60)
-_ok = {"confirmations": ["hard ELO +180", "hold 86.4% vs 78.1%"],
+_ok = {"confirmations": ["hard ELO +180", "serve pts 68.4% vs 61.3%"],
        "what_would_beat_it": "ako servira ispod 60% prvog"}
-_r = _mk(67, above_64_basis=_ok); _ceil(_r)
-check("67 s DVIJE mjerene potvrde + downside prolazi", _r["confidence"] == 67)
-_r = _mk(67, above_64_basis={"confirmations": ["serves well", "moves well"],
+_r = _mk(76, above_64_basis=_ok); _ceil(_r)
+check("76 s DVIJE mjerene potvrde + downside prolazi", _r["confidence"] == 76)
+_r = _mk(76, above_64_basis={"confirmations": ["serves well", "moves well"],
                              "what_would_beat_it": "x"}); _ceil(_r)
-check("potvrde bez brojke ne vrijede", _r["confidence"] == 64.0)
-_r = _mk(67, above_64_basis={"confirmations": ["hard ELO +180", "hold 86.4%"]}); _ceil(_r)
-check("bez recenice o porazu ne prolazi", _r["confidence"] == 64.0)
-_r = _mk(67, above_64_basis={"confirmations": ["hard ELO +180"],
+check("potvrde bez brojke ne vrijede", _r["confidence"] == 70.0)
+_r = _mk(76, above_64_basis={"confirmations": ["hard ELO +180", "serve pts 68.4%"]}); _ceil(_r)
+check("bez recenice o porazu ne prolazi", _r["confidence"] == 70.0)
+_r = _mk(76, above_64_basis={"confirmations": ["hard ELO +180"],
                              "what_would_beat_it": "x"}); _ceil(_r)
-check("jedna potvrda nije dovoljna", _r["confidence"] == 64.0)
+check("jedna potvrda nije dovoljna", _r["confidence"] == 70.0)
 _r = _mk(0, above_64_basis=None); _ceil(_r)
 check("preskocen mec (conf 0) se ne dira", _r["confidence"] == 0)
-check("strop je 64", _CONF_CEILING == 64.0)
-# redoslijed: strop PRVI, pa capovi (cap smije spustiti i ispod 64)
+check("strop je 70", _CONF_CEILING == 70.0)
+# redoslijed: strop PRVI, pa capovi, pa mjerene kazne (17.08.2026 11:46)
 _all2 = open("agent/predictor.py", encoding="utf-8").read()
+check("mjerene kazne idu POSLIJE capova",
+      _all2.index("_enforce_stated_caps(result)") < _all2.index("_apply_measured_penalties(result"))
 check("strop se primjenjuje PRIJE capova",
       _all2.index("_enforce_confidence_ceiling(result)") < _all2.index("_enforce_stated_caps(result)"))
 
@@ -688,7 +696,7 @@ check("stara zabrana oslanjanja na kvotu i dalje stoji",
 check("nova polja u JSON shemi",
       '"above_64_basis"' in _pr.ANALYSIS_PROMPT_TEMPLATE
       and '"market_check"' in _pr.ANALYSIS_PROMPT_TEMPLATE)
-check("context_version podignut na 13", '"context_version": 13' in _all2)
+check("context_version podignut na 14", '"context_version": 14' in _all2)
 
 print("\n=== 22. Runde na razini TURNIRA (13.08.2026) ===")
 from agent.run_daily import _verify_late_rounds, _LATE_ROUND_TOTAL
