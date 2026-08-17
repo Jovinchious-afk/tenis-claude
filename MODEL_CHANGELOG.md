@@ -13,6 +13,66 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-08-17 12:38 — SCOUTING: ispravljena tri cinjenicno netocna profila, ostalo NAMJERNO nedirnuto
+
+Korisnik je pitao treba li nesto mijenjati u tablici od 150 profila. Izmjereno prije odgovora:
+
+**Tablica kao cjelina ne radi nista mjerljivo.** Pickovi ciji profil prompt vidi (High /
+Med-High / Med / Med-Low): **64,1%** (n=209). Pickovi bez vidljivog profila (Low /
+Insufficient / nema): **63,2%** (n=38). Razlika +1,0pp, **P=0,91**.
+
+**Kad se analiza stvarno osloni na profil, prolazi losije:**
+
+| | n | pogodak | ROI |
+|---|---|---|---|
+| analiza se poziva na profil | 59 | 55,9% | -14,0% |
+| analiza kaze da profila nema | 52 | **71,2%** | +8,8% |
+
+-15,2pp, P=0,097. **Ograda:** moguce je da model poseze za profilom bas kad je nesiguran,
+pa bi to bila posljedica a ne uzrok. Ni u jednom citanju to nije argument za VISE profila.
+
+**Oznaka "clay" ne nosi informaciju na hardu:** 47 igraca oznacenih kao clay imalo je 139
+nastupa na hardu u nasem korpusu i dobili su **48,2%**. Merida Aguilar je 6/7 na hardu uz
+profil "Clay grinder, best: Clay" — i srusio nas je 5 puta.
+
+**Pet TOP-50 bez profila prolazi dobro upravo takvi:** Jodar 8/10 kao nas pick, Tien 4/4 —
+oboje nevidljivi promptu. Nadopunjavanje njihovih profila vjerojatno bi odmoglo.
+
+### ISPRAVAK MOJE BROJKE OD ISTOG JUTRA
+
+Med-Low sam u reviziji od 11:46 naveo kao **26,7% (n=15)** — mjereno iz `context_snapshota`,
+dakle samo na novijim redcima. Spajanjem po imenu na cijelu povijest: **46,9% (n=32)**
+naspram 67,2% za Med/Med-High/High. Razlika **-20,4pp (P=0,027)**, ne -39pp. Smjer se drzi i
+i dalje je najgori razred, ali je jaz **upola manji** nego sto je jutros zapisano. Kazna od
+-4pp ostaje opravdana; ocekivani ucinak je manji.
+
+### STO JE PROMIJENJENO — tri retka, cinjenicne greske
+
+Usporedba teksta profila s izmjerenom sezonskom statistikom (polje n=176 nastupa: medijan
+poena na servisu 63,8, Q1 62,5, Q3 64,8):
+
+| igrac | profil je tvrdio | mjereno |
+|---|---|---|
+| Brandon Nakashima (#32) | "serve only modest" | **67,2%** — gornji kvartil |
+| Jaime Faria (#88) | "Big serve" kao prednost | **61,3%**, 1. servis 57,9% — donji kvartil |
+| Martin Landaluce (#62) | "big serve for size" | **61,9%** — donji kvartil |
+
+Faria je 17.08. izbacio Sheltona (nas pick), Landaluce nas je srusio 2x.
+
+Ispravljeno u Excelu (izvor istine) **i** u Supabaseu. `source_date` je promijenjen **samo
+tim trima redcima** (2026-08-17); ostalih 147 zadrzava 2026-08-04. Razlog: `import_scouting.py`
+upisuje `--source-date` SVIM redcima, pa bi pun uvoz lazno prikazao cijelu tablicu kao
+osvjezenu danas. Pouzdanosti (`confidence`) nisu dirane — to je procjena, ne cinjenica.
+
+### STO NIJE DIRANO I ZASTO
+
+Ostatak tablice ceka do **~17.09.2026**. Razlog je pripisivanje: model je promijenjen istoga
+dana u 11:46 (strop 64->70, prebazdareni servisni pragovi, dvije mjerene kazne). Da su se
+istovremeno promijenili i scouting podaci, za mjesec dana se ne bi znalo sto je od cega.
+Ista disciplina zbog koje `value_bet` nije diran.
+
+---
+
 ## 2026-08-17 11:46 — REVIZIJA NAKON 5 DANA CINCINNATIJA: pouzdanost je bila mrtva varijabla
 
 Korpus: 247 razrijesenih analiza sa kvotom (cijela sezona), od toga **112 s cijenama 40+
