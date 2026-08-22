@@ -13,6 +13,75 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-08-22 17:05 — CURENJE U ZNACAJKAMA IZ POVIJESTI: nadjeno, izmjereno, zatvoreno
+
+Pri reviziji izvornog zadatka testiran je head-to-head i dao **+76pp** (vodi 96,3% n=27,
+gubi 20,0% n=15), uz prezivjelu stratifikaciju po kvoti u sva cetiri pojasa. Prije prijave
+pregledan je svaki slucaj rucno:
+
+    medijan razmaka do "ranijeg" meca bio je JEDAN DAN
+    2026-08-06 pick=Medvedev vs Van De Zandschulp -> "raniji" 2026-08-05 protiv istog
+
+To nije povijest nego **ISTI MEC pod drugim datumom**. Izmjereno na 256 uparenih meceva:
+nas datum = API datum u 196 (77%), nas +1 dan u 38, nas -1 dan u 19, +-2 dana u 3.
+**23% meceva ima neuskladjen datum.** Uz zastitu H2H pada s +66,7pp na **+0,0pp**.
+
+### PRODUKCIJA NIJE BILA POGODJENA — provjereno
+`past-matches` vraca iskljucivo ODIGRANE meceve (0 od 727 bez pobjednika, 0 bez rezultata,
+0 s datumom u buducnosti), pa `get_recent_form` u trenutku analize ne moze vidjeti ishod
+meca koji tek predvidjamo. **Curenje je postojalo samo u retrospektivnoj analizi.**
+Zato `get_recent_form` NIJE diran — promjena bi mijenjala pickove bez ijednog dokaza.
+Isto vrijedi za `_gate_by_screenshot`, `_detect_provisional_schedule`, dohvat prekosutra i
+vremensku prognozu: korisnik je izricito upozorio da je ta logika naStimana, i **nista od
+toga nije dirnuto** (testovi to i provjeravaju).
+
+### NOVO: `agent/history_features.py`
+Dvostruka brava, obje nuzne:
+1. **vremenska** — povijesni mec se broji tek od 3 dana prije predikcije (pokriva izmjereno
+   odstupanje od +-2 dana)
+2. **po paru** — mec izmedju istih igraca unutar 5 dana odbacuje se bez obzira na sve
+`safe_history()` je jedini ulaz; poziv bez `as_of` baca gresku (nema tihog curenja).
+Modul **nije uvezen** ni u `run_daily`, ni u `predictor`, ni u `ticket_builder`.
+
+### REZULTATI UZ ZASTITU (izvorne stavke iz korisnikovog zadatka)
+
+| stavka | rezultat |
+|---|---|
+| sekvence forme (2 pobjede protiv slicnog profila) | 52,6% naspram 64,6% — nema, predznak se okrenuo |
+| kako je pobijedio (2 seta) | +8,5pp, P=0,313 — nema |
+| head-to-head | +0,0pp — bio artefakt |
+| umor (mecevi u 2-7 dana) | +7,2pp kontrolirano — slabo |
+| **kvaliteta protivnika** | **+18,0pp kontrolirano, r=+0,203 P=0,0030, monotono kroz 4 razreda, obje polovice isti smjer** |
+
+Kvaliteta protivnika mjerena prosjecnom visinom zadnjih 5 protivnika: 0-185cm -> 50,0%,
+185-188 -> 54,7%, 188-191 -> 68,1%, 191+ -> 80,0%. Ista ideja mjerena RANGOM daje samo
++9,7pp, dakle visina nosi nesto preko ranga. **Mehanizam nije do kraja jasan — prati se,
+ne koristi**, dok se ne potvrdi na turniru izvan uzorka.
+
+### STO SE NE MOZE DOHVATITI — definitivno
+- **Rally metrike**: `winners`, `unforcedErrors`, `netApproaches`, `averageFirstServeSpeed`,
+  `fastestServe` postoje kao kljucevi ali su **NULL u 228 od 228 zapisa**.
+- **Minute meca**: nema ih ni u jednom endpointu.
+- **Putovanje / vremenska zona**: nema koordinata; `_CITY_UTC_OFFSET` je vec poznato netocan
+  za 14 od 37 gradova, pa aproksimacija ne bi bila vjerodostojna.
+- **Podloga povijesnih meceva**: `past-matches` nema to polje.
+
+### POPRAVLJENO: harvest je citao krive kljuceve
+`tournament` i `round_name` bili su PRAZNI u svih 727 redaka jer je skripta trazila
+`tournament`/`round`/`roundName`, a API vraca **`tournamentId`** i **`roundId`** (brojeve).
+Treca greska iste vrste (visina `data.height` naspram `data.information.height`, dob
+`dateOfBirth` naspram `birthday`). Nakon popravka: **727/727 s turnirom i rundom, 46
+turnira, 26 predaja** prepoznatih iz rezultata. Otkljucava tezinu zdrijeba i ucinak po
+rundama za sljedecu analizu.
+
+### INTERACTION EFFECTS — namjerno NIJE radjen sustavni pregled
+Uz ~20 varijabli ima ~190 parova; pri P<0,05 ocekuje se ~10 laznih, a snaga za realnu
+razliku je ispod 40%. Sustavan pregled na n=301 dao bi popis uvjerljivih besmislica.
+Radjene su samo ciljane interakcije (vrijeme x servis, runda x sesija, povijest x runda,
+povijest x trziste, i sve stratifikacije po cijeni).
+
+**Nijedan pick nije diran. `rules_hash` ostaje a0424315.**
+
 ## 2026-08-22 15:20 — TRZISNE KVOTE: tri obrasca testirana i pala; hvatanje popravljeno
 
 Korisnik je trazio korelaciju SVIH kladionica naspram nase screenshot kvote, na svim

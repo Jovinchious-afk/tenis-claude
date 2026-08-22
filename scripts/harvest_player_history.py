@@ -139,9 +139,18 @@ def harvest_one(pid: str, name: str) -> list:
             "player2_name": p2.get("name") or "",
             "winner_id": winner or None,
             "score": str(score)[:120],
-            "tournament": (g.get("tournament") or {}).get("name") if isinstance(g.get("tournament"), dict) else (g.get("tournament") or ""),
-            "surface": g.get("surface") or "",
-            "round_name": g.get("round") or g.get("roundName") or "",
+            # POPRAVAK 22.08.2026 17:05: API vraca `tournamentId` i `roundId` (BROJEVE),
+            # a ne `tournament`/`round`/`roundName`. Zbog krivih naziva kljuceva prvi
+            # harvest je spremio PRAZAN turnir i rundu u svih 727 redaka, pa se
+            # "tezina zdrijeba" i "ucinak po rundama" nisu mogli izmjeriti.
+            # Ista vrsta greske kao visina (`data.height` naspram `data.information.height`)
+            # i dob (`dateOfBirth` naspram `birthday`): kljuc postoji, vrijednost je None,
+            # nikakve greske. PRAVILO: kad je polje prazno u 100% redaka, PRVO ispisati sve
+            # kljuceve sirovog odgovora.
+            # Podloge u `past-matches` NEMA — to se ne moze popraviti, samo zabiljeziti.
+            "tournament": str(g.get("tournamentId") or ""),
+            "surface": "",
+            "round_name": str(g.get("roundId") or ""),
             "source_player_id": pid,
         })
     return rows

@@ -479,6 +479,85 @@ check("ticket_builder ne zna za CLV", "clv" not in _tb2.lower())
 check("hvatanje ne uvozi ticket_builder", "ticket_builder" not in _cap)
 
 
+# ============================================================================
+print("\n=== 14. Zastita od curenja u znacajkama iz povijesti (22.08.2026 17:05) ===")
+
+from agent import history_features as hf
+
+# --- osnovne brave ---
+check("vremenska brava je 3 dana", hf.MIN_DAYS_BEFORE == 3)
+check("brava po paru je 5 dana", hf.SAME_PAIR_WINDOW == 5)
+
+_H = [{"date": "2026-08-01", "won": True,  "opp": "Rafael Jodar",     "score": "6-3 6-4"},
+      {"date": "2026-08-09", "won": False, "opp": "Brandon Nakashima", "score": "4-6 6-3 6-2"},
+      {"date": "2026-08-11", "won": True,  "opp": "Marin Cilic",      "score": "7-6(3) 6-4"}]
+
+# meč od 11.08. je 1 dan prije predikcije -> mora ispasti
+_safe = hf.safe_history(_H, as_of="2026-08-12")
+check("meč od jučer NE ulazi u povijest", all(m["date"] != "2026-08-11" for m in _safe))
+check("meč od 3+ dana ranije ULAZI", any(m["date"] == "2026-08-09" for m in _safe))
+check("meč od 11 dana ranije ULAZI", any(m["date"] == "2026-08-01" for m in _safe))
+
+# brava po paru: isti protivnik unutar 5 dana ispada i kad je >=3 dana
+_safe2 = hf.safe_history(_H, as_of="2026-08-13", opponent="Nakashima Brandon")
+check("isti protivnik unutar 5 dana ispada (obrnut redoslijed imena)",
+      all(not hf.same_player(m["opp"], "Nakashima Brandon") for m in _safe2))
+_safe3 = hf.safe_history(_H, as_of="2026-08-20", opponent="Nakashima Brandon")
+check("isti protivnik izvan 5 dana OSTAJE",
+      any(hf.same_player(m["opp"], "Nakashima Brandon") for m in _safe3))
+
+# bez as_of se NE smije moci pozvati
+try:
+    hf.safe_history(_H, as_of=None)
+    _ok = False
+except ValueError:
+    _ok = True
+check("bez as_of baca gresku (nema tihog curenja)", _ok)
+
+# --- konkretan slucaj koji je otkrio bug ---
+_med = [{"date": "2026-08-05", "won": False, "opp": "Botic Van De Zandschulp", "score": "6-3 7-6(5)"}]
+check("Medvedev slucaj: isti mec pod drugim datumom je odbacen",
+      hf.h2h_record(_med, as_of="2026-08-06", opponent="Van De Zandschulp Botic") is None)
+
+# --- pomocne ---
+check("parse_sets cita rezultat", hf.parse_sets("6-4 3-6 7-6(5)") == [(6,4),(3,6),(7,6)])
+check("predaja se prepoznaje", hf.is_retirement("6-2 2-0 ret.") is True)
+check("normalan rezultat nije predaja", hf.is_retirement("6-4 6-2") is False)
+check("prazan rezultat ne ruси", hf.parse_sets(None) == [])
+
+# --- znacajke postuju zastitu ---
+_long = [{"date": "2026-07-%02d" % d, "won": d % 2 == 0, "opp": "X Y",
+          "score": "6-4 6-3" if d % 2 == 0 else "3-6 4-6"} for d in range(1, 20)]
+check("matches_in_window ne broji zadnja 2 dana",
+      hf.matches_in_window(_long + [{"date": "2026-08-11", "won": True, "opp": "Z W",
+                                     "score": "6-1 6-1"}], as_of="2026-08-12") == 0)
+check("comeback_rate vraca None bez uzorka",
+      hf.comeback_rate(_H, as_of="2026-08-20", min_n=10) is None)
+check("build_history_index preskace mec bez pobjednika",
+      hf.build_history_index([{"match_date": "2026-08-01", "player1_id": "1",
+                               "player2_id": "2", "winner_id": None}]) == {})
+
+# --- modul NE SMIJE biti u pipelineu ---
+for _f in ("agent/run_daily.py", "agent/predictor.py", "agent/ticket_builder.py"):
+    check(f"{_f.split('/')[-1]} ne uvozi history_features",
+          "history_features" not in open(_f, encoding="utf-8").read())
+
+# --- postojeca logika vremena NIJE dirnuta (korisnikovo izricito upozorenje) ---
+_rd2 = open("agent/run_daily.py", encoding="utf-8").read()
+check("prekosutra se i dalje dohvaca uvjetno", "fetch_day_after = bool(screenshot_tomorrow)" in _rd2)
+check("_gate_by_screenshot i dalje postoji", "_gate_by_screenshot" in _rd2)
+check("_detect_provisional_schedule i dalje postoji", "_detect_provisional_schedule" in _rd2)
+_df2 = open("agent/data_fetcher.py", encoding="utf-8").read()
+check("get_recent_form NIJE dirnut (nema filtra po datumu)",
+      "def get_recent_form" in _df2 and "MIN_DAYS_BEFORE" not in _df2)
+
+# --- harvest: ispravni kljucevi ---
+_hv2 = open("scripts/harvest_player_history.py", encoding="utf-8").read()
+check("harvest cita tournamentId", 'g.get("tournamentId")' in _hv2)
+check("harvest cita roundId", 'g.get("roundId")' in _hv2)
+check("zapisano da podloge nema", "Podloge u `past-matches` NEMA" in _hv2)
+
+
 print("\n" + "=" * 60)
 if _fails:
     print(f"PALO: {len(_fails)}")
