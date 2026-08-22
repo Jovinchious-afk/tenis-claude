@@ -210,6 +210,83 @@ _AGE_TO_PROMPT = False
 #   Ako se to zadrzi, isti problem se vraca na drugoj razini.
 # =============================================================================================
 
+# =============================================================================================
+# CITANJE ANALIZA GUBITAKA 17.-22.08.2026 (zapisano 22.08.2026 13:40) + KONTROLNA SKUPINA
+# =============================================================================================
+# NAPOMENA O POSTUPKU: pri prvoj analizi tog dana napravljen je statisticki pregled korpusa,
+# ali 10 pojedinacnih analiza gubitaka od 17.-22.08. NIJE bilo procitano. Korisnik je pitao
+# i tek su tada procitane. Za buducnost: statisticki sweep i citanje analiza su DVIJE
+# razlicite provjere i nijedna ne zamjenjuje drugu.
+#
+# STO ANALIZE KAZU: 7 od 7 razlicitih poraza imenuje DRUGI SERVIS ili DUPLE GRESKE.
+#   Medvedev-Nakashima  10 dupli, 45,2% drugog servisa
+#   Rublev-Borges       1. servis 58,2%, stalno gurnut na drugi
+#   Jodar-Cobolli       drugi servis 45,7% naspram 55,1%
+#   Mensik-Tirante      drugi servis 43,9% naspram 52,5%, 6 dupli
+#   Zverev-Paul         9 dupli naspram 1
+#   FAA-Tiafoe          drugi servis 32,0% naspram 61,1%
+#   Fritz-Nakashima     drugi servis neutraliziran
+#
+# KONTROLNA SKUPINA (112 meceva s post-match statistikom, 68 pobjeda / 44 poraza,
+# poravnato po pobjedniku; sanity "pick s vise poena je pobijedio" = 95%):
+# razlika nas pick minus protivnik, u pobjedama naspram poraza:
+#     drugi servis            +1,41  vs  -2,16   P=0,0001
+#     prvi servis             +4,06  vs  -0,93   P<0,0001
+#     duple greske            -0,65  vs  +1,45   P=0,0012
+#     primljene break lopte    3,79  vs   7,89   P<0,0001
+# Dakle DIJAGNOZA JE TOCNA — kad gubimo, nas igrac stvarno servira losije.
+#
+# ALI RECEPT ("dajte servisu vise tezine") JE POGRESAN, PO PETI PUT:
+#     r(sezonski serve_pts_won, STVARNI 1. servis u tom mecu) = +0,107  (n=105)
+#     SD stvarnog servisa unutar meca   8,6pp
+#     SD sezonskog prosjeka medju igracima 2,1pp   ->  sum je 4x veci od signala
+# Sezonski prosjek prakticki ne predvidja tko ce taj dan dobro servirati.
+#
+# NALAZ KOJI NIJE OCEKIVAN I MIJENJA TUMACENJE:
+#     poeni naseg picka na drugom servisu:  15,43 u pobjedama  vs  15,45 u porazima
+#     (P=0,98 — doslovno identicno)
+# Nas pick NE igra losije kad gubimo. Razlika je iskljucivo u tome sto PROTIVNIK igra
+# iznad svog prosjeka. To se iz sezonskih brojki ne moze predvidjeti ni u principu, pa
+# "kazniti nas servis" ne bi pomoglo — kaznjavali bismo krivu stranu.
+#
+# =============================================================================================
+# STO PRECJENJUJEMO / PODCJENJUJEMO (22.08.2026 13:40)
+# =============================================================================================
+# PRECJENJUJEMO, i to najskuplje: `serve_return` nosi 23% tezine — NAJVISE od sedam faktora —
+#   a mjeri velicinu s prediktivnom korelacijom oko nule (r=-0,073 na n=105). To je najveci
+#   pojedinacni nesrazmjer u modelu. NIJE dirano jer premjestanje tih 23% zahtijeva nesto
+#   dokazano bolje, a takvo nesto jos nemamo: preraspodjela na varijable s r~0,1 je
+#   preraspodjela suma. Aktivne hard tezine 22.08.2026: serve_return 23, elo_ranking 19,
+#   surface_style 18, recent_form 17, fatigue_injuries 12, tournament_trajectory 7, h2h 4.
+# PRECJENJUJEMO i tiebreak rekord (umire pod kontrolom cijene: +6,2pp -> +2,7pp) te scouting
+#   oznake stila — u porazu Fritz-Nakashima analiza izricito kaze da je oznaka "muku muci s
+#   velikim serverima" bila VEC opovrgnuta tekucim podacima, a model ju je ipak poslusao.
+# PODCJENJUJEMO: povijest na turniru. Jedino sto je proslo i stratifikaciju po cijeni i test
+#   neovisnosti o ELO-u/trzistu. Od 22.08. je u promptu, ali BEZ vlastitog postotka.
+#
+# =============================================================================================
+# STO NIJE PROVJERENO (posteno, da se ne pretpostavi pokrivenost koje nema)
+# =============================================================================================
+# Nije testirano: draw/path difficulty, H2H kao mjerljiva varijabla, putovanje i promjena
+# vremenske zone, minute meca, kvaliteta pobjeda kroz koje je igrac dosao do te runde,
+# sustavan pregled interakcija, style matchup kao broj.
+# Razlozi su dvojaki: minute i putovanje NE POSTOJE u dostupnim podacima, a umor, dani
+# odmora, kvaliteta protivnika i sekvence forme postaju mjerljivi TEK OD v15 (22.08.2026) —
+# do tada se nisu biljezili. Za te varijable se ne ceka vise meceva nego prvo BILJEZENJE.
+#
+# =============================================================================================
+# ODLUKA (korisnik + Claude, 22.08.2026 13:40): CEKAMO JOS TURNIRA
+# =============================================================================================
+# Nista se ne mijenja do daljnjega. Konkretno se ceka:
+#   1. Povijest turnira da dobije VLASTITI POSTOTAK u `model_weights` (osmi faktor) — tek
+#      nakon ~30 dana i barem JEDNOG turnira koji nije bio u uzorku (Winston-Salem, US Open).
+#      Nalaz stoji na n=275 iz pretezno dva turnira; to nije dovoljno za oduzimanje tezine
+#      nekom drugom faktoru. Ako se odrzi, najvjerojatniji izvor postotka je `serve_return`.
+#   2. Raspresenost pouzdanosti u eri v15 — hrpa se s 64 pomakla na 67 (31% analiza).
+#   3. Prve mjerljive brojke o umoru/odmoru/kvaliteti protivnika iz v15 biljezenja.
+#   4. `value_bet` uz raspresenu pouzdanost (vidi `_normalize_fair_odds`).
+# =============================================================================================
+
 # CJELOVIT POPIS ULAZA U ODLUKU: vidi `DECISION_INPUTS.md` (08.08.2026 12:30) — što ulazi u
 # prompt, što u deterministički kod, a što se samo bilježi. Ondje je i otvorena zamjerka o
 # tome da se nesigurne procjene ovdje prikazuju bez ikakve mjere pouzdanosti (npr.
