@@ -1373,6 +1373,13 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             # rezanje kalibracije po erama modela (vidi _model_stamp).
             # v4 (31.07.2026): + local_time/session/court_pace (stvarno izmjereni, ne
             # procijenjeni) i tiebreak/decider recordi — sve ULAZI i u prompt od danas.
+            #
+            # PAZI PRI CITANJU (napomena 22.08.2026 11:05): ova "4" NIJE stvarna verzija
+            # koja zavrsi u bazi. Isti dict se nize u kodu prosiruje `.update(...)` blokom
+            # koji postavlja konacan `context_version` (trenutno 15). Grep po
+            # `"context_version":` zato vraca dva pogotka — mjerodavan je DRUGI.
+            # Zapisano jer je projekt vec jednom nasjeo na slicnu zamku (rezanje era po
+            # `rules_hash` umjesto po `context_version`).
             "context_version": 4,
             "model_stamp": _model_stamp(match.get("surface", "")),
             "local_time": match.get("local_time"),
