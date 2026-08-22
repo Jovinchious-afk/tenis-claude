@@ -13,6 +13,47 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-08-22 11:05 — IMPLEMENTIRANO svih 5 prijedloga iz analize pred Winston-Salem
+
+Korisnik je odobrio ("napravi sve 1,2,3,4,5") i pokrenuo `ALTER TABLE` za scouting stupce.
+
+**1. Biljezi se sve sto model vec vidi** (`context_snapshot` v14 -> **v15**): `matches_7d`,
+`sets_7d`, `days_rest` (sada BROJ, ne tekst "3 days"), `avg_opp_elo` kao **VRIJEDNOST**
+(dosad samo brojac!), `form_5`, `form_10`, `surface_record`, `tournament_path`, `ranking`,
+`ranking_trend`, sezonski asovi, first/second serve won, visina/tezina/ruka.
+Nula rizika za selekciju — otkljucava umor, opterecenje, odmor, kvalitetu protivnika i
+sekvence forme za sljedecu analizu.
+
+**2. Povijest na turniru u prompt** + nova kategorija `key_factors`. Kategorije 4 i 5
+(style matchup / fatigue+conditions) **spojene u jednu** jer nijedna nije nosila mjerenu
+tezinu sama za sebe (svi glavni ucinci vremena su nula), pa je oslobodjeni prostor dobila
+nova kategorija **5. Tournament history & context**. Ukupno i dalje 6 kategorija, duljina
+teksta priblizno ista — kako je korisnik trazio. `run_daily` racuna najdalju rundu na tom
+turniru u 3 sezone za oba igraca; 0 se ispisuje kao "no trace in our records", **nikad** kao
+"nikad nije igrao" (tablica drzi samo R16+ za 16 turnira).
+
+**3. QF se OZNACAVA, ne kaznjava** (`round_is_qf`). QF 48,7% (n=39) je dosljedan kroz 3/3
+ere i 3/3 pojasa cijene, ali Bonferroni za 6 rundi daje P~0,29. Prompt spominje QF unutar
+pravila o povijesti (ondje se signal raspada, 2/8), ali nema determinsticke kazne.
+
+**4. Visina/tezina/ruka u prompt kao OPIS STILA.** Redak `Build:` + pravilo koje izricito
+zabranjuje "visi pobjedjuje" i nosi nulti nalaz (r=+0,005, P=0,947) uz jake stilske
+korelacije (serve +0,597, return -0,458, asovi +0,317).
+
+**5. `scripts/harvest_player_history.py`** — sirovi `past-matches` s rezultatom po setovima
+u novu tablicu `player_match_history`. Dry-run: **658 jedinstvenih meceva, svi s
+upotrebljivim rezultatom** (naspram 78 pickova koje smo imali za test mentalne izdrzljivosti).
+Ne ulazi ni u jednu odluku.
+
+`context_version` 14 -> **15**; `rules_hash` hard **0295e3b0 -> a0424315**
+(clay 63ec7c7e, grass 6982356b). Oba testna paketa prolaze (45 novih provjera).
+
+**Scouting:** uvoz pokrenut, 150/150 redaka, **132 s visinom/tezinom/rukom**.
+`source_date` vracen na 2026-08-17 za tri retka ispravljena tada.
+
+**TREBA JOS RUCNO** (DDL ne ide preko PostgREST-a): `CREATE TABLE player_match_history`
++ 3 indeksa — SQL je u `database/schema.sql`.
+
 ## 2026-08-22 09:24 — DUBINSKA ANALIZA pred Winston-Salem: nova varijabla nadjena, model NIJE diran
 
 Korisnik je trazio dubinsku analizu hard rezultata s naglaskom na varijable KOJE NISU klasicne

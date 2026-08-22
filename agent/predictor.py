@@ -8,7 +8,7 @@ import json
 import anthropic
 from dotenv import load_dotenv
 from config.model_config import CLAUDE_MODELS
-from utils.helpers import safe_float
+from utils.helpers import safe_float, safe_int
 
 load_dotenv()
 
@@ -259,6 +259,8 @@ Return pts won: {p1_return_won}% (break proxy)
 Tiebreaks (own record): {p1_tb_record} | Deciding sets (Bo3 2-1): {p1_decider_record}
 --- Physical condition ---
 Matches last 7 days: {p1_matches_7d} | Sets last 7 days: {p1_sets_7d} | Days rest: {p1_days_rest} | Age: {p1_age}
+Build: {p1_build} — height explains SERVE STYLE, not who wins (see rule below)
+Best at THIS tournament, last 3 seasons: {p1_tourn_hist}
 Current tournament path: {p1_tourn_path}
 Form trend: {p1_form_trend}
 Known injuries/news: {p1_news}
@@ -281,6 +283,8 @@ Return pts won: {p2_return_won}% (break proxy)
 Tiebreaks (own record): {p2_tb_record} | Deciding sets (Bo3 2-1): {p2_decider_record}
 --- Physical condition ---
 Matches last 7 days: {p2_matches_7d} | Sets last 7 days: {p2_sets_7d} | Days rest: {p2_days_rest} | Age: {p2_age}
+Build: {p2_build} — height explains SERVE STYLE, not who wins (see rule below)
+Best at THIS tournament, last 3 seasons: {p2_tourn_hist}
 Current tournament path: {p2_tourn_path}
 Form trend: {p2_form_trend}
 Known injuries/news: {p2_news}
@@ -599,6 +603,45 @@ This is NOT a rule against big odds. A pick at 2.40 whom the market rates 55% is
 a pick at 1.95 whom the market rates 46% is not. The penalty is for disagreeing with the
 world, never for the size of the number.
 
+TOURNAMENT HISTORY — THE STRONGEST SINGLE VARIABLE WE HAVE (added 2026-08-22 09:24)
+The CONDITIONS block now gives, for each player, the furthest round they reached at THIS
+tournament in the last three seasons. Measured on 275 resolved analyses:
+    opponent has the better tournament history  ->  we went 45.7% (n=35),  ROI -30.2%
+    the two are level                           ->  62.3% (n=138), ROI  -4.2%
+    OUR pick has the better history             ->  71.6% (n=102), ROI  +1.9%
+    Pearson r = +0.167, P=0.0036
+This survives every control we could apply: inside a single price band the gap is still
++17.5pp, inside a single ELO band +30.8pp, and it holds in all three eras of the model. It
+is NOT a disguised quality signal — its correlation with the ELO gap is only +0.075 (P=0.47)
+and with the market's own probability +0.145 (P=0.29). It is information nothing else in
+this prompt carries.
+HOW TO USE IT:
+  - It is a COMPARISON, not a personal ceiling. "He has never gone past the R16 here" means
+    little on its own; "his opponent has twice reached the semi-final here and he has never
+    reached the R16" is the signal. We tested the personal-ceiling version explicitly — a
+    player competing beyond his own best round here does NOT underperform (-2.5pp, P=0.709).
+  - When the OPPONENT has clearly the better history and your pick has none, that is a
+    genuine reason to lower confidence, and you should say so in key_factor 5.
+  - "No trace" means our records show no R16-or-better appearance in three seasons. Our
+    table only holds R16 and deeper for 16 tournaments, so treat absence as weak evidence,
+    never as proof the player has never played here.
+  - In QUARTER-FINALS this signal breaks down (2/8 when our pick had the better history), as
+    does our overall accuracy (QF 48.7% vs 65.4% in early rounds, while SF is 70.4%). Be
+    more sceptical of every category in a QF, this one included.
+
+HEIGHT AND BUILD — DESCRIBES STYLE, DOES NOT PREDICT THE WINNER (added 2026-08-22 09:24)
+"Build" gives height, weight and playing hand/backhand. Measured on our corpus:
+    height <-> season serve points won  r = +0.597 (P<0.0001)
+    height <-> season return points won r = -0.458 (P<0.0001)
+    height <-> aces in the match        r = +0.317 (P=0.0006)
+    height <-> double faults            r = +0.279 (P=0.0028)
+    DIFFERENCE in height <-> WINNING    r = +0.005 (P=0.947)   <-- nothing
+So a tall player is reliably a bigger server and a weaker returner, and that is all height
+tells you. NEVER write "X is taller so he should win". Use it for two things only: to sanity
+check a scouting label (a "big server" who is 178cm deserves a second look), and to describe
+the style clash in key_factor 4. Weight and BMI carry nothing at all (r=+0.017 / +0.018);
+left- vs right-handedness likewise (+6.7pp, P=0.64).
+
 KEY_FACTORS FORMAT (mandatory structure, added 2026-07-31):
 Entries 1-5 are FIXED and must ALWAYS be present, in this exact order, each prefixed with
 its number and label. Never omit one: if the data is missing, write "no data" and say what
@@ -608,8 +651,16 @@ simple match, and every hard loss except one came from a 3-factor analysis.
   1. Rating — hard ELO, ATP ranking and hard W-L record (this is ONE category, see rule 2)
   2. Serve/return — hold%, return points won, break-point saved/converted, tiebreak record
   3. Form vs opponent quality — recent form weighted by average opponent ELO
-  4. Style matchup — from the SCOUTING PROFILES section; say "no reliable profile" if absent
-  5. Fatigue & conditions — rest days, sets played, weather, local start time, day/night
+  4. Matchup & conditions — style from SCOUTING PROFILES ("no reliable profile" if absent)
+     TOGETHER WITH rest days, sets played, weather and day/night in ONE entry. These were
+     two separate slots until 2026-08-22; they were merged because neither carried much
+     measured weight on its own (weather main effects are all null: temp r=-0.054, humidity
+     r=+0.014, wind r=+0.076, pressure r=-0.082 on n=152) and the space is better spent on 5.
+  5. Tournament history & context — THE NEW SLOT (added 2026-08-22, see rule below).
+     Lead with the tournament-history comparison, then add any other concrete contextual
+     fact that matters and has a number attached: path through this draw, quality of the
+     wins that got them here, a relevant streak, an unusual travel/rest situation.
+     Do NOT pad this with generalities — if you have nothing measured, write "nothing notable".
   6. Own read — FREE-FORM AND ENCOURAGED. Anything the five fixed slots do not capture:
      a specific tactical read, an anomaly in the data, a doubt about your own pick, or a
      reason this match resists the usual framework. You are NOT limited to the categories
@@ -1211,6 +1262,8 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         p1_bp_saved=p1.get("break_points_saved") if _BP_TO_PROMPT else None,
         p1_break_conv=p1.get("break_points_converted") if _BP_TO_PROMPT else None,
         p1_return_won=p1.get("return_points_won", "N/A"),
+        p1_build=_format_build(p1.get("scouting")),
+        p1_tourn_hist=_format_tourn_hist(match.get("p1_tourn_best_3y")),
         p1_matches_7d=p1.get("matches_7d", 0),
         p1_sets_7d=p1.get("sets_7d", 0) or "N/A",
         p1_last_match=p1.get("last_match_date", "N/A"),
@@ -1236,6 +1289,8 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         p2_bp_saved=p2.get("break_points_saved") if _BP_TO_PROMPT else None,
         p2_break_conv=p2.get("break_points_converted") if _BP_TO_PROMPT else None,
         p2_return_won=p2.get("return_points_won", "N/A"),
+        p2_build=_format_build(p2.get("scouting")),
+        p2_tourn_hist=_format_tourn_hist(match.get("p2_tourn_best_3y")),
         p2_matches_7d=p2.get("matches_7d", 0),
         p2_sets_7d=p2.get("sets_7d", 0) or "N/A",
         p2_last_match=p2.get("last_match_date", "N/A"),
@@ -1363,7 +1418,11 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             # pragovi servisne potvrde prebazdareni na serve_pts_won, dvije mjerene kazne
             # (`measured_penalties`). Ovo je granica ere za svaku buducu analizu
             # raspršenosti pouzdanosti — rezati po `context_version`, NIKAKO po rules_hash.
-            "context_version": 14,
+            # v15 (22.08.2026 09:24): povijest na turniru u prompt (PRIJEDLOG 2), visina/
+            # tezina/ruka u prompt kao OPIS STILA (PRIJEDLOG 4), QF oznaka (PRIJEDLOG 3),
+            # i sve prompt-varijable koje se dosad nisu biljezile (PRIJEDLOG 1).
+            # Granica ere — rezati po `context_version`, ne po rules_hashu.
+            "context_version": 15,
             # v13 (15.08.2026 10:12, korisnikov zahtjev): TRZISNI KONSENZUS.
             # Cijene 20-46 kladionica (The Odds API), razvigane i spojene medijanom.
             # `market_p` je vjerojatnost za NASEG player1 po trzistu; `market_ev_pick` je
@@ -1459,6 +1518,71 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             # r=-0,163, hold_pct_from_bp r=-0,157, serve_pts_won r=-0,164 (n=79). Problem
             # nije bio izbor procjene nego POJACANJE: jazovi >=5pp su 17% meceva mjereno na
             # serve_pts_won, a 48% mjereno na hold_pct.
+            # =====================================================================
+            # v15 (22.08.2026 09:24) — PRIJEDLOG 1 iz analize pred Winston-Salem:
+            # BILJEZI SE SVE STO MODEL VEC VIDI U PROMPTU.
+            #
+            # Povod: korisnik je 22.08. trazio analizu umora, opterecenja, odmora,
+            # kvalitete protivnika i sekvenci forme. Nijedno se NIJE moglo izmjeriti
+            # jer se nista od toga nikad nije spremalo — iako model sve to cita svaki
+            # dan. Najjeftiniji i najvredniji popravak u cijeloj analizi: nula rizika
+            # za selekciju (samo se zapisuje), a otkljucava cijelu klasu pitanja.
+            #
+            # POSEBNO: `avg_opp_elo` se dosad biljezio SAMO kao brojac (`avg_opp_elo_n`
+            # = koliko je protivnika uslo u prosjek), a ne kao VRIJEDNOST. Zato se
+            # "kvaliteta forme" — jedan od najcesce spominjanih faktora u analizama —
+            # nikad nije mogla provjeriti.
+            #
+            # Nijedna od ovih vrijednosti NE ulazi u odluku. Isti obrazac kao break
+            # lopte (07.08.), dob (15.08.) i trziste (15.08.).
+            "p1_matches_7d": p1.get("matches_7d"),
+            "p2_matches_7d": p2.get("matches_7d"),
+            "p1_sets_7d": p1.get("sets_7d"),
+            "p2_sets_7d": p2.get("sets_7d"),
+            # `_days_since` vraca tekst ("3 days"), sto je za prompt u redu ali za analizu
+            # bezvrijedno — zato se ovdje sprema BROJ (22.08.2026 09:24).
+            "p1_days_rest": _days_rest_num(p1_days_rest),
+            "p2_days_rest": _days_rest_num(p2_days_rest),
+            "p1_avg_opp_elo": safe_float(p1.get("avg_opp_elo")),
+            "p2_avg_opp_elo": safe_float(p2.get("avg_opp_elo")),
+            "p1_form_5": p1_form5,
+            "p2_form_5": p2_form5,
+            "p1_form_10": p1_form10,
+            "p2_form_10": p2_form10,
+            "p1_surface_record": p1_surface_record,
+            "p2_surface_record": p2_surface_record,
+            "p1_tournament_path": p1.get("tournament_path"),
+            "p2_tournament_path": p2.get("tournament_path"),
+            "p1_ranking": safe_int(p1.get("ranking")) or None,
+            "p2_ranking": safe_int(p2.get("ranking")) or None,
+            "p1_ranking_trend": p1.get("ranking_trend"),
+            "p2_ranking_trend": p2.get("ranking_trend"),
+            "p1_aces": safe_float(p1.get("aces_per_match") or p1.get("aces")),
+            "p2_aces": safe_float(p2.get("aces_per_match") or p2.get("aces")),
+            "p1_first_serve_won": safe_float(p1.get("first_serve_points_won")),
+            "p2_first_serve_won": safe_float(p2.get("first_serve_points_won")),
+            "p1_second_serve_won": safe_float(p1.get("second_serve_points_won")),
+            "p2_second_serve_won": safe_float(p2.get("second_serve_points_won")),
+            # Visina/tezina/ruka — PRIJEDLOG 4. Izmjereno 22.08.2026 (n=207):
+            # visina objasnjava STIL (r=+0,597 sa serve_pts_won, -0,458 s return_won,
+            # +0,317 s asovima) ali NE ISHOD (r=+0,005 s pobjedom, P=0,947).
+            # Biljezi se da se moze pratiti odnos sa stilovima kroz vrijeme.
+            "p1_height_cm": safe_float((p1.get("scouting") or {}).get("height_cm")),
+            "p2_height_cm": safe_float((p2.get("scouting") or {}).get("height_cm")),
+            "p1_weight_kg": safe_float((p1.get("scouting") or {}).get("weight_kg")),
+            "p2_weight_kg": safe_float((p2.get("scouting") or {}).get("weight_kg")),
+            "p1_plays": (p1.get("scouting") or {}).get("plays"),
+            "p2_plays": (p2.get("scouting") or {}).get("plays"),
+            # PRIJEDLOG 3: QF se samo OZNACAVA, ne kaznjava. Izmjereno 22.08.2026:
+            # QF 19/39 = 48,7% (ROI -30,9%) naspram ranih rundi 65,4% i SF 70,4%.
+            # Drzi se u 3/3 ere i 3/3 pojasa cijene, ALI Bonferroni za 6 rundi daje
+            # P~0,29 — nije znacajno. Zato oznaka za mjerenje, a ne pravilo.
+            "round_is_qf": (match.get("round") or "").upper() == "QF",
+            # PRIJEDLOG 2: povijest na turniru (najdalja runda 2023-2025). Vrijednosti:
+            # 0 = nema traga (nikad R16+ ili nije u nasim podacima), 1=R16, 2=QF,
+            # 3=SF, 4=F, 5=naslov. `tourn_hist_diff` je pick minus protivnik.
+            "p1_tourn_best_3y": match.get("p1_tourn_best_3y"),
+            "p2_tourn_best_3y": match.get("p2_tourn_best_3y"),
             "serve_gap_raw_pp": (
                 round(safe_float(p1.get("serve_points_won")) - safe_float(p2.get("serve_points_won")), 2)
                 if p1.get("serve_points_won") and p2.get("serve_points_won") else None),
@@ -1801,6 +1925,38 @@ def _normalize_fair_odds(result: dict, match: dict) -> None:
         result["value"] = False
 
 
+_TOURN_ROUND_LABEL = {0: "no trace in our records (3 seasons)", 1: "round of 16",
+                      2: "quarter-final", 3: "semi-final", 4: "final", 5: "won the title"}
+
+
+def _format_tourn_hist(best) -> str:
+    """Najdalja runda na tom turniru u 3 sezone -> tekst za prompt (22.08.2026 09:24).
+
+    Vidi pravilo "TOURNAMENT HISTORY" u templateu za mjerenje koje ovo opravdava.
+    Vrijednost 0 NAMJERNO se ispisuje kao "no trace in our records" a ne kao "never
+    reached the R16": nasa tablica drzi samo runde R16+ za 16 turnira, pa je odsutnost
+    slab dokaz, ne dokaz odsutnosti."""
+    b = safe_int(best)
+    return _TOURN_ROUND_LABEL.get(b, _TOURN_ROUND_LABEL[0])
+
+
+def _format_build(sc: dict) -> str:
+    """Visina/tezina/ruka iz scouting retka -> jedan redak (22.08.2026 09:24).
+
+    Izmjereno na 207 razrijesenih meceva: visina jako korelira sa stilom servisa
+    (r=+0,597 sa serve_pts_won, -0,458 s return_won) i NIKAKO s ishodom (r=+0,005,
+    P=0,947). Prompt to izricito kaze da model ne izmisli vezu koje nema."""
+    sc = sc or {}
+    h, w, pl = sc.get("height_cm"), sc.get("weight_kg"), sc.get("plays")
+    if not (h or w or pl):
+        return "N/A"
+    bits = []
+    if h: bits.append(f"{safe_int(h)} cm")
+    if w: bits.append(f"{safe_int(w)} kg")
+    if pl: bits.append(str(pl))
+    return ", ".join(bits)
+
+
 def _format_form(matches: list) -> str:
     if not matches:
         return "N/A"
@@ -1913,6 +2069,12 @@ def _odds_alert(odds_p1: float, odds_p2: float, name_p1: str, name_p2: str) -> s
         big = name_p1 if odds_p1 > odds_p2 else name_p2
         return f"⚠️ TRŽIŠNI SIGNAL: {big} ima ekstremno visoku kvotu ({max(odds_p1, odds_p2):.2f}) — provjeri ima li vijesti o ozljedi/povlačenju."
     return ""
+
+
+def _days_rest_num(v):
+    """'3 days' -> 3, 'N/A' -> None. Za `context_snapshot` (22.08.2026 09:24)."""
+    m = re.search(r"-?\d+", str(v or ""))
+    return int(m.group()) if m else None
 
 
 def _days_since(date_str: str, reference_date: str = None) -> str:

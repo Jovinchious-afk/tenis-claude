@@ -645,6 +645,61 @@ def main():
                 return v
         return {}
 
+    # 6f. POVIJEST NA TURNIRU, ZADNJE 3 GODINE (22.08.2026 09:24) — PRIJEDLOG 2.
+    #
+    # NALAZ KOJI JE OVO POKRENUO (n=275 razrijesenih analiza, analiza pred Winston-Salem):
+    # razlika u najdaljoj rundi koju su nas pick i njegov protivnik dosegli na TOM turniru
+    # u zadnje 3 godine je najjaci pojedinacni prediktor koji smo dosad nasli.
+    #     protivnik ima bolju povijest  45,7% (n=35)   ROI -30,2%
+    #     izjednaceni                   62,3% (n=138)  ROI  -4,2%
+    #     nas pick ima bolju            71,6% (n=102)  ROI  +1,9%
+    #     Pearson r = +0,167  P=0,0036
+    # Prezivio je stratifikaciju po kvoti (+17,5pp UNUTAR pojasa cijene), po ELO razlici
+    # (+30,8pp), split-half kroz tri ere, i usporedbu s trzisnim ocekivanjem (+11,3pp kad
+    # je pick bolji, -40,9pp kad je protivnik). Kljucno: NIJE prerusena kvaliteta igraca —
+    # r s ELO razlikom je samo +0,075 (P=0,47), r s trzisnom vjerojatnoscu +0,145 (P=0,29).
+    #
+    # STO NIJE PROSLO: korisnikova hipoteza o "osobnom stropu" (igra li igrac rundu dalje
+    # nego je ikad stigao) -> -2,5pp, P=0,709. Mehanizam je USPOREDBA S PROTIVNIKOM, ne
+    # vlastiti strop. Zato se racuna razlika, a ne apsolutna vrijednost.
+    #
+    # OGRADA KOJU TREBA ZNATI: `tournament_history` sadrzi SAMO runde R16 i dalje, i samo
+    # 16 turnira. Vrijednost 0 zato znaci "nema traga", sto mijesa "nikad nije stigao do
+    # R16" s "nije u nasim podacima". Za turnire bez povijesti oba igraca dobiju 0 i
+    # razlika je 0, pa pravilo samo utihne — ne laze.
+    _ROUND_RANK = {"R16": 1, "QF": 2, "SF": 3, "F": 4}
+    _hist_cache = {}
+
+    def _tourn_best_3y(player_name: str, tournament: str):
+        """Najdalja runda tog igraca na tom turniru u zadnje 3 sezone.
+        0 = nema traga, 1=R16, 2=QF, 3=SF, 4=finale, 5=naslov."""
+        base = (tournament or "").split(" - ")[0].strip()
+        if not base or not player_name:
+            return 0
+        if base not in _hist_cache:
+            try:
+                _hist_cache[base] = db.get_tournament_draw(base, datetime.date.today().year - 3)
+            except Exception:
+                _hist_cache[base] = []
+        best = 0
+        for row in _hist_cache[base] or []:
+            for role in ("winner_name", "loser_name"):
+                if df._name_match(player_name, row.get(role) or ""):
+                    rk = _ROUND_RANK.get((row.get("round_name") or "").upper(), 0)
+                    # pobjednik te runde je PROSAO dalje, pa vrijedi jedan stupanj vise
+                    best = max(best, rk + (1 if role == "winner_name" else 0))
+        return best
+
+    _hist_hits = 0
+    for match in all_matches:
+        b1 = _tourn_best_3y(match.get("player1"), match.get("tournament"))
+        b2 = _tourn_best_3y(match.get("player2"), match.get("tournament"))
+        match["p1_tourn_best_3y"] = b1
+        match["p2_tourn_best_3y"] = b2
+        if b1 or b2:
+            _hist_hits += 1
+    print(f"  Povijest na turniru (3g): podatak za {_hist_hits}/{len(all_matches)} mečeva.")
+
     # 7. Za svaki meč dohvati podatke o igračima
     print(f"\nDohvaćam podatke za {len(all_matches)} mečeva...")
     matches_with_data = []

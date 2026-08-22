@@ -152,9 +152,9 @@ check("prompt dobiva eksplicitan razlog umjesto sata",
       "Unknown — tomorrow's schedule is not final" in _pr)
 check("snapshot bilježi schedule_provisional", '"schedule_provisional"' in _pr)
 check("snapshot bilježi iz koje rubrike je sat", '"scheduled_start_source_date"' in _pr)
-check("context_version 14 (revizija 17.08.2026)", '"context_version": 14' in _pr)
-check("rules_hash PROMIJENJEN — prompt je dirnut namjerno 17.08.2026",
-      pr._model_stamp("hard")["rules_hash"] == "0295e3b0")
+check("context_version 15 (analiza 22.08.2026)", '"context_version": 15' in _pr)
+check("rules_hash a0424315 (era od 22.08.2026)",
+      pr._model_stamp("hard")["rules_hash"] == "a0424315")
 check("nova polja ne cure u predložak prompta",
       "schedule_provisional" not in pr.ANALYSIS_PROMPT_TEMPLATE)
 
@@ -172,9 +172,9 @@ check("besmislena dob se odbacuje", df._get_age({"age": 99, "birthday": ""}) is 
 
 check("dob NE ide u prompt dok traje mjerenje", pr._AGE_TO_PROMPT is False)
 check("dob se ipak biljezi u snapshot", '"age_in_prompt"' in _pr)
-check("context_version 14 (revizija 17.08.2026)", '"context_version": 14' in _pr)
-check("rules_hash 0295e3b0 (era nakon 17.08.2026)",
-      pr._model_stamp("hard")["rules_hash"] == "0295e3b0")
+check("context_version 15 (analiza 22.08.2026)", '"context_version": 15' in _pr)
+check("rules_hash a0424315 (era od 22.08.2026)",
+      pr._model_stamp("hard")["rules_hash"] == "a0424315")
 
 
 print("\n=== 9. Tržišni konsenzus — samo mjeri, ne odlučuje (15.08.2026) ===")
@@ -223,9 +223,9 @@ check("nepoznat par -> {}", mkt.find_for_pair(_idx, "Neki Igrac", "Drugi Igrac")
 check("market_p NIJE u predlošku prompta", "market_p" not in pr.ANALYSIS_PROMPT_TEMPLATE)
 check("snapshot bilježi market_p", '"market_p"' in _pr)
 check("snapshot bilježi EV picka", '"market_ev_pick"' in _pr)
-check("context_version 14 (revizija 17.08.2026)", '"context_version": 14' in _pr)
-check("rules_hash 0295e3b0 (era nakon 17.08.2026)",
-      pr._model_stamp("hard")["rules_hash"] == "0295e3b0")
+check("context_version 15 (analiza 22.08.2026)", '"context_version": 15' in _pr)
+check("rules_hash a0424315 (era od 22.08.2026)",
+      pr._model_stamp("hard")["rules_hash"] == "a0424315")
 # ticket_builder SMIJE zapisati tržište uz odigrani pick, ali NE SMIJE po njemu birati.
 _tb = inspect.getsource(__import__("agent.ticket_builder", fromlist=["x"]))
 check("ticket_builder zapisuje tržište uz pick", '"market_snapshot"' in _tb)
@@ -357,6 +357,74 @@ check("prag 63% nije diran", '"min_confidence": 63.0' in
 check("ticket_builder i dalje ne gleda tržište pri selekciji",
       "market_p" not in _tb.split("def build_ticket")[1].split("def ")[0]
       if "def build_ticket" in _tb else True)
+
+
+# ============================================================================
+print("\n=== 12. Analiza 22.08.2026: povijest na turniru, visina, biljezenje ===")
+
+import os as _os2
+_rdsrc = inspect.getsource(sys.modules["agent.run_daily"])
+
+# --- PRIJEDLOG 2: povijest na turniru ---
+check("prompt ima redak o povijesti na turniru",
+      "Best at THIS tournament, last 3 seasons:" in pr.ANALYSIS_PROMPT_TEMPLATE)
+check("prompt ima pravilo o povijesti", "TOURNAMENT HISTORY" in pr.ANALYSIS_PROMPT_TEMPLATE)
+check("pravilo nosi izmjereni broj", "71.6% (n=102)" in pr.ANALYSIS_PROMPT_TEMPLATE)
+check("pravilo izricito kaze da NIJE osobni strop",
+      "not a personal ceiling" in pr.ANALYSIS_PROMPT_TEMPLATE)
+check("pravilo upozorava na QF", "In QUARTER-FINALS this signal breaks down" in pr.ANALYSIS_PROMPT_TEMPLATE)
+check("run_daily racuna povijest", "_tourn_best_3y" in _rdsrc)
+check("povijest se racuna za 3 sezone", "datetime.date.today().year - 3" in _rdsrc)
+check("_format_tourn_hist postoji", hasattr(pr, "_format_tourn_hist"))
+check("0 se ne cita kao 'nikad nije igrao'",
+      "no trace" in pr._format_tourn_hist(0))
+check("3 -> polufinale", pr._format_tourn_hist(3) == "semi-final")
+check("5 -> naslov", "title" in pr._format_tourn_hist(5))
+
+# --- PRIJEDLOG 4: visina kao OPIS, ne prediktor ---
+check("prompt ima redak Build:", "Build: {p1_build}" in pr.ANALYSIS_PROMPT_TEMPLATE)
+check("prompt ima pravilo o visini", "HEIGHT AND BUILD" in pr.ANALYSIS_PROMPT_TEMPLATE)
+check("pravilo izricito zabranjuje 'visi pobjedjuje'",
+      'NEVER write "X is taller so he should win"' in pr.ANALYSIS_PROMPT_TEMPLATE)
+check("pravilo nosi nulti nalaz", "r = +0.005 (P=0.947)" in pr.ANALYSIS_PROMPT_TEMPLATE)
+check("_format_build postoji", hasattr(pr, "_format_build"))
+check("build spaja visinu/tezinu/ruku",
+      pr._format_build({"height_cm": 198, "weight_kg": 90, "plays": "Right-Handed"})
+      == "198 cm, 90 kg, Right-Handed")
+check("build bez podataka -> N/A", pr._format_build({}) == "N/A")
+check("build s djelomicnim podatkom radi", pr._format_build({"height_cm": 185}) == "185 cm")
+
+# --- kategorije key_factors: 6 slotova, 4+5 spojeni ---
+check("kategorija 4 je spojena", "4. Matchup & conditions" in pr.ANALYSIS_PROMPT_TEMPLATE)
+check("kategorija 5 je nova", "5. Tournament history & context" in pr.ANALYSIS_PROMPT_TEMPLATE)
+check("i dalje 6 kategorija (own read ostaje 6.)",
+      "6. Own read" in pr.ANALYSIS_PROMPT_TEMPLATE)
+check("stara zasebna kategorija stila je maknuta",
+      "4. Style matchup —" not in pr.ANALYSIS_PROMPT_TEMPLATE)
+
+# --- PRIJEDLOG 1 + 3: biljezenje ---
+for _f in ("p1_matches_7d", "p1_sets_7d", "p1_days_rest", "p1_avg_opp_elo", "p1_form_5",
+           "p1_form_10", "p1_surface_record", "p1_tournament_path", "p1_ranking",
+           "p1_ranking_trend", "p1_height_cm", "p1_weight_kg", "p1_plays",
+           "round_is_qf", "p1_tourn_best_3y"):
+    check(f"snapshot biljezi {_f}", f'"{_f}"' in _pr)
+check("days_rest se sprema kao BROJ", hasattr(pr, "_days_rest_num"))
+check("'3 days' -> 3", pr._days_rest_num("3 days") == 3)
+check("'N/A' -> None", pr._days_rest_num("N/A") is None)
+
+# --- nista od novoga ne smije diktirati selekciju ---
+_tbsrc = open("agent/ticket_builder.py", encoding="utf-8").read()
+check("ticket_builder ne zna za povijest na turniru", "tourn_best_3y" not in _tbsrc)
+check("ticket_builder ne zna za visinu", "height_cm" not in _tbsrc)
+check("QF se samo biljezi, ne kaznjava", "round_is_qf" not in _tbsrc)
+
+# --- PRIJEDLOG 5: harvest povijesti meceva ---
+check("skripta za harvest postoji", _os2.path.exists("scripts/harvest_player_history.py"))
+_hv = open("scripts/harvest_player_history.py", encoding="utf-8").read()
+check("harvest ne dira selekciju", "NE ULAZI NI U JEDNU ODLUKU" in _hv)
+check("harvest ima stabilan kljuc meca", "match_key" in _hv)
+check("tablica opisana u schema.sql",
+      "player_match_history" in open("database/schema.sql", encoding="utf-8").read())
 
 
 print("\n" + "=" * 60)

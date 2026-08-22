@@ -233,6 +233,50 @@ CREATE TABLE IF NOT EXISTS player_scouting (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Povijest mečeva po igraču — sirovi `past-matches` zapisi s REZULTATOM PO SETOVIMA.
+-- Dodano 22.08.2026 09:24. Na postojecoj bazi pokrenuti:
+--   CREATE TABLE IF NOT EXISTS player_match_history (
+--       match_key        TEXT PRIMARY KEY,
+--       match_date       DATE,
+--       player1_id       TEXT, player2_id TEXT,
+--       player1_name     TEXT, player2_name TEXT,
+--       winner_id        TEXT,
+--       score            TEXT,
+--       tournament       TEXT, surface TEXT, round_name TEXT,
+--       source_player_id TEXT,
+--       fetched_at       TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+--   );
+--   CREATE INDEX IF NOT EXISTS idx_pmh_p1 ON player_match_history(player1_id);
+--   CREATE INDEX IF NOT EXISTS idx_pmh_p2 ON player_match_history(player2_id);
+--   CREATE INDEX IF NOT EXISTS idx_pmh_date ON player_match_history(match_date);
+--
+-- ZASTO: korisnik je 22.08.2026 opisao mentalnu izdrzljivost kao bitnu varijablu
+-- ("gubi set, gubi i u drugom, pa na kraju dobije"). Pokusaj mjerenja iz naseg korpusa
+-- nije uspio jer samo 78 pickova ima >=2 prethodna meca sa spremljenim rezultatom:
+--     pick s poviescu povrataka >=34%  ->  75,0% (n=20)
+--     pick bez ijednog povratka        ->  68,6% (n=51)
+--     rekord u odlucujucem setu        ->  -2,9pp, P=0,881 (nista)
+-- Smjer je obecavajuc, uzorak nije. Ova tablica puni se skriptom
+-- `scripts/harvest_player_history.py` i NE ULAZI ni u jednu odluku dok se ne izmjeri.
+CREATE TABLE IF NOT EXISTS player_match_history (
+    match_key        TEXT PRIMARY KEY,
+    match_date       DATE,
+    player1_id       TEXT,
+    player2_id       TEXT,
+    player1_name     TEXT,
+    player2_name     TEXT,
+    winner_id        TEXT,
+    score            TEXT,
+    tournament       TEXT,
+    surface          TEXT,
+    round_name       TEXT,
+    source_player_id TEXT,
+    fetched_at       TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_pmh_p1 ON player_match_history(player1_id);
+CREATE INDEX IF NOT EXISTS idx_pmh_p2 ON player_match_history(player2_id);
+CREATE INDEX IF NOT EXISTS idx_pmh_date ON player_match_history(match_date);
+
 -- Povijest ždrijebova po turniru i sezoni (tko je koga pobijedio u kojoj rundi).
 -- Puni je data_fetcher iz API-ja i koristi se kao anti-halucinacijska provjera: model ne
 -- smije tvrditi da je igrač "prošlogodišnji finalist" ako to ovdje ne piše.
