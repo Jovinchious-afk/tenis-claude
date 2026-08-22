@@ -25,8 +25,48 @@ mogu izračunati, po igraču i PRIJE meča koji predviđamo:
   - kvaliteta protivnika kroz koje je došao
 
 NE ULAZI NI U JEDNU ODLUKU. Samo puni bazu, kao što su to prvo radile break lopte (07.08.),
-dob (15.08.), tržišne cijene (15.08.) i cijene po kladionici (15.08.). Tek kad se skupi
-uzorak, mjeri se — pa se tek onda odlučuje ide li u prompt.
+dob (15.08.), tržišne cijene (15.08.) i cijene po kladionici (15.08.).
+
+=============================================================================================
+REZULTAT MJERENJA — 22.08.2026 12:10, nakon prvog harvesta (727 mečeva, 723 iskoristiva,
+115 igrača s >=5 mečeva, 259 naših pickova s poviješću naspram 78 prije harvesta)
+=============================================================================================
+HIPOTEZA JE MJERENA I **NIJE PROŠLA**. Štoviše, sirovi efekt ide u SUPROTNOM smjeru:
+
+    pick se vraća iz zaostatka   0- 8% mečeva  ->  71,1% (n=90)
+                                 8-15%          ->  64,0% (n=50)
+                                15-22%          ->  60,0% (n=70)
+                                22%+            ->  57,1% (n=49)
+    r(stopa povratka, pobjeda) = -0,105 (P=0,092); iznad medijana 59,1% vs ispod 68,9%
+
+Monotono OPADANJE kroz četiri razreda, i drži se u obje polovice uzorka.
+
+ZAŠTO — mehanizam je jasan kad se vidi:
+    r(stopa povratka, koliko često igrač GUBI PRVI SET) = **+0,473 (P<0,0001)**
+    r(stopa povratka, pobjednički postotak igrača)      = +0,340 (P=0,0002)
+Visoka stopa povratka NIJE oznaka mentalne čvrstine nego oznaka igrača koji **redovito
+zaostaje**. Da bi se vratio iz zaostatka, prvo mora izgubiti set. Konzistentni igrači
+pobjeđuju u dva seta i nikad ne uđu u statistiku povratka.
+
+A ONDA I TO NESTANE POD KONTROLOM CIJENE:
+    stratificirano po kvoti, efekt pada s -9,9pp na **-3,6pp**, i mijenja predznak unutar
+    pojasa (1,55-1,80: visoka stopa 70,6% vs niska 52,2% — obrnuto od ukupnog nalaza).
+Dakle sirovi efekt je uglavnom bio kvaliteta igrača, koju kvota ionako već nosi.
+
+ISTO VRIJEDI ZA TIEBREAK REKORD iz prave povijesti: sirovo TB>=55% 67,3% (n=110) naspram
+TB<45% 61,1% (n=90), ali kontrolirano po kvoti ostaje **+2,7pp** i praktički je ravno u
+svakom pojasu (86,2 vs 83,3 | 59,4 vs 56,7 | 68,8 vs 63,6 | 40,0 vs 40,0).
+
+USPOREDBA KOJA POKAZUJE DA KONTROLA NIJE PREOŠTRA: ista stratifikacija po kvoti primijenjena
+na razliku u povijesti na turniru daje **+17,5pp** i signal preživi. Kontrola ne ubija sve
+redom — ubija ono što je bilo prerušena kvaliteta igrača.
+
+ZAKLJUČAK: korisnikova intuicija da mentalna izdržljivost postoji vjerojatno nije pogrešna,
+ali OVA MJERA je hvata naopako. Ako se bude tražilo dalje, kandidati su: postotak osvojenih
+poena pri 30-30/deuce, postotak spašenih break lopti pri 4-5 zaostatka, ili razlika između
+očekivanog i stvarnog ishoda u tijesnim setovima — ništa od toga nije u dostupnim podacima.
+NE trošiti više vremena na "povratak iz zaostatka" bez novog izvora podataka.
+=============================================================================================
 
 POKRETANJE
     python scripts/harvest_player_history.py --dry-run    # samo ispiši što bi se spremilo

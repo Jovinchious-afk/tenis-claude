@@ -13,6 +13,40 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-08-22 12:10 — MENTALNA IZDRZLJIVOST IZMJERENA: hipoteza pala, i to poucno
+
+Korisnik je napravio tablicu `player_match_history`, harvest je pokrenut: **727 meceva,
+723 iskoristiva, 115 igraca s >=5 meceva**. Nasih pickova s poviescu: **259** (prije: 78).
+
+**Korisnikova hipoteza** ("gubi set, gubi i u drugom, pa na kraju dobije") **nije prosla —
+sirovi efekt ide u suprotnom smjeru:**
+
+| stopa povratka iz zaostatka | n | pogodak |
+|---|---|---|
+| 0-8% | 90 | **71,1%** |
+| 8-15% | 50 | 64,0% |
+| 15-22% | 70 | 60,0% |
+| 22%+ | 49 | **57,1%** |
+
+`r = -0,105 (P=0,092)`, monotono opadanje, drzi se u obje polovice.
+
+**Mehanizam:** `r(stopa povratka, koliko cesto gubi PRVI SET) = +0,473 (P<0,0001)`.
+Visoka stopa povratka nije oznaka cvrstine nego oznaka igraca koji **redovito zaostaje** —
+da bi se vratio, prvo mora izgubiti set. Konzistentni igraci pobjedjuju u dva seta i nikad
+ne udju u tu statistiku.
+
+**A onda i to nestane pod kontrolom cijene:** efekt pada s -9,9pp na **-3,6pp** i mijenja
+predznak unutar pojaseva. Isto za tiebreak rekord iz prave povijesti: sirovo +6,2pp,
+kontrolirano **+2,7pp** i ravno u svakom pojasu.
+
+**Zasto je to poucno:** ista stratifikacija po kvoti primijenjena na razliku u povijesti na
+turniru daje **+17,5pp** i signal PREZIVI. Kontrola ne ubija sve redom — ubija ono sto je
+bilo prerusena kvaliteta igraca. To je razlika izmedju nalaza vrijednog implementacije i
+nalaza koji samo izgleda dobro.
+
+Rezultat mjerenja upisan u `scripts/harvest_player_history.py`. Tablica ostaje i puni se —
+korisna je za druge analize (sekvence forme, kvaliteta protivnika, dominacija u pobjedama).
+
 ## 2026-08-22 11:05 — IMPLEMENTIRANO svih 5 prijedloga iz analize pred Winston-Salem
 
 Korisnik je odobrio ("napravi sve 1,2,3,4,5") i pokrenuo `ALTER TABLE` za scouting stupce.
