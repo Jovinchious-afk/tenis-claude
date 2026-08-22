@@ -13,6 +13,76 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-08-22 15:20 — TRZISNE KVOTE: tri obrasca testirana i pala; hvatanje popravljeno
+
+Korisnik je trazio korelaciju SVIH kladionica naspram nase screenshot kvote, na svim
+dobitnim i gubitnim mecevima otkad biljezimo trziste. Uzorak: 8.528 redaka, 49 kladionica,
+62 dogadjaja, 61 s dvije+ snimke, **55 razrijesenih pickova** (15.-22.08., istovremena era).
+
+### RACUN SNAGE PRIJE IJEDNOG NALAZA
+Pri n=55 imamo snagu 12% za razliku od 10pp, 36% za 20pp. Uz 49 kladionica Bonferroni prag
+je P<0,00102. Ispod ~20pp smo prakticki slijepi — to treba znati prije tumacenja.
+
+### 1. PO KLADIONICAMA: NISTA
+44 kladionice s upotrebljivim uzorkom. **Nijedna ne dolazi ni do nekorigiranog P<0,05, a
+slucajno bi ih se ocekivalo 2,2.** Najmanji P = 0,217. Dobiti MANJE naizgled znacajnih
+rezultata nego sto slucaj proizvodi je potpis odsutnosti signala.
+Post-hoc primjedba (NIJE nalaz): ostre kuce idu suprotno od mekih — Pinnacle kraci od SS
+67,9% naspram duzi 59,3%, ali **+8,6pp, P=0,51**.
+
+### 2. "SUPERSPORT KRACI OD SVIJETA" — ZATVORENO
+Nalaz od 17.08. (+16,2pp) na cijelom istovremenom uzorku daje **+5,0pp, P=0,73**.
+Tocno ondje gdje je vremenska kontrola predvidjala (+4,4pp na n=29). Onih +18pp bilo je
+kretanje linije kroz tri sata, ne misljenje SuperSporta. **Ne otvarati ponovno.**
+
+### 3. KRETANJE LINIJE: IZGLEDALO ODLICNO, PALO NA PRAGU
+Binarno: pomak ZA pick 23/31 = 74,2% naspram PROTIV 12/24 = 50,0% (+24,2pp, P=0,064).
+Ali kontinuirana korelacija je **r=+0,025, P=0,86**. Odlucujuci test — ako pomak nosi
+informaciju, VECI pomak mora nositi VISE:
+
+| prag pomaka | za | protiv | razlika |
+|---|---|---|---|
+| >0,0pp | 74,2% | 45,0% | **+29,2pp** |
+| >0,5pp | 63,2% | 52,9% | +10,2pp |
+| >1,0pp | 71,4% | 58,3% | +13,1pp |
+| >2,0pp | 70,0% | 85,7% | **-15,7pp** |
+
+Efekt je najjaci na pragu NULA i okrece se kako pomak raste — dakle sum oko nule.
+
+### 4. ZASTO JE PAO — I TO JE NAJKORISNIJI DIO
+Brier zavrsne cijene 0,1988 naspram 0,1998 pri slaganju — prakticki isto. U efikasnom
+trzistu zavrsna linija jasno pobjedjuje raniju; kad ne pobjedjuje, obicno je ne mjerimo.
+**Samo 5,1% snimljenih redaka bilo je unutar 2h od pocetka, medijan 9,6h, medijan razmaka
+prve i zadnje snimke 26 SATI.** Cron od 17.08. bio je jedan termin u 14:30 UTC bez filtra,
+a mecevi idu 15:00-03:00 UTC i dohvat vraca i sutrasnje. **Moja greska u dizajnu.**
+
+### STO JE PROMIJENJENO
+- `capture_market_close.py`: **`--max-hours` filtar (zadano 2,5h)** + `--dry-run`.
+  Prazan prozor vise nije greska nego uredan izlaz.
+- `market_close.yml`: jedan termin -> **tri (16:30 / 20:30 / 00:30 UTC)**, za dnevni,
+  vecernji i kasni val. Trosak ~27 kredita dnevno (~800/mj od 20.000).
+- **NOVO: `scripts/clv_report.py`** — ponovljiv CLV izvjestaj s intervalom pouzdanosti,
+  koji sam sebe upozorava kad je zavrsna snimka daleko od pocetka.
+
+### ZASTO CLV (korisnikovo pitanje: "kako mi koriste cijene koje ne mogu odigrati")
+Korisnik s pravom kaze da screenshota u 14h i vise se ne vraca, pa cijena 1-2h prije meca
+ne moze promijeniti nijedan tiket. Tocno — korist je mjerna, ne kladionicarska:
+
+    preko ISHODA, prednost 2pp   ->  ~4.500 meceva
+    preko ISHODA, prednost 3pp   ->  ~2.000 meceva
+    preko CIJENE (CLV), 0,5pp    ->     ~46 meceva
+    preko CIJENE (CLV), 1,0pp    ->     ~11 meceva
+
+Uz ~15 analiza dnevno, 2.000 meceva je cetiri mjeseca. Zato smo u tri revizije zapinjali
+na "uzorak je premalen".
+
+**Vec izmjereno (na losim podacima, dakle orijentir):** prosjecni CLV **-0,53pp**, 95%
+interval **-0,85 .. -0,21** — ne prelazi nulu. Trziste se u prosjeku mice OD nasih pickova.
+Pickovi s CLV>0: 12/14 = 85,7%; s CLV<=0: 23/41 = 56,1%.
+Ograda: nas CLV mijesa dvije kuce (kladimo se po SuperSportu, mjerimo naspram konsenzusa).
+
+**Nijedan pick nije diran. `rules_hash` ostaje a0424315.**
+
 ## 2026-08-22 12:10 — MENTALNA IZDRZLJIVOST IZMJERENA: hipoteza pala, i to poucno
 
 Korisnik je napravio tablicu `player_match_history`, harvest je pokrenut: **727 meceva,

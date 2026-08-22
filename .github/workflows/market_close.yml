@@ -1,26 +1,48 @@
 name: Market Close Capture
 
-# Drugo hvatanje trzisnih cijena, blizu pocetka meceva (17.08.2026 11:46).
+# Hvatanje trzisnih cijena BLIZU POCETKA meca (17.08.2026, ispravljeno 22.08.2026 15:20).
 #
-# ZASTO: dnevni run snima cijene u trenutku slaganja tiketa. Jedna snimka po mecu daje
-# raspon medju kladionicama, ali ne i KRETANJE linije. Revizija 17.08.2026 pokazala je da
-# je najjaci nalaz analize ("SuperSport krace od svijeta" -> 76,9%) zapravo bio artefakt
-# tri sata razmaka izmedju nase i trzisne cijene: efekt pada +18,3 -> +11,4 -> +4,4pp kako
-# se vrijeme poravnava. Kretanje linije je stvaran mehanizam — ali ga treba mjeriti
-# namjerno, s dvije snimke, umjesto slucajno kroz vremenski pomak.
+# ZASTO POSTOJI: dnevni run hvata cijenu u trenutku slaganja tiketa. Iz jedne snimke po
+# mecu moze se izracunati raspon medju kladionicama, ali ne i kretanje linije ni CLV.
+#
+# ZASTO JE PRVI RASPORED ZAMIJENJEN (mjereno 22.08.2026 na 5 dana / 8.528 redaka):
+# prvi cron bio je JEDAN termin u 14:30 UTC bez filtra. Rezultat:
+#     samo 5,1% snimljenih redaka bilo je unutar 2h od pocetka meca
+#     medijan 9,6h prije pocetka; medijan razmaka prve i zadnje snimke 26 SATI
+# Uzrok: mecevi idu od 15:00 do ~03:00 UTC, a dohvat vraca i SUTRASNJE meceve, pa je jedan
+# fiksni termin mijesao "za dva sata" i "za dva dana". Posljedica: Brier zavrsne cijene
+# 0,1988 naspram 0,1998 pri slaganju — prakticki isto, sto znaci da zavrsnu liniju nismo
+# ni mjerili. Svi zakljucci o "kretanju linije" iz te ere su neupotrebljivi.
+#
+# NOVI RASPORED: tri termina, svaki s filtrom na mecevе koji pocinju unutar 2,5h.
+#   16:30 UTC  -> dnevni val (mecevi ~15:00-19:00 UTC)
+#   20:30 UTC  -> vecernji val
+#   00:30 UTC  -> kasni val (US vecernja sesija, pocinje ~22:00-02:00 UTC)
+# Ako u prozoru nema meceva, skripta uredno ne zapise nista i izadje s 0 — to je normalno
+# i ne znaci kvar.
+#
+# TROSAK: ~9 kredita po pokretanju x 3 = ~27 dnevno, oko 800 mjesecno naspram plana 20.000.
 #
 # NE MIJENJA NIJEDAN PICK. Samo dopisuje retke u `market_lines`; kljuc je
-# (event_id, bookmaker, captured_at) pa druga snimka stoji pored prve, ne preko nje.
+# (event_id, bookmaker, captured_at) pa svaka snimka stoji pored prethodne.
 #
-# CRON: 14:30 UTC. Meceve u Cincinnatiju pocinju ~15:00 UTC, a korisnik slaze tiket oko
-# 12:00 UTC — dakle ovo hvata prvi val ~30 min prije pocetka. Za kasnije mecheve (US
-# vecernja sesija) snimka je ranija nego sto bi idealno bila; ako se pokaze da treba,
-# doda se drugi termin. GitHub cron zna kasniti 5-15 min pri velikom opterecenju, sto je
-# ovdje bezopasno.
+# NAPOMENA O KORISNIKOVU TIJEKU RADA (pitanje 22.08.2026): korisnik screenshota kvote ~14h
+# i pokrene tiket odmah, i vise se tog dana ne vraca. Cijene uhvacene 1-2h prije meca zato
+# NE MOGU promijeniti nijedan njegov tiket — i ne trebaju. One su mjerni instrument:
+# omogucuju CLV, koji na pitanje "ima li model prednost" odgovara s ~46 meceva umjesto
+# ~2.000 koliko treba mjerenje preko ishoda. Detaljan racun je u docstringu skripte.
 on:
   schedule:
-    - cron: '30 14 * * *'
+    - cron: '30 16 * * *'
+    - cron: '30 20 * * *'
+    - cron: '30 0 * * *'
   workflow_dispatch:
+    inputs:
+      max_hours:
+        description: 'Prozor u satima prije pocetka (0 = bez filtra)'
+        required: false
+        default: '2.5'
+        type: string
 
 jobs:
   capture:
@@ -46,4 +68,4 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
-        run: python scripts/capture_market_close.py
+        run: python scripts/capture_market_close.py --max-hours "${{ inputs.max_hours || '2.5' }}"

@@ -427,6 +427,58 @@ check("tablica opisana u schema.sql",
       "player_match_history" in open("database/schema.sql", encoding="utf-8").read())
 
 
+# ============================================================================
+print("\n=== 13. Hvatanje zatvarajuce linije + CLV (22.08.2026 15:20) ===")
+
+import os as _os3
+_cap = open("scripts/capture_market_close.py", encoding="utf-8").read()
+_wf = open(".github/workflows/market_close.yml", encoding="utf-8").read()
+
+# --- filtar na prozor prije pocetka ---
+check("skripta ima --max-hours", "--max-hours" in _cap)
+check("zadani prozor je 2.5h", "DEFAULT_MAX_HOURS = 2.5" in _cap)
+check("filtar koristi hours_to_start", 'r["hours_to_start"] <= args.max_hours' in _cap)
+check("prazan prozor nije greska",
+      "Nijedan mec ne pocinje u tom prozoru" in _cap and "return 0" in _cap)
+check("skripta ima --dry-run", "--dry-run" in _cap)
+check("argparse je uvezen", "import argparse" in _cap)
+
+# --- zasto je stari raspored bio pogresan, zapisano ---
+check("zapisano zasto je prvi raspored pao", "ZASTO JE PRVI RASPORED BIO POGRESAN" in _cap)
+check("zapisan mjereni udio unutar 2h", "5,1%" in _cap)
+check("zapisan medijan razmaka snimki", "26 SATI" in _cap)
+
+# --- CLV obrazlozenje (korisnikovo pitanje) ---
+check("zapisano zasto mjerimo cijenu koju ne igramo", "CLV" in _cap)
+check("zapisan racun snage ishod vs cijena",
+      "~4.500 meceva" in _cap and "~46 meceva" in _cap)
+check("zapisana ograda o mijesanju dviju kuca",
+      "mijesa dvije kuce" in _cap or "mijesa dvije kuće" in _cap)
+
+# --- workflow: tri termina ---
+check("workflow ima tri crona", _wf.count("- cron:") == 3)
+for _c in ("30 16 * * *", "30 20 * * *", "30 0 * * *"):
+    check(f"cron {_c} postoji", _c in _wf)
+check("workflow prosljedjuje --max-hours", "--max-hours" in _wf)
+check("workflow objasnjava korisnikov tijek rada",
+      "NE MOGU promijeniti nijedan njegov tiket" in _wf)
+
+# --- CLV izvjestaj ---
+check("clv_report postoji", _os3.path.exists("scripts/clv_report.py"))
+_clv = open("scripts/clv_report.py", encoding="utf-8").read()
+check("clv_report ne ulazi u pipeline", "NE ULAZI NI U JEDNU ODLUKU" in _clv)
+check("clv_report zna za lose stare podatke", "GOOD_CAPTURE_FROM" in _clv)
+check("clv_report upozorava kad je snimka daleko",
+      "zavrsna snimka je daleko od pocetka" in _clv)
+check("clv_report racuna interval pouzdanosti", "95% interval" in _clv)
+check("clv_report nosi polaznu tocku -0,53pp", "-0,53pp" in _clv)
+
+# --- nista od ovoga ne smije dirati selekciju ---
+_tb2 = open("agent/ticket_builder.py", encoding="utf-8").read()
+check("ticket_builder ne zna za CLV", "clv" not in _tb2.lower())
+check("hvatanje ne uvozi ticket_builder", "ticket_builder" not in _cap)
+
+
 print("\n" + "=" * 60)
 if _fails:
     print(f"PALO: {len(_fails)}")
