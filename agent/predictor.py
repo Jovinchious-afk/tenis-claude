@@ -111,6 +111,105 @@ _BP_TO_PROMPT = True
 # pa se era prije/poslije dobi NE smije rezati po hashu nego po `context_version` >= 12.
 _AGE_TO_PROMPT = False
 
+# =============================================================================================
+# DUBINSKA ANALIZA 22.08.2026 09:24 - pred Winston-Salem, nakon zavrsnice Cincinnatija
+# =============================================================================================
+# Korpus: 301 razrijesena analiza (187 hard), 112 s post-match statistikom, 275 na turnirima
+# za koje imamo povijest zdrijeba, 207 s visinom oba igraca, 55 s cijenama 40+ kladionica.
+# NISTA OD OVOGA NIJE UDJENUTO U MODEL - zapisano je da se moze pratiti kroz iduce turnire.
+#
+# ---------------------------------------------------------------------------------------------
+# NALAZ 1 (NAJJACI): RAZLIKA U POVIJESTI NA TOM TURNIRU (nas pick minus protivnik)
+# ---------------------------------------------------------------------------------------------
+#   protivnik ima bolju povijest  45,7% (n=35)  ROI -30,2%
+#   izjednaceni                   62,3% (n=138) ROI  -4,2%
+#   nas pick ima bolju povijest   71,6% (n=102) ROI  +1,9%
+#   Pearson r = +0,167  P=0,0036  n=275  (najveci uzorak od svih kandidata)
+# PREZIVIO SVE KONTROLE:
+#   - stratifikacija po kvoti: efekt +17,5pp UNUTAR pojasa cijene (u pojasu 1,80+ je
+#     protivnik-bolji 1/11 = 9,1% naspram pick-bolji 7/9 = 77,8%)
+#   - stratifikacija po ELO razlici: +30,8pp
+#   - NIJE proxy za kvalitetu: r s ELO razlikom +0,075 (P=0,47), r s trzisnom
+#     vjerojatnoscu +0,145 (P=0,29), r s nasom kvotom samo -0,213
+#   - split-half po eri: predznak se drzi u sve tri ere (protivnik bolji 56,2 / 50,0 / 22,2%)
+#   - naspram trzisnog ocekivanja: pick-bolji +11,3pp, protivnik-bolji -40,9pp
+# OGRADE: `tournament_history` ima samo runde R16+ i 16 turnira, pa "nema povijesti"
+#   mijesa "nikad nije stigao do R16" s "nije u nasim podacima". n=35 u kriticnoj celiji.
+# KORISNIKOVA HIPOTEZA O "ROUND CEILINGU" JE TESTIRANA I NIJE PROSLA: igra li pick rundu
+#   dalje nego je ikad stigao na tom turniru -> 62,3% (n=138) naspram 64,8% (n=88) kad je
+#   na ili ispod stropa; razlika -2,5pp, P=0,709. Dakle NIJE osobni strop nego USPOREDBA
+#   s protivnikom. Intuicija je pokazala na nesto stvarno, ali mehanizam je drugi.
+# MEDVEDEV @ CINCINNATI (konkretna provjera): u nasoj bazi 2023-2025 pojavljuje se JEDNOM,
+#   kao porazeni u R16 2023 (od Zvereva). Tvrdnja "nikad nije stigao do osmine finala" nije
+#   tocna - stigao je 2023. Tocno je da 2024. i 2025. nije dosao ni do R16. Nas pick na
+#   njega 18.08. je izgubio (Nakashima 6-7 7-6 6-1).
+#
+# ---------------------------------------------------------------------------------------------
+# NALAZ 2: QF JE SUSTAVNA PROVALIJA (a SF nije)
+# ---------------------------------------------------------------------------------------------
+#   QF 19/39 = 48,7% (ROI -30,9%)   |   rane runde 136/208 = 65,4%   |   SF 19/27 = 70,4%
+#   razlika QF vs rane -16,7pp, P=0,048 (Fisher 0,070)
+#   drzi se u SVE TRI ere (58,3 / 40,0 / 20,0%) i prezivljava kontrolu po kvoti u sva tri
+#   pojasa (66,7 vs 76,5 | 46,2 vs 62,5 | 25,0 vs 53,6)
+#   OGRADA: testirano je 6 rundi, pa Bonferroni daje P~0,29 - NIJE znacajno nakon korekcije.
+#   Ono sto ga cini vrijednim paznje je dosljednost (3/3 ere, 3/3 pojasa cijene), ne P.
+#   U QF se i NALAZ 1 raspada (pick-bolja-povijest 2/8 = 25%), sto sugerira da je QF
+#   kvalitativno drugacija runda, a ne samo "kasnija".
+#
+# ---------------------------------------------------------------------------------------------
+# NALAZ 3: VISINA OBJASNJAVA STIL, NE ISHOD (novo - dosad se nije biljezilo)
+# ---------------------------------------------------------------------------------------------
+#   r(visina, sezonski serve_pts_won) = +0,597 P<0,0001 | r(visina, return_won) = -0,458
+#   r(visina, asovi) = +0,317 | r(visina, dvostruke greske) = +0,279 | 1. servis +0,230
+#   ALI r(RAZLIKA u visini, pobjeda) = +0,005 P=0,947 - nula. Tezina i BMI takodjer nula.
+#   Ljevak protiv desnjaka: +6,7pp P=0,64 (nista). Jednorucni backhand 7/9 - premalo.
+#   ZAKLJUCAK: visina je besplatan, stabilan i objektivan OPIS PROFILA (provjera oznaka
+#   tipa "big server"), ne prediktor pobjednika. U scouting tablici od 22.08.2026.
+#
+# ---------------------------------------------------------------------------------------------
+# STO JE TESTIRANO I PALO (ne predlagati ponovno bez novog dokaza)
+# ---------------------------------------------------------------------------------------------
+#   - round ceiling (vidi nalaz 1)
+#   - visina/tezina/BMI kao prediktor ishoda
+#   - vrijeme kao glavni ucinak: temperatura r=-0,054, vlaga +0,014, vjetar +0,076,
+#     tlak -0,082 - sve nikakvo (n=152)
+#   - INTERAKCIJA temperatura x servisna prednost izgleda dramaticno (hladno: 73,1% sa
+#     servisnom prednoscu vs 50,0% bez; toplo: 51,3% vs 73,1% - obrnut predznak), ALI
+#     JE NEPROVJERLJIVA: podaci o vremenu postoje tek od 08.2026, pa starija polovica
+#     uzorka ima n=4. Bez split-halfa ovo se NE smije koristiti. Premjeriti ~30 dana.
+#   - mentalna izdrzljivost (povratak iz zaostatka) kao POVIJESNA znacajka: 75,0% (n=20)
+#     naspram 68,6% (n=51) - smjer da, ali samo 78 pickova ima >=2 prethodna meca u korpusu.
+#     Rekord u odlucujucim setovima: -2,9pp, P=0,881 - nista. Za pravi test treba harvestati
+#     povijest meceva po igracu (API `past-matches` to ima), sto jos nije napravljeno.
+#   - sezonske servisne/povratne razlike i dalje ne razlikuju ishod (serve r=-0,073,
+#     return r=-0,013, bp_saved r=-0,067, bp_converted r=-0,007) - cetvrti put isti nalaz.
+#
+# ---------------------------------------------------------------------------------------------
+# NAJVECA STRUKTURNA RUPA: sto ide u prompt ali se NIKAD NE BILJEZI
+# ---------------------------------------------------------------------------------------------
+# Nijedna od ovih varijabli ne moze se retroaktivno analizirati jer nije u `context_snapshot`:
+#   matches_7d, sets_7d, days_rest, tournament_path, surface_record, form_5/form_10,
+#   avg_opp_elo (biljezi se samo BROJAC `avg_opp_elo_n`, ne vrijednost!), sezonski asovi,
+#   first/second serve won, ranking i ranking_trend, visina/tezina/ruka.
+# Korisnik je 22.08. trazio analizu umora, opterecenja, odmora, kvalitete protivnika i
+# sekvenci forme - NIJEDNO od toga se trenutno ne moze izmjeriti, iako model sve to vidi.
+# Ovo je jeftiniji i vredniji posao od dodavanja novih varijabli u prompt.
+#
+# ---------------------------------------------------------------------------------------------
+# ERA v14 (strop 70 + zahtjev za rasponom, od 17.08.2026): PRVI DOJAM
+# ---------------------------------------------------------------------------------------------
+#   ukupno 14/26 = 53,8% (ROI -23,6%) naspram 37/57 = 64,9% u eri v10-v13.
+#   IZGLEDA losije, ali razlog je upravo ono sto smo htjeli: model sada POSTENO ocjenjuje
+#   lose meceve nisko (9 od 26 analiza je ispod 63%, ranije 10 od 57), pa u uzorak ulaze
+#   mecevi koje stari model nikad ne bi ni izgovorio.
+#   KALIBRACIJA JE PRVI PUT MONOTONA:  conf >=68 -> 6/6 = 100%
+#                                      conf 67   -> 4/8 =  50%
+#                                      conf <=66 -> 4/12 = 33%
+#   SD pouzdanosti 4,98 (era stropa 64: 1,18), raspon 53-72, 9 razlicitih vrijednosti.
+#   ZA PRATITI: 31% analiza sada sjedi na 67 - hrpa se pomakla s 64 na 67, samo je manja.
+#   Ako se to zadrzi, isti problem se vraca na drugoj razini.
+# =============================================================================================
+
 # CJELOVIT POPIS ULAZA U ODLUKU: vidi `DECISION_INPUTS.md` (08.08.2026 12:30) — što ulazi u
 # prompt, što u deterministički kod, a što se samo bilježi. Ondje je i otvorena zamjerka o
 # tome da se nesigurne procjene ovdje prikazuju bez ikakve mjere pouzdanosti (npr.

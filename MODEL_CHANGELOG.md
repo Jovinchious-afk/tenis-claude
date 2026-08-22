@@ -13,6 +13,84 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-08-22 09:24 — DUBINSKA ANALIZA pred Winston-Salem: nova varijabla nadjena, model NIJE diran
+
+Korisnik je trazio dubinsku analizu hard rezultata s naglaskom na varijable KOJE NISU klasicne
+statistike igraca. Analizirano: 301 razrijesena analiza (187 hard), 112 s post-match statistikom,
+275 na turnirima s povijescu zdrijeba, 207 s visinom, 55 s cijenama 40+ kladionica.
+**Selekcija, prompt i tezine NISU dirani** (korisnikova izricita uputa). Promijenjeni su samo:
+scouting tablica (+3 stupca), `import_scouting.py`, `schema.sql`, i komentari s nalazima.
+
+### NALAZ 1 — POVIJEST NA TURNIRU, RELATIVNO NA PROTIVNIKA (najjaci kandidat dosad)
+
+| razlika povijesti (pick - protivnik) | n | pogodak | ROI |
+|---|---|---|---|
+| protivnik ima bolju | 35 | 45,7% | -30,2% |
+| izjednaceni | 138 | 62,3% | -4,2% |
+| nas pick ima bolju | 102 | **71,6%** | +1,9% |
+
+`r = +0,167, P=0,0036, n=275`. Prezivio: stratifikaciju po kvoti (+17,5pp unutar pojasa),
+po ELO razlici (+30,8pp), split-half po tri ere, i usporedbu s trzisnim ocekivanjem
+(+11,3pp / -40,9pp). **Nije proxy za kvalitetu:** r s ELO razlikom +0,075 (P=0,47),
+r s trzisnom vjerojatnoscu +0,145 (P=0,29). To je nova informacija, ne prepakirana stara.
+
+**Korisnikova hipoteza o "round ceilingu" je testirana i PALA:** meč iznad vlastitog
+dosadasnjeg stropa 62,3% (n=138) naspram 64,8% (n=88) na/ispod stropa, -2,5pp P=0,709.
+Mehanizam nije osobni strop nego USPOREDBA s protivnikom.
+
+**Medvedev @ Cincinnati:** u bazi 2023-2025 pojavljuje se jednom, kao porazeni u R16 2023.
+Tvrdnja "nikad do osmine finala" nije tocna; tocno je da 2024. i 2025. nije dosao ni do R16.
+
+### NALAZ 2 — QF je provalija, SF nije
+
+QF 19/39 = **48,7%** (ROI -30,9%) naspram ranih rundi 136/208 = 65,4% i SF 19/27 = 70,4%.
+Drzi se u sve tri ere i prezivljava kontrolu po kvoti u sva tri pojasa. **OGRADA:** 6
+testiranih rundi -> Bonferroni P~0,29, dakle nije znacajno nakon korekcije. Vrijedan je
+zbog dosljednosti, ne zbog P. U QF se i NALAZ 1 raspada (2/8), sto sugerira da je QF
+kvalitativno drugacija runda.
+
+### NALAZ 3 — visina objasnjava STIL, ne ISHOD
+
+`r(visina, sezonski serve_pts_won) = +0,597 (P<0,0001)`, `r(visina, return_won) = -0,458`,
+asovi +0,317, dvostruke greske +0,279. **ALI r(razlika u visini, pobjeda) = +0,005 (P=0,947).**
+Tezina i BMI nula. Ljevak vs desnjak +6,7pp (P=0,64).
+
+### PODATKOVNI NALAZ: visina, tezina I RUKA su oduvijek bile dostupne
+
+Sve tri su u `data.information.{height,weight,plays}`, a citalo se `data.height` (uvijek None).
+Popunjenost 92/92. **Time pada biljeska u `data_fetcher._get_age`** koja tvrdi da profil nema
+podatak o ruci i da "to se ovdje NE moze popraviti - treba drugi izvor". Moze.
+
+### STO JE TESTIRANO I PALO
+
+Round ceiling; visina/tezina/BMI kao prediktor; vrijeme kao glavni ucinak (temperatura
+r=-0,054, vlaga +0,014, vjetar +0,076, tlak -0,082, n=152); sezonske servisne razlike
+(cetvrti put). **Interakcija temperatura x servisna prednost izgleda dramaticno (obrnut
+predznak hladno/toplo) ali je NEPROVJERLJIVA** - vremenski podaci postoje tek od 08.2026,
+starija polovica uzorka ima n=4.
+
+### NAJVECA RUPA: sto ide u prompt a ne biljezi se
+
+`matches_7d`, `sets_7d`, `days_rest`, `tournament_path`, `surface_record`, `form_5/form_10`,
+`avg_opp_elo` (biljezi se samo BROJAC!), sezonski asovi, first/second serve won, ranking.
+Korisnik je trazio analizu umora, opterecenja, odmora, kvalitete protivnika i sekvenci forme
+- **nijedno se ne moze izmjeriti**, iako model sve to vidi u promptu.
+
+### ERA v14 — prvi dojam
+
+14/26 = 53,8% naspram 64,9% u eri v10-v13. Izgleda losije, ali razlog je zeljen: model sada
+posteno ocjenjuje lose meceve nisko (9/26 ispod 63%, ranije 10/57). **Kalibracija je prvi put
+monotona:** conf >=68 -> 6/6, conf 67 -> 4/8, conf <=66 -> 4/12. SD 4,98 (bilo 1,18).
+**Za pratiti:** 31% analiza sada sjedi na 67 - hrpa se pomakla s 64 na 67.
+
+### PROMIJENJENO
+
+- `player_scouting` + Excel: **+3 stupca** (`height_cm`, `weight_kg`, `plays`), popunjeno
+  132/150. Za bazu treba rucno pokrenuti 3 x `ALTER TABLE` (SQL je u `schema.sql`).
+- `scripts/import_scouting.py` cita nove stupce.
+- Nema novih cinjenicnih kontradikcija u profilima nakon ispravka od 17.08.
+- `rules_hash` **nepromijenjen (0295e3b0)** - komentari su izvan predloska prompta.
+
 ## 2026-08-17 12:38 — SCOUTING: ispravljena tri cinjenicno netocna profila, ostalo NAMJERNO nedirnuto
 
 Korisnik je pitao treba li nesto mijenjati u tablici od 150 profila. Izmjereno prije odgovora:

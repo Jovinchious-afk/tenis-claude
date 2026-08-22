@@ -206,6 +206,30 @@ CREATE TABLE IF NOT EXISTS player_scouting (
     note TEXT,
     confidence VARCHAR(20),
     source_date DATE,
+    -- Dodano 22.08.2026 09:24 (analiza pred Winston-Salem). Na POSTOJECOJ bazi pokrenuti:
+    --   ALTER TABLE player_scouting ADD COLUMN IF NOT EXISTS height_cm INTEGER;
+    --   ALTER TABLE player_scouting ADD COLUMN IF NOT EXISTS weight_kg INTEGER;
+    --   ALTER TABLE player_scouting ADD COLUMN IF NOT EXISTS plays     TEXT;
+    --
+    -- ODAKLE DOLAZE: RapidAPI `/atp/player/profile/{id}` -> `data.information.{height,weight,plays}`.
+    -- Dosad se citalo `data.height`, sto je UVIJEK None; prava vrijednost je jedan nivo dublje.
+    -- Popunjenost provjerena na 92 igraca iz naseg korpusa: 92/92 za sve tri velicine.
+    -- Time pada i biljeska u `data_fetcher._get_age` da profil nema podatak o ruci i da
+    -- "to se ovdje NE moze popraviti" — `information.plays` vraca npr.
+    -- "Right-Handed, Two-Handed Backhand", dakle i ruku i tip backhanda.
+    --
+    -- CEMU SLUZE (izmjereno 22.08.2026, n=207 razrijesenih meceva):
+    --   visina <-> sezonski serve_pts_won   r = +0,597  (P<0,0001)
+    --   visina <-> sezonski return_won      r = -0,458  (P<0,0001)
+    --   visina <-> asovi u mecu             r = +0,317  (P=0,0006)
+    --   visina <-> dvostruke greske         r = +0,279  (P=0,0028)
+    --   RAZLIKA u visini <-> pobjeda        r = +0,005  (P=0,947)  <-- NULA
+    -- Dakle: OPIS STILA, ne prediktor ishoda. Ne stavljati u selekciju kao "visi pobjedjuje".
+    -- Korisno kao objektivna provjera scouting oznaka ("big server") i za matchup stilova.
+    -- Tezina i BMI ne nose nista (r=+0,017 / +0,018).
+    height_cm INTEGER,
+    weight_kg INTEGER,
+    plays TEXT,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
