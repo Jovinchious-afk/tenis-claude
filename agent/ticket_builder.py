@@ -315,6 +315,20 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
     # NIJE MIJENJANO: n=62 je premalo za pomicanje praga na kojem stoji cijela selekcija, a
     # promjena bi istovremeno poništila pripisivanje za sve ostale izmjene u tijeku.
     # Ponoviti izračun na Cincinnatiju prije bilo kakve odluke.
+    #
+    # PONOVLJENO 26.08.2026 14:01 na traženom uzorku (hard, težine v18, n=178) — i to na
+    # DEVIGIRANOJ SuperSport cijeni (imamo obje strane; prosječna marža 5,13%), pa se broj
+    # više ne miješa s razinom kvote:
+    #     conf >= 63 (ide na tiket)   77/127 = 60,6%   naspram cijene  -4,7pp   ROI -12,6%
+    #     conf <  63 (bacamo)         31/ 51 = 60,8%   naspram cijene  +2,3pp   ROI  -0,9%
+    #     conf >= 65                  28/ 48 = 58,3%   naspram cijene -12,0pp  (z=-1,86)
+    # parcijalni r(pouzdanost, pogodak | devigirana cijena) = -0,074 (n=178).
+    # Dakle: prag ne odvaja bolje od lošijeg — sustavno propušta pickove koji su LOŠIJI od
+    # onoga što odbacuje. To je treće neovisno mjerenje istog (17.08. Brier gori od
+    # konstante; 22.08. hrpa na jednoj vrijednosti; sada parcijalna korelacija).
+    # I DALJE NIJE MIJENJANO — prag je nosiva greda selekcije, a zamjena (filtri po kvaliteti
+    # nedavnih protivnika / dobi / rundi) mjerena je IN-SAMPLE i tek treba potvrdu na US Openu.
+    # Vidi MODEL_CHANGELOG 26.08.2026 14:01, točke 4 i 10.
     conf_floor = cfg["min_confidence"]            # 63
     VALUE_MIN_CONF = 58.0
     VALUE_MIN_EDGE = 12.0

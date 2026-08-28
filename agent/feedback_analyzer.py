@@ -487,8 +487,105 @@ def _format_match_stats(p1: str, p2: str, stats: dict, p1_id=None, p2_id=None) -
     return "\nSTATISTIKE MEČA:\n" + "\n".join(rows) + "\n"
 
 
+# =============================================================================================
+# BAZNE STOPE ZA ANALIZU GUBITKA (uvedeno 26.08.2026 15:20)
+#
+# Izmjereno na hard uzorku pod tezinama v18 (04.-26.08.2026): 178 rijesenih analiza, od toga
+# 138 s post-match statistikom (81 dobitak / 57 gubitaka), 139 sa sezonskim statistikama oba
+# igraca. Referentna vrijednost je DEVIGIRANA SuperSport cijena (obje strane, marza 5,13%).
+#
+# ZASTO OVO ULAZI U PROMPT: bez baznih stopa analiza gubitka moze samo pogoditi koja je
+# post-match brojka u tom mecu najekstremnija i proglasiti je uzrokom. Od 20 analiza iz
+# razdoblja 16.-26.08.2026 tocno JEDNA preporuka je prezivjela provjeru na podacima.
+#
+# PREMJERITI: nakon US Opena (n bi trebao narasti na ~250-280). Ako se brojke pomaknu za
+# vise od nekoliko postotnih bodova, azurirati OVDJE i zabiljeziti u MODEL_CHANGELOG.
+_LOSS_BASE_RATES = """
+=== MEASURED BASE RATES FROM OUR OWN CORPUS (hard, weights v18, 04.-26.08.2026) ===
+Read these BEFORE naming any cause. They tell you what a NORMAL match looks like, so you can
+tell a real signal apart from a number that merely looks extreme in this one match.
+
+OUR PICK'S POST-MATCH NUMBERS - average in matches we WON vs matches we LOST (n=138):
+  double faults              won 2.93  |  lost 4.60   (opponent's DF: 3.36 vs 3.35 - flat)
+  1st-serve points won, gap  won +10.5 |  lost -8.0
+  2nd-serve points won, gap  won +10.7 |  lost -9.1   <- SAME size as 1st serve, not "hidden"
+  total serve points, gap    won +11.0 |  lost -8.8
+  break points converted,gap won +18.0 |  lost -9.7
+  total points won, gap      won +13.4 |  lost -9.9
+  aces (our pick)            won 7.05  |  lost 7.07   <- no separation at all
+Nearly every post-match number separates wins from losses, because the winner wins more
+points. That is a DESCRIPTION of the result, not a cause, and never on its own a model fix.
+
+PRE-MATCH SEASON STATS - correlation with whether our pick won (n=139). ALL ARE ZERO:
+  serve points won +0.006 | 1st serve won -0.006 | 2nd serve won +0.024 | 1st-serve-in +0.019
+  aces/match +0.010 | double faults +0.002 | hold% +0.006 | return points won -0.059
+  BP saved +0.009 | BP converted -0.031 | break% -0.052    (every P-value above 0.49)
+So: if you want to blame a serve or return statistic, the season numbers do NOT support it.
+
+OTHER MEASURED FACTS:
+  - double faults are NOT a stable player trait in our corpus: split-half by player r=+0.131
+    (P=0.396), and variation WITHIN a player (SD 1.64) exceeds variation BETWEEN players (1.43)
+  - tiebreak record points the OPPOSITE way: r(our TB-rate edge, our pick winning) = -0.186
+    (P=0.014, n=174). Picks whose TB record was BETTER went 54.4%; picks whose opponent led
+    by 20pp+ went 73.8%. Deciding-set record: r=-0.045, nothing.
+  - ELO gap works, but only outside the middle rounds: r=+0.249 in R64/R32, r=-0.033 in R16/QF
+  - round R16/QF is our weak spot: -13.3pp vs the devigged market price, vs +3.7pp elsewhere
+  - quality of the pick's recent opposition IS predictive: form matters only when it was
+    earned against strong opponents (r=+0.284) and not at all against weak ones (r=-0.017)
+  - weather main effects are zero (temp -0.092, humidity +0.101, wind +0.076, pressure -0.077)
+  - our pick being 4+ years older than the opponent: 42.9%, -15.4pp vs price
+
+INPUTS THE PREDICTION MODEL ALREADY RECEIVES - do NOT recommend adding any of these:
+  ELO (overall + surface), ATP ranking and trend, 3-year surface record, form last 5 and 10,
+  average opponent ELO, surface form, total serve points won, hold%, 1st-serve %,
+  1st-serve points won, 2ND-SERVE POINTS WON, aces per match, BREAK POINTS SAVED,
+  BREAK POINTS CONVERTED, return points won, own tiebreak record, deciding-set record,
+  matches and sets in last 7 days, days rest, age, height/weight/hand, best round at this
+  tournament in 3 seasons, current tournament path, H2H, weather, altitude, venue type,
+  local start time and session, court pace, scouting profile, injury news.
+A recommendation to "add" something from this list is a factual error, not a finding.
+=== END BASE RATES ==="""
+
+
 def _analyze_lost_match(match: dict, stats: dict = None) -> str:
-    """Claude analizira zašto smo pogriješili na konkretnom paru."""
+    """Claude analizira zašto smo pogriješili na konkretnom paru.
+
+    STRUKTURNA MANA — IZMJERENA 26.08.2026 14:01, NIJE POPRAVLJENA (model zamrznut).
+    Ovaj prompt vidi isključivo JEDAN GUBITAK: rezultat, post-match statistiku i vlastite
+    predmečne bilješke. Nema baznu stopu, ne vidi nijedan DOBITAK, ne zna raspodjelu
+    veličine koju optužuje. Takav prompt matematički mora pronaći onu post-match brojku
+    koja je u tom meču najekstremnija i proglasiti je uzrokom. To i radi.
+
+    Provjereno na 20 jedinstvenih analiza gubitaka (16.-26.08.2026, sve hard) naspram
+    138 mečeva s post-match statistikom (81 dobitak / 57 gubitaka):
+
+      - 10 od 20 analiza traži "drugi servis kao zaseban ulaz, agregat ga maskira".
+        Jaz na 1. servisu razdvaja dobitke od gubitaka za 18,5pp, na 2. servisu za 19,8pp,
+        agregat za 19,8pp. Drugi servis je ekstremniji od prvog u 54% gubitaka i 56%
+        dobitaka — dakle nema nikakve tendencije. Ništa nije skriveno.
+        Usput: `2nd serve pts won` je u promptu od početka (predictor.py, redak 333/357),
+        pa je preporuka i činjenično netočna.
+      - 9 od 20 traži dvostruke greške kao ulaz. Naš pick: 2,93 u dobitcima, 4,60 u
+        gubitcima — ali split-half po igraču daje r=+0,131 (P=0,396), a SD unutar igrača
+        (1,64) je VEĆI od SD između igrača (1,43). DF je posljedica lošeg dana, ne osobina.
+      - 5 traži jače kažnjavanje slabijeg tiebreak rekorda, 3 traže slabije. Podaci:
+        r(jaz u TB postotku, pogodak) = -0,186 (P=0,014, n=174) — signal ide u SUPROTNOM
+        smjeru od onoga što traži većina.
+      - 5 tvrdi "dug odmor = hrđa", 3 tvrde "umor podcijenjen" — u istom tjednu, o istoj
+        varijabli, u suprotnim smjerovima. To je potpis šuma, ne kalibracije.
+      - Test na tekstu predmečnih bilježaka: nijedna ključna riječ (umor, forma, ELO,
+        tiebreak, hrđa, break lopte, hot hand) ne razdvaja dobitke od gubitaka na P<0,05.
+
+    ŠTO SE JEST POTVRDILO: preporuka iz analize Rottgering-Machac (26.08.) da je izuzeće u
+    hot-hand pravilu prestrogo. U R16/QF, kad je protivnik odigrao 2+ meča u zadnjih 3-9
+    dana, prolazimo 35,0% (n=20) naspram 59,7% očekivano — z=-2,30. Jedna od dvadeset.
+
+    POPRAVAK KOJI SE PREDLAŽE (nije izveden): u prompt dodati bazne stope za veličinu koja
+    se optužuje i tražiti izričitu provjeru "je li isto bilo prisutno i u dobitcima".
+    Bez toga svaka nova analiza gubitka proizvodi uvjerljivu naknadnu pamet, a mi na
+    temelju nje mijenjamo pravila (pravila 4, 13 i 16 su tako i nastala — sva tri mjerena
+    26.08. i sva tri idu u krivom smjeru). Vidi MODEL_CHANGELOG 26.08.2026 14:01, točka 1.
+    """
     pick = match.get("pick", "")
     actual = match.get("actual_winner", "")
     p1 = match.get("player1", "")
@@ -522,6 +619,8 @@ def _analyze_lost_match(match: dict, stats: dict = None) -> str:
     except Exception as e:
         print(f"  Draw povijest za analizu gubitka nedostupna: {e}")
 
+    base_rates = _LOSS_BASE_RATES
+
     prompt = f"""A tennis prediction model made an incorrect prediction. Analyse the error.
 
 MATCH: {p1} vs {p2} | {tournament} ({surface})
@@ -543,18 +642,45 @@ STRICT ANTI-HALLUCINATION RULES:
   the draw history, say so explicitly; that contradiction is itself a finding worth reporting.
 - Do not invent geographic, political, or biographical claims about either player.
 
-Write a concise but COMPLETE analysis (aim for ~200 words, never leave a sentence unfinished) explaining:
-1. Which factor was incorrectly assessed?
-2. What actually decided the match?
-3. What should change in the prediction algorithm?
+{base_rates}
 
-Be specific and concrete. Focus on model factors (ELO, surface, form, fatigue, H2H, etc.)"""
+EVIDENCE DISCIPLINE (mandatory - this section overrides your instinct to find a cause):
+- You are looking at ONE LOST MATCH. You cannot see the matches we WON. The base rates above
+  are the only thing standing between you and a confident wrong answer.
+- Post-match statistics explain HOW the match went. They are NOT evidence that the model
+  should have known beforehand. Before blaming any number, ask: was this knowable pre-match,
+  and does the base-rate block show it separating wins from losses?
+- The word "cause" is BANNED unless the factor was visible pre-match AND the base rates
+  support it. Otherwise say "post-match description".
+- Do not recommend adding an input the model already receives (see the list above).
+
+Write a concise but COMPLETE analysis (~250 words, never leave a sentence unfinished):
+
+1. WHAT WE GOT WRONG - name at most two pre-match factors. For EACH one, end with exactly
+   one of these verdicts, and justify it with a number:
+     [SIGNAL CONFIRMED]      visible pre-match AND the base rates separate wins from losses
+     [SIGNAL NOT CONFIRMED]  the factor is roughly as common in our wins as in our losses
+     [SIGNAL CONTRADICTED]   the base rates point the OPPOSITE way to your reading
+     [INSUFFICIENT DATA]     not measurable from what we record
+     [POST-MATCH ONLY]       real in this match, but not knowable before it
+
+2. HOW THE MATCH WENT - the post-match story, explicitly labelled as description. It is fine
+   and useful to say "his second serve collapsed"; it is wrong to call that a model failure.
+
+3. WHAT SHOULD CHANGE - at most ONE proposal, and only if you reached [SIGNAL CONFIRMED] in
+   part 1. If you did not, write exactly: "No model change justified by this match." That is
+   a complete and correct answer, and it is the RIGHT answer most of the time - the single
+   most common error in these analyses has been proposing a fix that the data does not carry.
+   If you do propose something, state what it would cost when it fires on a match we would
+   have won."""
 
     try:
         client = _get_client()
         response = client.messages.create(
             model=CLAUDE_MODELS["feedback"],
-            max_tokens=1200,  # margin za Sonnet high effort (bilo 700 na Haiku)
+            # 1600, bilo 1200 (26.08.2026 15:20): izlaz je od danas strukturiran
+            # (verdikt po faktoru + obavezno obrazlozenje brojkom), pa treba nesto vise mjesta.
+            max_tokens=1600,  # margin za Sonnet high effort (bilo 700 na Haiku)
             output_config={"effort": "high"},  # 18.07.2026
             messages=[{"role": "user", "content": prompt}]
         )

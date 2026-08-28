@@ -204,6 +204,43 @@ def opponent_quality(matches: list, as_of: str, height_lookup, last_n: int = 5,
     turniru izvan uzorka.
 
     `height_lookup` je funkcija ime -> visina u cm (ili None).
+
+    PROVJERA IZVAN UZORKA, 26.08.2026 14:01 — NALAZ SE POLOVIO, ALI MEHANIZAM JE POTVRĐEN
+    I NAĐEN JE BOLJI MJERITELJ.
+    Ponovljeno na hard uzorku pod težinama v18 (n=134 od 178), uz devigiranu cijenu kao
+    referentnu vrijednost umjesto sirove kvote:
+        r = +0,149 (P=0,086), bilo +0,203 (P=0,0030)
+        iznad medijana +1,9pp naspram cijene, ispod -6,4pp  ->  raspon 8,3pp, bio +18,0pp
+        Winston-Salem (turnir izvan izvornog uzorka): r = +0,147, P=0,503, n=23
+            — isti smjer, ali nema snage; ovo NIJE potvrda, samo izostanak opovrgavanja
+    Dakle klasična regresija prvog nalaza. Visina ostaje smislen proxy za stil (r=+0,689 s
+    asovima, +0,571 sa serve_pts_won, -0,431 s povratom), ali je bučan proxy za KVALITETU.
+
+    ISTA IDEJA MJERENA HARD-ELO-om PROTIVNIKA JE BITNO JAČA (isti uzorak, n=139):
+        prosjek zadnjih 5 protivnika < 1600  ->  40,0% (n=10)
+                                     1600-1700 -> 41,4% (n=29)
+                                     1700-1800 -> 65,8% (n=73)
+                                     1800+     -> 66,7% (n=27)
+        r = +0,252, P=0,0028
+        prag 1700:  ispod  41,0% (n=39) naspram 60,0% očekivano  ->  -19,0pp, z=-2,48, ROI -37,1%
+                    iznad  66,0% (n=100) -> +2,5pp
+        kontrola cijene:  <60% -21,5pp | 60-72% -20,4pp | 72%+ -2,2pp (n=4)
+        kontrola runde:   rane -14,4pp | R16/QF -20,3pp | SF/F -24,8pp
+        split-half:       +21,4pp i +27,2pp — obje polovice isti smjer
+        relativna verzija (naš minus protivnikov): r = +0,179, P=0,040
+    Bilješka od 22.08. ("ista ideja mjerena RANGOM daje samo +9,7pp, dakle visina nosi nešto
+    preko ranga") ostaje točna za RANG, ali ne i za ELO — ELO je bolji od oba. Za buduću
+    upotrebu koristiti ELO, ne visinu. Mehanizam je time i razjašnjen: nije riječ o stilu
+    nego o napuhanom rejtingu iz slabog rasporeda, tj. točno o onome što prompt već traži
+    u pravilu 2(c) ("FORM adjusted for opponent quality") a model ne primjenjuje.
+
+    KORISNIKOVA SEKVENCIJALNA HIPOTEZA TESTIRANA I PALA (26.08.2026): "pobijedio je 2-3
+    protivnika sličnog profila, sljedeći je isti profil" ne nosi ništa preko glavnog učinka:
+        nedavni visoki I sljedeći visok   +4,8pp (n=27)
+        nedavni visoki, sljedeći nizak    +6,1pp (n=32)   <- veće od gornjeg
+        nedavni niski, sljedeći visok     -4,9pp (n=26)
+        nedavni niski, sljedeći nizak    -12,1pp (n=38)
+    Poredak ćelija ne prati hipotezu; sve što se vidi je kvaliteta nedavnih protivnika.
     """
     hist = safe_history(matches, as_of)[-last_n:]
     hs = [height_lookup(m.get("opp")) for m in hist]

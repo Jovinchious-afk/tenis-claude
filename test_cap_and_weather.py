@@ -484,8 +484,8 @@ for f in ("p1_serve_pts_won", "p1_hold_pct", "p1_hold_pct_from_bp", "p1_return_w
           "p1_return_won_weighted", "p1_bp_saved", "p1_bp_converted", "p1_first_serve_pct",
           "bp_in_prompt"):
     check(f"snapshot biljezi {f}", f'"{f}"' in _all)
-check("context_version podignut na 15 (v12/v13 15.08., v14 17.08.)",
-      '"context_version": 15' in _all)
+check("context_version podignut na 17 (v15 22.08., v16 26.08., v17 27.08.)",
+      '"context_version": 17' in _all)
 
 # (e) nove vrijednosti ne smiju procuriti u prompt template
 check("prompt template nema novih polja",
@@ -555,7 +555,7 @@ _wf2 = open(".github/workflows/daily_ticket.yml", encoding="utf-8").read()
 
 # A — bez utjecaja na pickove
 check("ELO se biljezi u snapshot", '"p1_elo_overall"' in _prsrc and '"elo_gap_surface"' in _prsrc)
-check("context_version podignut na 15", '"context_version": 15' in _prsrc)
+check("context_version podignut na 17", '"context_version": 17' in _prsrc)
 check("broj protivnika u avg_opp_elo se biljezi", "_avg_opponent_elo_n" in _rd2)
 check("PYTHONUNBUFFERED aktiviran", 'PYTHONUNBUFFERED: "1"' in _wf2)
 check("hard okidac vise ne vristi na 30", "_HARD_NEXT_TRIGGER = 180" in _rd2)
@@ -696,7 +696,7 @@ check("stara zabrana oslanjanja na kvotu i dalje stoji",
 check("nova polja u JSON shemi",
       '"above_64_basis"' in _pr.ANALYSIS_PROMPT_TEMPLATE
       and '"market_check"' in _pr.ANALYSIS_PROMPT_TEMPLATE)
-check("context_version podignut na 15", '"context_version": 15' in _all2)
+check("context_version podignut na 17", '"context_version": 17' in _all2)
 
 print("\n=== 22. Runde na razini TURNIRA (13.08.2026) ===")
 from agent.run_daily import _verify_late_rounds, _LATE_ROUND_TOTAL

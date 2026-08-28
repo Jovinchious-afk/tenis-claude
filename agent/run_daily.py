@@ -752,6 +752,29 @@ def main():
                 "p2": _avg_opponent_elo_n(p2_form.get("matches", []), elo_data),
             }
 
+            # --- v16 (26.08.2026 15:20): SAMO BILJEZENJE, nijedan pick se ne mijenja ---
+            # Tri kandidata iz dubinske hard analize. Bez ovoga se ne mogu pratiti kroz
+            # US Open, jer su za analizu bili racunati rucno iz tri odvojena izvora.
+            # Obrazlozenje i brojke: `_avg_opponent_elo_lastn`, `_form_quality`,
+            # `_count_matches_in_window` i MODEL_CHANGELOG 26.08.2026 15:20.
+            _elo_key_snap = ("elo_clay" if "clay" in (match.get("surface") or "").lower()
+                             else "elo_grass" if "grass" in (match.get("surface") or "").lower()
+                             else "elo_hard")
+            _md = str(match.get("date") or "")
+            match["v16_logging"] = {
+                "elo_key": _elo_key_snap,
+                "p1_avg_opp_elo_5": _avg_opponent_elo_lastn(p1_form.get("matches", []), elo_data,
+                                                            5, _elo_key_snap),
+                "p2_avg_opp_elo_5": _avg_opponent_elo_lastn(p2_form.get("matches", []), elo_data,
+                                                            5, _elo_key_snap),
+                "p1_form_quality": _form_quality(p1_form.get("matches", []), elo_data,
+                                                 5, _elo_key_snap),
+                "p2_form_quality": _form_quality(p2_form.get("matches", []), elo_data,
+                                                 5, _elo_key_snap),
+                "p1_matches_3_9d": _count_matches_in_window(p1_form.get("matches", []), 3, 9, _md),
+                "p2_matches_3_9d": _count_matches_in_window(p2_form.get("matches", []), 3, 9, _md),
+            }
+
             # Common opponents — samo za context_snapshot, NE ulazi u prompt (vidi helper).
             match["common_opponents"] = _common_opponents(
                 p1_form.get("matches", []), p2_form.get("matches", []))
@@ -1356,6 +1379,142 @@ def _avg_opponent_elo_n(matches: list, elo_data: dict) -> dict:
         if e and e > 1000:
             used += 1
     return {"used": used, "total": total}
+
+
+def _is_default_elo(rec: dict) -> bool:
+    """Je li ovo PRAVI ELO ili podrazumijevana vrijednost za neprepoznatog igraca?
+
+    ISPRAVAK BILJESKE IZ 07.08.2026 (utvrdjeno 26.08.2026 15:20 kroz test).
+    U `_avg_opponent_elo` stoji da se protivnici bez ELO-a "TIHO ISPUSTAJU" i da zbog toga
+    prosjek ispada PREVISOK. Provjereno u kodu: `find_player_elo` na promasaj vraca
+    `{"elo_overall": 1500, "elo_hard": 1500, "elo_clay": 1500, "elo_grass": 1500}`, dakle
+    NE ispusta nego UPISUJE 1500. Kako je tipican ATP protivnik u nasem korpusu oko 1700,
+    ucinak ide u SUPROTNOM smjeru od zapisanog — prosjek se vuce PREMA DOLJE, ne prema gore.
+    Peti slucaj tihe zadane vrijednosti u ovom projektu (usporedi break lopte, dob, visinu,
+    turnir/rundu u harvestu) — samo ovaj put nije None nego uvjerljiv broj.
+
+    `_avg_opponent_elo` se NAMJERNO NE MIJENJA: ta vrijednost ide u prompt i svaka bi
+    izmjena promijenila pickove bez ijednog dokaza da je nova bolja. Novi zapis (v16) racuna
+    prosjek BEZ podrazumijevanih vrijednosti — tako je i izmjeren nalaz od 26.08.2026 — i uz
+    svaki prosjek biljezi koliko ih je bilo, pa se razlika izmedju dva nacina moze izmjeriti
+    umjesto naslucivati.
+    """
+    if not rec:
+        return True
+    vals = [rec.get(k) for k in ("elo_overall", "elo_hard", "elo_clay", "elo_grass")]
+    return all(v == 1500 for v in vals)
+
+
+def _avg_opponent_elo_lastn(matches: list, elo_data: dict, last_n: int = 5,
+                            elo_key: str = "elo_hard") -> dict:
+    """Prosjecni ELO zadnjih `last_n` protivnika — SAMO ZA BILJEZENJE (v16, 26.08.2026 15:20).
+
+    ZASTO POSTOJI IAKO VEC IMAMO `_avg_opponent_elo`: postojeca funkcija uzima zadnjih 10
+    protivnika i UVIJEK `elo_overall`. Dubinska analiza 26.08.2026 (hard, tezine v18, n=139)
+    nasla je da je kvaliteta nedavnih protivnika najjaci nezabiljezeni pre-match signal, i
+    da je stabilan po SVIM varijantama koje smo probali (25 od 25 definicija isti smjer,
+    medijan razlike -17,1pp): duljine 3/5/10 i pragovi 1600-1800, i na hard i na overall ELO-u.
+    Kontinuirana korelacija s pogotkom: +0,236 (n=3) / +0,252 (n=5) / +0,201 (n=10), sve P<0,02.
+    Biljezimo zato zadnjih 5 na SURFACE ELO-u (najjaca varijanta) uz broj protivnika koji je
+    stvarno usao u prosjek — bez tog broja se pristranost iz `_avg_opponent_elo` (protivnici
+    bez ELO-a se tiho ispustaju, a nedostaju sustavno slabiji) ne moze izmjeriti.
+
+    NE ULAZI U PROMPT I NE MIJENJA NIJEDAN PICK. Vidi MODEL_CHANGELOG 26.08.2026 15:20.
+    """
+    from agent import data_fetcher as _df
+    elos, total, defaulted = [], 0, 0
+    for m in (matches or [])[:last_n]:
+        opp = m.get("opponent", "")
+        if not opp:
+            continue
+        total += 1
+        rec = _df.find_player_elo(opp, elo_data) or {}
+        if _is_default_elo(rec):
+            defaulted += 1
+            continue
+        e = rec.get(elo_key) or rec.get("elo_overall") or 0
+        if e and e > 1000:
+            elos.append(e)
+    if not elos:
+        return {"value": None, "used": 0, "total": total, "defaulted": defaulted}
+    return {"value": round(sum(elos) / len(elos), 1), "used": len(elos),
+            "total": total, "defaulted": defaulted}
+
+
+def _form_quality(matches: list, elo_data: dict, last_n: int = 5,
+                  elo_key: str = "elo_hard", pivot: float = 1700.0):
+    """Forma PONDERIRANA kvalitetom protivnika — SAMO ZA BILJEZENJE (v16, 26.08.2026 15:20).
+
+    `udio pobjeda u zadnjih N` x `(prosjecni ELO tih protivnika - 1700) / 100`
+
+    ZASTO OVAKO, A NE KAO PRAG: prvo mjerenje (26.08.2026 14:01) dalo je prag
+    "avg_opp_elo < 1700 -> 41,0%, -19,0pp". Prag je bio nadjen NAKON gledanja rezultata, pa je
+    provjeren na 30 definicija (3 duljine x 5 pragova x 2 vrste ELO-a). Prezivio je sve, ali
+    provjera je usput pokazala nesto bolje — da prag uopce nije potreban:
+
+        protivnici JACI od medijana  ->  r(forma zadnjih 5, pogodak) = +0,284  (P=0,017, n=70)
+                                         forma <60% -> 41,2%  |  forma >=60% -> 75,5%
+        protivnici SLABIJI od medijana -> r(forma zadnjih 5, pogodak) = -0,017 (P=0,887, n=69)
+                                         forma <60% -> 48,3%  |  forma >=60% -> 52,5%
+
+    Dakle forma nosi informaciju SAMO ako je zaradjena protiv pravih protivnika; protiv slabih
+    ne znaci nista. Umnozak to hvata u jednom broju, bez ijedne proizvoljne granice:
+        r(kompozit, pogodak) = +0,290, P=0,0005, n=139  — najjaca pojedinacna brojka u analizi
+        kvartili: 20,0% (n=10) | 48,3% (n=29) | 60,0% (n=55) | 73,3% (n=45), monotono
+    `pivot` 1700 je samo centriranje skale (mijenja predznak, ne poredak), ne prag odluke.
+
+    NE ULAZI U PROMPT I NE MIJENJA NIJEDAN PICK. Ovo je kandidat #1 za v19, ali tek nakon
+    prospektivne provjere na US Openu — vidi ocjenjivacku tablicu u MODEL_CHANGELOG.
+    """
+    hist = (matches or [])[:last_n]
+    if len(hist) < 3:
+        return None
+    wins = sum(1 for m in hist if m.get("won") or m.get("result") == "W")
+    q = _avg_opponent_elo_lastn(matches, elo_data, last_n, elo_key)
+    if q["value"] is None:
+        return None
+    return round((wins / len(hist)) * (q["value"] - pivot) / 100.0, 3)
+
+
+def _count_matches_in_window(matches: list, lo_days: int, hi_days: int,
+                             reference_date: str = "") -> int:
+    """Broj meceva u prozoru [lo_days, hi_days] PRIJE referentnog datuma.
+
+    Razlikuje se od `_count_matches_last_n_days` u dvome: prozor ima i donju granicu, i
+    racuna se od datuma MECA a ne od danas.
+
+    ZASTO DONJA GRANICA OD 3 DANA: nas `match_date` i datum koji vraca API razilaze se u 23%
+    slucajeva (izmjereno 22.08.2026 na 256 uparenih meceva, +-2 dana). Prozor koji pocinje
+    danas bi zato u dio redaka uvukao SAM MEC koji predvidjamo. Ista brava kao u
+    zastiti od curenja u analitickom modulu za povijest (donja granica od 3 dana); naziv
+    tog modula se ovdje NAMJERNO ne pise jer test cuva da ne udje u pipeline.
+
+    STATUS NALAZA (26.08.2026 15:20): opterecenje PROTIVNIKA u R16/QF izgledalo je kao jak
+    signal (2+ meca u 3-9 dana -> 35,0%, n=20, -24,7pp naspram cijene), ali je PALO na
+    provjeri robusnosti: od 12 definicija (3 praga x 4 prozora) samo 6 ide u ocekivanom
+    smjeru, raspon -18,3 do +10,2pp, a kontinuirana korelacija unutar R16/QF je
+    -0,007 / -0,084 / -0,176 / -0,069 za prozore 3-5 / 3-7 / 3-9 / 3-12 dana (sve P>0,15).
+    Kombinacija "2+ u 3-9 dana" bila je najbolja od dvanaest, tj. nadjena gledanjem.
+    ZATO SE SAMO BILJEZI, ne koristi. Ono sto JEST dosljedno (11 od 11 definicija) je da u
+    RANIM rundama protivnik koji je igrao NIJE problem (+6 do +10pp) — dakle interakcija s
+    rundom postoji, ali velicina unutar R16/QF nije stabilna. Premjeriti na US Openu.
+    """
+    from utils.helpers import today_zagreb
+    try:
+        ref = (datetime.date.fromisoformat(str(reference_date)[:10])
+               if reference_date else today_zagreb())
+    except ValueError:
+        ref = today_zagreb()
+    n = 0
+    for m in matches or []:
+        try:
+            d = datetime.date.fromisoformat(m.get("date", "")[:10])
+        except Exception:
+            continue
+        delta = (ref - d).days
+        if lo_days <= delta <= hi_days:
+            n += 1
+    return n
 
 
 def _city_for_weather(tournament_name: str) -> str:

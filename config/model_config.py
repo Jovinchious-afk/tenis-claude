@@ -21,6 +21,38 @@ automatically by the feedback loop. These are the initial defaults.
 #   smjerovima (jednom "underweighted", drugi put "over-weighted", treci put "misfired in the
 #   wrong direction"). Kad se ista korekcija optuzi u oba smjera, to je sum, a ne losa
 #   kalibracija. Kandidat za smanjenje — ali tek kad bude cime izmjeriti.
+# =============================================================================================
+# MJERENJE 26.08.2026 14:01 — hard, tezine v18, n=178 rijesenih analiza (04.-26.08.2026).
+# Referentna vrijednost je DEVIGIRANA SuperSport cijena (obje strane; marza 5,13%).
+#
+# `serve_return` (22-23%, najveca tezina): sezonske servisne/povratne brojke NE razdvajaju
+#   nase pogotke od promasaja. Dohvaceno za svih 105 igraca iz uzorka; drift naspram onoga
+#   sto je model tada vidio je 0,02pp, dakle to su tocno te brojke. r(jaz nas-protivnik,
+#   pogodak), n=139:
+#       ukupni servis +0,006 | 1. servis -0,006 | 2. servis +0,024 | 1. servis IN +0,019
+#       asovi +0,010 | dvostruke greske +0,002 | hold +0,006 | povrat -0,059 (pond.)
+#       BP spasene +0,009 | BP iskoristene -0,031 | break% -0,052 | hold iz BP +0,020
+#   Sve P > 0,49. Srednji jazovi su isti do druge decimale (servis +1,77 u dobitcima naspram
+#   +1,74 u gubitcima). Nije rijec o kolinearnosti s cijenom (r=+0,177) ni s ELO-om (+0,181) —
+#   brojka je slabo povezana sa svime. KANDIDAT ZA SMANJENJE, ali tek kad se zna cime se
+#   oslobodjena tezina popunjava (vidi nalaze 5A i 3 u MODEL_CHANGELOG 26.08.2026).
+#
+# `fatigue_injuries` (12%): iz `player_match_history` (uz zastitu od curenja) sirovo izgleda
+#   OBRNUTO od ocekivanja — nas pick s 2+ meca u zadnjih 3-9 dana 65,3%, odmorniji 47,4%
+#   (r=+0,172 P=0,049). Pod kontrolom cijene efekt pada na -0,9 naspram -8,7pp i predznak se
+#   okrece u pojasu 62%+. Sam po sebi preslab. ALI kao INTERAKCIJA s rundom je najjaci
+#   mehanizam koji smo nasli: u R16/QF, kad je PROTIVNIK odigrao 2+ meca u 3-9 dana,
+#   prolazimo 35,0% (n=20) naspram 59,7% ocekivano — -24,7pp, z=-2,30, ROI -47%; ista
+#   situacija u ostalim rundama +10,2pp. Nije rijec o tezini nego o pravilu 1 u promptu.
+#
+# NOVO, JOS NIJE U MODELU (3 signala koja prezivljavaju kontrolu cijene, runde i split-half):
+#   1. prosjecni hard-ELO zadnjih 5 protivnika naseg picka < 1700 -> 41,0% (n=39), -19,0pp,
+#      z=-2,48, ROI -37,1%; >= 1700 -> +2,5pp. r=+0,252 P=0,0028.
+#   2. nas pick stariji od protivnika 4+ godine -> 42,9% (n=42), -15,4pp, z=-2,08, ROI -31,6%;
+#      monotono kroz 5 razreda, r=-0,228 P=0,0069. Dob je od 15.08. NAMJERNO izvan prompta.
+#   3. runda R16/QF -> -13,3pp (z=-2,31) naspram +3,7pp u ostalim rundama; bootstrap
+#      95% [-31,4, -2,5]; drzi se u 3/3 turnira i sva tri pojasa cijene.
+# =============================================================================================
 DEFAULT_WEIGHTS = {
     "elo_ranking":          22.0,  # ELO (surface-specific weighted higher than ATP ranking) + opponent quality
     "surface_style":        20.0,  # Surface win rate + style matchup + playing hand

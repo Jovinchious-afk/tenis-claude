@@ -94,7 +94,7 @@ vrijednosti i time ubija razlučivanje — to je glavna lekcija revizije od 17.0
 value (edge 3-20pp za favorite, 3-28pp za pickove ≥2,00), plus bonus za pouzdanost ≥72, minus
 kazna za najslabiji pick ispod 68, minus kazna za svaki par preko četiri.
 
-## 3. Bilježi se, ali NE utječe na odluku — `context_snapshot` v14
+## 3. Bilježi se, ali NE utječe na odluku — `context_snapshot` v17
 
 Vremenski uvjeti u punom obliku (temperatura, vlaga, vjetar, tlak na razini mora i na tlu,
 uvjet, koliko je prognoza udaljena od sata meča); je li teren natkriven; je li meč u prvom
@@ -114,6 +114,34 @@ i `measured_penalties` (koja je kazna okinula i koliko je oduzela). Od istog dan
 **drugo hvatanje cijena** pred početak mečeva (`scripts/capture_market_close.py`, cron 14:30
 UTC) — dopisuje se u `market_lines` pored prve snimke, pa se kretanje linije može mjeriti
 namjerno umjesto slučajno.
+
+Od **26.08.2026 15:20** (`context_snapshot` v16) — tri kandidata iz dubinske hard revizije,
+svi **isključivo za mjerenje**, nijedan ne ulazi u prompt i nijedan ne mijenja pick:
+
+| polje | što je | zašto se bilježi |
+|---|---|---|
+| `p1/p2_avg_opp_elo_5` | prosječni surface-ELO zadnjih 5 protivnika | 25 od 25 testiranih definicija ide u isti smjer; ispod ~1700 pick prolazi 41,0% naspram 60,0% koje traži cijena |
+| `avg_opp_elo_5_n` | `used` / `total` / `defaulted` po igraču | bez toga se ne zna je li prosjek nizak zato što su protivnici slabi ili zato što ih ne prepoznajemo |
+| `p1/p2_form_quality` | forma zadnjih 5 × (prosječni ELO tih protivnika − 1700)/100 | `r = +0,290, P=0,0005` — najjača pojedinačna brojka u cijeloj reviziji, i bez ijednog proizvoljnog praga |
+| `age_gap` | dob igrača 1 minus dob igrača 2 | naš pick stariji 4+ godine: 42,9%, −15,4pp naspram cijene; 6 od 6 definicija isti smjer |
+| `p1/p2_matches_3_9d` | mečevi u prozoru 3–9 dana prije meča | nalaz o opterećenju protivnika **pao** na provjeri robusnosti (6/12 definicija) — bilježi se samo da se može premjeriti |
+
+Prozor počinje na 3 dana, ne na 0: naš `match_date` i datum iz API-ja razilaze se u 23%
+slučajeva (±2 dana), pa bi prozor od danas u dio redaka uvukao sam meč koji predviđamo.
+
+Od **27.08.2026 18:55** (`context_snapshot` v17) — dijagnostika samog poziva modela:
+
+| polje | što je |
+|---|---|
+| `analysis_call` | `{attempts, stop_reason, max_tokens, output_tokens, raw_chars, error}` — bilježi se **uvijek**, i kad poziv prođe iz prvog pokušaja |
+| `analysis_failed` | `True` samo kad model nije vratio JSON; razlikuje grešku od `skip_reason` (svjesna odluka modela da preskoči meč) |
+
+**Važnija promjena od samih polja:** do v17 je meč kod kojeg poziv padne završavao u bazi
+**bez ijednog predmečnog podatka** — bez ELO-a, forme, kvote, vremena, `form_quality`,
+`age_gap`. Post-match statistiku je takav redak i dalje dobivao, pa smo imali *kako* je meč
+završio bez ičega o tome *kakvi su bili uvjeti prije njega*. Od v17 se cijeli snapshot
+sprema i na grani greške. Tko broji analize po erama mora znati da se time promijenio
+sastav korpusa, ne samo skup polja.
 
 Svrha: svaka buduća hipoteza mora se moći provjeriti retroaktivno umjesto pogađati.
 

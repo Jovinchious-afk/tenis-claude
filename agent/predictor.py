@@ -1034,6 +1034,66 @@ treat them as hard constraints, not guidelines.
 === END CLAY-SPECIFIC RULES v1 ==="""
 
 
+# =============================================================================================
+# REVIZIJA PRAGOVA 26.08.2026 14:01 — MJERENO, NIJE PROMIJENJENO (korisnikova izričita uputa:
+# ništa ne implementirati dok se nalazi ne pregledaju). Tekst prompta ispod je NETAKNUT,
+# `rules_hash` ostaje a0424315. Ovaj blok je Python komentar izvan predloška i ne ulazi u hash.
+#
+# Uzorak: 178 riješenih hard analiza pod težinama v18 (04.-26.08.2026), Montreal + Cincinnati
+# + Winston-Salem. Referentna vrijednost je DEVIGIRANA SuperSport cijena, ne sirova kvota.
+# Ukupno: 108/178 = 60,7%, naspram cijene -2,72pp, 95% [-9,62, +4,17].
+#
+# PRAVILO 1 (hot-hand) — JEDINO PRAVILO ZA KOJE POSTOJI JAK DOKAZ DA JE KRIVO NA HARDU.
+#   Tekst izričito zabranjuje kažnjavanje igrača "samo zato što je duboko u ždrijebu". Mjereno:
+#   u R16/QF, kad je PROTIVNIK odigrao 2+ meča u zadnjih 3-9 dana (dakle jest u ritmu),
+#   prolazimo 7/20 = 35,0% naspram 59,7% očekivano — -24,7pp, z=-2,30, ROI -47,0%.
+#   Ista situacija u ostalim rundama: +10,2pp (n=30). Pravilo je preneseno s trave/gline gdje
+#   je bilo ispravno; na hardu u srednjim rundama radi protiv nas. PRVI KANDIDAT ZA REVIZIJU.
+#
+# PRAVILO 2(b) (pragovi servisa 2,5pp / 5pp) — NEMA EMPIRIJSKE OSNOVE U ISHODIMA.
+#   |jaz u poenima na servisu|: <1,25pp -> 60,5% (n=43) | 1,25-2,5 -> 53,1% (n=32) |
+#   2,5-5 -> 60,5% (n=43) | 5pp+ -> 61,9% (n=21). Ravno, bez stepenice na oba praga.
+#   Isto s predznakom: protivnik vodi 2,5-5pp -> 50,0%, mi vodimo 5pp+ -> 60,0%.
+#   Ponovno bazdarenje od 17.08. ispravilo je RAČUN (hold je isti broj x1,9), ali sama
+#   veličina koju mjerimo ne razdvaja ishode — vidi komentar u config/model_config.py.
+#
+# PRAVILO 4 i 16 (tiebreak / odlučujući set) — SIGNAL IDE U SUPROTNOM SMJERU.
+#   r(jaz u TB postotku, pogodak) = -0,186, P=0,014, n=174. Naš pick s BOLJIM TB rekordom:
+#   54,4% (n=57, ROI -17,0%). Protivnik bolji za 20pp+: 73,8% (n=42, ROI +14,0%).
+#   Drži se u sva tri pojasa cijene (-11,3 / -13,9 / -10,1pp) i u podskupu gdje oba igrača
+#   imaju 5+ tiebreakova (r=-0,232, P=0,072). Odlučujući setovi: r=-0,045, P=0,555 — ništa.
+#   Zato je uputa iz pravila 16 ("ako pick ne vodi u OBA rekorda, cap 62%") kontraproduktivna.
+#   Vjerojatan mehanizam: dobar TB rekord je oznaka igrača koji redovito igra tijesne mečeve,
+#   a ne oznake kvalitete — ista zamka kao "stopa povratka iz zaostatka" (22.08.2026 12:10).
+#   Pet analiza gubitaka iz razdoblja 16.-26.08. traži POJAČANJE ovog pravila, tri traže
+#   slabljenje. Podaci su na strani slabljenja.
+#
+# PRAVILO 13 (serve-dominant opponent cap) — KAŽNJAVA SKUPINU KOJA PROLAZI BOLJE.
+#   Profil (protivnik hold >= 82% I naš povrat < 40%) pogođen je 14 puta: 10/14 = 71,4%
+#   naspram 57,6% za sve ostalo (+13,8pp). S ponderiranim povratom: 16/24 = 66,7% naspram
+#   57,4%. Cap na 60% se dakle aktivira na iznadprosječnim pickovima.
+#
+# HOLD JAZ >= +7pp — kandidat za kaznu iz 17.08. (tada 47,8%, n=23, P=0,046): sada 58,8%
+#   (n=34), praktički bazna stopa. Efekt je nestao. Dobro što nije implementiran.
+#
+# CAPOVI OPĆENITO — kad ih kod PROVEDE (`_enforce_declared_caps`), ti pickovi idu 20/25 =
+#   80,0% naspram 57,5% za ostale (P=0,033; +16,7pp naspram cijene). Kad cap ostane samo u
+#   prozi a broj se ne spusti: 59,4% naspram 61,0% — dakle ništa. Drugo neovisno mjerenje
+#   nalaza od 08.08. ("caps su uklanjali naše najbolje pickove"). Kandidat za UKIDANJE.
+#
+# ŠTO SE NIJE POTVRDILO KAO PROBLEM: dvostruke greške (split-half po igraču r=+0,131,
+#   P=0,396; SD unutar igrača 1,64 > SD između igrača 1,43 — nije osobina nego posljedica),
+#   drugi servis kao "skriveni" faktor (jaz na 1. servisu razdvaja 18,5pp, na 2. 19,8pp,
+#   agregat 19,8pp — ista stvar), glavni učinci vremena (temperatura r=-0,092, vlaga +0,101,
+#   vjetar +0,076, tlak -0,077; četvrto mjerenje s istim ishodom).
+#
+# JEDINA PREŽIVJELA INTERAKCIJA S UVJETIMA: naš pick viši 5cm+ I temperatura >= 28C ->
+#   3/13 = 23,1% naspram 61,3% očekivano (-38,3pp, z=-2,87, ROI -68,0%); isti pick na < 28C
+#   -4,1pp (n=46); niži pick na >= 28C +12,2pp (n=11). Glavni učinak visine je nula
+#   (r=-0,096, P=0,26), pa je riječ o čistoj interakciji. n=13 u ključnoj ćeliji — pratiti.
+#
+# Puni zapis, uključujući reviziju svih 20 analiza gubitaka: MODEL_CHANGELOG 26.08.2026 14:01.
+# =============================================================================================
 # Hard pravila v1 — pisana 2026-07-18 PRIJE prvog hard picka (korpus: 0 hard mečeva).
 # Izvor: revizija 187 unikatnih grass+clay pickova (33 tiketa, 2W-31L) + poznate
 # razlike podloga. Svi pragovi su POČETNI i revidiraju se nakon prvih hard tjedana
@@ -1263,6 +1323,120 @@ and MUST be enforced from day one.
 === END HARD-SPECIFIC RULES v1 ==="""
 
 
+# =============================================================================================
+# POZIV MODELA ZA ANALIZU — SA STROPOM I JEDNIM PONOVLJENIM POKUSAJEM (27.08.2026 18:55)
+#
+# POVOD: 27.08.2026 su tri od cetiri meca sa screenshota zavrsila s `predicted_winner = NULL`.
+# Nije bila rijec o modelu koji je odlucio preskociti mec (za to postoji `skip_reason`) nego o
+# gresci: `risk_notes = "Greška analize: No JSON object found in LLM response"`.
+#
+# DIJAGNOZA (reproducirano cetiri puta na pravom promptu, 27.08.2026 18:30):
+#     stop_reason : max_tokens
+#     usage       : 14441 ulaznih / 2600 izlaznih  <- potrosen cijeli strop
+#     odgovor     : 7603 znakova, BEZ ijedne viticaste zagrade
+#     zadnje rijeci: "...Since 61% < 63% floor... I'll report the pick and honest confidence."
+# Model prvo rezonira u prozi pa tek onda pise JSON. Kad proza pojede budzet, JSON nikad ne
+# pocne, `_extract_json` ne nadje ni jednu `{`, i baca "No JSON object found".
+# U mom testu 1 od 4 poziva je udario u strop — sto se poklapa s izmjerenom stopom u bazi.
+#
+# UCESTALOST (svih 502 analize u bazi, mjereno 27.08.2026):
+#     do 03.08.   0 / 83        17.-23.08.   1 / 31 = 3,2%
+#     10.-16.08.  1 / 66 = 1,5%  24.-28.08.  11 / 45 = 24,4%   <- REGRESIJA
+# Uzrok rasta: `context_snapshot` v15 (22.08.) donio je povijest na turniru, `Build:` redak i
+# preslozene kategorije `key_factors`. Prompt je narastao na 50.269 znakova / 14.441 tokena,
+# tipican odgovor s 4.345 na 5.854 znakova — a strop je od 31.07. stajao na 2600.
+#
+# ISTA GRESKA, TRECI PUT: 31.07. je strop bio 1500 pa je podignut na 2600 iz istog razloga
+# (komentar je i dalje ispod). Prompt otad raste, strop nije. Zato sada uz broj stoji i
+# PRAVILO: kad se predlozak prompta prosiri, premjeriti tipicnu duljinu odgovora.
+#
+# ZASTO 4000 A NE VISE: izmjereni uspjesni odgovori su 1539 / 1723 / 1813 / 1821 tokena.
+# 4000 je ~2,2x tipicno i iznad zabiljezenog zida na 2600. `max_tokens` se NE naplacuje —
+# naplacuju se samo stvarno generirani tokeni — pa visi strop ne kosta nista dok se ne
+# potrosi. Ponovljeni pokusaj ide na 6000 jer je vec dokazano da je taj odgovor dug.
+#
+# ZASTO SE PONAVLJA SAMO GRESKA PARSIRANJA: mrezne greske i 429/5xx SDK vec ponavlja sam
+# (`max_retries`, zadano 2). Drugi puni poziv na 400-icu bio bi cisti trosak. Zato se hvata
+# samo `ValueError` (u koji spada i `json.JSONDecodeError`) i prazan odgovor.
+#
+# TROSAK (izracunato 27.08.2026 na cijenama Sonneta 4.6, $3/1M ulaz + $15/1M izlaz, uz
+# izmjerenih 8,4 analize dnevno):
+#     sada                       $17,58/mj, ali samo ~6 upotrebljivih analiza dnevno
+#     strop 4000 + jedan retry   $18,18/mj  (+3,4%), ~8 upotrebljivih
+#     po UPOTREBLJIVOJ analizi   $0,0969 -> $0,0759  (-22%)
+# Danas se ~$4,80 mjesecno trosi na pozive koji ne vrate nista.
+#
+# SLJEDECI KORAK, NAKON US OPENA (korisnikova odluka 27.08.2026): PROMPT CACHING.
+# Izmjereno `count_tokens`: od 14.441 tokena prompta **13.546 (94%) je fiksno** — pravila
+# 4.792 + fiksni tekst predloska 8.754 — a mijenja se samo 895 tokena podataka o mecu.
+# Taj se fiksni dio danas placa iznova za svaki mec. Uz caching (upis 1,25x, citanje 0,10x)
+# racun pada s $18,18 na ~$10,45 mjesecno (-43%). NE MOZE SE UCINITI BEZ PRESLAGIVANJA
+# PROMPTA: caching hvata PREFIKS, a kod nas su podaci o mecu na pocetku a pravila na kraju —
+# fiksni blok mora ici naprijed (ili u `system`), sto mijenja `rules_hash` i otvara novu eru.
+# Zato ide u paket s preslagivanjem prompta u cetiri sloja, poslije US Opena.
+# ODBACENO ZASAD: `effort` s "high" na "medium" (mijenja ponasanje najvaznijeg poziva),
+# structured outputs (`output_config.format` — ne dira tekst prompta pa `rules_hash` ostaje,
+# ali mijenja dekodiranje; korisnik 27.08. odlucio da se ni ne testira zasad),
+# Batch API (-50% ali rezultati do 24h, a jutarnji tiket ih treba odmah).
+_ANALYSIS_MAX_TOKENS = (4000, 6000)   # prvi pokusaj, ponovljeni
+
+
+def _call_analysis_model(prompt: str, label: str = "") -> tuple:
+    """Posalji prompt modelu i vrati (parsirani_rezultat_ili_None, meta).
+
+    `meta` uvijek nosi dijagnostiku i onda kad sve prodje — sprema se u `context_snapshot`
+    pa se ucestalost rezanja moze pratiti umjesto naslucivati.
+    """
+    client = _get_client()
+    meta = {"attempts": 0, "error": None, "stop_reason": None,
+            "raw_chars": None, "max_tokens": None, "output_tokens": None}
+    for attempt, mt in enumerate(_ANALYSIS_MAX_TOKENS, start=1):
+        meta["attempts"] = attempt
+        meta["max_tokens"] = mt
+        try:
+            response = client.messages.create(
+                model=CLAUDE_MODELS["analysis"],
+                # 2600 od 31.07.2026 (bilo 1500): novi obavezni format key_factors ima 6 polja
+                # umjesto 3, pa je odgovor osjetno dulji. U dry-runu 31.07. jedna od 5 analiza
+                # je pala na "No JSON object found" jer je odgovor bio odrezan na 1500 tokena —
+                # odrezan JSON znači tiho preskočen meč, pa je margina ovdje jeftinija od gubitka
+                # analize (naplaćuju se samo stvarno generirani tokeni, ne limit).
+                # 4000/6000 od 27.08.2026 — isti kvar se vratio, vidi blok iznad.
+                max_tokens=mt,
+                # 18.07.2026: najvažnija odluka u pipelineu. Korisnik tražio "high ili extra high";
+                # "xhigh" NIJE podržan za ovaj model (API 400: "Supported levels: high, low, max,
+                # medium") — korisnik odabrao "high" (ne "max").
+                output_config={"effort": "high"},
+                messages=[{"role": "user", "content": prompt}]
+            )
+            meta["stop_reason"] = getattr(response, "stop_reason", None)
+            try:
+                meta["output_tokens"] = response.usage.output_tokens
+            except AttributeError:
+                pass
+            raw = ""
+            for block in (response.content or []):
+                raw += getattr(block, "text", "") or ""
+            raw = raw.strip()
+            meta["raw_chars"] = len(raw)
+            result = _safe_json_parse(raw)
+            meta["error"] = None
+            return result, meta
+        except ValueError as e:
+            # ValueError pokriva i `json.JSONDecodeError` (koji je njegova podklasa) i nasu
+            # "No JSON object found". To je jedini slucaj vrijedan drugog punog poziva.
+            meta["error"] = str(e)
+            trunc = " (odgovor odrezan na stropu)" if meta["stop_reason"] == "max_tokens" else ""
+            print(f"    [ANALIZA] {label}: pokusaj {attempt}/{len(_ANALYSIS_MAX_TOKENS)} "
+                  f"nije dao JSON{trunc} — {str(e)[:60]}")
+        except Exception as e:
+            # Mrezne/API greske: SDK ih je vec ponovio. Drugi puni poziv bi bio cisti trosak.
+            meta["error"] = str(e)
+            print(f"    [ANALIZA] {label}: poziv nije uspio — {str(e)[:80]}")
+            break
+    return None, meta
+
+
 def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights: dict, all_news: str = "") -> dict:
     """
     Analizira jedan meč i vraća predikciju.
@@ -1422,23 +1596,31 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
     )
 
     try:
-        client = _get_client()
-        response = client.messages.create(
-            model=CLAUDE_MODELS["analysis"],
-            # 2600 od 31.07.2026 (bilo 1500): novi obavezni format key_factors ima 6 polja
-            # umjesto 3, pa je odgovor osjetno dulji. U dry-runu 31.07. jedna od 5 analiza
-            # je pala na "No JSON object found" jer je odgovor bio odrezan na 1500 tokena —
-            # odrezan JSON znači tiho preskočen meč, pa je margina ovdje jeftinija od gubitka
-            # analize (naplaćuju se samo stvarno generirani tokeni, ne limit).
-            max_tokens=2600,
-            # 18.07.2026: najvažnija odluka u pipelineu. Korisnik tražio "high ili extra high";
-            # "xhigh" NIJE podržan za ovaj model (API 400: "Supported levels: high, low, max,
-            # medium") — korisnik odabrao "high" (ne "max").
-            output_config={"effort": "high"},
-            messages=[{"role": "user", "content": prompt}]
-        )
-        raw = response.content[0].text.strip()
-        result = _safe_json_parse(raw)
+        _label = f"{match.get('player1')} vs {match.get('player2')}"
+        result, _call_meta = _call_analysis_model(prompt, _label)
+
+        # POPRAVAK 3 (27.08.2026 18:55): kad poziv ne da JSON, NE izlazimo vise odmah.
+        # Do danas je greska vodila ravno u `except` na dnu, pa je redak zavrsavao u bazi bez
+        # `context_snapshot`-a — dakle bez ELO-a, forme, kvote, vremena, `form_quality`,
+        # `age_gap`, icega. Post-match statistiku takav redak i dalje dobije (provjereno:
+        # `feedback_analyzer` ne gleda `predicted_winner`), pa smo imali KAKO je mec zavrsio
+        # bez ijednog podatka o tome KAKVI su bili uvjeti prije njega — za ucenje bezvrijedno.
+        # Svi ti podaci su u ovom trenutku vec dohvaceni i lezali su u memoriji; trebalo ih je
+        # samo spustiti kroz istu putanju. Zamjenski `result` zato prolazi kroz cijelu izgradnju
+        # snapshota kao i uspjesan: sve cetiri nizvodne funkcije (`_enforce_confidence_ceiling`,
+        # `_enforce_stated_caps`, `_apply_measured_penalties`, `_normalize_fair_odds`) vec imaju
+        # cuvara `if conf <= 0 or not result.get("pick"): return`, pa se tiho preskacu.
+        # `skip_reason` se NAMJERNO ostavlja prazan — to polje znaci "model je odlucio
+        # preskociti", a ovdje model nije stigao nista odluciti. Razlika se biljezi u
+        # `analysis_failed`.
+        if result is None:
+            result = {
+                "pick": None, "confidence": 0, "fair_odds": None, "value": False,
+                "risk_level": "visok",
+                "risk_notes": f"Greška analize: {str(_call_meta.get('error'))[:50]}",
+                "handicap_option": None, "key_factors": [], "analysis": "",
+                "skip_reason": None,
+            }
         result["match"] = match
         # Sirovi kontekst za buduću analizu (korisnikov prijedlog 2026-07-18) — namjerno NE
         # ulazi u prompt niti utječe na pick/confidence, samo se sprema u analyzed_matches.
@@ -1505,8 +1687,20 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             # v15 (22.08.2026 09:24): povijest na turniru u prompt (PRIJEDLOG 2), visina/
             # tezina/ruka u prompt kao OPIS STILA (PRIJEDLOG 4), QF oznaka (PRIJEDLOG 3),
             # i sve prompt-varijable koje se dosad nisu biljezile (PRIJEDLOG 1).
+            # v16 (26.08.2026 15:20): tri kandidata iz dubinske hard revizije pocinju se
+            # BILJEZITI — `avg_opp_elo_5` (kvaliteta nedavnih protivnika), `form_quality`
+            # (forma ponderirana tom kvalitetom), `age_gap`, `matches_3_9d` (opterecenje).
+            # NIJEDAN NE ULAZI U PROMPT I NIJEDAN PICK SE NE MIJENJA — `rules_hash` je
+            # nepromijenjen (a0424315). Svrha je iskljucivo da se kroz US Open moze mjeriti
+            # ono sto je dosad racunato rucno iz tri odvojena izvora.
+            # v17 (27.08.2026 18:55): analize koje NISU dale JSON od danas takodjer dobivaju
+            # pun `context_snapshot` (do sada su zavrsavale prazne) + novo polje
+            # `analysis_call` s dijagnostikom poziva. Verzija je podignuta iako se nijedna
+            # VARIJABLA nije promijenila, jer se promijenio SKUP POLJA i, vaznije, promijenio
+            # se sastav korpusa: prije v17 neuspjeli pozivi nisu ostavljali nikakav trag o
+            # uvjetima prije meca, od v17 ostavljaju. Tko broji analize po erama mora to znati.
             # Granica ere — rezati po `context_version`, ne po rules_hashu.
-            "context_version": 15,
+            "context_version": 17,
             # v13 (15.08.2026 10:12, korisnikov zahtjev): TRZISNI KONSENZUS.
             # Cijene 20-46 kladionica (The Odds API), razvigane i spojene medijanom.
             # `market_p` je vjerojatnost za NASEG player1 po trzistu; `market_ev_pick` je
@@ -1697,6 +1891,55 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             "elo_surface_key": elo_key,
             # Koliko je protivnika uslo u avg_opp_elo (vidi run_daily._avg_opponent_elo_n).
             "avg_opp_elo_n": match.get("avg_opp_elo_n"),
+        })
+
+        # --- v16 (26.08.2026 15:20): BILJEZENJE TRIJU KANDIDATA, bez ikakvog ucinka ---
+        # Sve tri velicine racuna `run_daily` iz podataka koji su VEC dohvaceni (nema novih
+        # API poziva). Ako `run_daily` nije popunio blok — npr. pri rucnom pozivu
+        # `analyze_match` iz testa — polja ostaju None umjesto da se sruse.
+        #
+        # ZASTO BAS OVE TRI (dubinska revizija 26.08.2026, hard, tezine v18, n=139-178,
+        # sve naspram DEVIGIRANE SuperSport cijene):
+        #   form_quality   forma x kvaliteta protivnika: r=+0,290 P=0,0005 — najjaca
+        #                  pojedinacna brojka u analizi; kvartili 20,0 / 48,3 / 60,0 / 73,3%
+        #   avg_opp_elo_5  kvaliteta nedavnih protivnika: 25 od 25 definicija isti smjer
+        #   age_gap        nas pick stariji 4+ god -> 42,9%, -15,4pp; 6 od 6 definicija
+        #   matches_3_9d   opterecenje — nalaz PAO na provjeri robusnosti (6/12), biljezi se
+        #                  samo da se moze premjeriti na vecem uzorku
+        # NIJEDNA NE ULAZI U PROMPT. Odluka o koristenju tek nakon US Opena — ocjenjivacka
+        # tablica s unaprijed zapisanim pragovima je u MODEL_CHANGELOG 26.08.2026 15:20.
+        _v16 = match.get("v16_logging") or {}
+        _q1 = _v16.get("p1_avg_opp_elo_5") or {}
+        _q2 = _v16.get("p2_avg_opp_elo_5") or {}
+        _a1, _a2 = safe_float(p1.get("age")), safe_float(p2.get("age"))
+        result["context_snapshot"].update({
+            "p1_avg_opp_elo_5": _q1.get("value"),
+            "p2_avg_opp_elo_5": _q2.get("value"),
+            # `defaulted` = koliko je protivnika dobilo podrazumijevanih 1500 jer ih nema u
+            # `elo_cache`. Bez tog broja se ne zna je li prosjek nizak zato sto su protivnici
+            # doista slabi ili zato sto ih ne prepoznajemo — vidi `run_daily._is_default_elo`.
+            "avg_opp_elo_5_n": ({"p1": {"used": _q1.get("used"), "total": _q1.get("total"),
+                                        "defaulted": _q1.get("defaulted")},
+                                 "p2": {"used": _q2.get("used"), "total": _q2.get("total"),
+                                        "defaulted": _q2.get("defaulted")}}
+                                if _v16 else None),
+            "p1_form_quality": _v16.get("p1_form_quality"),
+            "p2_form_quality": _v16.get("p2_form_quality"),
+            "p1_matches_3_9d": _v16.get("p1_matches_3_9d"),
+            "p2_matches_3_9d": _v16.get("p2_matches_3_9d"),
+            # age_gap je izvediv iz p1_age/p2_age, ali se biljezi izravno jer je to jedinica
+            # u kojoj je nalaz izmjeren — i jer su dob i visina cetiri puta u ovom projektu
+            # bile tiho None zbog krivog naziva kljuca (vidi [[tihi-null-kljucevi]]).
+            "age_gap": (round(_a1 - _a2, 1) if (_a1 and _a2) else None),
+            # v17 (27.08.2026 18:55): dijagnostika samog poziva — koliko je pokusaja trebalo,
+            # je li odgovor odrezan na stropu, koliko je tokena potroseno. Biljezi se UVIJEK,
+            # i kad sve prodje, da se ucestalost rezanja moze pratiti brojem umjesto naslucivati.
+            # `error` je popunjen samo kad JSON nije dobiven; `attempts > 1` znaci da je prvi
+            # pokusaj pao pa je drugi (strop 6000) uspio.
+            "analysis_call": _call_meta,
+            # Kratka zastavica za filtriranje: je li ovo redak bez picka ZBOG GRESKE.
+            # Razlikuje se od `skip_reason` (model je svjesno odlucio preskociti mec).
+            "analysis_failed": bool(_call_meta.get("error")) or None,
         })
         # Redoslijed je bitan: strop (od 17.08.2026 na 70) ide PRVI, pa capovi koje je model
         # sam proglasio (mogu spustiti i ispod stropa) — obrnuto bi strop ponistio nizi cap.

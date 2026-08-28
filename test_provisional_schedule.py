@@ -152,7 +152,7 @@ check("prompt dobiva eksplicitan razlog umjesto sata",
       "Unknown — tomorrow's schedule is not final" in _pr)
 check("snapshot bilježi schedule_provisional", '"schedule_provisional"' in _pr)
 check("snapshot bilježi iz koje rubrike je sat", '"scheduled_start_source_date"' in _pr)
-check("context_version 15 (analiza 22.08.2026)", '"context_version": 15' in _pr)
+check("context_version 17 (snapshot i kod neuspjele analize, 27.08.2026)", '"context_version": 17' in _pr)
 check("rules_hash a0424315 (era od 22.08.2026)",
       pr._model_stamp("hard")["rules_hash"] == "a0424315")
 check("nova polja ne cure u predložak prompta",
@@ -172,7 +172,7 @@ check("besmislena dob se odbacuje", df._get_age({"age": 99, "birthday": ""}) is 
 
 check("dob NE ide u prompt dok traje mjerenje", pr._AGE_TO_PROMPT is False)
 check("dob se ipak biljezi u snapshot", '"age_in_prompt"' in _pr)
-check("context_version 15 (analiza 22.08.2026)", '"context_version": 15' in _pr)
+check("context_version 17 (snapshot i kod neuspjele analize, 27.08.2026)", '"context_version": 17' in _pr)
 check("rules_hash a0424315 (era od 22.08.2026)",
       pr._model_stamp("hard")["rules_hash"] == "a0424315")
 
@@ -223,7 +223,7 @@ check("nepoznat par -> {}", mkt.find_for_pair(_idx, "Neki Igrac", "Drugi Igrac")
 check("market_p NIJE u predlošku prompta", "market_p" not in pr.ANALYSIS_PROMPT_TEMPLATE)
 check("snapshot bilježi market_p", '"market_p"' in _pr)
 check("snapshot bilježi EV picka", '"market_ev_pick"' in _pr)
-check("context_version 15 (analiza 22.08.2026)", '"context_version": 15' in _pr)
+check("context_version 17 (snapshot i kod neuspjele analize, 27.08.2026)", '"context_version": 17' in _pr)
 check("rules_hash a0424315 (era od 22.08.2026)",
       pr._model_stamp("hard")["rules_hash"] == "a0424315")
 # ticket_builder SMIJE zapisati tržište uz odigrani pick, ali NE SMIJE po njemu birati.
@@ -556,6 +556,196 @@ _hv2 = open("scripts/harvest_player_history.py", encoding="utf-8").read()
 check("harvest cita tournamentId", 'g.get("tournamentId")' in _hv2)
 check("harvest cita roundId", 'g.get("roundId")' in _hv2)
 check("zapisano da podloge nema", "Podloge u `past-matches` NEMA" in _hv2)
+
+
+# =============================================================================================
+# v16 BILJEZENJE + POPRAVAK ANALIZE GUBITAKA (26.08.2026 15:20)
+# Obje izmjene su namjerno BEZ ucinka na pickove. Ovi testovi cuvaju bas to.
+# =============================================================================================
+print("\n=== 23. v16: biljezenje kandidata + analiza gubitaka (26.08.2026) ===")
+
+import agent.run_daily as _rd_mod
+
+# --- prompt i pravila NISU dirani: zig ere mora ostati isti ---
+import hashlib as _hl
+from agent.predictor import _HARD_RULES_V1 as _HR, ANALYSIS_PROMPT_TEMPLATE as _APT
+check("rules_hash hard ostaje a0424315 (prompt netaknut)",
+      _hl.md5((_HR + _APT).encode()).hexdigest()[:8] == "a0424315")
+
+# --- nove velicine se BILJEZE, ali NE ulaze u prompt ---
+_prv = open("agent/predictor.py", encoding="utf-8").read()
+for _f in ("p1_avg_opp_elo_5", "p1_form_quality", "p1_matches_3_9d", "age_gap"):
+    check(f"{_f} ide u context_snapshot", f'"{_f}"' in _prv)
+    check(f"{_f} NIJE u predlosku prompta", "{" + _f + "}" not in _APT)
+check("context_version 16", '"context_version": 17' in _prv)
+
+# --- zastita od curenja u novom brojacu opterecenja ---
+_m = [{"date": "2026-08-19", "won": True}, {"date": "2026-08-17", "won": True},
+      {"date": "2026-08-11", "won": False}, {"date": "2026-08-05", "won": True}]
+check("matches_in_window ne broji zadnja 2 dana prije meca",
+      _rd_mod._count_matches_in_window(_m, 3, 9, "2026-08-20") == 2)
+check("matches_in_window racuna od datuma MECA, ne od danas",
+      _rd_mod._count_matches_in_window(_m, 3, 9, "2026-08-14") == 2)
+check("matches_in_window prazna lista = 0",
+      _rd_mod._count_matches_in_window([], 3, 9, "2026-08-20") == 0)
+
+# --- form_quality: bez uzorka vraca None, i raste s kvalitetom protivnika ---
+_elo = {"aa bb": {"player_name": "Aa Bb", "elo_hard": 1900, "elo_overall": 1900},
+        "cc dd": {"player_name": "Cc Dd", "elo_hard": 1500, "elo_overall": 1500}}
+check("form_quality vraca None ispod 3 meca",
+      _rd_mod._form_quality([{"opponent": "Aa Bb", "won": True}], _elo, 5) is None)
+_strong = [{"opponent": "Aa Bb", "won": True} for _ in range(4)]
+_weak = [{"opponent": "Cc Dd", "won": True} for _ in range(4)]
+_fs, _fw = _rd_mod._form_quality(_strong, _elo, 5), _rd_mod._form_quality(_weak, _elo, 5)
+check("form_quality: iste pobjede vrijede vise protiv jacih",
+      _fs is not None and _fw is not None and _fs > _fw)
+check("form_quality: pobjede protiv slabih daju negativan rezultat", _fw < 0)
+
+# --- avg_opp_elo_lastn biljezi i koliko je protivnika stvarno uslo ---
+_q = _rd_mod._avg_opponent_elo_lastn(
+    [{"opponent": "Aa Bb"}, {"opponent": "Cc Dd"}, {"opponent": "Nepoznat Igrac"}], _elo, 5)
+check("avg_opp_elo_lastn racuna prosjek bez podrazumijevanih", _q["value"] == 1700.0)
+check("avg_opp_elo_lastn biljezi used/total/defaulted (pristranost mjerljiva)",
+      _q["used"] == 2 and _q["total"] == 3 and _q["defaulted"] == 1)
+check("neprepoznat igrac se NE broji kao 1500 u novom zapisu",
+      _rd_mod._is_default_elo({"elo_overall": 1500, "elo_hard": 1500,
+                               "elo_clay": 1500, "elo_grass": 1500}) is True)
+check("pravi ELO od 1500 na jednoj podlozi NIJE podrazumijevana vrijednost",
+      _rd_mod._is_default_elo({"elo_overall": 1500, "elo_hard": 1820,
+                               "elo_clay": 1500, "elo_grass": 1500}) is False)
+
+# --- analiza gubitaka: bazne stope + verdikti + zabrana dodavanja postojecih ulaza ---
+_fb = open("agent/feedback_analyzer.py", encoding="utf-8").read()
+check("analiza gubitka ima bazne stope", "_LOSS_BASE_RATES" in _fb and "{base_rates}" in _fb)
+for _v in ("[SIGNAL CONFIRMED]", "[SIGNAL NOT CONFIRMED]", "[SIGNAL CONTRADICTED]",
+           "[INSUFFICIENT DATA]", "[POST-MATCH ONLY]"):
+    check(f"verdikt {_v} postoji", _v in _fb)
+check("rijec 'cause' je ogranicena", "is BANNED unless" in _fb)
+check("dopusteno je ne predloziti nista", "No model change justified by this match." in _fb)
+check("popis postojecih ulaza (protiv 'dodaj 2. servis')",
+      "INPUTS THE PREDICTION MODEL ALREADY RECEIVES" in _fb and "2ND-SERVE POINTS WON" in _fb)
+check("bazne stope nose datum mjerenja", "04.-26.08.2026" in _fb)
+
+# --- automatsko azuriranje tezina i dalje ZAMRZNUTO (analiza gubitka ne smije mijenjati model) ---
+check("tezine se i dalje ne azuriraju automatski", "ZAMRZNUTO AUTOMATSKO" in _fb)
+
+
+# =============================================================================================
+# 24. STROP TOKENA, PONOVLJENI POKUSAJ I SNAPSHOT NA GRESCI (27.08.2026 18:55)
+# Povod: 3 od 4 meca sa screenshota 27.08. zavrsila su s predicted_winner=NULL jer je odgovor
+# bio odrezan na stropu prije nego sto je JSON uopce poceo. Ovi testovi cuvaju sva tri popravka.
+# =============================================================================================
+print("\n=== 24. Strop tokena + retry + snapshot na gresci (27.08.2026) ===")
+
+import json as _json
+import agent.predictor as _P
+
+check("strop je podignut s 2600", _P._ANALYSIS_MAX_TOKENS[0] >= 4000)
+check("ponovljeni pokusaj ima veci strop",
+      _P._ANALYSIS_MAX_TOKENS[1] > _P._ANALYSIS_MAX_TOKENS[0])
+check("tocno dva pokusaja (ne beskonacna petlja)", len(_P._ANALYSIS_MAX_TOKENS) == 2)
+
+_GOOD = _json.dumps({"pick": "Ana Anic", "confidence": 66, "fair_odds": 1.52, "value": True,
+                     "risk_level": "medium", "risk_notes": "t", "handicap_option": None,
+                     "applied_caps": [], "above_64_basis": None, "market_check": None,
+                     "key_factors": ["1. Rating: x"], "analysis": "t", "skip_reason": None})
+_TRUNC = "Let me work through this. Rating: Ana leads by 120 ELO, serve converged, so"
+
+class _TBlk:
+    type = "text"
+    def __init__(self, t): self.text = t
+class _TUsage:
+    def __init__(self, n): self.output_tokens = n; self.input_tokens = 14441
+class _TResp:
+    def __init__(self, t, stop):
+        self.content = [_TBlk(t)]; self.stop_reason = stop; self.usage = _TUsage(len(t) // 3)
+class _TMsgs:
+    def __init__(self, seq): self.seq = list(seq); self.calls = []
+    def create(self, **kw):
+        self.calls.append(kw["max_tokens"])
+        t, stop = self.seq.pop(0) if self.seq else (_GOOD, "end_turn")
+        return _TResp(t, stop)
+class _TClient:
+    def __init__(self, seq): self.messages = _TMsgs(seq)
+
+_TMATCH = {"player1": "Ana Anic", "player2": "Bruno Buric", "surface": "Hard",
+           "tournament": "Test Open - Testville", "level": "ATP 250", "round": "R16",
+           "date": "2026-08-27", "odds_p1": 1.65, "odds_p2": 2.20,
+           "local_time": "18:00", "session": "day", "weather": "Clear, 26C",
+           "v16_logging": {"p1_avg_opp_elo_5": {"value": 1755.0, "used": 5, "total": 5,
+                                                "defaulted": 0},
+                           "p2_avg_opp_elo_5": {"value": 1610.0, "used": 4, "total": 5,
+                                                "defaulted": 1},
+                           "p1_form_quality": 0.44, "p2_form_quality": -0.18,
+                           "p1_matches_3_9d": 2, "p2_matches_3_9d": 0}}
+_TP1 = {"age": 24, "elo_overall": 1820, "elo_hard": 1805, "ranking": 44,
+        "serve_points_won": 64.1, "hold_pct": 81.8, "return_points_won": 41.0,
+        "form_recent": {"matches": []}, "scouting": {}, "titles": {}, "surface_summary": {},
+        "tournament_record": {}, "avg_opp_elo": 1755, "decider_record": {"won": 2, "lost": 1},
+        "tiebreak_record": {"won": 4, "lost": 2}, "news": "", "matches_7d": 2, "sets_7d": 5}
+_TP2 = dict(_TP1)
+_TP2.update({"age": 31, "elo_overall": 1690, "elo_hard": 1675, "ranking": 96,
+             "avg_opp_elo": 1610})
+
+_orig_client = _P._get_client
+def _run(seq):
+    _P._get_client = lambda: _TClient(seq)
+    try:
+        return _P.analyze_match(_TMATCH, _TP1, _TP2, {}, {"elo_ranking": 19}, "")
+    finally:
+        _P._get_client = _orig_client
+
+_r_ok = _run([(_GOOD, "end_turn")])
+_r_retry = _run([(_TRUNC, "max_tokens"), (_GOOD, "end_turn")])
+_r_fail = _run([(_TRUNC, "max_tokens"), (_TRUNC, "max_tokens")])
+
+check("uspjesan poziv daje pick", _r_ok.get("pick") == "Ana Anic")
+check("uspjeh ide iz prvog pokusaja",
+      _r_ok["context_snapshot"]["analysis_call"]["attempts"] == 1)
+check("odrezan prvi pokusaj -> retry spasi analizu", _r_retry.get("pick") == "Ana Anic")
+check("retry je zabiljezen kao drugi pokusaj",
+      _r_retry["context_snapshot"]["analysis_call"]["attempts"] == 2)
+
+# --- srz popravka 3: neuspjeh vise NE gubi predmecne uvjete ---
+check("neuspjeh nema pick", _r_fail.get("pick") is None)
+check("neuspjeh NE postavlja skip_reason (to je odluka modela, ne greska)",
+      _r_fail.get("skip_reason") is None)
+check("neuspjeh IPAK ima context_snapshot", bool(_r_fail.get("context_snapshot")))
+for _f, _v in (("p1_elo_surface", 1805), ("p1_form_quality", 0.44), ("age_gap", -7.0),
+               ("p1_avg_opp_elo_5", 1755.0), ("p1_matches_3_9d", 2)):
+    check(f"neuspjeh cuva {_f}", _r_fail["context_snapshot"].get(_f) == _v)
+check("neuspjeh je oznacen (analysis_failed)",
+      _r_fail["context_snapshot"].get("analysis_failed") is True)
+check("uspjeh NIJE oznacen kao neuspjeh",
+      _r_ok["context_snapshot"].get("analysis_failed") is None)
+check("dijagnostika biljezi rezanje na stropu",
+      _r_fail["context_snapshot"]["analysis_call"]["stop_reason"] == "max_tokens")
+check("dijagnostika se biljezi i kod uspjeha",
+      _r_ok["context_snapshot"]["analysis_call"]["attempts"] == 1
+      and _r_ok["context_snapshot"]["analysis_call"]["error"] is None)
+
+# --- capovi/kazne se na praznom picku moraju tiho preskociti, ne srusiti ---
+check("neuspjeh ne pokrece cap/kaznu",
+      _r_fail["context_snapshot"].get("cap_enforced") is None
+      and _r_fail["context_snapshot"].get("measured_penalties") is None)
+check("neuspjeh ima confidence 0 (ne None)", _r_fail.get("confidence") == 0)
+
+# --- API greska se NE ponavlja drugim punim pozivom (SDK to vec radi) ---
+class _BoomMsgs:
+    def __init__(self): self.n = 0
+    def create(self, **kw):
+        self.n += 1
+        raise RuntimeError("simulirana API greska")
+class _BoomClient:
+    def __init__(self): self.messages = _BoomMsgs()
+_boom = _BoomClient()
+_P._get_client = lambda: _boom
+try:
+    _res, _meta = _P._call_analysis_model("x", "test")
+finally:
+    _P._get_client = _orig_client
+check("API greska se ne ponavlja drugim punim pozivom", _boom.messages.n == 1)
+check("API greska vraca None + poruku", _res is None and "simulirana" in str(_meta.get("error")))
 
 
 print("\n" + "=" * 60)

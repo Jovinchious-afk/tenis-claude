@@ -13,6 +13,545 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-08-27 18:55 — TRI OD CETIRI ANALIZE PALE NA STROPU TOKENA: dijagnoza, popravak,
+## i racun troska. PROMPT NIJE DIRAN.
+
+Korisnik je javio da je od 4 meca sa screenshota samo 1 dosao u tiket (analysis-only), a tri
+su u bazi imala `predicted_winner = NULL`. Pitanje je bilo je li to namjerni mehanizam.
+**Nije.** Takav mehanizam postoji (`skip_reason`) i tada u bazi ostane tekst objasnjenja;
+ovdje je stajalo `"Greška analize: No JSON object found in LLM response"` — grana iznimke.
+
+### 1. DIJAGNOZA — reproducirano, ne pretpostavljeno
+
+Cetiri poziva s pravim promptom (27.08.2026 18:30). Jedan od cetiri:
+
+    stop_reason : max_tokens
+    usage       : 14441 ulaznih / 2600 izlaznih   <- potrosen cijeli strop
+    odgovor     : 7603 znakova, BEZ ijedne viticaste zagrade
+    zadnje rijeci: "...Since 61% < 63% floor... I'll report the pick and honest confidence."
+
+Model **prvo rezonira u prozi pa tek onda pise JSON**. Kad proza pojede budzet, JSON nikad ne
+pocne, `_extract_json` ne nadje ni jednu `{` i baca "No JSON object found". Preostala tri
+poziva prosla su s 1723 / 1813 / 1821 izlaznih tokena — dakle nije uvijek, nego kad odgovor
+slucajno ispadne dulji.
+
+**Tocno tvoja tri meca:** Marozsan-Duckworth, Fery-Kovacevic i Bonzi-Van De Zandschulp, sva
+tri "No JSON object found". Cetvrti (Cerundolo-Buse) je prosao, dobio 58% i zavrsio kao
+analysis-only jer je ionako ispod praga 63.
+
+### 2. REGRESIJA — moze joj se odrediti datum
+
+Sve 502 analize u bazi, po tjednu:
+
+    do 03.08.    0 / 83          17.-23.08.   1 / 31 = 3,2%
+    10.-16.08.   1 / 66 = 1,5%   24.-28.08.  11 / 45 = **24,4%**
+
+Uzrok: `context_snapshot` **v15 (22.08.)** donio je povijest na turniru, `Build:` redak i
+preslozene kategorije `key_factors`. Prompt je narastao na **50.269 znakova / 14.441 tokena**,
+a tipican odgovor s **4.345 na 5.854 znakova**. Strop je od 31.07. stajao na 2600.
+**Ista greska treci put:** 31.07. je strop bio 1500 pa je podignut na 2600 iz istog razloga
+(komentar o tome i dalje stoji u kodu). Prompt otad raste, strop nije.
+**Nije od izmjena 26.08.** — greske pocinju 23.08., a v16 biljezenje se izvrsava POSLIJE
+parsiranja JSON-a. Provjereno.
+
+### 3. NAPRAVLJENA TRI POPRAVKA (korisnik odobrio 1-3, izricito odbio 4.)
+
+1. **Strop 2600 -> 4000**, ponovljeni pokusaj 6000. Izmjereni uspjesni odgovori su
+   1539-1821 tokena, pa je 4000 ~2,2x tipicno i iznad zabiljezenog zida.
+   `max_tokens` se NE naplacuje — samo stvarno generirani tokeni.
+2. **Jedan ponovljeni pokusaj** samo na gresci parsiranja (`ValueError`, u koji spada i
+   `json.JSONDecodeError`). Mrezne greske i 429/5xx **se ne ponavljaju** — SDK to vec radi
+   (`max_retries`, zadano 2), pa bi drugi puni poziv bio cisti trosak. Cuva ga test.
+3. **`context_snapshot` se sada sprema i kad poziv padne.** Do danas je greska vodila ravno u
+   `except`, pa je redak zavrsavao bez ELO-a, forme, kvote, vremena, `form_quality`,
+   `age_gap` — a post-match statistiku je svejedno dobivao. Imali smo dakle *kako* je mec
+   zavrsio bez ijednog podatka *kakvi su bili uvjeti prije njega*. Svi ti podaci su u tom
+   trenutku vec bili u memoriji. `skip_reason` se NAMJERNO ostavlja prazan (to znaci
+   "model je odlucio preskociti"); greska se biljezi u novom `analysis_failed`.
+
+**NIJE napravljeno (korisnikova odluka):** skracivanje/preslagivanje prompta.
+
+Novo: `_ANALYSIS_MAX_TOKENS`, `_call_analysis_model()` u `predictor.py`.
+`context_version` **16 -> 17** (+ `analysis_call`, `analysis_failed`).
+`rules_hash` **a0424315 — nepromijenjen**. Oba testna paketa prolaze (**+23 nove provjere**).
+
+### 4. TROSAK — izracunato, ne procijenjeno
+
+Sonnet 4.6: $3,00/1M ulaz, $15,00/1M izlaz. Izmjereno 8,4 analize dnevno (kolovoz, 28 dana).
+
+| scenarij | $/mj | upotrebljivih/dan | $ po UPOTREBLJIVOJ |
+|---|---|---|---|
+| prije (strop 2600, 24,4% pada) | 17,58 | 6,0 | 0,0969 |
+| **sada (4000 + retry)** | **18,18** | **8,0** | **0,0759** |
+
+**+3,4% ukupno, -22% po analizi koju stvarno dobijes.** Prestaje i bacanje ~**$4,80 mjesecno**
+na pozive koji ne vrate nista.
+
+### 5. ZA POSLIJE US OPENA — PROMPT CACHING (najveci preostali lever)
+
+Izmjereno `count_tokens`: od 14.441 tokena prompta **13.546 (94%) je FIKSNO** — pravila 4.792
++ fiksni tekst predloska 8.754 — a mijenja se samo **895 tokena** podataka o mecu. Taj se
+fiksni dio danas placa iznova za svaki mec, ~108.000 tokena dnevno za tekst koji se ne mijenja.
+
+    uz caching (upis 1,25x, citanje 0,10x):  $18,18 -> ~$10,45 mjesecno  (-43%)
+
+**Zasto se ne moze sada:** caching hvata **PREFIKS**. Kod nas su podaci o mecu na pocetku a
+pravila na kraju, pa fiksni blok mora ici naprijed (ili u `system`) — a to mijenja
+`ANALYSIS_PROMPT_TEMPLATE`, dakle i `rules_hash`, dakle otvara novu eru modela usred
+Grand Slama. Ide u paket s preslagivanjem prompta u cetiri sloja (jezgra / kontekst /
+trziste / rizicne zastavice) poslije US Opena.
+
+**POPIS ZA POSLIJE US OPENA, redom:**
+1. preslagivanje prompta u cetiri sloja + **prompt caching** (isti zahvat, -43% troska)
+2. ukidanje pravila 4/13/16 (sva tri izmjerena kao pogresna 26.08.)
+3. ukidanje `_enforce_declared_caps` (capirani pickovi prolaze 80%, n=25, P=0,033)
+4. `serve_return` s 23% nanize — tek kad se zna cime se oslobodjena tezina puni
+5. `form_quality` / `age_gap` u selekciju — **samo ako prodju ocjenjivacku tablicu** iz
+   zapisa 26.08.2026 15:20
+6. **premjeriti bazne stope u `_LOSS_BASE_RATES`** (n bi trebao narasti na ~250-280)
+7. **premjeriti tipicnu duljinu odgovora kad god se prompt prosiri** — pravilo koje smo
+   naucili tek iz treceg ponavljanja istog kvara
+
+**ODBACENO ZASAD:** `effort` "high" -> "medium" (mijenja ponasanje najvaznijeg poziva u
+lancu); structured outputs (`output_config.format` ne dira tekst prompta pa `rules_hash`
+ostaje, ali mijenja dekodiranje — korisnik 27.08. odlucio da se ni ne testira); Batch API
+(-50% ali rezultati do 24h, a jutarnji tiket ih treba odmah).
+
+**Nijedan pick nije diran; prompt i tezine netaknuti.**
+
+## 2026-08-26 15:20 — FAZA 0: analiza gubitaka popravljena, kandidati se pocinju biljeziti,
+## jedan nalaz PAO na provjeri robusnosti. SELEKCIJA I DALJE NIJE DIRANA.
+
+Nastavak revizije od danas 14:01. Korisnik je odobrio tri koraka bez rizika i izricito trazio
+da se **nista sto mijenja pickove ne dira**. Postovano: `rules_hash` **a0424315**, tezine
+**v18**, predlozak prompta netaknut, `ticket_builder` netaknut. Oba testna paketa prolaze
+(31 nova provjera).
+
+Povod za ovakav redoslijed: korisnik je donio prijedlog drugog modela koji trazi walk-forward
+backtest prije ijedne promjene. Prijedlog je uglavnom tocan, ali **walk-forward kod nas
+uglavnom nije izvediv**: nas "model" je prompt koji cita LLM, a ne formula s koeficijentima.
+Predikcija od 14.08. nastala je iz teksta u kojem su forma, ELO, vijesti i prognoza bili
+onakvi kakvi su bili tog jutra — taj se ulaz ne moze rekonstruirati. Ako se makne pravilo iz
+prompta, **ne postoji nacin da se sazna koga bi model bio odabrao**.
+
+    promjena FILTRA u selekciji   -> mjerljiva unatrag I unaprijed (pick i dalje nastaje i sprema se)
+    promjena PRAVILA u promptu    -> nemjerljiva unatrag (pick koji bi nastao ne postoji)
+    promjena TEZINA               -> nemjerljiva unatrag
+
+Zato pravi test izvan uzorka nije statisticki trik nad postojecih 178 meceva nego **sljedeci
+turnir**. Uz to: podjela 100/30/30/18 dala bi testne skupine s mjernom nesigurnoscu ~9pp na
+efekt od 15pp, a kronoloska podjela je kod nas istovremeno i podjela po turniru.
+
+### 1. PROVJERA ROBUSNOSTI PRAGOVA — jedan nalaz pao, jedan se popravio
+
+Primjedba drugog modela je bila tocna: pragovi "1700" i "2+ meca" nadjeni su NAKON gledanja
+rezultata. Svaki je zato ponovno izmjeren na svim smislenim definicijama. Kriterij nije
+znacajnost (na ovom uzorku je nema) nego **koliko definicija ide u isti smjer**.
+
+| nalaz | definicija | isti smjer | medijan | ishod |
+|---|---|---|---|---|
+| kvaliteta protivnika | 30 (3 duljine x 5 pragova x 2 ELO-a) | **25/25** | −17,1pp | **DRZI** |
+| razlika u dobi | 6 pragova (2 do 8 godina) | **6/6** | −14,0pp | **DRZI** |
+| opterecenje protivnika u R16/QF | 12 (3 praga x 4 prozora) | **6/10** | −8,1pp, raspon −18,3..+10,2 | **PALO** |
+
+**Opterecenje protivnika je palo i to je dobro.** Kombinacija "2+ meca u 3-9 dana" (35,0%,
+n=20, −24,7pp) bila je NAJBOLJA od dvanaest, tj. nadjena gledanjem. Kontinuirana korelacija
+unutar R16/QF: −0,007 / −0,084 / −0,176 / −0,069 za prozore 3-5 / 3-7 / 3-9 / 3-12 dana
+(sve P>0,15). Da smo to jucer implementirali, implementirali bismo sum.
+Ono sto JEST dosljedno (**11/11 definicija**) je da u RANIM rundama protivnik koji je igrao
+nije problem nego prednost (+6 do +10pp) — interakcija s rundom postoji, ali velicina unutar
+R16/QF nije stabilna. **Sama R16/QF rupa (−13,3pp, z=−2,31) time nije pogodjena** — ona ne
+ovisi o opterecenju nego o rundi.
+
+**Kvaliteta protivnika se popravila.** Provjera je pokazala da prag uopce nije potreban, i
+to tocno onako kako je drugi model nagadjao ("sto su protivnici slabiji, to forma manje
+vrijedi"):
+
+    protivnici JACI od medijana    ->  r(forma zadnjih 5, pogodak) = +0,284  (P=0,017, n=70)
+                                       forma <60% -> 41,2%  |  forma >=60% -> 75,5%
+    protivnici SLABIJI od medijana ->  r(forma zadnjih 5, pogodak) = −0,017  (P=0,887, n=69)
+                                       forma <60% -> 48,3%  |  forma >=60% -> 52,5%
+
+Forma nosi informaciju **samo ako je zaradjena protiv pravih protivnika**. Umnozak
+`forma x (prosjecni ELO protivnika − 1700)/100` hvata to u jednom broju bez ijedne granice:
+
+    r = +0,290, P=0,0005, n=139   — najjaca pojedinacna brojka u cijeloj reviziji
+    kvartili: 20,0% (n=10) | 48,3% (n=29) | 60,0% (n=55) | 73,3% (n=45)   monotono
+
+### 2. ANALIZA GUBITAKA POPRAVLJENA (`agent/feedback_analyzer.py`)
+
+Dosad je `_analyze_lost_match` vidio **iskljucivo jedan gubitak** + statistiku meca + vlastite
+predmecne biljeske. Nikad nijedan dobitak, nikad baznu stopu. Od 20 analiza (16.-26.08.)
+prezivjela je tocno jedna preporuka. Pravila 4, 13 i 16 nastala su tim postupkom.
+
+Dodano:
+- **`_LOSS_BASE_RATES`** — izmjerene bazne stope iz naseg korpusa u samom promptu: post-match
+  brojke u dobitcima naspram gubitaka, 11 sezonskih statistika s korelacijama (sve nula),
+  te sto je izmjereno o dvostrukim greskama, tiebreak rekordu, ELO-u po rundama i vremenu.
+- **popis ulaza koje model VEC dobiva** — 10 od 20 analiza trazilo je "dodati 2. servis kao
+  ulaz", a on je u promptu od pocetka. Sada u promptu izricito pise da je takva preporuka
+  cinjenicna greska, ne nalaz.
+- **obavezni verdikt po faktoru**: `[SIGNAL CONFIRMED]` / `[SIGNAL NOT CONFIRMED]` /
+  `[SIGNAL CONTRADICTED]` / `[INSUFFICIENT DATA]` / `[POST-MATCH ONLY]`, uz obrazlozenje brojkom.
+- **rijec "cause" zabranjena** osim ako je faktor bio vidljiv prije meca I bazne stope ga nose.
+- **dopusteno je ne predloziti nista**: "No model change justified by this match." je potpun
+  i cesto tocan odgovor. Ako se ipak nesto predlaze, mora se navesti sto to kosta kad okine
+  na mecu koji bismo dobili.
+- `max_tokens` 1200 -> 1600 (izlaz je strukturiraniji).
+
+**Provjereno na stvarnom mecu** (Rottgering def. Machac, 26.08., QF Winston-Salem):
+- *stara* analiza (jucer): cetiri preporuke — kazniti drugi servis, prekvalificirati odmor,
+  ograniciti ELO, ponderirati velicinu TB uzorka. Sve cetiri su danas izmjerene kao neutemeljene.
+- *nova* analiza: ELO u QF oznacen kao **[SIGNAL CONTRADICTED]** uz citat r=−0,033 naspram
+  +0,249 u ranim rundama; hot-hand kao **[INSUFFICIENT DATA]**; slom servisa izricito oznacen
+  kao "post-match description only" uz citat split-half r=+0,131 za dvostruke greske; **jedan**
+  prijedlog, s navedenom cijenom.
+
+Rizik je nulti jer je **automatsko azuriranje tezina zamrznuto od 05.08.2026** — ova analiza
+ne mijenja model, samo objasnjenje koje citamo.
+
+### 3. BILJEZENJE KANDIDATA (`context_snapshot` v15 -> **v16**)
+
+Tri velicine koje su za analizu racunate rucno iz tri odvojena izvora sada se zapisuju uz
+svaki mec. Racunaju se iz podataka koji su **vec dohvaceni** — nema novih API poziva:
+
+    p1/p2_avg_opp_elo_5   prosjecni surface-ELO zadnjih 5 protivnika
+    avg_opp_elo_5_n       used / total / defaulted po igracu
+    p1/p2_form_quality    forma x kvaliteta protivnika (nalaz iz tocke 1)
+    age_gap               dob p1 minus dob p2
+    p1/p2_matches_3_9d    opterecenje u prozoru 3-9 dana prije meca
+
+Nove funkcije u `run_daily`: `_avg_opponent_elo_lastn`, `_form_quality`,
+`_count_matches_in_window`, `_is_default_elo`. Nijedna se ne poziva iz prompta.
+
+### 4. USPUTNI NALAZ: `find_player_elo` ne ispusta nepoznate igrace nego im upisuje 1500
+
+Biljeska iz 07.08. u `_avg_opponent_elo` tvrdi da se protivnici bez ELO-a "TIHO ISPUSTAJU" i
+da zato prosjek ispada **previsok**. Provjereno u kodu (i uhvaceno novim testom):
+`find_player_elo` na promasaj vraca `{"elo_overall": 1500, ...}`, dakle **upisuje 1500**.
+Kako je tipican protivnik u nasem korpusu oko 1700, ucinak ide u **suprotnom smjeru** od
+zapisanog — prosjek se vuce prema dolje. Peti slucaj tihe zadane vrijednosti u projektu
+(usporedi break lopte, dob, visinu, turnir/rundu u harvestu), samo ovaj put nije `None` nego
+uvjerljiv broj, sto je gore.
+
+Izmjereno koliko je to veliko: **25 od 692 protivnika (3,6%)** nije prepoznato, i nalaz je
+prakticki isti u oba nacina — `r=+0,252` (ispusti) naspram `r=+0,266` (broji kao 1500),
+prag 1700 daje −19,0pp naspram −18,3pp. **Nalaz nije ugrozen**, ali se `defaulted` od danas
+biljezi. `_avg_opponent_elo` **nije diran** (ide u prompt).
+
+### 5. OCJENJIVACKA TABLICA — zapisana PRIJE US OPENA
+
+Ovo zamjenjuje walk-forward. Brojke se zapisuju danas da se poslije ne mozemo prevariti.
+Uzorak: US Open, ~60-100 analiza, sve naspram **devigirane SuperSport cijene**.
+
+| nalaz | POTVRDJEN ako | PAO ako | sada (n=178) |
+|---|---|---|---|
+| kvaliteta protivnika / `form_quality` | najniza cetvrt >=8pp ispod cijene, isti smjer | razlika <3pp ili obrnut smjer | −19,0pp / r=+0,290 |
+| razlika u dobi | stariji 4+ god >=6pp ispod, isti smjer | <3pp ili obrnuto | −15,4pp |
+| runda R16/QF | R16/QF >=8pp ispod ostalih rundi | <3pp ili obrnuto | −13,3pp |
+| opterecenje protivnika x runda | isti smjer u >=8/12 definicija | manje od toga | PALO (6/12) |
+| pouzdanost (prag 63) | conf>=63 iznad conf<63 naspram cijene | ostane ispod | −4,7 naspram +2,3pp |
+
+Nijedan prag nije "statisticka znacajnost" — na 60-100 meceva je nema i nema smisla se
+pretvarati da ima. Trazi se **isti smjer i barem pola velicine**.
+
+**OGRADA KOJU TREBA ZNATI UNAPRIJED:** US Open je Grand Slam na tri dobivena seta, a svih 178
+meceva je na dva. U duzem formatu favoriti su jaci i upseta je manje. US Open je zato dobar
+test za kvalitetu protivnika i dob, a **slab test za R16/QF nalaz** — do R16 se dolazi tek
+oko 06.09., i to u formatu u kojem se rupa mozda i ne pojavljuje.
+
+### 6. STO SVJESNO NIJE NAPRAVLJENO DANAS
+
+Ukidanje pravila 4/13/16, ukidanje `_enforce_declared_caps`, smanjenje `serve_return`, dob i
+kvaliteta protivnika kao filtar, jace kaznjavanje Med-Low. Svaka od tih promjena mijenja
+prompt ili selekciju, nijedna se ne moze provjeriti unatrag, i **cetiri odjednom pred Grand
+Slam unistavaju pripisivanje**. Projekt je na taj zid vec dvaput naletio (vidi biljesku uz
+`_normalize_fair_odds`: "da je istog dana dirana i ova funkcija, ucinak dviju izmjena ne bi
+se mogao razdvojiti"). Redoslijed: svaka zasebno, s razmakom, i to tek poslije US Opena —
+osim eventualnog **jednog filtra u `ticket_builder`**, jer je to jedina vrsta promjene koja
+ostaje mjerljiva u oba smjera.
+
+**Promijenjeno danas:** `agent/feedback_analyzer.py` (bazne stope + verdikti + max_tokens),
+`agent/run_daily.py` (4 nove funkcije + izracun v16), `agent/predictor.py` (v16 polja,
+`context_version` 15->16), `test_provisional_schedule.py` (+31 provjera),
+`test_cap_and_weather.py` (verzija), `DECISION_INPUTS.md` (odjeljak 3).
+**Nijedan pick nije diran.**
+
+## 2026-08-26 14:01 — DUBINSKA HARD REVIZIJA (v18 era, n=178): servisne statistike su prazne,
+## rupa je u R16/QF, dob je nova varijabla. MODEL NIJE DIRAN.
+
+Korisnik je trazio dubinsku analizu hard rezultata OD POSLJEDNJE PROMJENE HARD MODELA, s
+naglaskom na (1) reviziju svih analiza gubitaka iz zadnjih 10 dana, (2) klasicne statistike
+igraca, (3) matchup i sekvencijalnu formu, (4) trziste, (5) vrijeme, (6) interakcije.
+Izricita uputa: **nista ne implementirati dok se nalazi ne pregledaju.** Postovano —
+promijenjeni su SAMO komentari i ovaj zapis. `rules_hash` ostaje a0424315, tezine v18.
+
+**Uzorak.** Zadnja promjena hard TEZINA je v18 (04.08.2026 09:05). Od tada: **178 rijesenih
+hard analiza**, 108W-70L = **60,7%**, flat ROI -9,3%. Od toga 138 s post-match statistikom,
+139 sa sezonskim statistikama oba igraca, 139 s dobi/visinom iz profila, 57 s trzisnim
+konsenzusom, 54 s dvije+ snimke linije, 139 s povijescu iz `player_match_history`.
+Referentna vrijednost svugdje je **devigirana SuperSport cijena** (imamo obje strane;
+prosjecna marza 5,13%), ne sirova kvota — inace se svaki nalaz mijesa s razinom cijene.
+Ukupno naspram te referentne vrijednosti: **-2,72pp, 95% [-9,62, +4,17]** — tj. na cijeloj
+eri smo statisticki nerazlucivi od trzista.
+
+### 1. ANALIZE GUBITAKA (20 jedinstvenih, 16.-26.08.) — sto je preporuceno i sto podaci kazu
+
+Ucestalost preporuka: 2. servis kao zaseban ulaz 10x, dvostruke greske 9x, "ELO precijenjen"
+8x, "dug odmor = hrdja" 5x, tiebreak podcijenjen 5x **naspram** tiebreak precijenjen 3x,
+"model je prekrsio vlastiti cap" 4x, break lopte 4x, umor podcijenjen 3x.
+
+| tvrdnja | provjera | ishod |
+|---|---|---|
+| 2. servis je SKRIVEN, agregat ga maskira | jaz na 1. servisu razdvaja 18,5pp, na 2. servisu 19,8pp, agregat 19,8pp; 2. servis je ekstremniji u 54% gubitaka i 56% dobitaka | **PALO** — nema nicega skrivenog |
+| 2. servis treba dodati kao ulaz | `2nd serve pts won` je u promptu od pocetka (`predictor.py` l. 333/357) | **CINJENICNO NETOCNO** |
+| dvostruke greske kao ulaz | DF naseg picka: 2,93 u dobitcima, 4,60 u gubitcima. Ali split-half po igracu r=+0,131 P=0,396; SD unutar igraca 1,64 > SD izmedju igraca 1,43 | **PALO** — DF je posljedica, ne osobina |
+| tiebreak rekord podcijenjen | r(jaz TB, pogodak) = **-0,186 P=0,014 n=174**; nas pick s boljim TB rekordom 54,4% (n=57), protivnik bolji za 20pp+ -> 73,8% (n=42, ROI +14,0%); drzi se u sva tri pojasa cijene | **OBRNUTO** od tvrdnje |
+| odlucujuci setovi | r=-0,045 P=0,555 n=172 | **NEMA SIGNALA** |
+| ELO precijenjen | jaz <100 -> 52,2%, 100-200 -> 65,9%, 200-300 -> 72,7%. Problem nije tezina nego to sto **45% analiza ima jaz ispod 100** | **DJELOMICNO — krivo dijagnosticirano** |
+| dug odmor = hrdja / umor podcijenjen | iste analize tvrde oboje. Iz povijesti: nas pick s 2+ meca u 3-9 dana 65,3%, odmorniji 47,4% (r=+0,172 P=0,049), ali pod kontrolom cijene -0,9pp naspram -8,7pp i predznak se okrece unutar pojaseva | **PROTURJECNO I SLABO** |
+| model prekrsio vlastiti cap | kad kod PROVEDE cap: **20/25 = 80,0%** naspram 57,5% ostalih (P=0,033, +16,7pp naspram cijene). Kad cap ostane samo u prozi: 59,4% naspram 61,0% | **CAPOVI UKLANJAJU NASE NAJBOLJE PICKOVE** (drugo neovisno mjerenje istog, prvo 08.08.) |
+| hot-hand pravilo prestrogo (analiza 20) | protivnik s 2+ meca u 3-9 dana U R16/QF: **35,0% (n=20), -24,7pp, z=-2,30**; ista situacija u ostalim rundama +10,2pp | **JEDINA POTVRDJENA PREPORUKA** |
+
+**Strukturni uzrok:** `_analyze_lost_match` vidi iskljucivo GUBITAK + post-match statistiku +
+vlastite predmecne biljeske. Nema bazne stope, nema usporedbe s dobitcima. Takav prompt
+matematicki mora naci onu post-match brojku koja je u tom mecu najekstremnija i proglasiti je
+uzrokom. Provjera na tekstu predmecnih analiza: nijedna kljucna rijec (umor, forma, ELO,
+tiebreak, hrdja, break lopte) ne razdvaja dobitke od gubitaka na P<0,05.
+
+### 2. KLASICNE STATISTIKE IGRACA — NULA (najvazniji nalaz)
+
+Sezonske statistike dohvacene za svih 105 igraca iz uzorka. Kontrola drifta naspram
+snapshota: srednja apsolutna razlika **0,02pp** — dakle to su tocno brojke koje je model vidio.
+
+`r(jaz nas-protivnik, pogodak)`, n=139, sve:
+
+    ukupni poeni na servisu   +0,006  P=0,94      povrat poena (ponderirano) -0,059  P=0,49
+    poeni na 1. servisu       -0,006  P=0,95      spasene break lopte        +0,009  P=0,92
+    poeni na 2. servisu       +0,024  P=0,78      iskoristene break lopte    -0,031  P=0,72
+    1. servis IN %            +0,019  P=0,83      break %                    -0,052  P=0,54
+    asovi po mecu             +0,010  P=0,91      hold % (izvedeno)          +0,006  P=0,95
+    dvostruke greske          +0,002  P=0,98      hold iz BP podataka        +0,020  P=0,82
+
+Srednji jazovi su identicni do druge decimale (servis +1,77 u dobitcima naspram +1,74 u
+gubitcima). **Kategorija `serve_return` nosi 23% tezine i definira pragove pravila 2(b), 4,
+13 i 16 — a mjeri velicinu koja u nasem uzorku ne razdvaja nista.**
+
+Provjera samih pragova:
+- **pravilo 2(b)**: |jaz servisa| <1,25pp -> 60,5%; 1,25-2,5 -> 53,1%; 2,5-5 -> 60,5%; 5pp+ -> 61,9%. Ravno.
+- **pravilo 16** (konvergirani servis): ista tablica, nema stepenice na 2,5 ni na 5pp.
+- **pravilo 13** (protivnik hold>=82% i nas povrat<40%): profil je pogodjen 14 puta, **71,4%
+  naspram 57,6%** (s ponderiranim povratom 66,7% naspram 57,4%). Cap kaznjava skupinu koja
+  prolazi BOLJE od prosjeka.
+- **hold jaz >=7pp** (kandidat za kaznu iz 17.08., tada 47,8% n=23): sada **58,8% n=34**.
+  Efekt je nestao. Dobro sto nije implementiran.
+
+Kolinearnost objasnjava zasto: `r(jaz servisa, cijena) = +0,177`, `r(jaz servisa, jaz ELO) =
++0,181`. Nije rijec o "vec je u cijeni" — brojka je jednostavno slabo povezana sa svime.
+
+**Post-match statistike** (n=138) razdvajaju dobitke i gubitke onako kako i moraju (jaz u
+ukupnim poenima +13,4 naspram -9,9), ali to je opis ishoda, ne prediktor. Winners,
+unforced errors, net approaches i brzine servisa su NULL u 228/228 zapisa (potvrdjeno 22.08.).
+
+### 3. RUPA JE U SREDNJIM RUNDAMA — najjaci strukturni nalaz
+
+| runda | pogodak | ocekivano (devig) | razlika | ROI |
+|---|---|---|---|---|
+| R64 | 19/30 = 63,3% | 62,8% | +0,5pp | -7,7% |
+| R32 | 43/63 = 68,3% | 65,1% | +3,1pp | +1,1% |
+| **R16** | **25/47 = 53,2%** | 62,3% | **-9,1pp** | -18,2% |
+| **QF** | **8/20 = 40,0%** | 63,3% | **-23,3pp** | -41,9% |
+| SF+F | 13/18 = 72,2% | 61,4% | +10,9pp | +11,7% |
+
+R16+QF zajedno: 33/67 = 49,3% naspram 62,6% ocekivano = **-13,3pp, z=-2,31**, ROI -25,3%.
+Ostale runde +3,7pp. Bootstrap razlike: **-17,1pp, 95% [-31,4, -2,5]**.
+
+Prezivljava sve kontrole:
+- **3/3 turnira**: Montreal -11,2pp, Cincinnati -10,6pp, Winston-Salem -17,8pp
+- **obje ere**: prije 17.08. -6,4pp, od 17.08. -17,7pp
+- **sva tri pojasa cijene**: -12,7 / -16,8 / -4,2pp (ostale runde +3,4 / +0,4 / +8,7)
+- **oznake rundi**: samo od 08.08. (kad su oznake pouzdane) -11,8pp
+- **nije razina turnira**: Winston-Salem je u nasem uzorku ISKLJUCIVO R16/QF (20+4), pa su
+  "ATP 250 je los" i "R16/QF je los" ista opservacija. Bez WS-a rupa je i dalje -10,8pp.
+
+**ELO prestaje raditi tocno ondje:**
+
+    R16/QF     r(jaz ELO, pogodak) = -0,033 (P=0,81)   jaz 250+ -> 1/4
+    R64/R32    r = +0,249 (P=0,081)                    jaz 250+ -> 4/5
+    SF/F       r = +0,363 (P=0,139)                    jaz 100+ -> 6/6
+
+Trziste u R16/QF ocekuje istih ~62,6% kao drugdje i pogadja. **Mi grijesimo, ne trziste.**
+
+**Mehanizam (n=20, z=-2,30):** u R16/QF, kad je PROTIVNIK odigrao 2+ meca u zadnjih 3-9 dana,
+prolazimo **35,0% naspram 59,7% ocekivano (-24,7pp, ROI -47%)**. Ista situacija u ostalim
+rundama: **+10,2pp**. To je tocno ono sto pravilo 1 izricito zabranjuje kaznjavati
+("reaching the QF normally is NOT a hot hand — do NOT penalise a player just for being deep
+in the draw"). To pravilo je preneseno s trave i gline i na hardu je u srednjim rundama krivo.
+
+### 4. POUZDANOST I PRAG 63 — prag radi u nasu stetu
+
+| prag | pogodak | naspram cijene |
+|---|---|---|
+| conf >= 63 (ide na tiket) | 77/127 = 60,6% | **-4,7pp**, ROI -12,6% |
+| conf < 63 (bacamo) | 31/51 = 60,8% | **+2,3pp**, ROI -0,9% |
+| conf >= 65 | 28/48 = 58,3% | **-12,0pp** (z=-1,86) |
+
+`parcijalni r(pouzdanost, pogodak | devigirana cijena) = **-0,074**` (n=178). Sirovi
+`r(conf - trzisna vjerojatnost, pogodak) = -0,257 P=0,0005` izgleda dramaticno, ali pod
+kontrolom razine cijene nestaje — bio je kolinearnost, ne nalaz. **Zakljucak: pouzdanost ne
+nosi nista preko cijene, a prag na 63 sustavno propusta losije od onoga sto odbacuje.**
+Ovo je trece neovisno mjerenje istog (17.08. Brier, 22.08. hrpa na 67, sada parcijalna r).
+
+Kalibracija JEST ozivjela nakon 17.08. (`r(conf,win)` = -0,095 prije, **+0,283 P=0,038**
+poslije; SD 1,89 -> 4,32) — mehanika radi, ali sadrzaj i dalje ne nosi informaciju preko cijene.
+
+### 5. TRI NOVA PRE-MATCH SIGNALA (svi prezivjeli kontrolu cijene)
+
+**A) Kvaliteta nedavnih protivnika, mjerena ELO-om.** Prosjecni hard-ELO zadnjih 5 protivnika
+naseg picka (iz `player_match_history`, uz `history_features.safe_history`):
+
+    < 1600   ->  40,0% (n=10)        >= 1700  ->  66,0% (n=100)  +2,5pp naspram cijene
+    1600-1700 -> 41,4% (n=29)        <  1700  ->  41,0% (n=39)  **-19,0pp, z=-2,48**, ROI -37,1%
+
+    r = +0,252  P=0,0028  n=139
+    kontrola cijene:  <60% -21,5pp | 60-72% -20,4pp | 72%+ -2,2pp (n=4)
+    kontrola runde:   rane -14,4pp | R16/QF -20,3pp | SF/F -24,8pp
+    split-half:       +21,4pp i +27,2pp (obje polovice)
+
+To je "opponent-quality-adjusted form" iz pravila 2(c) — **prompt ga ima, model ga ne
+primjenjuje.** Relativna verzija (nas minus protivnikov) r=+0,179 P=0,040.
+
+**ISPRAVAK NALAZA OD 22.08.:** ista ideja mjerena VISINOM protivnika (tada +18,0pp, r=+0,203)
+sada daje r=+0,149 P=0,086, a naspram cijene samo +1,9 naspram -6,4pp. Na Winston-Salemu
+(turnir izvan izvornog uzorka) r=+0,147 P=0,503 n=23 — isti smjer, bez snage. **Visina je bila
+sumniji proxy za kvalitetu protivnika; ELO mjeri istu stvar bolje i stabilnije.**
+
+**B) Razlika u dobi.** Dohvaceno iz profila za 139 mecheva (dob je od 15.08. NAMJERNO izvan
+prompta — to se sada pokazuje kao greska):
+
+    nas pick mladji 6+ god  ->  80,0% (n=15)      r(razlika u dobi, pogodak) = -0,228
+    mladji 2-6              ->  68,8% (n=32)      P=0,0069  n=139   (monotono kroz 5 razreda)
+    slicno                  ->  57,1% (n=35)
+    stariji 2-6             ->  53,1% (n=32)      stariji 4+: 42,9% naspram 58,3% ocekivano
+    stariji 6+              ->  44,0% (n=25)      = -15,4pp, z=-2,08, ROI -31,6%
+
+    kontrola cijene:  <60% -13,1pp | 60-72% -30,3pp | 72%+ +5,4pp (n=6)
+    kontrola runde:   rane -11,8pp | R16/QF -19,0pp | SF/F -13,2pp
+    split-half:       -21,2pp i -24,4pp (obje polovice)
+    apsolutno:        nas pick 30+ -> 41,7% (n=24), -16,0pp
+
+Kolinearnost s cijenom r=-0,275 (starije pickove uzimamo na kracim kvotama) — kontrola je zato
+nuzna i nalaz ju prezivljava. **Ograda: raspon 06.-26.08., kraj americke hard turneje —
+moguce je da mjerimo sezonsku iscrpljenost veterana, a ne dob.**
+
+**C) Scouting "Med-Low" na nasem picku.** 3/15 = **20,0% naspram 61,0% ocekivano (-41,0pp,
+z=-3,31)**, ROI -63,0%. Kazna od -4pp uvedena 17.08. je premala i pogodila je samo 7 pickova.
+**NIJE neovisna potvrda:** 12 od 15 slucajeva je iz razdoblja prije 17.08., dakle uglavnom isti
+uzorak na kojem je nalaz i nastao. Suprotno tome, Med-High je nas najbolji razred
+(44/57 = 77,2%, **+13,3pp z=+2,13**, ROI +16,9%), a "High" (De Minaur, Zverev, Fritz,
+Medvedev, Musetti, Rublev) najgori: 13/24 = 54,2% naspram **72,4%** ocekivano, **-18,3pp
+z=-2,07**, ROI -31,4%. Placamo ime.
+
+### 6. TRZISTE
+
+- **Naspram devigirane cijene po pojasu:** <55% -3,8pp | 55-65% -2,1pp | 65-75% -4,2pp |
+  75%+ +0,8pp. Nigdje prednosti; najgore u sredini.
+- **Kretanje linije** (54 uparena picka, dvije+ snimke): prag >0,0pp daje +16,8pp, ali
+  r(pomak, pogodak) = **+0,009 P=0,948**, a na pragu >2,0pp efekt se OKRECE (-12,7pp).
+  Sum oko nule — isti zakljucak kao 22.08. Hvatanje je i dalje preslabo: medijan zadnje
+  snimke **9,4h prije pocetka**, samo 8,8% redaka unutar 2,5h. Tri termina (16:30/20:30/00:30
+  UTC) uvedena 22.08. jos nisu dala uzorak.
+- **Po kladionicama:** 45 kuca s upotrebljivim uzorkom, 4 ispod P<0,05 (slucajno ocekivano
+  2,2) i **u suprotnim smjerovima** (gtbets krace = losije, matchbook krace = bolje).
+  Nema signala. Trece mjerenje istog.
+- **CLV** naspram konsenzusa je -3,78pp, ali to mijesa dvije kuce i nasu nedevigiranu cijenu;
+  s pravim devigom razlika je unutar marze. Ne koristiti kao nalaz dok hvatanje ne bude blize.
+- **Trzisni konsenzus u snapshotu** (n=57): nas pogodak 64,9% naspram ocekivanih 64,4%.
+  Kazna za trzisnog autsajdera (17.08.) pogodila je 7 pickova, 2/7 — smjer dobar, uzorak nikakav.
+
+### 7. VRIJEME, DOB I VISINA — glavni ucinci nula, jedna interakcija
+
+Glavni ucinci (n=178): temperatura r=-0,092 P=0,22 | vlaga +0,101 P=0,18 | vjetar +0,076
+P=0,31 | tlak -0,077 P=0,37. **Cetvrto mjerenje s istim ishodom — zatvoriti temu glavnih
+ucinaka vremena.**
+
+Sesija: noc 69,6% (n=46, +5,8pp) naspram dan 57,6% (n=132, -5,7pp). Unutar dnevne sesije
+temperatura <26C -> 63,8%, 26-29 -> 53,3%, 29+ -> 51,7%. Ali **sesija je gotovo cijela
+objasnjena rundom**: dnevni R16/QF -16,4pp (z=-2,44), nocni R16/QF -5,0pp. To je rupa iz
+tocke 3, ne sesija.
+
+**Jedina interakcija koja je izasla:** nas pick visi 5cm+ **I** temperatura >=28C ->
+**3/13 = 23,1% naspram 61,3% ocekivano (-38,3pp, z=-2,87)**, ROI -68,0%; isti pick na <28C
+-4,1pp (n=46); nizi pick na >=28C **+12,2pp** (n=11). Glavni ucinak visine je nula
+(r=-0,096 P=0,26), pa je ovo cista interakcija. n=13 u kljucnoj celiji.
+
+Visina i dob objasnjavaju STIL, ne ishod: r(visina, asovi)=+0,689, (visina, servis)=+0,571,
+(visina, povrat)=-0,431, (visina, DF)=+0,230, (visina, 2. servis)=-0,197; r(dob, asovi)=+0,244,
+(dob, servis)=+0,224, (dob, povrat)=-0,225. Sve P<0,01.
+
+**Kompozit "stariji + visi + vise asova od protivnika":** >= +1 SD -> 51,0% naspram 62,5%
+(-11,5pp), s vrucinom -34,2pp. Ali parcijalne korelacije uz cijenu: dob **-0,159**, visina
+-0,102, asovi **+0,010**, kompozit -0,110. **Kompozit nije bolji od same dobi — ne raditi ga.**
+
+### 8. SEKVENCIJALNA FORMA — korisnikova hipoteza testirana i pala
+
+Uz zastitu od curenja (`history_features.safe_history`, n=123-139):
+
+    "pobijedio 2+ protivnika slicnog profila, sljedeci je isti profil"  +4,8pp (n=27)
+    "pobijedio slicne, sljedeci je DRUGACIJI profil"                    +6,1pp (n=32)
+    "nije igrao protiv takvih, sljedeci je takav"                       -4,9pp (n=26)
+    "nije igrao protiv takvih, sljedeci nije takav"                    -12,1pp (n=38)
+
+Poredak celija ne prati hipotezu — **nema interakcije s profilom SLJEDECEG protivnika**;
+sve sto se vidi je glavni ucinak kvalitete nedavnih protivnika (tocka 5A). Isto:
+- **kako je pobijedio** (udio pobjeda u 2 seta, zadnje 3): 77,8% / 56,8% / 71,0% — nemonotono
+- **razlika u formi zadnjih 5 iz povijesti**: r=+0,043 P=0,62 — nista
+- **opterecenje** (mecevi u 3-9 dana): sirovo r=+0,172 P=0,049, ali pod kontrolom cijene
+  -0,9 naspram -8,7pp i predznak se okrece u pojasu 62%+ -> **preslabo samo za sebe**
+  (ali VRLO jako kao interakcija s rundom, vidi tocku 3)
+
+### 9. POVIJEST NA TURNIRU — nalaz od 22.08. potvrdjen, ali slabiji
+
+Prerracunato iz `tournament_history` (754 retka) na svih 178: protivnik ima bolju 42,9% (n=21),
+izjednaceni 59,3% (n=91), nas pick ima bolju 68,2% (n=66). **r=+0,169 P=0,024.**
+Naspram devigirane cijene efekt je manji (-13,6 / -2,6 / +0,6pp), a po rundama:
+rane **+45,5pp P=0,023**, SF/F +90,0pp (n=11), **R16/QF -6,5pp**. Isti raspad u srednjim
+rundama kao kod ELO-a. Varijabla je od 22.08. u promptu — ostaje, ali s tom ogradom.
+
+### 10. STO ULAZI U SLJEDECU REVIZIJU (nista jos nije uvedeno)
+
+Redoslijed po snazi dokaza, ne po velicini efekta:
+
+1. **R16/QF x protivnik u ritmu** — z=-2,30, mehanizam jasan, 3/3 turnira, prezivljava cijenu
+   i oznake rundi. Prvi kandidat. Zahtijeva reviziju pravila 1 na hardu.
+2. **Kvaliteta nedavnih protivnika < 1700 ELO** — z=-2,48, obje polovice, sve kontrole.
+   Ide u prompt kao BROJKA (`avg_opp_elo` se od v15 vec biljezi kao vrijednost).
+3. **Prag 63 i pouzdanost** — parcijalni r=-0,074; prag propusta losije od onoga sto baca.
+   Kandidat za ukidanje praga u korist selekcije po cijeni/filtrima.
+4. **Capovi** — 80,0% kad se provedu (P=0,033), drugo mjerenje. Kandidat za UKIDANJE, ne jacanje.
+5. **Razlika u dobi >= 4 god** — z=-2,08, obje polovice; ograda: samo 3 tjedna, kraj sezone.
+6. **`serve_return` tezina 23%** — kandidat za smanjenje; ali tek kad se zna cime se popunjava.
+7. **Med-Low kazna -4pp -> jace** — efekt ogroman, uzorak nije neovisan. Premjeriti na US Openu.
+
+**Odbaceno / ne dirati:** tiebreak i deciding-set pragovi (pravilo 16 ide u KRIVOM smjeru),
+pravilo 13 (kaznjava skupinu koja prolazi bolje), hold-jaz kazna (efekt nestao), dvostruke
+greske kao ulaz, kretanje linije, razlike medju kladionicama, glavni ucinci vremena,
+sekvenca "slican profil", "kako je pobijedio", kompozit stari+visoki+asovi.
+
+**Simulacija (IN-SAMPLE, pragovi izvedeni iz istih podataka — optimisticno):** filtri
+A (opp ELO<1700) + B (stariji 4+) + C (Med-Low) uklanjaju 75 pickova koji su isli
+45,3% naspram 59,7% (-14,4pp, z=-2,61, ROI -28,0%); preostalih 103 ide 71,8% naspram 66,1%
+(+5,8pp, ROI +4,4%). Uz conf>=63: 71,1% (n=76). **Ovo NIJE procjena buduceg ucinka.**
+
+### 11. TIKETI
+
+10 tiketa u v18 eri, **10 izgubljenih**, ulog 500 EUR, povrat 0. Noge na stvarnim tiketima:
+20/35 = 57,1% naspram 61,3% ocekivano (-4,2pp). Noge samo u bazi: 61,5%. Razlika je unutar
+suma — tiketi ne gube zbog gore selekcije nego zbog mnozenja, sto je vec izmjereno 08.08.
+
+**Nijedan pick nije diran. `rules_hash` a0424315, tezine v18, prompt nepromijenjen.**
+Analitičke skripte i sirovi ispisi nisu commitani (jednokratna analiza); brojke su ovdje.
+
 ## 2026-08-22 17:05 — CURENJE U ZNACAJKAMA IZ POVIJESTI: nadjeno, izmjereno, zatvoreno
 
 Pri reviziji izvornog zadatka testiran je head-to-head i dao **+76pp** (vodi 96,3% n=27,
