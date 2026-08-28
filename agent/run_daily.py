@@ -1809,6 +1809,43 @@ def _verify_late_rounds(matches: list, db_history: list = None) -> list:
     igraca. Prelijevanje zavrsi u R16/R32, koji ostaju krivi; to se bez punog zdrijeba ne da
     popraviti i NE pokusavam, jer bi svaka procjena ondje bila gadjanje (testirano: verzija
     koja je dirala i rane runde spustila je 30 mecheva u nepostojeci "R128").
+
+    =========================================================================================
+    NADJENA GRESKA 28.08.2026 19:58 — DVOSTRUKO BROJANJE PRI PONOVNOM POKRETANJU. NIJE
+    POPRAVLJENO (korisnikova odluka: pred US Open se ne dira nista sto mijenja rundu).
+    =========================================================================================
+    `db_history` dolazi iz `get_tournament_rounds`, koja vraca SVE retke `analyzed_matches`
+    za taj turnir u zadnjih 30 dana — **ukljucujuci retke koje je raniji run ISTOG DANA vec
+    upisao**. Ovdje se ta povijest spaja s danasnjim mecevima BEZ IKAKVOG UKLANJANJA
+    DUPLIKATA, pa se svaki danas vec analiziran mec broji DVAPUT: jednom kao zivi dict,
+    jednom kao vlastita "povijest" od prije par sati.
+
+    IZMJERENO na Winston-Salemu 28.08.2026 (korisnik pokrenuo daily run dvaput isti dan):
+        jutarnji run:  Buse-Bonzi = SF,  Duckworth-Fery = F
+        vecernji run:  Buse-Bonzi = QF,  Duckworth-Fery = SF     <- oba spustena za jednu rundu
+    Kaskada: Duckworth-Fery je u bazi bio F i uzivo je dosao kao F -> dva zapisa u kategoriji
+    koja dopusta jedan -> jedan se spusta u SF. To gurne SF na pet zapisa (2 od 27.08. +
+    Buse-Bonzi dvaput + novospusteni Duckworth-Fery) -> tri najranija idu u QF, medju njima i
+    Buse-Bonzi.
+
+    STANJE BAZE U TOM TRENUTKU (dokaz da su oznake bile pokvarene i UZVODNO, neovisno o ovome):
+        QF 10 redaka (turnir smije 4) | SF 3 (smije 2) | F 0 (smije 1)
+
+    IRONIJA: ovaj put je spustanje dalo TOCAN rezultat — 28.08. su bila tri meca, a polufinala
+    su samo dva, pa je to doista bio QF dan. Ali to je sreca, ne ispravnost: hoce li se
+    spustiti ZIVI zapis ili "fantomski" iz baze ovisi samo o tome kojim redoslijedom
+    `lst.sort(key=lambda x: x[0])` poreda dva zapisa s ISTIM datumom. Jednako je lako moglo
+    srusiti tocnu oznaku.
+
+    ZASTO NIJE KOZMETIKA: runda ULAZI U PROMPT (vidi komentar uz `_infer_rounds`), pa
+    mijenja pick. I kontaminira nalaz od 26.08.2026 da je R16+QF nasa rupa (-13,3pp) a SF/F
+    nas najbolji teren (+10,9pp) — ako oznake ovako plutaju, dio "QF" redaka su zapravo
+    polufinala. Nalaz se drzao u 3/3 turnira i prezivio kontrolu cijene, pa nije pao, ali od
+    danas nosi mjerenu ogradu. Usporedi staru biljesku da su runde bile 42,6% krive.
+
+    POPRAVAK ZA POSLIJE US OPENA (ne prije): izbaciti iz `db_history` retke koji se poklapaju
+    s danasnjim mecevima po (datum + oba igraca) prije spajanja u `pool`. Sitno i cisto, ali
+    mijenja rundu u promptu pa ide zasebno i s razmakom od drugih izmjena.
     """
     if not matches:
         return matches

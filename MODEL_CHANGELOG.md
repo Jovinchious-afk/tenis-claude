@@ -13,6 +13,93 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-08-28 19:58 — POPRAVAK STROPA POTVRDJEN NA ZIVOM PROMETU; nadjena greska u
+## oznakama rundi. NISTA NIJE MIJENJANO — samo zapis.
+
+Popravak od 27.08. commitan je i pushan tek danas (`051799f`). Do tada je GitHub Actions
+vrtio kod star sest dana, jer Actions radi checkout `mastera` s GitHuba, a sve od 26.-27.08.
+stajalo je necommitano lokalno. Zbog toga je jutarnji run (10:42) opet dao dva NULL retka.
+Korisnik je navecer ponovno pokrenuo run s novim screenshotom.
+
+### 1. PRVI ZIVI TEST POPRAVKA — RADI, I TO BAS ONDJE GDJE JE TREBALO
+
+    Buse vs Bonzi    attempts: 2, max_tokens: 6000, output: 1724, end_turn, error: null
+    Duckworth-Fery   attempts: 1, max_tokens: 4000, output: 2251, end_turn, error: null
+
+`attempts: 2` znaci da je **prvi pokusaj (4000) pao, a ponovljeni na 6000 spasio analizu**.
+To je isti mec koji je tri dana zaredom zavrsavao kao `predicted_winner = NULL`.
+
+Redak je **izlijecen, ne udvostrucen**: `created_at` je ostao 10:42 (jutarnji upis), sadrzaj
+je prepisan — upsert po stabilnom kljucu radi kako treba.
+
+**Duckworth-Fery je potrosio 2251 izlaznih tokena** — pod starim stropom od 2600 prosao bi
+za dlaku. Da je odgovor bio 15% dulji, i on bi pao. Margina je bila tanja nego sto je
+izgledalo iz uzorka od cetiri mjerenja (1539-1821).
+
+v16/v17 polja su popunjena: `age_gap` -8 / +10, `form_quality` -0,08/+0,07 i -0,43/**-0,71**,
+`avg_opp_elo_5` 1687/1709 i 1647/1611. Zanimljivo za pracenje: nas pick Fery ima LOSIJI
+`form_quality` od Duckwortha.
+
+**Korpus je ostao cist** — dva vec odigrana meca (Marozsan-Duckworth, Fery-Kovacevic) nisu
+prepisana; korisnik ih je izostavio iz screenshota po dogovoru. I dalje nose `ctx_v=15` i
+`created 27.08`, dakle originalne predikcije nastale prije meca.
+
+### 2. NADJENO USPUT: OZNAKE RUNDI SE POMICU KAD SE RUN POKRENE DVAPUT ISTI DAN
+
+Korisnik je uocio da je Buse-Bonzi u bazi postao QF, a jutros je bio SF.
+
+| mec | jutarnji run | vecernji run |
+|---|---|---|
+| Buse vs Bonzi (28.08) | **SF** | **QF** (spusteno) |
+| Duckworth vs Fery (29.08) | **F** | **SF** (spusteno) |
+
+**Uzrok:** `get_tournament_rounds` vraca sve retke `analyzed_matches` za turnir u zadnjih 30
+dana — **ukljucujuci one koje je raniji run ISTOG DANA upisao**. `_verify_late_rounds` tu
+povijest spaja s danasnjim mecevima **bez uklanjanja duplikata**, pa se svaki danas vec
+analiziran mec broji DVAPUT.
+
+Kaskada: Duckworth-Fery je u bazi bio `F` i uzivo dosao kao `F` -> dva zapisa u kategoriji
+koja dopusta jedan -> jedan se spusta u SF. To gurne SF na pet zapisa (2 od 27.08. +
+Buse-Bonzi dvaput + novospusteni Duckworth-Fery) -> tri najranija idu u QF, medju njima i
+Buse-Bonzi.
+
+**Oznake su bile pokvarene i UZVODNO, neovisno o ovoj gresci** — stanje baze u tom trenutku:
+
+    QF 10 redaka (turnir smije 4) | SF 3 (smije 2) | F 0 (smije 1)
+
+**Ironija:** ovaj put je spustanje dalo TOCAN rezultat. 28.08. su bila tri meca, a polufinala
+su samo dva, pa je to doista bio QF dan; jutrosnje oznake (`SF`/`F`) bile su krive. Ali to je
+sreca, ne ispravnost: hoce li se spustiti ZIVI zapis ili "fantomski" iz baze ovisi samo o
+tome kojim redoslijedom `lst.sort(key=lambda x: x[0])` poreda dva zapisa s ISTIM datumom.
+
+### 3. ZASTO TO NIJE KOZMETIKA — DVIJE POSLJEDICE
+
+**(a) Runda ulazi u prompt** i mijenja pick. To je i razlog zasto se ne dira pred Grand
+Slamom — u kodu uz `_infer_rounds` vec stoji ista ograda.
+
+**(b) Kontaminira nalaz od 26.08.2026** da je R16+QF nasa rupa (**-13,3pp**, z=-2,31) a SF/F
+nas najbolji teren (+10,9pp). Ako oznake ovako plutaju, dio "QF" redaka su zapravo
+polufinala i obrnuto. **Nalaz NIJE pao** — drzi se u 3/3 turnira, u sva tri pojasa cijene i
+u obje ere, i bootstrap 95% [-31,4, -2,5] ne prelazi nulu — ali od danas nosi mjerenu ogradu.
+Usporedi stariju biljesku da su runde nekad bile 42,6% krive: problem nije zatvoren.
+
+Ograda je zapisana na sva tri mjesta gdje nalaz zivi: `config/model_config.py`,
+`agent/predictor.py` (blok o pravilu 1) i `agent/feedback_analyzer.py`. U feedback modulu je
+**namjerno stavljena IZVAN prompt-stringa** da se tekst koji model cita ne promijeni.
+
+### 4. STO SE PREDLAZE ZA POSLIJE US OPENA (nista nije napravljeno)
+
+1. **Dedup u `_verify_late_rounds`** — izbaciti iz `db_history` retke koji se poklapaju s
+   danasnjim mecevima po (datum + oba igraca) prije spajanja u `pool`. Sitno i cisto, ali
+   mijenja rundu u promptu pa ide zasebno i s razmakom.
+2. **Premjeriti R16/QF nalaz** na oznakama za koje se zna da su stabilne.
+3. **Sitna dopuna dijagnostike:** `_call_analysis_model` u `meta` biljezi samo ZADNJI pokusaj
+   (svaka iteracija petlje prepisuje `stop_reason`/`raw_chars`/`output_tokens`). Kod
+   Buse-Bonzija zato znamo da je prvi pokusaj pao, ali ne i s kojim brojkama. Za sljedecu
+   reviziju: cuvati listu po pokusaju umjesto jednog dicta.
+
+**Nijedan pick nije diran; `rules_hash` a0424315, tezine v18, `context_version` 17.**
+
 ## 2026-08-27 18:55 — TRI OD CETIRI ANALIZE PALE NA STROPU TOKENA: dijagnoza, popravak,
 ## i racun troska. PROMPT NIJE DIRAN.
 

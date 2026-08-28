@@ -1049,6 +1049,11 @@ treat them as hard constraints, not guidelines.
 #   prolazimo 7/20 = 35,0% naspram 59,7% očekivano — -24,7pp, z=-2,30, ROI -47,0%.
 #   Ista situacija u ostalim rundama: +10,2pp (n=30). Pravilo je preneseno s trave/gline gdje
 #   je bilo ispravno; na hardu u srednjim rundama radi protiv nas. PRVI KANDIDAT ZA REVIZIJU.
+#   OGRADA OD 28.08.2026 19:58: oznake rundi jos uvijek plutaju. Isti mec je isti dan
+#   dobio SF pa QF kad je run pokrenut dvaput (`_verify_late_rounds` dvostruko broji
+#   danasnje meceve). U bazi Winston-Salema stajalo je 10 "QF" (turnir smije 4) i 3 "SF"
+#   (smije 2). Nalaz nije pao — drzi se u 3/3 turnira i prezivljava kontrolu cijene — ali
+#   dio "QF" redaka su vjerojatno polufinala i obrnuto. Premjeriti nakon popravka.
 #
 # PRAVILO 2(b) (pragovi servisa 2,5pp / 5pp) — NEMA EMPIRIJSKE OSNOVE U ISHODIMA.
 #   |jaz u poenima na servisu|: <1,25pp -> 60,5% (n=43) | 1,25-2,5 -> 53,1% (n=32) |

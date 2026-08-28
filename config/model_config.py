@@ -52,6 +52,11 @@ automatically by the feedback loop. These are the initial defaults.
 #      monotono kroz 5 razreda, r=-0,228 P=0,0069. Dob je od 15.08. NAMJERNO izvan prompta.
 #   3. runda R16/QF -> -13,3pp (z=-2,31) naspram +3,7pp u ostalim rundama; bootstrap
 #      95% [-31,4, -2,5]; drzi se u 3/3 turnira i sva tri pojasa cijene.
+#   OGRADA OD 28.08.2026 19:58: oznake rundi jos uvijek plutaju. Isti mec je isti dan
+#   dobio SF pa QF kad je run pokrenut dvaput (`_verify_late_rounds` dvostruko broji
+#   danasnje meceve). U bazi Winston-Salema stajalo je 10 "QF" (turnir smije 4) i 3 "SF"
+#   (smije 2). Nalaz nije pao — drzi se u 3/3 turnira i prezivljava kontrolu cijene — ali
+#   dio "QF" redaka su vjerojatno polufinala i obrnuto. Premjeriti nakon popravka.
 # =============================================================================================
 DEFAULT_WEIGHTS = {
     "elo_ranking":          22.0,  # ELO (surface-specific weighted higher than ATP ranking) + opponent quality
