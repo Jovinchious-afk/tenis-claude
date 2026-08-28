@@ -147,6 +147,27 @@ Svrha: svaka buduća hipoteza mora se moći provjeriti retroaktivno umjesto poga
 
 ---
 
+## 4a. PREDLOŽENO, još NE ulazi u odluku — "Historical Match-Up Context"
+
+*(zapisano 28.08.2026 20:21; korisnikov rok: do kraja 2026.)*
+
+Sedma točka uz Rating / Serve / Form / Matchup / Tournament history: agent bi prije konačne
+preporuke pretražio ranije analizirane mečeve, našao 5–15 povijesno najsličnijih situacija i
+prikazao kako su **agregatno** prošle naspram devigirane cijene — npr. *"12 sličnih slučajeva:
+41,7% stvarno vs 58,9% devig očekivano = −17,2pp"*. Nikad kao samostalan razlog za pick, i
+nikad kao pojedinačna anegdota.
+
+**Backtestirano 28.08.2026 i ODGOĐENO.** Walk-forward k-NN daje `r = −0,020` (n=276);
+"oracle" verzija koja smije gledati budućnost daje `r = −0,101` — dakle strukture nema ni kad
+se vara. Jednodimenzionalna verzija na najjačem poznatom signalu (runda) u realnom vremenu je
+za R16/QF tvrdila **+1,9pp** dok se ostvarivalo **−6,6pp**. Puni zapis s brojkama, uvjetima za
+ponovno otvaranje i predloženom arhitekturom: MODEL_CHANGELOG 28.08.2026 20:21.
+
+**Preduvjet za ponovno otvaranje:** ~900 riješenih analiza, `age_gap` / `avg_opp_elo_5` /
+`form_quality` riješeni na većini njih (bilježe se tek od 26.08.), pool unutar jedne `rules_hash` ere.
+
+---
+
 ## 4. Otvorena zamjerka: brojke se prikazuju s više autoriteta nego što ga imaju
 
 *(zabilježeno 08.08.2026 12:30 — NIJE implementirano, ide u paket sa servisom/pragom)*

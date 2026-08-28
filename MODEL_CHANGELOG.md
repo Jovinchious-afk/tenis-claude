@@ -13,6 +13,150 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-08-28 20:21 — IDEJA "HISTORICAL MATCH-UP CONTEXT" (case-based reasoning):
+## backtestirana i ODGODJENA do ~kraja 2026. Nista nije implementirano.
+
+**Mjesto:** radna sesija uz Winston-Salem, dan prije pocetka US Opena (glavni zdrijeb 31.08.).
+**Tema:** korisnikov prijedlog da se u generiranje tiketa doda SEDMA tocka — prije konacne
+preporuke agent pretrazi sve nase ranije analizirane meceve u Supabaseu, nadje 5-15
+povijesno najslicnijih situacija danasnjem paru i prikaze kako su TAKVI slucajevi prosli
+agregatno, naspram devigirane trzisne cijene.
+**Korisnikova ocjena:** "BRUTALNO KORISNO, do kraja godine bih ovo volio imati."
+**Odluka:** ideja je konceptualno dobra i OSTAJE NA POPISU, ali backtest kaze da je
+danas preuranjena. Ne dira se pred US Openom.
+
+### ZASTO JE PREMISA DOBRA (ovo nije odbijanje ideje)
+
+Korisnikove tri zastite su tocno one prave: **agregat umjesto anegdote**, **edge naspram
+devigirane cijene umjesto sirovog postotka**, i **walk-forward umjesto in-samplea**.
+Uocio je i nesto strukturno tocno: nas korpus ne sadrzi "sve teniske meceve" nego SAMO one
+koje je nas model odabrao — pa bi takav sustav bio sloj za ispravljanje VLASTITE
+pristranosti ("gdje nas model sustavno grijesi naspram cijene"), a ne predikcija tenisa.
+To je upravo ono sto smo 26.08. radili rucno.
+
+### STO IMAMO (335 razrijesenih analiza, provjereno 28.08.2026)
+
+| znacajka za slicnost | ima | od kada |
+|---|---|---|
+| devigirana cijena | 307 (92%) | 28.05. |
+| runda / podloga / razina | 335 (100%) | 27.05. |
+| surface ELO gap | **131 (39%)** | 08.08. |
+| serve/return | 139 (42%) | 07.08. |
+| dob | 89 (27%) | 15.08. |
+| trzisni konsenzus | 57 (17%) | 15.08. |
+| **ruka (ljevak/desnjak)** | **0 (0%)** | nikad — dokumentirani bug |
+| **age_gap / avg_opp_elo_5 / form_quality** | **0** | tek od 26.08. |
+
+Kombinacije koje je korisnik izricito trazio (`age_gap + workload`,
+`ELO gap + avg_opp_elo_last5`, `handedness matchup + serve profile`) imaju **nula**
+razrijesenih slucajeva. Jezgra na kojoj se uopce moze graditi: **131 mec, svi hard,
+unutar 20 dana.**
+
+### BACKTEST 1 — k-NN, stroga walk-forward zastita (pool = samo raniji datumi)
+
+Slicnost: devig cijena (tezina 2,0) + ELO jaz (1,5) + runda (1,0) + kazna za drugu podlogu
+i razinu. Mjeri se predvidja li `pattern_score` (stvarno - ocekivano kod susjeda) nas
+rezidual (ishod - cijena).
+
+    uzorak A (307, sve podloge)  k=5   r=+0,002 P=0,97 | k=10 r=-0,020 P=0,74 | k=15 r=-0,051 P=0,40
+    uzorak B (131, hard + ELO)   k=5   r=-0,075 P=0,48 | k=10 r=-0,238 P=0,023 | k=15 r=-0,186 P=0,077
+
+Na velikom uzorku **nista**; bucketi nemonotoni (+0,9 / -7,8 / +4,2 / -3,6pp).
+Jedini "znacajan" rezultat (B, k=10) ima tri mane:
+1. **predznak je OBRNUT od premise** — kad su slicni slucajevi prosli BOLJE od cijene, mi
+   zatim prolazimo -16,7pp; kad su prosli GORE, prolazimo +21,1pp. Regresija prema sredini.
+   Naivna implementacija bi nas tjerala da fadeamo bas pickove koji su se spremali proci dobro.
+2. nestabilan po k (-0,075 / -0,238 / -0,186) — ista bolest zbog koje je 26.08. odbacen
+   nalaz "protivnik 2+ meca"
+3. 6 testiranih konfiguracija -> Bonferroni 0,023 x 6 = **0,14**, nije znacajno
+
+### BACKTEST 2 — "ORACLE" kontrola (isti k-NN, ali smije gledati BUDUCNOST)
+
+    uzorak A, k=10 (oracle)   r = -0,101  P=0,077
+    uzorak B, k=10 (oracle)   r = -0,087  P=0,32
+
+**Cak i uz potpuno znanje buducnosti susjedstvo ne predvidja rezidual.** To iskljucuje
+objasnjenje "premalo podataka, cekaj pa ce proraditi" — da struktura postoji a fali uzorka,
+oracle bi je nasao. U OVOM prostoru znacajki te strukture nema.
+(Susjedstvo pritom NIJE besmisleno: 10. susjed je na 0,40 odnosno 0,62 udaljenosti
+nasumicnog meca, dakle mecevi se doista grupiraju — samo to grupiranje ne nosi ishod.)
+
+### BACKTEST 3 — jednodimenzionalna verzija na NAJJACEM POZNATOM SIGNALU (runda)
+
+Najjednostavnija moguca verzija iste ideje, bez curse-of-dimensionality: "kako su nasi
+raniji pickovi prosli u OVOJ skupini rundi, naspram cijene?", walk-forward.
+
+    min_pool=10  n=271  r=-0,030 P=0,62
+    min_pool=20  n=242  r=-0,017 P=0,79
+    min_pool=30  n=205  r=-0,075 P=0,29
+
+I razlog **zasto** — ovo je najvazniji redak cijele analize:
+
+| skupina | stvarno ostvareno | sto je povijest TVRDILA u tom trenutku |
+|---|---|---|
+| rane runde | +1,3pp | -4,0pp (krivi smjer) |
+| **R16/QF** | **-6,6pp** | **+1,9pp (krivi smjer)** |
+| SF/F | +6,2pp | +4,7pp (tocno, n=15) |
+
+U R16/QF — skupini za koju smo 26.08. izmjerili -13,3pp (z=-2,31) — povijesni je zapis u
+REALNOM VREMENU pokazivao da je sve u redu. **Signal koji retrospektivno vidimo kao najjaci
+strukturni nalaz nije bio detektabilan iz vlastite povijesti dok se nije dogodio.**
+Ako ne prolazi jednodimenzionalna verzija na najjacem poznatom signalu, petodimenzionalna
+sigurno nece.
+
+### DVIJE STRUKTURNE PREPREKE KOJE OSTAJU I UZ VECI UZORAK
+
+**(a) Korpus nije homogen.** U 335 razrijesenih analiza imamo **8 razlicitih `rules_hash`
+era i 12 `context_version` verzija**; najveca era je 36% korpusa. "Slican povijesni mec" iz
+srpnja generiran je DRUGIM modelom. Klasicni case-based sustav pretpostavlja jednu politiku;
+kod nas je nema dok mijenjamo model svakih par tjedana. Buduci pool zato treba ograniciti na
+jednu eru ili je barem nositi kao znacajku.
+
+**(b) Pokrivenost je mala.** Uz prag +-10pp: 30,5% meceva nema pool (<30 ranijih),
+43,5% neutralno, 12,2% negativan i 13,7% pozitivan signal. Nova tocka bi imala sto reci na
+**~26% pickova** — uz ~8 analiza dnevno to su otprilike dva picka dnevno, a nakon praga 63%
+jos manje.
+
+### KAD POSTAJE IZVEDIVO — s brojkama
+
+    n =  15 susjeda -> SE = 12,9pp   beznadno za efekt od 10pp
+    n =  50         -> SE =  7,1pp   preslabo
+    n = 100         -> SE =  5,0pp   granicno upotrebljivo
+
+- **gruba verzija** (bucketi: 3 pojasa cijene x 3 skupine rundi, ~100 po celiji) ->
+  **~900 razrijesenih analiza** -> pri 8/dan otprilike **4 mjeseca**
+- **pravi k-NN** s 5+ dimenzija -> nekoliko tisuca -> **godinu dana ili vise**
+- uz uvjet da su `age_gap` / `avg_opp_elo_5` / `form_quality` razrijeseni (biljeze se tek od
+  26.08.) -> realno **kraj 2026.**, sto se poklapa s korisnikovim rokom
+
+### ARHITEKTURA ZA KAD DODJE VRIJEME (zapisano da se ne izmislja ispocetka)
+
+- **znacajke i tezine:** devig cijena 2,0 (definira rezim) | surface ELO jaz 1,5 | runda 1,0 |
+  `form_quality` 1,0 | `age_gap` 0,5 | razina turnira 0,5 | **podloga kao TVRDI FILTAR**, ne kazna
+- **NE ukljucivati** visinu, ruku ni sezonske servisne statistike — sve tri izmjerene kao nula
+  (26.08.); u k-NN-u bi samo razrijedile prostor
+- **poceti s grubim celijama, ne s kontinuiranom udaljenoscu** (manje slobode = manje overfittinga)
+- **prag uzorka: minimalno 50** slucajeva u celiji; ispod toga izlaz je `insufficient sample`
+- **pool ograniciti na jednu `rules_hash` eru** (vidi prepreku (a))
+- **izlaz:** `pozitivan / neutralan / negativan / insufficient`, s brojem slucajeva i intervalom,
+  kao KONTEKST uz ostalih 6 kategorija — **nikad samostalan razlog za pick** (korisnikov uvjet)
+- **prije ukljucenja OBAVEZNO ponoviti tocno ovaj walk-forward + oracle test**
+
+### STO SE RADI UMJESTO TOGA (vec radi, besplatno)
+
+1. `form_quality`, `age_gap`, `avg_opp_elo_5`, `matches_3_9d` se od 26.08. biljeze — bez toga
+   se ovo nikad nece moci napraviti
+2. revizija od 26.08. JE bila "agregat slicnih slucajeva naspram devigirane cijene", samo s
+   analitickim filtrom umjesto automatike — pri n=178 to je bolja razmjena
+3. ocjenjivacka tablica od 26.08. je case-based reasoning s ljudskim gateom: pragovi zapisani
+   unaprijed, pa nas US Open moze demantirati
+
+**UVJETI ZA PONOVNO OTVARANJE:** ~900 razrijesenih analiza, `age_gap`/`avg_opp_elo_5`/
+`form_quality` razrijeseni na vecini njih, i pool unutar jedne ere modela. Prije implementacije
+ponoviti backtest 1-3 iz ovog zapisa; ako oracle i dalje daje ~0, ideja pada definitivno.
+
+**Nista nije implementirano. `rules_hash` a0424315, tezine v18, `context_version` 17.**
+
 ## 2026-08-28 19:58 — POPRAVAK STROPA POTVRDJEN NA ZIVOM PROMETU; nadjena greska u
 ## oznakama rundi. NISTA NIJE MIJENJANO — samo zapis.
 
