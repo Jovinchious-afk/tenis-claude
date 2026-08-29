@@ -60,14 +60,42 @@ def _send_email(subject: str, html_body: str) -> bool:
         return False
 
 
+from utils.helpers import pick_ledger, is_no_selection, MIN_PICK_CONFIDENCE
+
+
+def _ledger_html(matches: list) -> str:
+    """(4) Sluzbeni popis pickova IZ BAZE, iznad teksta koji je napisao model
+    (29.08.2026 13:05). Povod: write-up je istog jutra za dva meca imenovao
+    protivnika naseg picka. Uzrok je popravljen, ovo je trajna referenca."""
+    rows = pick_ledger(matches)
+    if not rows:
+        return ""
+    items = "".join(
+        '<li style="margin-bottom:4px;"><strong>{pick}</strong> '
+        '<span style="color:#6b7280;">— {p1} vs {p2} · {odds:.2f} · {conf:.0f}%</span>{tag}</li>'.format(
+            pick=r["pick"], p1=r["player1"], p2=r["player2"],
+            odds=r["odds"], conf=r["confidence"],
+            tag=('<span style="background:#a16207;color:white;padding:1px 6px;'
+                 'border-radius:4px;font-size:10px;margin-left:6px;">NO SELECTION</span>'
+                 if r["no_selection"] else ""))
+        for r in rows)
+    return ('<div style="background:#f1f5f9;border-left:4px solid #0f172a;padding:12px 15px;'
+            'margin-bottom:16px;border-radius:4px;">'
+            '<strong>Picks as recorded</strong> '
+            '<span style="color:#6b7280;font-size:12px;">(source: database, not the text below)</span>'
+            '<ol style="margin:8px 0 0 18px;padding:0;font-size:13px;">' + items + '</ol></div>')
+
+
 def _build_ticket_html(ticket: dict, matches: list) -> str:
     rows = ""
     for m in matches:
-        value_badge = '<span style="background:#22c55e;color:white;padding:2px 6px;border-radius:4px;font-size:11px;">VALUE ✓</span>' if m.get("value_bet") else ""
+        _ns = is_no_selection(m)
+        value_badge = ('<span style="background:#22c55e;color:white;padding:2px 6px;border-radius:4px;font-size:11px;">VALUE ✓</span>'
+                       if m.get("value_bet") and not _ns else "")
         rows += f"""
         <tr>
           <td style="padding:10px;border-bottom:1px solid #e5e7eb;">
-            <strong>{m.get('pick', '')}</strong> to win<br>
+            <strong>{m.get('pick', '')}</strong>{" to win" if not _ns else '<span style="background:#a16207;color:white;padding:1px 6px;border-radius:4px;font-size:10px;margin-left:6px;">NO SELECTION</span>'}<br>
             <small style="color:#6b7280;">{m.get('player1','')} vs {m.get('player2','')}</small><br>
             <small style="color:#6b7280;">{m.get('tournament','')} · {m.get('surface','')} · {m.get('round','')}</small>
           </td>
@@ -96,6 +124,7 @@ def _build_ticket_html(ticket: dict, matches: list) -> str:
         </tr>
         {rows}
       </table>
+      {_ledger_html(matches)}
       <div style="background:#1d4ed8;color:white;padding:15px;border-radius:8px;text-align:center;">
         <strong>Combined odds: {ticket.get('total_odds',0):.2f}</strong> &nbsp;|&nbsp;
         Stake: €{ticket.get('stake',50):.0f} &nbsp;|&nbsp;
@@ -111,14 +140,15 @@ def _build_analysis_only_html(ticket: dict, matches: list) -> str:
     date_str = ticket.get("ticket_date", "")
     rows = ""
     for m in matches:
+        _ns = is_no_selection(m)
         value_badge = (
             '<span style="background:#22c55e;color:white;padding:2px 6px;border-radius:4px;font-size:11px;">VALUE ✓</span>'
-            if m.get("value_bet") else ""
+            if m.get("value_bet") and not _ns else ""
         )
         rows += f"""
         <tr>
           <td style="padding:10px;border-bottom:1px solid #e5e7eb;">
-            <strong>{m.get('pick', '')}</strong> to win<br>
+            <strong>{m.get('pick', '')}</strong>{" to win" if not _ns else '<span style="background:#a16207;color:white;padding:1px 6px;border-radius:4px;font-size:10px;margin-left:6px;">NO SELECTION</span>'}<br>
             <small style="color:#6b7280;">{m.get('player1','')} vs {m.get('player2','')}</small><br>
             <small style="color:#6b7280;">{m.get('tournament','')} · {m.get('surface','')} · {m.get('round','')}</small>
           </td>
@@ -157,6 +187,7 @@ def _build_analysis_only_html(ticket: dict, matches: list) -> str:
         ⚠️ <strong>No ticket today</strong> — insufficient main-tour matches for a full accumulator.
         These predictions are tracked for model learning purposes.
       </p>
+      {_ledger_html(matches)}
       {summary_html}
       <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
         <tr style="background:#f3f4f6;">

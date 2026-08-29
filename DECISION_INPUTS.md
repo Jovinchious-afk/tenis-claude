@@ -211,3 +211,19 @@ mjerenje na 88 tiketa i popis odgodjenog u `MODEL_CHANGELOG.md` (2026-08-29 12:1
 
 **Za citanje STARIH tiketa:** `ticket_summary` od 29.06. i 22.08.2026 nosi krivo imenovan
 pobjednik i NIJE retroaktivno prepisan. Vjerovati polju `pick`.
+
+**Od 29.08.2026 13:40** iznad svakog write-upa (Streamlit, arhiva, oba maila) stoji
+`Picks as recorded (source: database, not the text below)` — popis crtan iz
+`ticket_matches` preko `utils.helpers.pick_ledger`, bez ijedne rijeci koju je napisao
+model. To je sluzbeni izvor za sve tikete, i stare i nove.
+
+## 4c. ULAZI U PRIKAZ (ne u predikciju) — prag `MIN_PICK_CONFIDENCE = 50.0`
+
+`utils.helpers.is_no_selection(match)` -> `confidence < 50`. Pick ispod praga se prikazuje
+kao **NO SELECTION**, gubi oznaku VALUE, u write-upu nosi `[NOT BACKED]` i ne ulazi u
+**hipotetski** tiket (`_conf_floor_ok` u `_selection_ok`). Pravi tiket je netaknut — ondje
+prag ionako iznosi 63% (65% na Grand Slamu).
+
+**Predikcija se i dalje bilježi, razrješava i BRoji u statistici.** Izvedeno iz
+`confidence`, nije stupac u bazi. Mjerenja i obrazlozenje: `utils/helpers.py`, blok iznad
+`MIN_PICK_CONFIDENCE`, i `MODEL_CHANGELOG.md` (2026-08-29 13:40).

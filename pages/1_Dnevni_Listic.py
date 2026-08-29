@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import streamlit as st
 from database import supabase_client as db
-from utils.helpers import today_zagreb, format_date, format_date_hr
+from utils.helpers import today_zagreb, format_date, format_date_hr, pick_ledger, is_no_selection, MIN_PICK_CONFIDENCE
 
 st.set_page_config(page_title="Daily Ticket | Tennis Agent", page_icon="🎾", layout="wide")
 st.title("🎾 Daily Ticket")
@@ -83,6 +83,23 @@ st.markdown("---")
 if ticket.get("ticket_summary"):
     expander_label = "📊 Analysis write-up" if status == "analysis_only" else "📝 Ticket write-up"
     with st.expander(expander_label, expanded=True):
+        # (4) SLUZBENI POPIS PICKOVA — crta se IZ BAZE, ne iz teksta ispod
+        # (29.08.2026 13:05). Povod: write-up je istog jutra za dva meca imenovao
+        # protivnika naseg picka. Uzrok je popravljen u ticket_builderu, ali ovo
+        # ostaje kao trajna referenca — korisnik nikad ne treba zakljucivati sto
+        # je sluzbena odluka iz proze koju je napisao model.
+        _ledger = pick_ledger(matches)
+        if _ledger:
+            _lines = []
+            for _e in _ledger:
+                _tag = "  ·  ⚠️ NO SELECTION" if _e["no_selection"] else ""
+                _lines.append(
+                    f"{_e['n']}. **{_e['pick']}** — {_e['player1']} vs {_e['player2']} "
+                    f"· {_e['odds']:.2f} · {_e['confidence']:.0f}%{_tag}"
+                )
+            st.caption("Picks as recorded (source: database, not the text below)")
+            st.markdown("\n".join(_lines))
+            st.markdown("")
         st.markdown(ticket["ticket_summary"])
 
         # Reviewer notes — always show if available
@@ -112,8 +129,19 @@ for i, m in enumerate(matches):
 
         c1, c2, c3, c4, c5 = st.columns([3, 1, 1, 1, 2])
 
+        _no_sel = is_no_selection(m)
+
         with c1:
-            st.markdown(f"**{i+1}. {m.get('pick', '')}** to win")
+            if _no_sel:
+                # (5) Pouzdanost ispod 50% znaci da model tvrdi da vlastiti pick
+                # GUBI (29.08.2026 13:05). Predikcija se i dalje biljezi i boduje —
+                # samo se ne prikazuje kao nesto sto bismo igrali.
+                st.markdown(f"**{i+1}. {m.get('pick', '')}** — model's lean, "
+                            f"<span style=\"background:#a16207;color:white;padding:2px 8px;"
+                            f"border-radius:6px;font-size:11px;\">NO SELECTION</span>",
+                            unsafe_allow_html=True)
+            else:
+                st.markdown(f"**{i+1}. {m.get('pick', '')}** to win")
             st.caption(f"{m.get('player1','')} vs {m.get('player2','')}")
             st.caption(f"🏆 {m.get('tournament','')} · {m.get('surface','')} · {m.get('round','')}")
             if m.get("match_date"):
@@ -121,7 +149,10 @@ for i, m in enumerate(matches):
 
         with c2:
             st.metric("Kvota", f"{m.get('odds', 0):.2f}")
-            if m.get("value_bet"):
+            # VALUE se racuna iz fair_odds, dakle iz pouzdanosti — ispod praga je
+            # ta oznaka besmislena (tvrdila bi vrijednost na picku koji sam model
+            # ne vjeruje da pobjeđuje).
+            if m.get("value_bet") and not _no_sel:
                 st.markdown('<span style="background:#3b82f6;color:white;padding:2px 8px;border-radius:6px;font-size:11px;">VALUE ✓</span>', unsafe_allow_html=True)
 
         with c3:
@@ -137,6 +168,9 @@ for i, m in enumerate(matches):
             st.markdown(_status_badge(m_result), unsafe_allow_html=True)
 
         with c5:
+            if _no_sel:
+                st.caption(f"🚫 Below the {MIN_PICK_CONFIDENCE:.0f}% floor — the model reads "
+                           f"this as a coin-flip against its own pick. Tracked, not backed.")
             if m.get("risk_notes"):
                 st.caption(f"⚠️ {m['risk_notes']}")
             if m.get("handicap_option"):

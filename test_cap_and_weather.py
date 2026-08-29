@@ -849,6 +849,98 @@ check("stari nacin ODLUCIVANJA je uklonjen",
 check("write-up popravak NE dira rules_hash",
       _pr._model_stamp("hard")["rules_hash"] == "a0424315")
 
+print("\n=== 26. Sluzbeni popis pickova + prag 50% (29.08.2026) ===")
+from utils.helpers import is_no_selection, pick_ledger, MIN_PICK_CONFIDENCE
+from utils import email_sender as _es
+import io as _io26
+
+check("prag je 50", MIN_PICK_CONFIDENCE == 50.0)
+check("49% je no-selection", is_no_selection({"confidence": 49.0}) is True)
+check("49.9% je no-selection", is_no_selection({"confidence": 49.9}) is True)
+check("50% NIJE no-selection (granica ukljuciva)", is_no_selection({"confidence": 50.0}) is False)
+check("65% NIJE no-selection", is_no_selection({"confidence": 65.0}) is False)
+check("bez pouzdanosti se NE oznacava", is_no_selection({}) is False
+      and is_no_selection({"confidence": None}) is False)
+check("prazan ulaz ne puca", is_no_selection(None) is False)
+
+_lm = [{"pick": "Yibing Wu", "player1": "Yibing Wu", "player2": "Adam Walton",
+        "odds": 1.85, "confidence": 49.0, "value_bet": True},
+       {"pick": "Cameron Norrie", "player1": "Luca Van Assche", "player2": "Cameron Norrie",
+        "odds": 1.42, "confidence": 65.0, "value_bet": True}]
+_led = pick_ledger(_lm)
+check("ledger numerira od 1", [e["n"] for e in _led] == [1, 2])
+check("ledger nosi pick iz baze, ne iz teksta",
+      [e["pick"] for e in _led] == ["Yibing Wu", "Cameron Norrie"])
+check("ledger oznacava samo pick ispod praga",
+      [e["no_selection"] for e in _led] == [True, False])
+check("prazna lista daje prazan ledger", pick_ledger([]) == [] and pick_ledger(None) == [])
+
+# --- ticket_builder: pick ispod praga ne ulazi ni u hipotetski tiket ---
+check("_conf_floor_ok odbija 49%", _tb._conf_floor_ok({"confidence": 49.0}) is False)
+check("_conf_floor_ok prima 63%", _tb._conf_floor_ok({"confidence": 63.0}) is True)
+check("_selection_ok koristi conf floor",
+      "_conf_floor_ok(p)" in inspect.getsource(_tb._selection_ok))
+
+# --- write-up prompt ---
+_ns_m = {"pick": "Yibing Wu", "player1": "Yibing Wu", "player2": "Adam Walton",
+         "odds": 1.85, "confidence": 49.0, "value_bet": True, "risk_notes": "converged serve",
+         "key_factors": ["6. Own read: coin flip"], "tournament": "US Open",
+         "surface": "Hard", "round": "R64"}
+_ok_m = dict(_ns_m, pick="Cameron Norrie", player1="Luca Van Assche", player2="Cameron Norrie",
+             confidence=65.0)
+_p26 = _tb._analysis_only_prompt([_ns_m, _ok_m])
+check("prompt oznacava unos ispod praga", "[NOT BACKED — below the 50% floor]" in _p26)
+check("oznaka stoji SAMO na tom unosu", _p26.count("NOT BACKED — below") == 1)
+check("VALUE se gasi na unosu ispod praga",
+      _p26.split("2. SELECTION")[0].count("VALUE") == 0
+      and "VALUE" in _p26.split("2. SELECTION")[1])
+check("prompt objasnjava sto je [NOT BACKED]",
+      "coin-flip against its own lean" in _p26
+      and "Do not present it as a recommendation" in _p26)
+check("prompt i dalje trazi da se imenuje NAS igrac",
+      "Still name that player as the side the model leaned to" in _p26)
+check("postotak nije dvostruko escapean", "50%%" not in _p26)
+
+# --- rezervna deterministicka recenica ---
+_dl_ns = _tb._deterministic_line(_ns_m)
+check("rezervna recenica kaze da nije podrzano",
+      "not backed" in _dl_ns and "below our 50% floor" in _dl_ns)
+check("rezervna recenica i dalje imenuje NAS pick", _dl_ns.startswith("**Yibing Wu**"))
+check("normalan pick ostaje 'over'", "over" in _tb._deterministic_line(_ok_m)
+      and "not backed" not in _tb._deterministic_line(_ok_m))
+check("provjera okretanja i dalje prolazi na rezervnoj recenici",
+      _tb._writeup_flips(_dl_ns, [_ns_m]) == [])
+
+# --- mail ---
+_tk = {"ticket_date": "2026-08-29", "ticket_summary": "Test summary.", "status": "analysis_only"}
+_html = _es._build_analysis_only_html(_tk, _lm)
+check("mail nosi sluzbeni popis pickova", "Picks as recorded" in _html)
+check("popis dolazi PRIJE teksta modela",
+      _html.index("Picks as recorded") < _html.index("Test summary."))
+check("mail oznacava NO SELECTION", "NO SELECTION" in _html)
+check("mail gasi VALUE na picku ispod praga",
+      _html[_html.index("<table"):].split("Cameron Norrie")[0].count("VALUE") == 0)
+check("mail zadrzava VALUE na urednom picku", "VALUE" in _html)
+_html2 = _es._build_ticket_html({"ticket_date": "2026-08-29", "total_odds": 5.0,
+                                 "stake": 50, "potential_win": 250.0}, _lm)
+check("i tiket-mail nosi popis pickova", "Picks as recorded" in _html2)
+
+# --- Streamlit stranice ---
+_dl_src = _io26.open(r"pages/1_Dnevni_Listic.py", encoding="utf-8").read()
+_ar_src = _io26.open(r"pages/2_Arhiva.py", encoding="utf-8").read()
+check("dnevni listic crta popis iz baze", "pick_ledger(matches)" in _dl_src
+      and "source: database, not the text below" in _dl_src)
+check("dnevni listic oznacava NO SELECTION", "NO SELECTION" in _dl_src)
+check("dnevni listic gasi VALUE ispod praga",
+      'm.get("value_bet") and not _no_sel' in _dl_src)
+check("arhiva crta popis iz baze", "pick_ledger(matches)" in _ar_src)
+check("arhiva oznacava NO SELECTION", "NO SELECTION" in _ar_src)
+
+# --- zamka: predikcija se i dalje BILJEZI i BODUJE ---
+check("nista ne brise pick iz ticket_matches",
+      "no_selection" not in inspect.getsource(_tb.build_analysis_only_ticket))
+check("prag NE dira rules_hash", _pr._model_stamp("hard")["rules_hash"] == "a0424315")
+
 print("\n" + "=" * 60)
 if _fails:
     print(f"PALO: {len(_fails)}")

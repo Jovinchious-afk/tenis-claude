@@ -6,6 +6,7 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import streamlit as st
+from utils.helpers import pick_ledger, is_no_selection
 import pandas as pd
 from database import supabase_client as db
 
@@ -165,6 +166,20 @@ if selected:
     if selected.get("ticket_summary"):
         label = "📊 Analysis write-up" if selected.get("status") == "analysis_only" else "📝 Ticket write-up"
         with st.expander(label, expanded=True):
+            # (4) Sluzbeni popis pickova iz baze iznad proze — vidi
+            # pages/1_Dnevni_Listic.py i MODEL_CHANGELOG 2026-08-29 12:10.
+            # U arhivi je ovo VAZNIJE nego na dnevnom listicu: sazetci od 29.06. i
+            # 22.08.2026 nose krivo imenovanog pobjednika i NISU retroaktivno
+            # prepisani, pa je ovaj popis jedini pouzdan izvor za stare tikete.
+            _led = pick_ledger(matches)
+            if _led:
+                st.caption("Picks as recorded (source: database, not the text below)")
+                st.markdown("\n".join(
+                    f"{e['n']}. **{e['pick']}** — {e['player1']} vs {e['player2']} "
+                    f"· {e['odds']:.2f} · {e['confidence']:.0f}%"
+                    + ("  ·  ⚠️ NO SELECTION" if e["no_selection"] else "")
+                    for e in _led))
+                st.markdown("")
             st.markdown(selected["ticket_summary"])
         st.markdown("---")
 
@@ -179,11 +194,13 @@ if selected:
         else:
             icon = "⏳"
 
-        with st.expander(f"{icon} {m.get('pick','')} — {m.get('tournament','')} ({m.get('surface','')})", expanded=False):
+        _ns = " · ⚠️ NO SELECTION" if is_no_selection(m) else ""
+        with st.expander(f"{icon} {m.get('pick','')}{_ns} — {m.get('tournament','')} ({m.get('surface','')})", expanded=False):
             c1, c2 = st.columns(2)
             with c1:
                 st.write(f"**Match:** {m.get('player1','')} vs {m.get('player2','')}")
-                st.write(f"**Pick:** {m.get('pick','')}")
+                st.write(f"**Pick:** {m.get('pick','')}"
+                         + (" — NO SELECTION (below the 50% floor)" if is_no_selection(m) else ""))
                 st.write(f"**Odds:** {m.get('odds',0):.2f}")
                 st.write(f"**Confidence:** {m.get('confidence',0):.0f}%")
             with c2:

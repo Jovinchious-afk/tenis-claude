@@ -13,6 +13,96 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-08-29 13:40 — SLUZBENI POPIS PICKOVA IZ BAZE + PRAG OD 50%
+## (tocke 4 i 5 s jutrosnjeg popisa, izvedene istog dana na korisnikov zahtjev)
+
+**Mjesto:** ista radna sesija, poslijepodne dana finala Winston-Salema.
+**Povod:** korisnik je pitao zasto se 4 i 5 ne bi napravile odmah. Moja jutarnja ograda
+("dira selekciju, ne pred Grand Slamom") bila je **prestroga i ispravljena je**: prag za
+pravi tiket je 63% (65% na Grand Slamu), pa pick ispod 50% **nikad nije mogao doci na
+listic**. Stvarni doseg je prikaz + hipotetski tiket, ne selekcija.
+
+### 4. SLUZBENI POPIS PICKOVA — crta se IZ BAZE, ne iz teksta
+
+Iznad write-upa (Streamlit dnevni listic, arhiva, oba HTML maila) sada stoji popis
+`Picks as recorded (source: database, not the text below)`, sastavljen iz `ticket_matches`
+bez ijedne rijeci koju je napisao model. Zajednicki izvor: `utils/helpers.pick_ledger`.
+
+**U arhivi je ovo vaznije nego na dnevnom listicu:** sazetci od 29.06. i 22.08.2026 nose
+krivo imenovanog pobjednika i NISU retroaktivno prepisani, pa je ovaj popis jedini pouzdan
+izvor za te tikete.
+
+### 5. PRAG OD 50% — "NO SELECTION"
+
+`utils/helpers.MIN_PICK_CONFIDENCE = 50.0` + `is_no_selection(match)`. **Izvedeno iz
+`confidence`, NIJE novi stupac** — prag je stvar politike prikaza, pa mora biti promjenjiv
+bez migracije i primjenjiv unatrag na sve postojece retke.
+
+Pick ispod 50% je logicka kontradikcija: model tvrdi da igrac na kojeg se kladimo
+**vjerojatnije gubi**. Prvi put se dogodilo **29.08.2026** (Yibing Wu, 49%, kvota 1,85 uz
+fair 2,04). Razrijesena povijest, 337 analiza:
+
+    <50%    n=0     nikad prije; postalo je moguce tek 17.08.2026, kad su uvedene
+                    ODUZIMAJUCE kazne (-4pp Med-Low scouting, -5pp trzisni autsajder),
+                    koje se ZBRAJAJU. Wu: 58 -> 49. Vukic isti dan: 62 -> 53.
+    50-54%  n=2     0 pogodaka    0,0%
+    55-59%  n=11    7             63,6%
+    60-64%  n=222   137           61,7%
+    65%+    n=102   66            64,7%
+
+**Sto se mijenja:** kartica i mail pisu `NO SELECTION` umjesto "to win", oznaka VALUE se
+gasi (racuna se iz `fair_odds`, dakle iz iste pouzdanosti — besmislena je ispod praga),
+write-up dobiva `[NOT BACKED — below the 50% floor]` uz izricitu uputu da takav mec opise
+kao "the lean, but not a bet", i `_conf_floor_ok` izbacuje takav pick iz **hipotetskog**
+tiketa (ondje se conf floor namjerno ne primjenjuje, pa je to bila jedina stvarna rupa).
+
+**Sto se NAMJERNO ne mijenja:** takvi pickovi **ostaju u bazi, razrjesavaju se i broje se
+u statistici modela**. Iskljuciti ih iz bodovanja znacilo bi tiho brisati vlastite najgore
+odluke iz dosjea, a uzorak je i onako premalen (n=2 ispod 55%) da bismo si to smjeli
+dopustiti. Oznaka govori "ovo ne bismo igrali", ne "ovo se nije dogodilo".
+
+### PROVJERA
+
+- **37 novih checkova**, sekcija 26 u `test_cap_and_weather.py`; obje skripte prolaze.
+- Prikaz proveden na **stvarnih 12 meceva od 29.08.**: popis tocan, jedan mec oznacen,
+  VALUE ugasena na njemu, popis dolazi prije proze u oba maila.
+- **Zivi write-up** s novom oznakom: *"**Wu** is the model's lean on a +37-point surface
+  ELO advantage, but at 49% confidence this falls below the 50% floor and is not a bet."*
+  Sva ostala 11 imena tocna, 0 okretanja.
+
+### ZASTO OVO NIJE RIJESILO PRAVI PROBLEM (nastavak analize od 12:10)
+
+Korisnik je pitao zasto agent nije jednostavno prebacio pick na Sakamota kad je vlastita
+analiza zakljucno vukla na njega. Odgovor je strukturni i vrijedi ga zapisati:
+
+**Model svoje neslaganje s vlastitim pickom moze izraziti SAMO spustanjem broja, nikad
+promjenom strane.** Sva pravila su odbici i stropovi — pravilo 15 *"a deduction, not a
+veto"*, pravilo 16 *"cap at 62%"*, pravilo 12 *"caps at 60%"*, Med-Low -4pp, trzisni
+autsajder -5pp. **Nijedno ne kaze "onda uzmi drugoga."** Zato je Wu zavrsio na 49% umjesto
+da je pick postao Walton.
+
+Doprinose i dva dodatna mehanizma:
+1. **Redoslijed kategorija usidruje na ELO.** `key_factors` slot 1 je uvijek "Rating —
+   hard ELO, ranking, hard W-L". Ime se napise ondje, a preostalih pet slotova postaju
+   obrana s ogradama.
+2. **Trziste je zabranjeno kao ulaz** (*"a check, NEVER an input"*, 13.08.). Pravilo ima
+   dobar mjereni razlog (2W-6L kad smo odstupali >10pp naviste), ali nuspojava je da je
+   najjasniji signal za Sakamota bio nedostupan u trenutku biranja strane. Model ga je
+   smio pogledati tek poslije i tada u `market_check` zapisao doslovno:
+   *"Market prices Sakamoto as favourite (~57% implied); our model favours Vukic on
+   ELO/serve gap — the concrete measured fact is Vukic's hard ELO advantage of +86.6"* —
+   dakle sam potvrdio da mu je ELO jedini argument.
+
+**Ovo ostaje NERIJESENO i ide poslije US Opena** (bivsa tocka 6): mjeriti koliko cesto
+"Own read" faktor zakljucno favorizira PROTIVNIKA odabranog picka i kako takvi pickovi
+prolaze. Ako je stopa gubitka visa, pravi popravak nije jos jedan odbitak nego
+**dopustiti modelu da prebaci stranu**.
+
+**Zamka:** `rules_hash` ostaje `a0424315`, `context_version` 17. Ni ova izmjena ne dira
+predikciju — mijenja se sto se prikazuje i sto ulazi u hipotetski tiket.
+
+---
+
 ## 2026-08-29 12:10 — WRITE-UP JE OKRETAO PICK: sazetak imenovao PROTIVNIKA
 ## kao pobjednika. Popravljeno u tri sloja (prompt + provjera + rezanje ulaza).
 
@@ -131,7 +221,8 @@ Ovo je iskljucivo sloj prikaza. Tiketi od 29.06. i 22.08. u bazi i dalje nose KR
 tekst u `ticket_summary` (nije retroaktivno prepisano) — pri citanju starih sazetaka
 vjerovati polju `pick`, ne prozi.
 
-### ODGODJENO NA POSLIJE US OPENA (korisnikova odluka, 29.08.)
+### ODGODJENO NA POSLIJE US OPENA — **tocke 4 i 5 su ipak napravljene ISTI DAN**
+### (korisnik 29.08. 13:00: "meni se to cini logicnim napraviti sada"; vidi unos 13:40)
 
 4. **Prikaz: ime picka crtati iz baze, ne iz teksta.** U Streamlitu i mailu ispred svake
    recenice write-upa staviti podatkovnu oznaku (`Pick: Yibing Wu`). Ciste kozmetike, ali

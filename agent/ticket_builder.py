@@ -11,7 +11,8 @@ import anthropic
 from typing import Optional
 from dotenv import load_dotenv
 from config.model_config import TICKET_CONFIG, CLAUDE_MODELS, TOURNAMENT_LEVELS, DAILY_MATCH_LIMITS
-from utils.helpers import combined_odds, potential_win, today_zagreb, tomorrow_zagreb
+from utils.helpers import (combined_odds, potential_win, today_zagreb, tomorrow_zagreb,
+                          is_no_selection, MIN_PICK_CONFIDENCE)
 
 load_dotenv()
 
@@ -265,9 +266,22 @@ def _clay_fatigue_ok(p) -> bool:
     return (conf - penalty) >= 63.0
 
 
+def _conf_floor_ok(p) -> bool:
+    """Pick ispod 50% pouzdanosti ne ulazi ni u jednu kandidatsku listu (29.08.2026 13:05).
+
+    Model tvrdi da igrac na kojeg se kladimo VJEROJATNIJE GUBI — to nije oprezan pick,
+    nego proturjecje. Za PRAVI tiket ovo nista ne mijenja (prag je ionako 63%, na Grand
+    Slamu 65%); jedini stvarni ucinak je hipotetski "kad bih bas morao" tiket, koji je
+    bez ovoga smio posegnuti ispod 50 jer se ondje conf floor namjerno ne primjenjuje.
+    Puno obrazlozenje i mjerenja: utils/helpers.py, blok iznad MIN_PICK_CONFIDENCE.
+    """
+    return not is_no_selection({"confidence": (p.get("confidence")
+                                               if isinstance(p, dict) else None)})
+
+
 def _selection_ok(p) -> bool:
     """Zajednički mandatory filter za sve kandidatske liste tiketa."""
-    return (_is_main_tour(p) and _has_odds(p)
+    return (_is_main_tour(p) and _has_odds(p) and _conf_floor_ok(p)
             and _grass_bands_ok(p)
             and _hard_gs_conf_ok(p) and _clay_gs_conf_ok(p)
             and not _opponent_beat_us(p)
@@ -1294,6 +1308,11 @@ def _deterministic_line(m: dict) -> str:
     """Rezervna recenica sastavljena iskljucivo iz baze — ne moze pogrijesiti ime."""
     reason = (m.get("risk_notes") or "").strip().rstrip(".")
     tail = " — risk: %s" % reason if reason else ""
+    if is_no_selection(m):
+        return ("**%s** is the lean over %s at %.2f, but at %.0f%% this is below our "
+                "%.0f%% floor — not backed%s."
+                % (m.get("pick", ""), _opponent_of(m), m.get("odds", 0) or 0,
+                   m.get("confidence", 0) or 0, MIN_PICK_CONFIDENCE, tail))
     return ("**%s** over %s at %.2f (%.0f%% confidence)%s."
             % (m.get("pick", ""), _opponent_of(m), m.get("odds", 0) or 0,
                m.get("confidence", 0) or 0, tail))
@@ -1315,12 +1334,13 @@ def _repair_flips(text: str, matches: list, flips: list) -> str:
 def _analysis_only_prompt(matches: list) -> str:
     """Prompt u nacinu IZVJESTAVANJA. Izdvojen iz poziva da ga test moze citati."""
     picks_text = "\n".join([
-        "%d. SELECTION: %s to win  (%s vs %s — %s, %s, %s) — odds %.2f, confidence %.0f%%%s\n"
+        "%d. SELECTION: %s to win  (%s vs %s — %s, %s, %s) — odds %.2f, confidence %.0f%%%s%s\n"
         "   Risk: %s\n"
         "   Analyst's own read: %s"
         % (i + 1, m["pick"], m["player1"], m["player2"], m["tournament"], m["surface"],
            m.get("round", ""), m["odds"], m["confidence"],
-           ", VALUE" if m.get("value_bet") else "",
+           ", VALUE" if m.get("value_bet") and not is_no_selection(m) else "",
+           "  [NOT BACKED — below the 50% floor]" if is_no_selection(m) else "",
            m.get("risk_notes", "") or "none noted", _own_read(m))
         for i, m in enumerate(matches)
     ])
@@ -1343,6 +1363,7 @@ HARD RULE — the selected player is fixed:
 - Never name the opponent as the winner. The player after "SELECTION:" is the one who is backed, even where the evidence looks two-sided or the market disagrees.
 - If a selection looks like a coin-flip, say so plainly ("a near coin-flip, taken on X") — but the named player still stands.
 - Refer to players by surname only. Do not use nationality/demonyms ("the Croatian", "the Czech") as a stand-in for a name — a frequent source of mix-ups when several players appear.
+- A selection marked [NOT BACKED] is one the model itself scored below 50%%, i.e. it reads the match as a coin-flip against its own lean. Still name that player as the side the model leaned to, but say plainly that this one is not backed (e.g. "Wu is the lean, but below our floor — not a bet"). Do not present it as a recommendation.
 
 Keep each sentence short. Be direct and specific. This entry is tracked for model learning.""" % (
         count_phrase, n, picks_text, n, n)
