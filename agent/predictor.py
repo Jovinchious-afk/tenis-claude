@@ -1493,6 +1493,14 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         p1_age=(p1.get("age") or "N/A") if _AGE_TO_PROMPT else "N/A",
         p1_hand=_format_hand(p1.get("hand", "")),
         p1_country=p1.get("nationality") or "N/A",
+        # NALAZ REVIZIJE 29.08.2026 13:11 — `ranking_trend` NIKAD nije imao vrijednost.
+        # U cijelom kodu ne postoji nijedno mjesto koje to polje POSTAVLJA; postoje samo
+        # dva ovakva citanja i dva upisa u snapshot. Model dakle na svakoj analizi cita
+        # "Ranking trend: N/A", od uvodjenja. SESTI slucaj iste obitelji tihih praznih
+        # polja (break lopte, dob, visina/tezina/ruka, harvest turnir+runda, find_player_elo
+        # koji vraca 1500 umjesto None) — vidi memoriju [[tihi-null-kljucevi]].
+        # ODLUKA: ili napuniti iz izvora, ili maknuti iz prompta. Odgodjeno na poslije US
+        # Opena jer oboje mijenja tekst koji model cita.
         p1_ranking=p1.get("ranking", "N/A"), p1_ranking_trend=p1.get("ranking_trend", "N/A"),
         p1_elo_overall=p1.get("elo_overall", 1500), p1_elo_surface=p1.get(elo_key, 1500),
         p1_surface_record=p1_surface_record,

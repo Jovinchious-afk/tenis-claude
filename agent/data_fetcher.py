@@ -1078,7 +1078,20 @@ def find_player_elo(player_name: str, elo_data: dict) -> dict:
     import unicodedata
 
     def _normalize(s: str) -> str:
-        """Ukloni dijakritike i standardiziraj razmake."""
+        """Ukloni dijakritike i standardiziraj razmake.
+
+        NALAZ REVIZIJE 29.08.2026 13:11 — NIJE POPRAVLJENO, ceka poslije US Opena:
+        svih 578 imena u `elo_cache` sadrzi NEPREKIDNI razmak (\xa0, U+00A0) umjesto
+        obicnog, i to oduvijek (tako ih daje izvor, nije od osvjezenja 29.08.). NFD ga ne
+        pretvara u razmak, a `.strip()` ga cisti samo s rubova — pa korak 1 nize (tocno
+        podudaranje) NE POGADJA NIKAD, ni za jednog igraca. Sve lookupe spasava tek korak 2
+        (prezime) odnosno 3.
+        Izmjereno: svih 40 igraca za 30.-31.08.2026 nadjeno, nijedan nije pao na zadanih
+        1500 — ALI 19 prezimena u cacheu dijele 2+ igraca (martin x3, silva x3, wu, paul,
+        harris, cerundolo, berrettini ...), gdje korak 2 ne moze odluciti.
+        POPRAVAK je jedan `.replace("\xa0", " ")` ovdje. Namjerno se NE radi pred Grand
+        Slamom: mijenja ulaz svake analize. Vidi MODEL_CHANGELOG 2026-08-29 13:11.
+        """
         s = unicodedata.normalize("NFD", s)
         s = "".join(c for c in s if unicodedata.category(c) != "Mn")
         return s.lower().strip()

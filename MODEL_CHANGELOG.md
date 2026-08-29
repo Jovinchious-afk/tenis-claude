@@ -13,6 +13,110 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-08-29 13:11 — REVIZIJA CIJELE BAZE pred US Open (12 tablica, svi stupci)
+## Nista nije mijenjano — nalaz + popis za poslije Grand Slama.
+
+**Povod:** korisnikov zahtjev da se poslije ~20 dana intenzivnih izmjena provjeri puni li
+se sve uredno, prije pocetka US Opena (31.08.). Isti dan je rucno osvjezio ELO cache.
+**Presuda: baza je zdrava, integritet besprijekoran, sve kljucno za US Open se puni.**
+
+### STANJE PO TABLICI (29.08.2026)
+
+| tablica | redaka | stanje |
+|---|---|---|
+| `analyzed_matches` | 525 | svih 23 stupca zdravo; noviji redci puniji od starih |
+| `ticket_matches` | 458 | 31 stupac; 2 mrtva polja (dolje) |
+| `tickets` | 88 | `reviewer_*` samo za prave tikete — ispravno |
+| `elo_cache` | 578 | osvjezeno 29.08. 10:52, 554 igraca, 0 zadanih 1500 |
+| `market_lines` | 14.956 | US Open pokriven s 6.193 linije, 48 kladionica |
+| `model_weights` | 18 | v18 aktivna (zadnja izmjena 04.08., namjerno zamrznuto) |
+| `performance_log` | 77 | zadnji zapis danas; ROI -57,7%, saldo -2.510,8 |
+| `player_match_history` | 727 | `surface` 100% prazan — samo istrazivacka tablica |
+| `player_scouting` | 150 | sve popunjeno, visina/tezina 88% |
+| `screenshot_odds` | 2 | 1 redak po datumu, upsert po `match_date` radi |
+| `tournament_history` | 799 | dopunjena danas |
+| `newtable 22-08-2026 new` | 0 | prazna ljustura od 22.08., za brisanje |
+
+### INTEGRITET — sve cisto
+
+    duplikata (datum + par):                  0 / 525
+    duplih external_match_id:                 0
+    isti par dvaput u istom tiketu:           0
+    ticket_matches bez tiketa (sirocad):      0
+    matches_count != stvarni broj redaka:     0
+
+12 tiket-redaka nema analizu na ISTI datum, ali svih 12 ima analizu tocno DAN KASNIJE —
+poznato neslaganje naseg i API-jevog datuma, koje `find_existing_analysis` pokriva
+spajanjem +-3 dana. Nije gubitak podataka.
+
+### POTVRDA DA POPRAVCI IZ ZADNJIH 10 DANA DRZE
+
+**Strop tokena (27.-28.08.):** NULL pickovi po datumu meca — 25.08. tri, 26.08. dva,
+27.08. dva, 28.08. jedan, a onda **29., 30. i 31.08. NULA**. `analysis_failed` je 0% u
+cijeloj v17 eri: nijedna analiza nije pukla otkad je popravak deployan.
+
+**Snapshot v17:** 23 retka, **85 od 121 kljuca 100% puno**. Ostatak je uvjetan po dizajnu
+(`cap_enforced`, `market_check`, `measured_penalties`, `common_opponents`, scouting polja
+samo za top-150) ili objasnjen dolje.
+
+### STO SAMO IZGLEDA KAO KVAR (da se ne istrazuje ponovno)
+
+1. **`market_snapshot` mrtav 23.-29.08.** Nije kvar: `market_lines` pokazuje da The Odds
+   API pokriva **Cincinnati do 23.08., pa nista, pa US Open od 28.08.** Winston-Salem nije
+   u njihovom feedu — potvrda biljeske od 27.07. da je pokrivenost ovisna o rangu turnira.
+2. **Weather/`local_time`/`session` prazni na 20 od 23 najnovije analize.** Nije regresija —
+   savrseno prati `schedule_provisional`: Winston-Salem (False) ima vrijeme i vremenske
+   uvjete, US Open (True) nema jer satnica jos nije objavljena.
+   **OPERATIVNO: dok je raspored provizoran u trenutku jutarnjeg runa, model za taj dan
+   nema ni sat meca ni vrijeme ni sesiju dan/noc.**
+3. **`match_time` i `hand` 100% prazni** — oba vec dokumentirana: `timeGame` iz API-ja je
+   uvijek null (zamijenjen `local_time`, 31.07.), a profil igraca uopce nema polje o ruci
+   (provjereno 07.08.). Mrtvi ostaci, ne kvarovi.
+4. **`player_match_history.surface` prazan** — tablicu cita samo `agent/history_features.py`,
+   koji produkcija ne uvozi (postoji i test koji to cuva). Bezopasno.
+
+### NALAZI ZA POPRAVAK — SVE ODGODJENO NA POSLIJE US OPENA
+
+1. **`ranking_trend` nikad nije imao vrijednost — SESTI slucaj tihog praznog polja.**
+   Prompt pise `Ranking trend: {p1_ranking_trend}`, a u cijelom kodu NE POSTOJI nijedno
+   mjesto koje to polje postavlja — samo dva citanja s `.get("ranking_trend", "N/A")`.
+   Model na svakoj analizi vidi "N/A". Ili napuniti iz izvora, ili maknuti iz prompta.
+   Prethodnih pet: break lopte, dob, visina/tezina/ruka, harvest turnir+runda,
+   `find_player_elo` koji vraca 1500 umjesto None.
+2. **ELO podudaranje visi o rezervnoj logici.** Svih **578 imena u `elo_cache` sadrzi
+   NEPREKIDNI razmak (`\xa0`)** umjesto obicnog — oduvijek, nije od osvjezenja 29.08.
+   Posljedica: korak 1 u `find_player_elo` (tocno podudaranje) NE POGADJA NIKAD, ni za
+   jednog igraca; sve prolazi kroz podudaranje po prezimenu. Provjereno na svih 40 igraca
+   za 30.-31.08.: svih 40 nadjeno, nijedan nije pao na 1500. **Ali 19 prezimena u cacheu
+   dijele 2+ igraca**, a cetvorica sutrasnjih su medju njima (Harris, Sakamoto, Paul, Wu).
+   Popravak je jedan `.replace("\xa0", " ")` u `_normalize` — vraca tocno podudaranje i
+   uklanja cijelu klasu rizika.
+3. **Ciscenje mrtvih stupaca** `ticket_matches.match_time` i `handicap_option` (oba 0%).
+4. **Brisanje prazne tablice** `newtable 22-08-2026 new`.
+
+### OPERATIVNI NALAZ ZA KORISNIKA (29.08.)
+
+Od 22 para uploadana u screenshotu za 30.08., analizirano ih je 20. Bez analize su ostali
+**Bublik-Wolf** i **Gorzny-Collignon** — nijedan nema ijedan redak u bazi. Nisu bili u
+fixtures feedu u trenutku runa (zdrijeb se jos slagao); sutrasnji run bi ih trebao pokupiti.
+
+### SCRIPTI — nista ne treba pokretati
+
+Automatski (GitHub Actions): jutarnji listic, vecernji rezultati, `capture_market_close.py`
+triput dnevno (16:30, 20:30, 00:30 UTC).
+Rucno povremeno: `update_elo_cache.py` (odradjeno 29.08.), scouting skripte (22.08.).
+**Jednokratne, odradjene — NE pokretati ponovno:** `backfill_analyzed_results`,
+`merge_duplicate_analyses`, `migrate_analyzed_key`, `regen_loss_analyses`.
+Izvjestajna: `clv_report.py` (samo cita) — pokrenut 29.08.:
+
+    CLV od 22.08., n=3: prosjecni +0,40pp, medijan +0,52pp, pozitivan 3/3
+    Brier nase cijene 0,2125 | zavrsne linije 0,2084
+
+n=3 je premalo za zakljucak; s US Openom i punim `market_lines` feedom brzo raste —
+pokrenuti ponovno za tjedan dana.
+
+---
+
 ## 2026-08-29 13:40 — SLUZBENI POPIS PICKOVA IZ BAZE + PRAG OD 50%
 ## (tocke 4 i 5 s jutrosnjeg popisa, izvedene istog dana na korisnikov zahtjev)
 
