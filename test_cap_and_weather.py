@@ -941,6 +941,49 @@ check("nista ne brise pick iz ticket_matches",
       "no_selection" not in inspect.getsource(_tb.build_analysis_only_ticket))
 check("prag NE dira rules_hash", _pr._model_stamp("hard")["rules_hash"] == "a0424315")
 
+print("\n=== 27. Streamlit: zastarjeli utils.helpers u sys.modules (29.08.2026) ===")
+import io as _io27
+import utils.helpers as _real_h
+
+_pages = {"pages/1_Dnevni_Listic.py": ["pick_ledger", "is_no_selection", "MIN_PICK_CONFIDENCE"],
+          "pages/2_Arhiva.py": ["pick_ledger", "is_no_selection"]}
+for _path, _names in _pages.items():
+    _src27 = _io27.open(_path, encoding="utf-8").read()
+    check("%s ima guard oko uvoza" % _path.split("/")[-1],
+          "except ImportError:" in _src27 and "importlib.reload(_stale_helpers)" in _src27)
+
+# Stvarna simulacija kvara: modul u memoriji nema nova imena.
+_saved = {k: getattr(_real_h, k) for k in ("pick_ledger", "is_no_selection", "MIN_PICK_CONFIDENCE")}
+for _k in _saved:
+    delattr(_real_h, _k)
+try:
+    from utils.helpers import pick_ledger as _boom
+    _raised = False
+except ImportError:
+    _raised = True
+check("simulacija je stvarna (uvoz doista pukne)", _raised)
+
+_src27 = _io27.open("pages/2_Arhiva.py", encoding="utf-8").read()
+_a = _src27.index("try:\n    from utils.helpers import pick_ledger")
+_b = _src27.index("import pandas as pd")
+_ns27 = {}
+_failed27 = None
+try:
+    exec(compile(_src27[_a:_b], "<guard>", "exec"), _ns27)
+except Exception as _e27:
+    _failed27 = _e27
+check("guard se oporavlja bez restarta aplikacije",
+      _failed27 is None and "pick_ledger" in _ns27 and "is_no_selection" in _ns27,
+      str(_failed27))
+check("reload je vratio imena i u sam modul",
+      all(hasattr(_real_h, _k) for _k in _saved))
+for _k, _v in _saved.items():          # sigurnosna mreza ako reload ne bi uspio
+    if not hasattr(_real_h, _k):
+        setattr(_real_h, _k, _v)
+check("funkcije nakon oporavka i dalje rade",
+      _ns27["is_no_selection"]({"confidence": 49.0}) is True
+      and _ns27["is_no_selection"]({"confidence": 65.0}) is False)
+
 print("\n" + "=" * 60)
 if _fails:
     print(f"PALO: {len(_fails)}")

@@ -70,6 +70,28 @@ dopustiti. Oznaka govori "ovo ne bismo igrali", ne "ovo se nije dogodilo".
   ELO advantage, but at 49% confidence this falls below the 50% floor and is not a bet."*
   Sva ostala 11 imena tocna, 0 okretanja.
 
+### KVAR U PRODUKCIJI ISTI DAN, 12:40 — i zasto se vise ne moze ponoviti
+
+Nakon deploya su Dnevni listic i Arhiva pali s `ImportError` na `pick_ledger`,
+`is_no_selection`, `MIN_PICK_CONFIDENCE`, dok su ostale stranice radile normalno.
+Kod na GitHubu je bio ispravan i potpun — kvar je bio u nacinu na koji Streamlit
+Cloud osvjezava aplikaciju:
+
+**Stranice se pri svakoj navigaciji iznova citaju s diska, ali moduli koje uvoze ostaju
+u `sys.modules` od pokretanja aplikacije.** Nova stranica je dakle trazila nova imena od
+STAROG `utils.helpers` u memoriji. Stranice koje uvoze samo stara imena
+(`5_Kvote_Screenshot.py`, statistika, analiza gubitaka) nisu bile pogodjene — tocno taj
+obrazac je i bio dijagnoza.
+
+Popravljeno guardom oko uvoza u obje stranice: na `ImportError` se `utils.helpers`
+jednom reloada i uvoz ponovi. `helpers` je modul cistih funkcija bez stanja, pa je reload
+siguran; guard se pali samo u kvaru. **Prednost pred rucnim rebootom je da se stranica
+izlijeci sama, jer se sam file stranice ionako cita svjez s diska.**
+
+**Pravilo za ubuduce: svako novo ime u `utils/helpers.py` (ili bilo kojem modulu koji
+Streamlit stranice uvoze) trazi ili reboot aplikacije ili ovakav guard.** 5 checkova sa
+stvarnom simulacijom kvara (imena se obrisu iz zivog modula) — sekcija 27.
+
 ### ZASTO OVO NIJE RIJESILO PRAVI PROBLEM (nastavak analize od 12:10)
 
 Korisnik je pitao zasto agent nije jednostavno prebacio pick na Sakamota kad je vlastita

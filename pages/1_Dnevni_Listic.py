@@ -7,7 +7,22 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import streamlit as st
 from database import supabase_client as db
-from utils.helpers import today_zagreb, format_date, format_date_hr, pick_ledger, is_no_selection, MIN_PICK_CONFIDENCE
+# ZASTARJELI MODUL U MEMORIJI — zasto ovaj try/except postoji (29.08.2026 12:45)
+# Streamlit stranice se pri SVAKOJ navigaciji iznova citaju s diska, ali moduli koje
+# uvoze ostaju u `sys.modules` od pokretanja aplikacije. Kad se u `utils/helpers.py`
+# doda novo ime, Streamlit Cloud odmah posluzi NOVU stranicu, a ona ga trazi od STAROG
+# modula u memoriji -> ImportError, sve dok se aplikacija rucno ne restarta.
+# Dogodilo se 29.08.2026 u 12:40 na Dnevnom listicu i Arhivi (`pick_ledger`,
+# `is_no_selection`, `MIN_PICK_CONFIDENCE`), dok su ostale stranice radile jer uvoze
+# samo stara imena. `utils.helpers` je modul cistih funkcija bez stanja, pa je reload
+# siguran; guard se pali samo u kvaru i sam se gasi cim modul postane svjez.
+try:
+    from utils.helpers import today_zagreb, format_date, format_date_hr, pick_ledger, is_no_selection, MIN_PICK_CONFIDENCE
+except ImportError:
+    import importlib
+    import utils.helpers as _stale_helpers
+    importlib.reload(_stale_helpers)
+    from utils.helpers import today_zagreb, format_date, format_date_hr, pick_ledger, is_no_selection, MIN_PICK_CONFIDENCE
 
 st.set_page_config(page_title="Daily Ticket | Tennis Agent", page_icon="🎾", layout="wide")
 st.title("🎾 Daily Ticket")
