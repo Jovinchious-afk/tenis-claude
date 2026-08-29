@@ -731,6 +731,124 @@ check("ukupni brojevi samo za zavrsnice",
       set(_LATE_ROUND_TOTAL) == {"F", "SF", "QF"})
 check("get_tournament_rounds postoji", hasattr(_db, "get_tournament_rounds"))
 
+print("\n=== 25. Analysis-only write-up: sazetak ne smije okrenuti pick (29.08.2026) ===")
+import agent.ticket_builder as _tb
+
+# --- prepoznavanje imena ---
+check("prvo ime se preskace (Arthur Fery vs Arthur Fils se ne spajaju)",
+      _tb._name_tokens("Arthur Fery") == ["fery"]
+      and _tb._name_tokens("Arthur Fils") == ["fils"])
+check("jednorjecno prezime prezivi ('Wu')", _tb._name_tokens("Yibing Wu") == ["wu"])
+check("crtica se cijepa (Auger-Aliassime)",
+      set(_tb._name_tokens("Felix Auger Aliassime")) == {"auger", "aliassime"})
+check("cestice ispadaju (Van De Zandschulp)",
+      "van" not in _tb._name_tokens("Botic Van De Zandschulp")
+      and "zandschulp" in _tb._name_tokens("Botic Van De Zandschulp"))
+check("posvojni nastavak se skida, zadnje slovo NE ('Fils' != 'fil')",
+      _tb._norm_word("Fils") == "fils" and _tb._norm_word("Borges's") == "borges")
+
+_m = lambda p1, p2, pick, **kw: dict(
+    {"player1": p1, "player2": p2, "pick": pick, "odds": 1.80, "confidence": 60.0,
+     "risk_notes": "test risk", "key_factors": [], "tournament": "T", "surface": "Hard",
+     "round": "R32"}, **kw)
+_vukic = _m("Aleksandar Vukic", "Rei Sakamoto", "Aleksandar Vukic")
+_wu = _m("Yibing Wu", "Adam Walton", "Yibing Wu")
+check("protivnik se nalazi bez obzira na stranu",
+      _tb._opponent_of(_vukic) == "Rei Sakamoto"
+      and _tb._opponent_of(_m("Martin Landaluce", "Jacob Fearnley", "Jacob Fearnley"))
+          == "Martin Landaluce")
+
+# --- detekcija okretanja: cetiri STVARNA slucaja iz povijesti ---
+check("lovi '**Sakamoto** over Vukic'",
+      len(_tb._writeup_flips(
+          "1. **Sakamoto** over Vukic \u2014 Sakamoto's 61% hard win rate beats Vukic's 46.9%.",
+          [_vukic])) == 1)
+check("lovi '**Walton** over Wu'",
+      len(_tb._writeup_flips(
+          "3. **Walton** over Wu \u2014 quality-adjusted form favours Walton.", [_wu])) == 1)
+check("lovi '**Fucsovics to win** \u2014 despite ... Safiullin'",
+      len(_tb._writeup_flips(
+          "**Fucsovics to win** \u2014 despite market consensus favouring Safiullin, "
+          "Fucsovics's title and freshness outweigh Safiullin's form edge.",
+          [_m("Roman Safiullin", "Marton Fucsovics", "Roman Safiullin")])) == 1)
+check("lovi vodeci podebljani '**Tarvet** \u2014 ... override Rinderknech'",
+      len(_tb._writeup_flips(
+          "**Tarvet** \u2014 69.2% grass record and 3/3 rhythm override Rinderknech's ELO.",
+          [_m("Arthur Rinderknech", "Oliver Tarvet", "Arthur Rinderknech")])) == 1)
+
+# --- NE smije prijaviti ispravne recenice (izmjereno: 8 laznih na prvoj heuristici) ---
+check("ustupna uvodna recenica NIJE okretanje ('Despite Bellucci's ..., Baez's ...')",
+      _tb._writeup_flips(
+          "**Baez vs Bellucci:** Despite Bellucci's superior hold percentage, Baez's "
+          "elite tiebreak record becomes the decisive edge.",
+          [_m("Sebastian Baez", "Mattia Bellucci", "Sebastian Baez")]) == [])
+check("zaglavlje 'X vs Y' se ne cita kao tvrdnja",
+      _tb._writeup_flips(
+          "**Zhang vs Brooksby:** Brooksby's collapse renders his ELO edge meaningless, "
+          "with Zhang's trajectory pointing to an upset.",
+          [_m("Zhizhen Zhang", "Jenson Brooksby", "Zhizhen Zhang")]) == [])
+check("'Fils to beat Norrie' je ISPRAVNO (ime na koje se kladi je prvo)",
+      _tb._writeup_flips(
+          "**Fils to beat Norrie** \u2014 a 138-point ELO gap overrides Norrie's threat.",
+          [_m("Arthur Fils", "Cameron Norrie", "Arthur Fils")]) == [])
+check("'Borges over Darderi' je ISPRAVNO",
+      _tb._writeup_flips(
+          "**Borges over Darderi** \u2014 Borges's 23.8pp hard win-rate gap is decisive.",
+          [_m("Nuno Borges", "Luciano Darderi", "Nuno Borges")]) == [])
+check("'Auger-Aliassime over Tabilo' je ISPRAVNO (crtica)",
+      _tb._writeup_flips(
+          "**Auger-Aliassime over Tabilo:** a dominant +50 clay ELO gap makes FAA "
+          "the clear favourite despite Tabilo's credentials.",
+          [_m("Felix Auger Aliassime", "Alejandro Tabilo", "Felix Auger Aliassime")]) == [])
+check("cist tekst bez tvrdnje se ne dira",
+      _tb._writeup_flips("Vukic and Sakamoto both hold serve well.", [_vukic]) == [])
+
+# --- kirurski popravak ---
+_bad = ("No ticket today.\n"
+        "1. **Sakamoto** over Vukic \u2014 his hard record is superior.\n"
+        "2. **Faria** over Brooksby \u2014 clear surface edge.")
+_flips = _tb._writeup_flips(_bad, [_vukic, _m("Jaime Faria", "Jenson Brooksby", "Jaime Faria")])
+_fixed = _tb._repair_flips(_bad, [_vukic, _m("Jaime Faria", "Jenson Brooksby", "Jaime Faria")], _flips)
+check("popravak uklanja okretanje", _tb._writeup_flips(
+    _fixed, [_vukic, _m("Jaime Faria", "Jenson Brooksby", "Jaime Faria")]) == [])
+check("popravak imenuje NAS pick", "Aleksandar Vukic" in _fixed)
+check("popravak cuva numeraciju", "1. **Aleksandar Vukic**" in _fixed)
+check("popravak NE dira ispravne recenice", "**Faria** over Brooksby" in _fixed)
+check("popravak cuva uvodnu recenicu", _fixed.startswith("No ticket today."))
+
+# --- rezanje ulaza ---
+_kf = ["1. Rating: " + "x" * 900, "2. Serve: " + "y" * 900, "6. Own read: " + "z" * 900]
+check("bira 'Own read' faktor", _tb._own_read(_m("A B", "C D", "A B", key_factors=_kf)).startswith("Own read"))
+check("bez 'Own read' uzima zadnji", _tb._own_read(
+    _m("A B", "C D", "A B", key_factors=["1. Rating: aaa", "2. Serve: bbb"])) == "Serve: bbb")
+check("rez je ogranicen", len(_tb._own_read(_m("A B", "C D", "A B", key_factors=_kf))) <= 640)
+check("bez faktora ne puca", _tb._own_read(_m("A B", "C D", "A B")) == "")
+
+_big = [_m("Aleksandar Vukic", "Rei Sakamoto", "Aleksandar Vukic",
+           key_factors=["%d. Faktor: %s" % (k, "q" * 900) for k in range(1, 7)])
+        for _ in range(12)]
+_pr_len = len(_tb._analysis_only_prompt(_big))
+_kf_len = sum(len(", ".join(x["key_factors"])) for x in _big)
+check("ulaz je bitno manji od zbroja key_factors (>60% usteda)",
+      _pr_len < 0.4 * _kf_len, "%d vs %d" % (_pr_len, _kf_len))
+
+# --- prompt je u nacinu IZVJESTAVANJA, ne odlucivanja ---
+_p = _tb._analysis_only_prompt([_vukic])
+check("prompt kaze da su odluke vec donesene", "ALREADY been made" in _p and "already decided" in _p)
+check("prompt oznacava pick kao SELECTION", "SELECTION: Aleksandar Vukic" in _p)
+check("prompt izricito zabranjuje imenovanje protivnika",
+      "Never name the opponent as the winner" in _p)
+check("prompt dopusta 'coin-flip' formulaciju bez mijenjanja imena", "coin-flip" in _p)
+check("prompt cuva zabranu demonima (stari popravak zamjena imena)",
+      "demonyms" in _p)
+check("stari nacin ODLUCIVANJA je uklonjen",
+      "if I had to bet" not in _p and "your pick" not in _p
+      and "AVAILABLE MATCHES" not in _p)
+
+# --- zamka: ovo je sloj prikaza, model se NE mijenja ---
+check("write-up popravak NE dira rules_hash",
+      _pr._model_stamp("hard")["rules_hash"] == "a0424315")
+
 print("\n" + "=" * 60)
 if _fails:
     print(f"PALO: {len(_fails)}")

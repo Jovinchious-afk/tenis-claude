@@ -191,3 +191,23 @@ pomiješalo uzroke.
 smo model kako pravilo 12 primjenjuje na igrača s omjerom 2/3 i sam ga naziva "borderline"
 (log 27.07.). Kad ih je toliko, teško je utvrditi koje je zapravo odlučilo — kandidat za
 konsolidaciju pri sljedećoj velikoj reviziji.
+
+---
+
+## 4b. NE ULAZI U ODLUKU — "Analysis write-up" (zapisano 29.08.2026 12:10)
+
+Tekst pod naslovom **"Analysis write-up"** (Streamlit `pages/1_Dnevni_Listic.py`, arhiva i
+dnevni mail) nastaje ZASEBNIM pozivom modela nad vec donesenim odlukama
+(`ticket_builder._generate_analysis_only_summary` / `_generate_ticket_summary`).
+
+**On ne odlucuje nista.** Ne upisuje se kao pick, ne sudjeluje u razrjesavanju rezultata,
+ne ulazi u `analyzed_matches`, ne ulazi u statistiku modela i ne utjece na tezine.
+Mjerodavno je i uvijek je bilo polje `pick` u `ticket_matches` / `analyzed_matches`.
+
+**Povod za ovaj zapis:** 29.08.2026 write-up je za dva meca imenovao PROTIVNIKA nasih
+pickova (Sakamoto umjesto Vukica, Walton umjesto Wua) jer ga je stari prompt stavljao u
+nacin odlucivanja umjesto izvjestavanja. Popravljeno isti dan u tri sloja; puna analiza,
+mjerenje na 88 tiketa i popis odgodjenog u `MODEL_CHANGELOG.md` (2026-08-29 12:10).
+
+**Za citanje STARIH tiketa:** `ticket_summary` od 29.06. i 22.08.2026 nosi krivo imenovan
+pobjednik i NIJE retroaktivno prepisan. Vjerovati polju `pick`.

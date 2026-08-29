@@ -13,6 +13,147 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-08-29 12:10 — WRITE-UP JE OKRETAO PICK: sazetak imenovao PROTIVNIKA
+## kao pobjednika. Popravljeno u tri sloja (prompt + provjera + rezanje ulaza).
+
+**Mjesto:** radna sesija na dan finala Winston-Salema, dva dana prije glavnog zdrijeba
+US Opena (31.08.).
+**Tema:** korisnik je na dnevnom listicu 29.08. uocio KONTRADIKCIJU — "Analysis write-up"
+(Streamlit i mail) tvrdi "**Sakamoto** over Vukic" i "**Walton** over Wu", dok kartice
+ispod i baza nose pick **Vukic** odnosno **Wu**.
+**Odgovor korisniku:** kartice su tocne. Pickovi su Vukic i Wu; write-up je bio kriv.
+
+### STO SE TOCNO DOGODILO
+
+Dnevni listic nastaje iz DVA odvojena poziva modelu, a korisnik je gledao izlaz oba:
+
+| | tko pise | izvor | gdje zavrsi |
+|---|---|---|---|
+| kartice (Vukic 53%, Wu 49%) | `analyze_match`, po mecu | polje `pick` | Supabase, rezolucija, bodovanje |
+| "Analysis write-up" | `_generate_analysis_only_summary` | sazimanje 12 gotovih analiza | SAMO prikaz i mail |
+
+Write-up je cisto pripovjedni sloj: ne upisuje se nigdje kao odluka, ne sudjeluje u
+razrjesavanju rezultata, ne ulazi u statistiku modela.
+
+**Uzrok je bio jedan nacin obracanja u promptu.** Usporedi dva write-upa:
+
+- `_generate_ticket_summary` (PRAVI tiket) — nacin IZVJESTAVANJA: `"TICKET: ..."` +
+  *"For each pick: one sentence explaining why it IS a good selection"*. Pick je zadan,
+  model ga samo obrazlaze. **Ondje se okretanje nikad nije dogodilo.**
+- `_generate_analysis_only_summary` (analysis-only) — nacin ODLUCIVANJA:
+  `"AVAILABLE MATCHES: ..."` + *"For EACH match: **your pick** and the single strongest
+  reason"* + *"Frame it as: **if I had to bet on these matches**..."*.
+
+Model je dobio popis "dostupnih meceva" i pitanje "koji je tvoj pick". Pick jest bio u
+prvom retku svakog unosa, ali odmah iza njega islo je ~4.800 znakova DVOSTRANOG
+obrazlozenja. Model se ponasao tocno kako je zamoljen — ponovno je odlucivao — i kad su
+dokazi u tekstu vukli na drugu stranu, imenovao je protivnika.
+
+### MJERENJE (svih 88 tiketa; 415 meceva u kojima sazetak spominje oba igraca)
+
+    stvarna okretanja: 4 / 415 (1,0%)  — SVA CETIRI na analysis-only tiketima,
+                                          na pravim tiketima 0.
+      29.06.2026  pick Rinderknech -> "**Tarvet** — ... override Rinderknech's ELO"
+      22.08.2026  pick Safiullin   -> "**Fucsovics to win** — despite ... Safiullin"
+      29.08.2026  pick Vukic       -> "**Sakamoto** over Vukic"
+      29.08.2026  pick Wu          -> "**Walton** over Wu"
+
+Nije nova greska; 29.08. je prvi put pala DVAPUT u istom danu jer je prvi put bilo punih
+12 meceva u analysis-only prikazu i najvise granicnih pickova.
+
+**Oba danasnja okretanja su bila dva picka S NAJNIZOM POUZDANOSCU u danu:**
+
+    49,0% Wu <- okrenut | 53,0% Vukic <- okrenut | 53,0% Fearnley | 56,0% Faria
+    60,0% Majchrzak | 62,0% Shapovalov | 62,0% Samuel | 63,0% Fery
+    65,0% Etcheverry | 65,0% Norrie | 65,0% Tirante | 67,0% Atmane
+
+Gdje su dokazi najravnomjernije podijeljeni, sazimatelj padne na drugu stranu.
+
+**Velicina ulaza 29.08.:** 57.045 znakova `key_factors` (~15.900 tokena) uz strop odgovora
+od 1.250 tokena za 12 recenica. Oznaka picka je JEDAN redak; obrazlozenje protiv njega
+stotinu redaka.
+
+### DRUGI, DUBLJI NALAZ — Vukic nije isti slucaj kao Wu
+
+**Wu je cist slucaj okretanja u sazetku.** Vlastita analiza je koherentna, zadnji faktor
+doslovno kaze: *"The Wu pick is taken on the slim balance of hard ELO, superior tiebreak
+record, and better US Open aggregate W-L rate."* Sazimatelj je uzeo JEDAN redak iz faktora
+3 (kvalitetom prilagodjena forma favorizira Waltona) i na njemu okrenuo pick.
+
+**Vukic nije.** Ondje je i sama analiza mlaka prema vlastitom picku — zakljucni faktor kaze
+*"Sakamoto's actual 3y hard record (61%) versus Vukic's (46.9%) is a stark contradiction...
+form favours Sakamoto... The market pricing Sakamoto as favourite is consistent with the
+hard-record evidence"* i nigdje ne brani Vukica osim kroz tie-break omjer. Model je
+zadrzao Vukica jer vodi po hard ELO-u, a onda tri stranice objasnjavao zasto tom ELO-u ne
+treba vjerovati (pravilo 15 mu je i samo oduzelo bodove). Sazimatelj je zapravo **vjerno
+prenio ton analize** — problem je sto se ton i polje `pick` nisu slagali.
+**To je zaseban problem (koherentnost picka i obrazlozenja) i NIJE rijesen ovom izmjenom.**
+
+### STO JE NAPRAVLJENO (tri sloja, sve u `agent/ticket_builder.py`)
+
+1. **PROMPT -> nacin izvjestavanja.** `_analysis_only_prompt` (izdvojen iz poziva da ga
+   test moze citati): `"AVAILABLE MATCHES"` -> `"TODAY'S SELECTIONS (already decided)"`,
+   `"your pick"` -> `"REPORT them, not re-decide them"`, maknuto `"if I had to bet"`.
+   Dodano tvrdo pravilo: *"Never name the opponent as the winner... If a selection looks
+   like a coin-flip, say so plainly — but the named player still stands."* Zadrzana
+   ranija zabrana demonima ("the Croatian"), koja je i sama nastala iz zamjena imena.
+2. **DETERMINISTICKA PROVJERA** `_writeup_flips` + jedan retry + `_repair_flips`.
+   Ako sazetak tvrdi da pobjedjuje protivnik: prvo se trazi ispravak od modela, a ako i
+   drugi pokusaj promasi, **zahvacena recenica se kirurski zamijeni tekstom iz baze**
+   (`_deterministic_line`), uz cuvanje numeracije i ostatka proze.
+   **Time kontradikcija postaje nemoguca, ne samo manje vjerojatna.**
+3. **ULAZ SE REZE.** Umjesto svih sest faktora salje se pick, kvota, pouzdanost,
+   value-oznaka, `risk_notes` i JEDAN faktor (`_own_read` — modelov vlastiti zakljucak,
+   skracen na ~620 znakova). Izmjereno na 29.08.: **57.165 -> 11.161 znakova cijelog
+   prompta, ustedа 81%**. Poziv je usput i bitno jeftiniji.
+
+### KAKO JE PROVJERENO
+
+- **Detekcija na cijeloj povijesti (88 tiketa):** lovi **4/4** stvarna okretanja uz
+  **0 laznih**. Do te brojke se doslo kroz dvije odbacene heuristike:
+  - *redoslijed imena u recenici* — 8 laznih uzbuna, sve na ISPRAVNIM recenicama s
+    ustupnom uvodnom recenicom (*"Despite Bellucci's superior hold..., Baez's tiebreak
+    record ... decisive"*). **Redoslijed imena NIJE signal** — zapisano da se ne ponovi.
+  - *prepoznavanje imena bez cijepanja crtice i s `rstrip("'s")`* — jos 5 laznih:
+    `rstrip` nije skidanje nastavka nego skupa znakova, pa je "Fils" pretvarao u "fil" i
+    "Borges" u "borge". Sada se trazi TVRDNJA o pobjedniku (`X over Y`, `X to win/beat`,
+    `back X`, `I'd take X`, vodeci podebljani naziv), ne poredak.
+- **Zivi test na stvarnih 12 meceva od 29.08.:** svih 12 imena tocno, 0 okretanja,
+  nijedan pick ne nedostaje. Vukic i Wu su sada uokvireni kao *"wins a near coin-flip,
+  taken on..."* — tocno ponasanje koje je prompt trazio.
+- **33 nova checka**, sekcija 25 u `test_cap_and_weather.py`. Obje test-skripte prolaze.
+
+### ZAMKA ZA BUDUCU ANALIZU
+
+Ova izmjena NE dira `ANALYSIS_PROMPT_TEMPLATE` ni `_HARD_RULES_V1` -> **`rules_hash`
+ostaje `a0424315`**, `context_version` ostaje 17, nijedna predikcija se ne mijenja.
+Ovo je iskljucivo sloj prikaza. Tiketi od 29.06. i 22.08. u bazi i dalje nose KRIVI
+tekst u `ticket_summary` (nije retroaktivno prepisano) — pri citanju starih sazetaka
+vjerovati polju `pick`, ne prozi.
+
+### ODGODJENO NA POSLIJE US OPENA (korisnikova odluka, 29.08.)
+
+4. **Prikaz: ime picka crtati iz baze, ne iz teksta.** U Streamlitu i mailu ispred svake
+   recenice write-upa staviti podatkovnu oznaku (`Pick: Yibing Wu`). Ciste kozmetike, ali
+   dira `pages/` i mail predlozak — pred Grand Slamom se prikaz ne mijenja.
+5. **`confidence < 50` je logicka kontradikcija** — pick za koji model sam kaze da gubi.
+   29.08. Wu 49% uz kvotu 1,85 i fair 2,04. Izmjereno na razrijesenoj povijesti:
+
+       <50%    n=0    (nikad se prije nije dogodilo)
+       50-54%  n=2    0 pogodaka   0,0%
+       55-59%  n=11   7 pogodaka  63,6%
+       60-64%  n=222  137        61,7%
+       65%+    n=102  66         64,7%
+
+   Kandidat za pravilo: ispod 50% mec se ne prikazuje kao pick nego kao "no selection —
+   model reads this as a coin-flip against its own pick". **DIRA SELEKCIJU**, pa ide s
+   mjerenjem i s razmakom od drugih izmjena.
+6. **Koherentnost picka i obrazlozenja** (slucaj Vukic gore) — mjeriti koliko cesto
+   "Own read" faktor zakljucno favorizira PROTIVNIKA odabranog picka i kako takvi pickovi
+   prolaze. Ako je stopa gubitka visa, to je jeftin novi filter.
+
+---
+
 ## 2026-08-28 20:21 — IDEJA "HISTORICAL MATCH-UP CONTEXT" (case-based reasoning):
 ## backtestirana i ODGODJENA do ~kraja 2026. Nista nije implementirano.
 

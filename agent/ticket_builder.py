@@ -4,6 +4,7 @@ Kriteriji: 4-6 mečeva, kombinirana kvota 6.0-40 (jedinstveno za sve podloge, 26
 Claude Sonnet piše finalni write-up.
 """
 import os
+import re
 import json
 import itertools
 import anthropic
@@ -1039,51 +1040,363 @@ like "If I had to risk it today...". Refer to players by surname only."""
         )
 
 
-def _generate_analysis_only_summary(matches: list) -> str:
-    """Haiku write-up for analysis-only days — late rounds with too few matches for a ticket."""
-    if not matches:
-        return "No main-tour matches available for analysis today."
+# ---------------------------------------------------------------------------
+# ANALYSIS-ONLY WRITE-UP — popravak kontradikcije "sazetak imenuje protivnika"
+# (29.08.2026 11:54)
+#
+# POVOD. Korisnik je na tiketu 29.08.2026 uocio da write-up tvrdi "Sakamoto over
+# Vukic" i "Walton over Wu", dok kartice ispod (i baza) nose pick Vukic odnosno Wu.
+# Kartice su bile TOCNE — write-up je bio kriv.
+#
+# MEHANIZAM. Write-up nastaje ZASEBNIM pozivom modela nad vec donesenim odlukama.
+# Stari prompt ga je stavljao u nacin ODLUCIVANJA, ne izvjestavanja:
+#     "AVAILABLE MATCHES: ..."  +  "For EACH match: YOUR PICK and the single
+#      strongest reason"  +  "Frame it as: if I had to bet on these matches..."
+# Pick jest bio naveden u prvom retku svakog unosa, ali odmah iza njega islo je
+# ~4.800 znakova dvostranog obrazlozenja. Model je radio tocno ono sto je trazeno —
+# ponovno je odlucivao — i kad su dokazi u tekstu vukli na drugu stranu, imenovao je
+# protivnika. Usporedi _generate_ticket_summary (pravi tiket): ondje prompt kaze
+# "TICKET" i "explain why it IS a good selection" — nacin izvjestavanja — i ondje
+# se okretanje nikad nije dogodilo.
+#
+# MJERENJE (svih 88 tiketa, 415 meceva u kojima sazetak spominje oba igraca):
+#     stvarna okretanja: 4 / 415 (1,0%) — SVA CETIRI na analysis-only tiketima,
+#     na pravim tiketima 0.
+#       29.06.2026  pick Rinderknech -> "Tarvet ..."
+#       22.08.2026  pick Safiullin   -> "Fucsovics to win ..."
+#       29.08.2026  pick Vukic       -> "Sakamoto over Vukic ..."
+#       29.08.2026  pick Wu          -> "Walton over Wu ..."
+#     Oba danasnja su bila DVA PICKA S NAJNIZOM POUZDANOSCU u danu (49% i 53%,
+#     ostalih deset 53-67%). Gdje su dokazi najravnomjernije podijeljeni, sazimatelj
+#     padne na drugu stranu.
+#     Ulaz u poziv 29.08.: 57.045 znakova key_factors (~16.000 tokena) uz strop
+#     odgovora od 1.250 tokena za 12 recenica — oznaka picka je jedan redak,
+#     obrazlozenje protiv njega stotinu redaka.
+#
+# POPRAVAK (tri sloja, redom):
+#   1) PROMPT -> nacin izvjestavanja. "AVAILABLE MATCHES"/"your pick"/"if I had to
+#      bet" zamijenjeno s "TODAY'S SELECTIONS (already decided)" + izricita zabrana
+#      imenovanja protivnika kao pobjednika. Ako su dokazi dvostrani, model to smije
+#      RECI, ali imenovani igrac ostaje.
+#   2) DETERMINISTICKA PROVJERA nakon generiranja (_writeup_flips). Za svaki mec
+#      trazi prvu recenicu koja spominje oba igraca i provjerava je li nas pick
+#      imenovan PRVI. Ako nije -> jedan retry s izricitim ispravkom; ako i to padne
+#      -> zahvacena recenica se kirurski zamijeni determinstickim tekstom iz baze.
+#      Time kontradikcija postaje NEMOGUCA, ne samo manje vjerojatna.
+#   3) ULAZ SE REZE. Sazimatelju ne treba cijeli key_factors. Salje se pick, kvota,
+#      pouzdanost, value-oznaka, risk_notes i JEDAN faktor (model-ov "Own read",
+#      skracen). ~16.000 -> ~2.500 tokena, dakle i bitno jeftiniji poziv, i nestaje
+#      sam izvor napasti.
+#
+# NIJE DIRANO ovom izmjenom (svjesno, jer nije kozmetika nego selekcija):
+#   4) Prikaz: ime picka crtati iz baze umjesto iz teksta (Streamlit + mail).
+#      ODGODJENO na poslije US Opena — cisto kozmeticko, ali dira pages/ i mail
+#      predlozak, a pred Grand Slamom se prikaz ne mijenja.
+#   5) `confidence < 50` je logicka kontradikcija — pick za koji model sam kaze da
+#      gubi (29.08. Wu 49%, kvota 1,85 uz fair 2,04). U cijeloj razrijesenoj
+#      povijesti NEMA nijednog picka ispod 50%, a u pojasu 50-54% ih je dva i OBA
+#      su izgubila (55-59%: 7/11, 60-64%: 137/222, 65+: 66/102). Kandidat za
+#      pravilo: ispod 50% se mec ne prikazuje kao pick nego kao "no selection".
+#      ODGODJENO na poslije US Opena jer DIRA SELEKCIJU i trazi mjerenje.
+#
+# Ova izmjena NE dira ANALYSIS_PROMPT_TEMPLATE ni _HARD_RULES_V1 -> rules_hash
+# ostaje a0424315, nijedna predikcija se ne mijenja. Ovo je iskljucivo sloj prikaza.
+# ---------------------------------------------------------------------------
 
+_NAME_PARTICLES = {"van", "von", "de", "del", "della", "di", "da", "dos", "den", "der", "la", "le"}
+
+
+def _name_tokens(name: str) -> list:
+    """Tokeni po kojima igraca prepoznajemo u slobodnom tekstu.
+
+    Namjerno se PRESKACE prvo ime: 29.08. su na istoj listi bili Arthur Fery i
+    Arthur Fils, pa bi "arthur" spajao dva razlicita meca. Cestice (van, de, ...)
+    ispadaju iz istog razloga. Kod jednorjecnog prezimena ("Wu") zadrzava se token
+    duljine 2 — usporedba ide preko granica rijeci pa nema laznih podnizova.
+    Rub: "Jaume Antoni Munar Clar" daje [antoni, munar, clar] — sazetak koji kaze
+    samo "Munar" i dalje biva prepoznat, sto je cijela poanta.
+    """
+    parts = [p.strip(".,;:()").lower() for p in (name or "").split()]
+    parts = [p for p in parts if p]
+    if len(parts) > 1:
+        parts = parts[1:]
+    out = []
+    for p in parts:
+        # Crtica se cijepa: baza nosi "Felix Auger Aliassime", a write-up pise
+        # "Auger-Aliassime" — bez ovoga se ime ne prepozna i provjera propusti mec
+        # (izmjereno 01.06.2026).
+        out.extend(x for x in p.split("-") if x)
+    return [p for p in out if len(p) >= 2 and p not in _NAME_PARTICLES]
+
+
+def _name_pos(text_low: str, name: str) -> int:
+    """Najraniji polozaj bilo kojeg tokena imena u tekstu, ili -1."""
+    best = -1
+    for tok in _name_tokens(name):
+        m = re.search(r"\b%s\b" % re.escape(tok), text_low)
+        if m and (best < 0 or m.start() < best):
+            best = m.start()
+    return best
+
+
+_SENT_SPLIT = re.compile(r"(?<=[.!?])\s+|\n+")
+_MD = str.maketrans("*_`", "   ")          # markdown van, DULJINA ostaje ista (polozaji!)
+
+# Uzorci tvrdnje "tko pobjedjuje". Namjerno se NE gleda redoslijed imena u recenici:
+# prvo izmjereno rjesenje (tko je imenovan prvi) dalo je 8 laznih uzbuna na 88 tiketa,
+# sve na potpuno ispravnim recenicama s ustupnom uvodnom recenicom — npr.
+#   "Despite Bellucci's superior hold percentage ..., Baez's tiebreak record ... decisive"
+# Ondje je protivnik imenovan prvi, a tekst je tocan. Zato se trazi TVRDNJA, ne poredak.
+_CLAIM_PATTERNS = [
+    # "Sakamoto over Vukic"  ->  pobjednik je lijeva strana
+    (re.compile(r"([\w'\-]+(?:\s+[\w'\-]+){0,2})\s+over\s+[\w'\-]+"), 1),
+    # "Fucsovics to win" / "Zverev to beat X"
+    (re.compile(r"([\w'\-]+)\s+to\s+(?:win|beat|take|edge|handle)\b"), 1),
+    # "I'd take Fils" / "back Norrie" / "siding with Atmane"
+    (re.compile(r"\b(?:back|backing|take|taking|siding with)\s+([\w'\-]+)"), 1),
+    # "Norrie should win" / "Fery will beat X"
+    (re.compile(r"([\w'\-]+)\s+(?:should|will)\s+(?:win|beat|handle|edge|overcome)\b"), 1),
+]
+# Vodeci podebljani naziv na pocetku stavke ("**Tarvet** — 69.2% grass record ...") je
+# sam po sebi tvrdnja o pobjedniku. Iskljucuje se ako sadrzi "vs" — to je zaglavlje meca
+# ("**Zhang vs Brooksby:**"), ne pick.
+_LEAD_BOLD = re.compile(r"^\s*(?:\d+[.)]\s*)?\*\*([^*]{2,60})\*\*")
+
+
+def _norm_word(w: str) -> str:
+    """Cisti jednu rijec iz teksta u usporedivi token.
+
+    OPREZ: `rstrip("\'s")` NIJE isto sto i skidanje nastavka — skida SVAKI zavrsni
+    znak iz skupa, pa je "Fils" pretvarao u "fil" i "Borges" u "borge". To je 07.-09.08.
+    davalo lazne prijave okretanja. Posvojni nastavak se skida izricito."""
+    w = w.lower().strip(".,;:()[]{}\u2014\u2013-")
+    for suf in ("'s", "\u2019s"):
+        if w.endswith(suf):
+            return w[:-len(suf)]
+    return w.rstrip("'\u2019")
+
+
+def _side_of(phrase: str, pick: str, opp: str):
+    """Je li imenovana fraza nas pick, protivnik, ili nijedno."""
+    pt, ot = set(_name_tokens(pick)), set(_name_tokens(opp))
+    hit_p = hit_o = False
+    for w in re.split(r"[^\w'\u2019]+", phrase):
+        w = _norm_word(w)
+        if not w:
+            continue
+        if w in pt:
+            hit_p = True
+        if w in ot:
+            hit_o = True
+    if hit_p and not hit_o:
+        return "pick"
+    if hit_o and not hit_p:
+        return "opp"
+    return None
+
+
+def _claimed_winner(sentence_raw: str, sentence_low: str, pick: str, opp: str):
+    """Vraca 'pick' / 'opp' / None za prvu jasnu tvrdnju o pobjedniku u recenici."""
+    lead = _LEAD_BOLD.match(sentence_raw)
+    if lead:
+        head = lead.group(1)
+        if not re.search(r"\bv(?:s\.?|\.)?\b", head, re.I):
+            # Ako podebljani uvod SAM nosi tvrdnju ("Fils to beat Norrie",
+            # "Borges over Darderi"), mora se citati POLOZAJNO — inace se u njemu
+            # vide oba imena, sto bi ili ponistilo signal ili ga okrenulo.
+            side = None
+            for rx, grp in _CLAIM_PATTERNS:
+                mm = rx.search(head.lower())
+                if mm:
+                    side = _side_of(mm.group(grp), pick, opp)
+                    if side:
+                        break
+            if side is None:
+                side = _side_of(head, pick, opp)
+            if side:
+                return side
+    for rx, grp in _CLAIM_PATTERNS:
+        for m in rx.finditer(sentence_low):
+            side = _side_of(m.group(grp), pick, opp)
+            if side:
+                return side
+    return None
+
+
+def _sentence_spans(text: str) -> list:
+    """(start, end) parovi recenica — treba nam polozaj, ne samo tekst, da bismo
+    kasnije mogli zamijeniti tocno onu recenicu koja je pogrijesila."""
+    spans, start = [], 0
+    for m in _SENT_SPLIT.finditer(text):
+        if m.start() > start:
+            spans.append((start, m.start()))
+        start = m.end()
+    if start < len(text):
+        spans.append((start, len(text)))
+    return spans
+
+
+def _opponent_of(m: dict) -> str:
+    """Protivnik naseg picka. Usporedba ide preko tokena imena, ne doslovnog niza —
+    pick u bazi zna imati drukcije razmake/interpunkciju od player1/player2."""
+    pick = m.get("pick") or ""
+    p1, p2 = m.get("player1") or "", m.get("player2") or ""
+    return p2 if _name_tokens(pick) == _name_tokens(p1) else p1
+
+
+def _writeup_flips(text: str, matches: list) -> list:
+    """Vraca [(indeks_meca, (start, end) recenice)] za svaki mec gdje sazetak tvrdi
+    da pobjedjuje PROTIVNIK naseg picka.
+
+    Konzervativno na tri nacina: (a) gleda samo recenice koje spominju oba igraca,
+    (b) trazi izricitu tvrdnju o pobjedniku, ne puki redoslijed imena, (c) ako
+    tvrdnje nema, mec se preskace. Radije propusteno nego lazno prijavljeno — lazna
+    uzbuna bi determinstickim tekstom prepisala ispravnu recenicu.
+
+    Provjereno na svih 88 tiketa / 415 usporedivih meceva: lovi sva 4 stvarna
+    okretanja (29.06., 22.08., 2x 29.08.) uz 0 laznih.
+    """
+    out = []
+    if not text:
+        return out
+    low = text.lower()
+    for idx, m in enumerate(matches):
+        pick = m.get("pick") or ""
+        opp = _opponent_of(m)
+        if not pick or not opp or _name_tokens(opp) == _name_tokens(pick):
+            continue
+        for (a, b) in _sentence_spans(low):
+            raw, sn = text[a:b], low[a:b].translate(_MD)
+            if _name_pos(sn, pick) < 0 or _name_pos(sn, opp) < 0:
+                continue
+            if _claimed_winner(raw, sn, pick, opp) == "opp":
+                out.append((idx, (a, b)))
+            break
+    return out
+
+
+def _own_read(m: dict, limit: int = 620) -> str:
+    """Jedan faktor umjesto svih sest. Bira model-ov vlastiti zakljucak ("Own read"),
+    inace zadnji faktor. Rez ide na granici recenice da se ne odsijece pola tvrdnje."""
+    kf = [str(x) for x in (m.get("key_factors") or []) if x]
+    if not kf:
+        return ""
+    chosen = next((x for x in reversed(kf) if "own read" in x.lower()), kf[-1])
+    chosen = re.sub(r"^\s*\d+\.\s*", "", chosen).strip()
+    if len(chosen) <= limit:
+        return chosen
+    cut = chosen[:limit]
+    dot = max(cut.rfind(". "), cut.rfind("; "))
+    return (cut[:dot + 1] if dot > limit * 0.4 else cut.rstrip()) + " ..."
+
+
+def _deterministic_line(m: dict) -> str:
+    """Rezervna recenica sastavljena iskljucivo iz baze — ne moze pogrijesiti ime."""
+    reason = (m.get("risk_notes") or "").strip().rstrip(".")
+    tail = " — risk: %s" % reason if reason else ""
+    return ("**%s** over %s at %.2f (%.0f%% confidence)%s."
+            % (m.get("pick", ""), _opponent_of(m), m.get("odds", 0) or 0,
+               m.get("confidence", 0) or 0, tail))
+
+
+def _repair_flips(text: str, matches: list, flips: list) -> str:
+    """Kirurski zamjenjuje SAMO zahvacene recenice, ostatak proze ostaje.
+    Ide od kraja prema pocetku da polozaji ranijih recenica ostanu valjani.
+    Vodeci broj nabrajanja ("7. ") se cuva da se numeracija ne raspadne."""
+    out = text
+    for idx, (a, b) in sorted(flips, key=lambda x: x[1][0], reverse=True):
+        original = out[a:b]
+        lead = re.match(r"^\s*\d+[.)]\s*", original)
+        prefix = lead.group(0) if lead else ""
+        out = out[:a] + prefix + _deterministic_line(matches[idx]) + out[b:]
+    return out
+
+
+def _analysis_only_prompt(matches: list) -> str:
+    """Prompt u nacinu IZVJESTAVANJA. Izdvojen iz poziva da ga test moze citati."""
     picks_text = "\n".join([
-        f"{i+1}. {m['pick']} to win — {m['player1']} vs {m['player2']} "
-        f"({m['tournament']}, {m['surface']}, {m.get('round','')}) — "
-        f"odds: {m['odds']:.2f}, confidence: {m['confidence']:.0f}%\n"
-        f"   Key factors: {', '.join(m.get('key_factors', []))}"
+        "%d. SELECTION: %s to win  (%s vs %s — %s, %s, %s) — odds %.2f, confidence %.0f%%%s\n"
+        "   Risk: %s\n"
+        "   Analyst's own read: %s"
+        % (i + 1, m["pick"], m["player1"], m["player2"], m["tournament"], m["surface"],
+           m.get("round", ""), m["odds"], m["confidence"],
+           ", VALUE" if m.get("value_bet") else "",
+           m.get("risk_notes", "") or "none noted", _own_read(m))
         for i, m in enumerate(matches)
     ])
+    n = len(matches)
+    count_phrase = ("is only 1 main-tour match" if n == 1
+                    else "are only %d main-tour matches" % n)
+    return """You are an expert tennis analyst writing up decisions that have ALREADY been made.
 
-    prompt = f"""You are an expert tennis analyst. Today there {'is only 1 main-tour match' if len(matches) == 1 else f'are only {len(matches)} main-tour matches'} available — not enough to build a full accumulator ticket.
+Today there %s available — not enough to build a full accumulator ticket, so no ticket was placed. The selections below are final and are already recorded in the database. Your job is to REPORT them, not to re-decide them.
 
-AVAILABLE MATCHES:
-{picks_text}
+TODAY'S SELECTIONS (already decided — %d in total):
+%s
 
 Write the analysis as:
 1. One sentence: why no ticket was formed (too few matches for a valid accumulator)
-2. For EACH of the {len(matches)} matches: exactly one concise sentence — your pick and the single strongest reason. Cover ALL {len(matches)} matches, do not stop early.
+2. For EACH of the %d selections, in the same order: exactly one concise sentence naming the SELECTED player as the winner and giving the single strongest reason for that selection. Cover ALL %d, do not stop early.
 3. One closing sentence on overall confidence
 
-Keep each sentence short, but you MUST include all {len(matches)} picks. Be direct and specific. Frame it as: "if I had to bet on these matches..." This entry is tracked for model learning."""
+HARD RULE — the selected player is fixed:
+- Never name the opponent as the winner. The player after "SELECTION:" is the one who is backed, even where the evidence looks two-sided or the market disagrees.
+- If a selection looks like a coin-flip, say so plainly ("a near coin-flip, taken on X") — but the named player still stands.
+- Refer to players by surname only. Do not use nationality/demonyms ("the Croatian", "the Czech") as a stand-in for a name — a frequent source of mix-ups when several players appear.
 
-    # Token budget skalira s brojem mečeva (1 rečenica po picku). Analysis-only je
-    # sada ograničen na max 12 mečeva, pa je strop ~13 mečeva (ranije 18) — dovoljno
-    # da ništa ne reže, bez nepotrebnog trošenja tokena.
+Keep each sentence short. Be direct and specific. This entry is tracked for model learning.""" % (
+        count_phrase, n, picks_text, n, n)
+
+
+def _generate_analysis_only_summary(matches: list) -> str:
+    """Write-up za analysis-only dane — late runde s premalo meceva za tiket.
+
+    Sazetak IZVJESTAVA o vec donesenim odlukama; ne odlucuje nista i ne upisuje se
+    nigdje kao pick. Vidi veliki blok komentara iznad za povijest kvara od
+    29.08.2026 i tri sloja zastite.
+    """
+    if not matches:
+        return "No main-tour matches available for analysis today."
+
+    prompt = _analysis_only_prompt(matches)
+
+    # Strop skalira s brojem meceva (1 recenica po picku); analysis-only je ogranicen
+    # na 12 meceva, pa je strop ~13 — dovoljno da nista ne reze.
     max_tok = min(1300, 350 + len(matches) * 75)
 
-    try:
+    def _ask(extra=""):
         client = _get_client()
         response = client.messages.create(
             model=CLAUDE_MODELS["analysis"],
             max_tokens=max_tok,
-            messages=[{"role": "user", "content": prompt}]
+            messages=[{"role": "user", "content": prompt + extra}]
         )
         return response.content[0].text.strip()
+
+    try:
+        text = _ask()
+        # (2) deterministicka provjera + jedan retry + kirurski popravak.
+        flips = _writeup_flips(text, matches)
+        if flips:
+            wrong = "; ".join(
+                "match %d the selection is %s — NOT %s"
+                % (idx + 1, matches[idx].get("pick", ""), _opponent_of(matches[idx]))
+                for idx, _ in flips)
+            print("  [WRITE-UP] sazetak imenovao protivnika u %d meca — retry (%s)"
+                  % (len(flips), wrong))
+            text = _ask("\n\nCORRECTION — your previous draft named the wrong winner. "
+                        "Fix these and keep everything else: %s." % wrong)
+            flips = _writeup_flips(text, matches)
+            if flips:
+                print("  [WRITE-UP] i drugi pokusaj promasio u %d meca — "
+                      "zamjena determinstickim tekstom" % len(flips))
+                text = _repair_flips(text, matches, flips)
+        return text
     except Exception as e:
-        print(f"Greška analysis-only write-upa: {e}")
-        picks_str = ", ".join(f"{m['pick']} ({m['confidence']:.0f}%)" for m in matches)
-        return (
-            f"Analysis only — {len(matches)} match(es) available today, "
-            f"insufficient for a full ticket. Predictions: {picks_str}."
-        )
+        print("Greška analysis-only write-upa: %s" % e)
+        picks_str = ", ".join("%s (%.0f%%)" % (m["pick"], m["confidence"]) for m in matches)
+        return ("Analysis only — %d match(es) available today, insufficient for a full "
+                "ticket. Predictions: %s." % (len(matches), picks_str))
 
 
 def _apply_daily_limits(candidates: list) -> list:
