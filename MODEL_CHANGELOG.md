@@ -13,6 +13,113 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-08-30 11:05 — POST-MATCH STATISTIKA: nadjena rupa u dohvatu + poravnanje
+## po igracu podignuto na razinu UPISA. Backfill unatrag odradjen.
+
+**Povod:** korisnik je pokrenuo vecernji update za finale Winston-Salema (Fery-Buse, 29.08.,
+pick Fery, pobijedio Buse) i uocio da u Supabaseu nema post-match statistike, pa je i
+analiza gubitka ostala bez brojki.
+
+### DIJAGNOZA — potraga za pobjednikom imala je DVA izvora, potraga za statistikom JEDAN
+
+`match_stats` se dohvaca samo kad je poznat `tournament_id`, a taj se citao iskljucivo iz
+mape `match_to_tournament`, koja se gradi **samo iz `/atp/fixtures` feeda za zadnjih 8 dana**.
+Replicirano isti dan:
+
+    2026-08-30  meceva u feedu: 65     Fery-Buse: ne
+    2026-08-29  meceva u feedu:  0     Fery-Buse: ne   <- dan finala, feed PRAZAN
+    2026-08-28  meceva u feedu: 11     Fery-Buse: ne
+    ...  (par ne postoji ni u jednom danu prozora)
+
+Dakle `tournament_id = ""` -> uvjet `if tournament_id and p1_id and p2_id` pada ->
+**`get_match_stats` se nikad ne pozove**. Bez greske, bez poruke. Isti mehanizam opisan jos
+26.07.: fixtures je cisti raspored i za prosle dane izbacuje odigrano. Korisnik je job
+pokrenuo tek sljedece jutro (08:27), kad je 29.08. vec ispao iz feeda.
+
+**Pobjednik i rezultat (6-3 6-2) su nadjeni bez problema** — jer
+`_build_season_winner_lookup` IMA rezervnu rutu (past-matches poznatog igraca -> tid).
+Ali taj razrijeseni tid drzala je u lokalnoj varijabli i vracala samo mapu pobjednika.
+
+**Podaci su postojali cijelo vrijeme.** Rucno razrijesen `tid=21348`, a
+`/atp/h2h/match-stats/21348/79065/79113` vraca punu statistiku: Buse 2 asa, 37/54 prvi
+servis, 4/7 break lopti, 57 poena; Fery 0 asova, spasio 3 od 7 break lopti, 36 poena.
+
+### POPRAVAK 1 — povratni upis `tournament_id`-a (nula dodatnih API poziva)
+
+`_build_season_winner_lookup` sada razrijeseni tid vraca u `pair_to_tid` za sve parove tog
+turnira. Oba potrosaca statistike (korak 2 za `ticket_matches`, 2b za `analyzed_matches`)
+time nasljedjuju rezervnu rutu besplatno — tid je ionako vec bio izracunat.
+
+### POPRAVAK 2 — poravnanje po IGRACU podignuto s CITANJA na UPIS
+
+Korisnikov izricit zahtjev: *"pripazi da se statistike uvijek popune za pravog igraca... to
+mi se ne smije nikada zeznuti jer onda cemo raditi buduce predikcije iz krivih brojki"*.
+
+Opasnost je stvarna i izmjerena: **endpoint ne postuje redoslijed igraca koji mu posaljemo.**
+Za Fery-Buse pozvan je s (79065=Fery, 79113=Buse), a vratio `player1Stats.player1Id = 79113`
+— dakle BUSEA kao "player1". Ranije mjereno na 56 mecheva: kod **24 (43%)** se redoslijed ne
+poklapa s nasim.
+
+Do sada je poravnanje postojalo **samo pri citanju** (`_format_match_stats`), dok se u bazu
+spremao sirovi odgovor. Svaki buduci potrosac koji bi uzeo `match_stats["player1Stats"]` kao
+"nas prvi igrac" dobio bi krive brojke u 43% slucajeva.
+
+Sada:
+- `data_fetcher.align_match_stats(stats, our_p1_id, our_p2_id)` je **jedino mjesto** koje
+  poravnava. Dokazuje orijentaciju preko ID-eva i vraca `(None, razlog)` kad je ne moze
+  dokazati — **nikad ne pogadja**. Odbija: nedostaju nasi ID-evi, odgovor nema ID-eve,
+  skup ID-eva se ne poklapa s nasim parom (tudji mec!), djelomicno poklapanje, ista dva ID-a.
+- rezultat nosi `_align` blok s dokazom (`our_p1_id`, `api_p1_id`, `swapped`, `verified`) i
+  u svaki blok dodaje nedvosmislen `our_player_id` — jer zamijenjeni blok inace i dalje nosi
+  kljuc `player2Id` dok stoji na mjestu `player1Stats`.
+- `get_match_stats_aligned` je jedini put kojim statistika smije uci u bazu. **Sva tri**
+  mjesta u `feedback_analyzer` (korak 2, korak 2b, fallback u analizi gubitka) idu kroz
+  njega; test to i cuva (`"= get_match_stats(" not in source`).
+- citac vjeruje `_align` kad postoji i odgovara paru; stara logika ostaje za retke spremljene
+  prije 30.08. Nista se ne prepisuje unatrag.
+
+### POPRAVAK 3 — backfill unatrag
+
+`scripts/backfill_match_stats.py``scripts/backfill_match_stats.py` (`--dry-run`, `--since`, `--limit`, `--table`, `--realign`).
+Razrjesava tid po turniru (jednom, pa dijeli), po potrebi trazi player ID-eve za starije
+retke, i sprema **samo kroz poravnati put**. ID-eve upisuje tek kad poravnanje uspije —
+uspjelo poravnanje ih dokazuje, jer se skup ID-eva iz odgovora mora poklopiti s nasim parom.
+
+**Mod `--realign`** poravnava UNATRAG retke spremljene prije 30.08. — bez ijednog API poziva, jer su statistika i ID-evi vec u bazi. ID-evi se upisuju PRIJE statistike: ako upis pukne na pola (30.08. su tri retka tako zavrsila zbog prekida veze), zelimo ostati s ID-evima bez statistike (bezopasno) umjesto sa statistikom bez ID-eva, gdje se poravnanje vise ne moze provjeriti iz samog retka.
+
+**REZULTAT:** 
+
+    BACKFILL (dohvat koji je nedostajao):
+      upisano 83 retka | dopunjeno 78 player ID-eva | 9 ostalo bez tournament_id
+
+    PORAVNANJE UNATRAG (0 API poziva, cisto racunanje nad vec spremljenim podacima):
+      438 redaka poravnato — od toga 239 ZAMIJENJENIH strana | jos 115 ID-eva razrijeseno
+
+    ZAVRSNO STANJE:
+      analyzed_matches  239/239 sa statistikom poravnato i DOKAZANO
+      ticket_matches    280/280 sa statistikom poravnato i DOKAZANO
+      problematicnih redaka: 0
+
+    KONTROLNI POKAZATELJ (citano PO POZICIJI, bez ikakvog popravljanja pri citanju):
+      je li pobjednik meca imao vise ukupnih poena?
+        prije zahvata:  47% da / 53% ne   <- bacanje novcica, dakle pozicijski nasumicno
+        poslije:        93% da /  7% ne   <- 7% je PRIRODNA stopa u tenisu
+      Ovo je najjaci dokaz da poravnanje radi: da je pokvareno, omjer bi bio ~50/50.
+
+**Ispravak brojke iz razgovora:** prvo sam rekao "81 red bez statistike". Tocnije: 81 red u
+`analyzed_matches` od 25.07., ali **78 ih uopce nema spremljene player ID-eve** (stariji od
+26.07., kad su uvedeni), pa nisu popravljivi bez razrjesavanja imena u ID-eve.
+
+### ZAMKA ZA BUDUCU ANALIZU
+
+`rules_hash` ostaje `a0424315` — ovo je vecernji put, ne dira predikciju ni prompt.
+Retci spremljeni PRIJE 30.08. nemaju `_align` blok; njima orijentaciju i dalje utvrdjuje
+stara logika u `_format_match_stats` po ID-evima. Retci bez spremljenih player ID-eva
+(uglavnom prije 26.07.) ne mogu se poravnati uopce i njihova se statistika namjerno
+izostavlja iz analize — to je i dosad bilo tako.
+
+---
+
 ## 2026-08-29 13:11 — REVIZIJA CIJELE BAZE pred US Open (12 tablica, svi stupci)
 ## Nista nije mijenjano — nalaz + popis za poslije Grand Slama.
 

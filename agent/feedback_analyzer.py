@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from config.model_config import CLAUDE_MODELS, WEIGHT_ADJUSTMENT, DEFAULT_WEIGHTS
 from database import supabase_client as db
 from agent.data_fetcher import (get_matches_for_date, get_recent_form, get_match_stats,
+                               get_match_stats_aligned,
                                 find_player_id, get_current_season_results)
 
 
@@ -81,6 +82,38 @@ def _build_season_winner_lookup(rows: list, pair_to_tid: dict) -> dict:
                         break
                 if tname in tids or tried >= 5:
                     break
+
+    # POVRATNI UPIS (30.08.2026 11:05) — bez ovoga se razrijeseni `tournament_id` gubio.
+    #
+    # POVOD: Fery-Buse, finale Winston-Salema 29.08. Vecernji job je pobjednika i rezultat
+    # (6-3 6-2) nasao BEZ problema — bas preko rezervne rute nize (past-matches poznatog
+    # igraca) — ali `match_stats` je ostao prazan. Uzrok: statistika se dohvaca samo ako je
+    # poznat `tournament_id`, a taj se cita iz `match_to_tournament`, koji se gradi
+    # ISKLJUCIVO iz `/atp/fixtures` feeda. Izmjereno isti dan: feed za 29.08. vratio je NULA
+    # meceva (fixtures za prosle dane izbacuje odigrano), pa je Fery-Buse ondje nedostajao
+    # svih 8 dana prozora -> `tournament_id = ""` -> `get_match_stats` se nikad ne pozove.
+    #
+    # Ova funkcija je tid VEC bila razrijesila (`tids[tname]`) i s njim dohvatila rezultate
+    # sezone — ali ga je drzala lokalno i vracala samo mapu pobjednika. Dakle: potraga za
+    # pobjednikom je imala DVA izvora, potraga za statistikom samo JEDAN.
+    #
+    # Sada se razrijeseni tid vraca u `pair_to_tid` za sve parove tog turnira, pa oba
+    # potrosaca statistike (korak 2 za ticket_matches i 2b za analyzed_matches) nasljedjuju
+    # rezervnu rutu uz NULA dodatnih API poziva — tid je ionako vec izracunat.
+    #
+    # Provjereno na Fery-Buse: tid=21348, a /atp/h2h/match-stats/21348/79065/79113 vraca
+    # punu statistiku (Buse 2 asa, 4/7 BP, 57 poena; Fery 3/7 spasenih BP). Podaci su
+    # postojali cijelo vrijeme — samo ih nismo trazili.
+    n_backfilled = 0
+    for tname, tid in tids.items():
+        for p1, p2, _d in groups.get(tname, []):
+            if (p1, p2) not in pair_to_tid:
+                pair_to_tid[(p1, p2)] = tid
+                pair_to_tid[(p2, p1)] = tid
+                n_backfilled += 1
+    if n_backfilled:
+        print(f"  tournament_id dopunjen iz rezultata sezone za {n_backfilled} parova "
+              f"(fixtures ih nije imao).")
 
     lookup: dict = {}
     for tname, tid in sorted(tids.items()):
@@ -233,12 +266,21 @@ def run_evening_update() -> dict:
         # Dohvati i trajno spremi statistike meča (sve podloge, pobjeda I poraz) —
         # gradi se korpus "hipoteza prije meča vs stvarni ishod + brojke" za buduće učenje.
         tournament_id = match_to_tournament.get((p1_name.lower().strip(), p2_name.lower().strip()), "")
+        # PORAVNANJE PRIJE UPISA (30.08.2026): `get_match_stats_aligned` dokazuje preko
+        # ID-eva da blokovi pripadaju NASEM player1/player2 i odbija statistiku ako to ne
+        # moze dokazati. Radije prazno polje nego brojke pripisane krivom igracu — iz njih
+        # se izvode buduce revizije. Vidi `data_fetcher.align_match_stats`.
         match_stats = {}
         if tournament_id and p1_id and p2_id:
             try:
-                match_stats = get_match_stats(tournament_id, p1_id, p2_id) or {}
+                match_stats, why = get_match_stats_aligned(tournament_id, p1_id, p2_id)
+                match_stats = match_stats or {}
+                if not match_stats:
+                    print(f"  Statistika odbijena {p1_name} vs {p2_name}: {why}")
             except Exception as e:
                 print(f"  Greska dohvata statistike {p1_name} vs {p2_name}: {e}")
+        elif not tournament_id:
+            print(f"  Bez tournament_id -> nema statistike: {p1_name} vs {p2_name}")
 
         db.update_match_result(pm["id"], result, actual_winner,
                                actual_score=actual_score or None)
@@ -259,6 +301,7 @@ def run_evening_update() -> dict:
         unresolved = unresolved_analyzed or db.get_unresolved_analyzed_matches(days=8)
         n_resolved = 0
         n_stats = 0
+        n_stats_rejected = 0
         for am in unresolved:
             fkey = ((am.get("player1") or "").lower().strip(),
                     (am.get("player2") or "").lower().strip())
@@ -286,13 +329,19 @@ def run_evening_update() -> dict:
                 tid = match_to_tournament.get(fkey, "")
                 if p1_id and p2_id and tid:
                     try:
-                        st = get_match_stats(tid, p1_id, p2_id)
+                        st, why = get_match_stats_aligned(tid, p1_id, p2_id)
                         if st and db.save_analyzed_match_stats(am["id"], st):
                             n_stats += 1
+                        elif not st:
+                            n_stats_rejected += 1
+                            if why and "endpoint" not in why:
+                                print(f"  Statistika odbijena (analyzed) "
+                                      f"{am.get('player1')} vs {am.get('player2')}: {why}")
                     except Exception:
                         pass   # statistika je bonus — nikad ne smije srušiti razrješavanje
         print(f"Analyzed_matches: razriješeno {n_resolved}/{len(unresolved)} analiza (8 dana), "
-              f"statistika spremljena za {n_stats}.")
+              f"statistika spremljena za {n_stats}"
+              + (f", odbijena za {n_stats_rejected}." if n_stats_rejected else "."))
         summary["analyzed_resolved"] = n_resolved
     except Exception as e:
         print(f"Analyzed_matches razrješavanje preskočeno (greška): {e}")
@@ -338,7 +387,16 @@ def run_evening_update() -> dict:
             p1_id = name_to_id.get(p1_key, "")
             p2_id = name_to_id.get(p2_key, "")
             tournament_id = match_to_tournament.get((p1_key, p2_key), "")
-            stats = get_match_stats(tournament_id, p1_id, p2_id) if (p1_id and p2_id and tournament_id) else {}
+            # I OVDJE poravnati put (30.08.2026). Ovo je citac, ne pisac, pa bi stara
+            # logika u `_format_match_stats` svejedno poravnala po ID-u — ali time bi u
+            # kodu ostala DVA razlicita nacina poravnanja, a jedan od njih bi se lako
+            # zaboravio pri sljedecoj izmjeni. Jedan put, jedno pravilo.
+            stats = {}
+            if p1_id and p2_id and tournament_id:
+                stats, _why_ls = get_match_stats_aligned(tournament_id, p1_id, p2_id)
+                stats = stats or {}
+                if not stats:
+                    print(f"  Statistika za analizu gubitka odbijena ({p1_key} vs {p2_key}): {_why_ls}")
         analysis = _analyze_lost_match(lm, stats)
         if analysis:
             db.save_loss_analysis(lm["id"], analysis)
@@ -429,9 +487,25 @@ def _format_match_stats(p1: str, p2: str, stats: dict, p1_id=None, p2_id=None) -
     # `player1Stats.player1Id` ne poklapa s našim `player1_id`. Da se statistika pripisuje
     # po poziciji, analiza gubitka bi u gotovo pola slučajeva dobila ZAMIJENJENE brojke i
     # izvela samouvjereno pogrešan zaključak — mjerljivo gore nego da statistike nema.
+    # OD 30.08.2026 statistika se poravnava PRI UPISU (`data_fetcher.align_match_stats`) i
+    # nosi dokaz u `_align`. Kad taj dokaz postoji I odgovara nasim ID-evima, blokovi su vec
+    # u nasem redoslijedu pa se preskace sva logika nize. Ako `_align` postoji ali je za
+    # DRUGI par, blok se odbija — ne pogadja se. Stara logika ostaje za retke spremljene
+    # prije 30.08.; nista se ne prepisuje unatrag.
+    _al = stats.get("_align") or {}
+    _trusted = bool(
+        _al.get("verified") and p1_id and p2_id
+        and str(_al.get("our_p1_id")) == str(p1_id)
+        and str(_al.get("our_p2_id")) == str(p2_id)
+    )
+    if _al.get("verified") and not _trusted:
+        return ""
+
     sid1 = str((p1_stats.get("player1Id") or "")).strip()
     sid2 = str((p2_stats.get("player2Id") or "")).strip()
-    if p1_id and p2_id and sid1 and sid2:
+    if _trusted:
+        pass
+    elif p1_id and p2_id and sid1 and sid2:
         if sid1 == str(p2_id) and sid2 == str(p1_id):
             p1_stats, p2_stats = p2_stats, p1_stats
         elif sid1 != str(p1_id):

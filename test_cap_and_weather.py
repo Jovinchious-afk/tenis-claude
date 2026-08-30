@@ -984,6 +984,113 @@ check("funkcije nakon oporavka i dalje rade",
       _ns27["is_no_selection"]({"confidence": 49.0}) is True
       and _ns27["is_no_selection"]({"confidence": 65.0}) is False)
 
+print("\n=== 28. Post-match statistika: poravnanje po IGRACU (30.08.2026) ===")
+from agent.data_fetcher import align_match_stats, _block_id, _stats_blocks
+from agent.feedback_analyzer import _format_match_stats, _build_season_winner_lookup
+import agent.feedback_analyzer as _fa
+import copy as _copy
+
+# Stvarni odgovor za Fery-Buse 29.08.2026: API je vratio BUSEA (79113) kao "player1Stats",
+# iako je nas player1 Fery (79065). Ovo je uzorak koji mora ostati zauvijek testiran.
+_RAW = {"player1Stats": {"player1Id": 79113, "aces": 2, "totalPointsWon": 57,
+                         "breakPointWonGm": 4, "breakPointChanceGm": 7},
+        "player2Stats": {"player2Id": 79065, "aces": 0, "totalPointsWon": 39,
+                         "breakPointSavedGm": 3, "breakPointFacedGm": 7}}
+FERY, BUSE = "79065", "79113"
+
+_al, _why = align_match_stats(_RAW, FERY, BUSE)
+check("prepoznaje zamijenjen redoslijed", _al is not None and _why == "zamijenjen redoslijed")
+check("player1Stats postaje NAS player1 (Fery, 0 asova)",
+      _al["player1Stats"]["aces"] == 0 and _al["player1Stats"]["totalPointsWon"] == 39)
+check("player2Stats postaje NAS player2 (Buse, 2 asa)",
+      _al["player2Stats"]["aces"] == 2 and _al["player2Stats"]["totalPointsWon"] == 57)
+check("svaki blok nosi nedvosmislen our_player_id",
+      _al["player1Stats"]["our_player_id"] == FERY
+      and _al["player2Stats"]["our_player_id"] == BUSE)
+check("_align nosi dokaz", _al["_align"]["verified"] is True
+      and _al["_align"]["swapped"] is True
+      and _al["_align"]["our_p1_id"] == FERY and _al["_align"]["api_p1_id"] == "79113")
+check("izvorni dict se NE mijenja", _RAW["player1Stats"]["aces"] == 2
+      and "our_player_id" not in _RAW["player1Stats"])
+
+_al2, _why2 = align_match_stats(_RAW, BUSE, FERY)
+check("obrnut par -> nema zamjene", _al2["_align"]["swapped"] is False
+      and _al2["player1Stats"]["aces"] == 2)
+
+# --- ODBIJANJA: nikad se ne pogadja ---
+for _args, _frag in (((_RAW, "111", "222"), "ne poklapaju"),
+                     ((_RAW, None, BUSE), "vlastite"),
+                     ((_RAW, FERY, FERY), "ista"),
+                     (({}, FERY, BUSE), "prazna"),
+                     (({"player1Stats": {"aces": 1}, "player2Stats": {"aces": 2}}, FERY, BUSE),
+                      "nema ID-eve")):
+    _r, _w = align_match_stats(*_args)
+    check("odbija: %s" % _frag, _r is None and _frag in _w, _w)
+
+# jedan igrac se poklapa, drugi ne -> i dalje odbijeno (djelomicno poklapanje NIJE dokaz)
+_r, _w = align_match_stats(_RAW, FERY, "99999")
+check("djelomicno poklapanje ID-eva se odbija", _r is None)
+
+# --- CITAC ---
+_out = _format_match_stats("Arthur Fery", "Ignacio Buse", _al, FERY, BUSE)
+check("citac pripisuje 0 asova Feryju, 2 Buseu",
+      "Ace: Arthur Fery=0 | Ignacio Buse=2" in _out)
+check("citac pripisuje ukupne poene tocno",
+      "Ukupni poeni: Arthur Fery=39 | Ignacio Buse=57" in _out)
+_out_legacy = _format_match_stats("Arthur Fery", "Ignacio Buse", _RAW, FERY, BUSE)
+check("stari (sirovi) redci i dalje rade jednako", _out_legacy == _out)
+check("_align za DRUGI par -> prazno, ne pogadja se",
+      _format_match_stats("A", "B", _al, "111", "222") == "")
+check("bez nasih ID-eva na sirovom retku -> prazno",
+      _format_match_stats("A", "B", _RAW, None, None) == "")
+
+# --- POVRATNI UPIS tournament_id-a ---
+_saved = _fa.get_current_season_results
+_fa.get_current_season_results = lambda tid: []
+try:
+    _rows = [{"tournament": "Winston-Salem Open - Winston-Salem", "match_date": "2026-08-28",
+              "player1": "Ignacio Buse", "player2": "Benjamin Bonzi"},
+             {"tournament": "Winston-Salem Open - Winston-Salem", "match_date": "2026-08-29",
+              "player1": "Arthur Fery", "player2": "Ignacio Buse"}]
+    # fixtures je imao SAMO prvi par (drugi je ispao iz feeda) — tocno slucaj od 29.08.
+    _p2t = {("ignacio buse", "benjamin bonzi"): "21348",
+            ("benjamin bonzi", "ignacio buse"): "21348"}
+    _n_before = len(_p2t)
+    _fa._build_season_winner_lookup(_rows, _p2t)
+    check("tid je dopunjen za par kojeg fixtures nije imao",
+          _p2t.get(("arthur fery", "ignacio buse")) == "21348")
+    check("dopunjen je i obrnuti smjer",
+          _p2t.get(("ignacio buse", "arthur fery")) == "21348")
+    check("postojeci unosi se ne diraju",
+          _p2t[("ignacio buse", "benjamin bonzi")] == "21348" and len(_p2t) > _n_before)
+finally:
+    _fa.get_current_season_results = _saved
+
+# --- pisci koriste poravnati put ---
+_fsrc = inspect.getsource(_fa.run_evening_update)
+check("korak 2 (ticket_matches) koristi poravnati dohvat",
+      "get_match_stats_aligned(tournament_id, p1_id, p2_id)" in _fsrc)
+check("korak 2b (analyzed_matches) koristi poravnati dohvat",
+      "get_match_stats_aligned(tid, p1_id, p2_id)" in _fsrc)
+check("nijedan pisac ne zove sirovi get_match_stats",
+      "= get_match_stats(" not in _fsrc)
+_bsrc = _io26.open(r"scripts/backfill_match_stats.py", encoding="utf-8").read()
+check("backfill skripta koristi poravnati dohvat",
+      "get_match_stats_aligned(tid, p1_id, p2_id)" in _bsrc
+      and "get_match_stats(" not in _bsrc.replace("get_match_stats_aligned(", ""))
+check("backfill sprema ID-eve tek kad je poravnanje uspjelo",
+      _bsrc.index("stat[\"upisano\"] += 1") < _bsrc.index("dopunjeni player ID-evi"))
+
+check("backfill ima mod za poravnanje unatrag (bez API poziva)",
+      "def realign(" in _bsrc and "align_match_stats(ms, p1_id, p2_id)" in _bsrc)
+check("realign preskace retke bez dokazivog poravnanja",
+      "preskoceno: " in _bsrc)
+check("realign ne dira retke koji vec nose _align",
+      '(ms.get("_align") or {}).get("verified")' in _bsrc)
+
+check("realign upisuje ID-eve PRIJE statistike (polovican upis ostaje bezopasan)",
+      _bsrc.index("REDOSLIJED JE NAMJERAN") < _bsrc.index('if save(r["id"], out):'))
+
 print("\n" + "=" * 60)
 if _fails:
     print(f"PALO: {len(_fails)}")

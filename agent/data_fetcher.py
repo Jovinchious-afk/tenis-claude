@@ -1167,6 +1167,109 @@ def get_match_stats(tournament_id: str, player1_id: str, player2_id: str) -> dic
     return data.get("data", data) or {}
 
 
+# ---------------------------------------------------------------------------
+# PORAVNANJE POST-MATCH STATISTIKE S NASIM IGRACIMA (30.08.2026 11:05)
+#
+# ZASTO POSTOJI. Endpoint `/atp/h2h/match-stats` NE postuje redoslijed igraca koji mu
+# posaljemo. Provjereno na Fery-Buse 29.08.2026: pozvan s (79065=Fery, 79113=Buse), a
+# vratio `player1Stats.player1Id = 79113` — dakle BUSEA kao "player1". Ranije mjereno na
+# 56 mecheva s oba podatka: kod 24 (43%) se `player1Stats.player1Id` NE poklapa s nasim
+# `player1_id`. Pripisivanje po POZICIJI bi dakle u gotovo pola slucajeva dalo zamijenjene
+# brojke — a to je gore nego nemati statistiku, jer se iz nje izvode buduce revizije.
+#
+# NACELO: nikad se ne pogadja. Poravnanje se DOKAZUJE preko ID-eva ili se statistika
+# ODBIJA. Bolje prazno polje nego krivo pripisano.
+#
+# ZASTO OVDJE, A NE SAMO PRI CITANJU. Do 30.08. je poravnanje postojalo samo u
+# `feedback_analyzer._format_match_stats`, dakle pri CITANJU, dok se u bazu spremao sirovi
+# odgovor. Svaki buduci potrosac koji bi uzeo `match_stats["player1Stats"]` kao "nas prvi
+# igrac" dobio bi krive brojke u 43% slucajeva. Sada se poravnava PRI UPISU, rezultat nosi
+# `_align` blok s dokazom, a citac ga samo provjeri.
+# ---------------------------------------------------------------------------
+
+_STATS_BLOCK_IDS = (("player1Stats", "player1Id"), ("player2Stats", "player2Id"))
+
+
+def _stats_blocks(stats: dict) -> tuple:
+    """(blok1, blok2) iz odgovora, uz podrsku za stare/normalizirane nazive."""
+    b1 = stats.get("player1Stats") or stats.get("player1") or stats.get("p1") or {}
+    b2 = stats.get("player2Stats") or stats.get("player2") or stats.get("p2") or {}
+    return (b1 if isinstance(b1, dict) else {}, b2 if isinstance(b2, dict) else {})
+
+
+def _block_id(block: dict) -> str:
+    """ID igraca zapisan U SAMOM bloku (naziv kljuca se razlikuje po bloku)."""
+    for key in ("player1Id", "player2Id", "playerId", "player_id", "id"):
+        v = block.get(key)
+        if v not in (None, "", 0, "0"):
+            return str(v).strip()
+    return ""
+
+
+def align_match_stats(stats: dict, our_p1_id, our_p2_id) -> tuple:
+    """Vrati (poravnata_statistika, razlog).
+
+    U poravnatom rezultatu je `player1Stats` GARANTIRANO nas `player1`, a `player2Stats`
+    nas `player2`. Uz to se dodaje `_align` blok koji nosi dokaz poravnanja, pa svaki
+    citac moze provjeriti umjesto vjerovati.
+
+    Vraca (None, razlog) kad se poravnanje ne moze DOKAZATI:
+      - nemamo oba svoja ID-a,
+      - odgovor nema ID-eve u blokovima,
+      - skup ID-eva iz odgovora se ne poklapa s nasim parom (tudji mec!).
+    Sve tri situacije su tihe greske koje bi inace zavrsile krivim brojkama.
+    """
+    if not stats or not isinstance(stats, dict):
+        return None, "prazna statistika"
+    b1, b2 = _stats_blocks(stats)
+    if not b1 and not b2:
+        return None, "odgovor nema blokove statistike"
+    p1, p2 = str(our_p1_id or "").strip(), str(our_p2_id or "").strip()
+    if not p1 or not p2:
+        return None, "nemamo vlastite player ID-eve"
+    if p1 == p2:
+        return None, "nasa dva ID-a su ista"
+
+    a1, a2 = _block_id(b1), _block_id(b2)
+    if not a1 or not a2:
+        return None, "odgovor nema ID-eve u blokovima"
+    if {a1, a2} != {p1, p2}:
+        return None, f"ID-evi se ne poklapaju s nasim parom (odgovor {a1}/{a2}, nasi {p1}/{p2})"
+
+    swapped = (a1 == p2)
+    if swapped:
+        b1, b2 = b2, b1
+    # Unutarnji nazivi kljuceva ostaju kakvi jesu (ne prepisujemo tudji odgovor), ali se u
+    # svaki blok dodaje NEDVOSMISLEN `our_player_id`. Bez toga bi zamijenjeni blok i dalje
+    # nosio kljuc `player2Id` dok stoji na mjestu `player1Stats`, sto zbunjuje svakog
+    # buduceg citaca. Ovako se orijentacija moze provjeriti iz samog bloka.
+    b1 = dict(b1); b1["our_player_id"] = p1
+    b2 = dict(b2); b2["our_player_id"] = p2
+    out = {k: v for k, v in stats.items() if k not in
+           ("player1Stats", "player2Stats", "player1", "player2", "p1", "p2")}
+    out["player1Stats"] = b1
+    out["player2Stats"] = b2
+    out["_align"] = {
+        "our_p1_id": p1, "our_p2_id": p2,
+        "api_p1_id": a1, "api_p2_id": a2,
+        "swapped": swapped,
+        "verified": True,
+        "aligned_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+    }
+    return out, ("zamijenjen redoslijed" if swapped else "redoslijed vec tocan")
+
+
+def get_match_stats_aligned(tournament_id: str, our_p1_id, our_p2_id) -> tuple:
+    """Dohvati statistiku i poravnaj je s NASIM player1/player2 — jedini put kojim
+    statistika smije uci u bazu. Vraca (stats_ili_None, razlog)."""
+    if not tournament_id:
+        return None, "nema tournament_id"
+    raw = get_match_stats(tournament_id, our_p1_id, our_p2_id)
+    if not raw:
+        return None, "endpoint nije vratio statistiku"
+    return align_match_stats(raw, our_p1_id, our_p2_id)
+
+
 def get_player_surface_summary(player_id: str) -> dict:
     """
     Endpoint: GET /atp/player/surface-summary/{player_id}
