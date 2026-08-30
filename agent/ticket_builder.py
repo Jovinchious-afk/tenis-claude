@@ -279,9 +279,39 @@ def _conf_floor_ok(p) -> bool:
                                                if isinstance(p, dict) else None)})
 
 
+def _scouting_ok(p) -> bool:
+    """Pick s Med-Low scouting profilom NE ide na tiket (30.08.2026 12:40).
+
+    Izmjereno na 218 razrijesenih hard analiza (05.-29.08.2026), naspram DEVIGIRANE cijene:
+
+        svi Med-Low pickovi:        n=18 | stvarno 22,2% | trziste 60,9% | edge -38,7pp  P=0,001
+        Med-Low + trzisni favorit:  n= 9 | stvarno 11,1% | trziste 66,9% | edge -55,7pp  P<0,001
+
+    Uzorak je malen, ali efekt je golem i REPLICIRA neovisno mjerenje od 17.08.2026
+    (26,7%, n=15, na djelomicno drugom uzorku). Postojeca kazna od -4pp
+    (`_SCOUTING_MEDLOW_PENALTY`) tipican pick sa 64 spusti na 60 — ali to je red
+    velicine premalo: ovi pickovi ne gube 4pp, gube 39pp.
+
+    ZASTO VETO, A NE VECA KAZNA: kazna od 39pp bila bi besmislena (svaki takav pick pao
+    bi na ~25% i nikad se ne bi vidio), a i dalje bi ovisila o tome kolika je pocetna
+    pouzdanost. Veto je iskren opis onoga sto podaci kazu: na profil te kvalitete se ne
+    kladimo. Kazna od -4pp OSTAJE u prediktoru jer analiza (koja se biljezi i uci) i dalje
+    treba brojku; veto djeluje samo na SELEKCIJU.
+
+    ZASTO JE PROFIL LOS BAS KAD JE "Med-Low": ironija izmjerena 17.08. — profili Low i
+    Insufficient prolaze BOLJE (87,5% i 76,9%) jer su izbaceni iz prompta pa se model na
+    njih ne oslanja. Med-Low model vidi, tretira kao upotrebljiv, i pojede se.
+
+    ZA PREMJERAVANJE nakon US Opena: n=18 je premalo za konacnu rijec. Ako se do kraja
+    rujna skupi 30+ Med-Low pickova i stopa se popravi iznad ~45%, veto se vraca na kaznu.
+    """
+    pen = (p.get("measured_penalties") or {}).get("applied") or []
+    return not any(a.get("rule") == "scouting_med_low" for a in pen)
+
+
 def _selection_ok(p) -> bool:
     """Zajednički mandatory filter za sve kandidatske liste tiketa."""
-    return (_is_main_tour(p) and _has_odds(p) and _conf_floor_ok(p)
+    return (_is_main_tour(p) and _has_odds(p) and _conf_floor_ok(p) and _scouting_ok(p)
             and _grass_bands_ok(p)
             and _hard_gs_conf_ok(p) and _clay_gs_conf_ok(p)
             and not _opponent_beat_us(p)

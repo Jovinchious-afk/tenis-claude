@@ -2154,6 +2154,74 @@ def _enforce_stated_caps(result: dict) -> None:
 _SCOUTING_MEDLOW_PENALTY = 4.0
 _MARKET_UNDERDOG_PENALTY = 5.0
 
+# ---------------------------------------------------------------------------
+# REVIZIJA HARD MODELA 30.08.2026 12:40 — dvije nove mjerene kazne
+#
+# Uzorak: 218 razrijesenih hard meceva (05.-29.08.2026), PRVI PUT s ispravno poravnatom
+# post-match statistikom (vidi MODEL_CHANGELOG 30.08. 11:05 — do tad je 53% zapisa bilo
+# pozicijski zamijenjeno). Sve mjereno kao EDGE naspram devigirane cijene, ne kao sirova
+# stopa pobjede: stopa pobjede mjeri tezinu rasporeda, edge mjeri nas doprinos.
+#
+# POLAZNA BROJKA: na hardu nemamo prednost nad trzistem — n=218, stvarno 60,1%,
+# trziste 62,7%, edge -2,6pp (P=0,427). Nema pojasa cijene u kojem smo iznad trzista.
+#
+# 3. POJAS POUZDANOSTI 65-68  ->  -5pp
+#    Najrobusniji nalaz cijele revizije.
+#        conf 60-63:  n=44 | stvarno 63,6% | trziste 60,5% | edge  +3,1pp
+#        conf 63-65:  n=96 | stvarno 60,4% | trziste 61,3% | edge  -0,9pp
+#        conf 65-68:  n=52 | stvarno 50,0% | trziste 67,6% | edge -17,6pp   P=0,008
+#    Bootstrap 95% CI [-30,7, -4,1] NE prelazi nulu. Split-half: -17,2pp i -17,8pp —
+#    praktički identicno. Drzi na sva tri turnira (-22,7 / -15,6 / -16,3) i u ranim
+#    rundama i u R16/QF. Susjedni pojasevi su uredni, dakle nije trend nego RUPA.
+#    Sto je posebno u tom pojasu: ELO jaz 154 naspram 121 u pojasu 63-65, kvota 1,43
+#    naspram 1,58, a servisna prednost MANJA (0,99 naspram 2,26). Model dakle dolazi
+#    na 65-68 uglavnom na velikom rejting jazu BEZ potvrde iz servisa.
+#    -5pp spusta 65-67 u pojas 60-63 (izmjereno +3,1pp) i time ispod praga za tiket (63).
+#    Kazna se namjerno racuna na broju NAKON ostalih kazni — pojas je izmjeren na
+#    `predicted_confidence` kakav zavrsi u bazi.
+#
+# 4. NAS PICK VODI U TIE-BREAK ZAPISU 10pp+  ->  -4pp
+#    Pravilo 16 u promptu kaze: "ako pick NE vodi i u tie-breaku i u odlucujucem setu,
+#    cap 62%" — dakle vodstvo u TB tretira kao razlog za VECU pouzdanost. Podaci kazu
+#    suprotno, i to monotono kroz svih pet pojaseva (n=210):
+#        pick zaostaje 20pp+  n=53  edge +7,1pp
+#        zaostaje 5-20pp      n=39  edge +5,0pp
+#        izjednaceno          n=23  edge -4,4pp
+#        vodi 5-20pp          n=28  edge -9,1pp
+#        vodi 20pp+           n=67  edge -8,1pp
+#    r=-0,154 P=0,026; parcijalno uz kontrolu cijene isto -0,154. Drzi u SVAKOM pojasu
+#    cijene (razlika 14,8 / 15,5 / 19,4pp) i kad oba igraca imaju 4+ tie-breakova.
+#    Tumacenje: TB zapis je uzorak od 4-8 mecheva, dakle sum koji je trziste vec
+#    ugradilo; kad ga model uzme kao potvrdu, dize pouzdanost bez pokrica.
+#    TRAZI SE 3+ TIE-BREAKA kod OBA igraca — inace je i sam postotak besmislen.
+#
+#    ZASTO KAZNA, A NE IZMJENA PRAVILA 16: pravi popravak je maknuti TB iz pravila 16
+#    kao potvrdu, ali to mijenja `rules_hash` na dan pocetka US Opena i kida usporedivost
+#    ere. Isti obrazac kao kod hot-hand pravila u srpnju i Med-Low pravila u kolovozu:
+#    prompt REGISTRIRA, kod PROVODI. Izmjena prompta je pripremljena za poslije US Opena
+#    (vidi MODEL_CHANGELOG 30.08. i DECISION_INPUTS).
+#
+# STO JE MJERENO I ODBACENO (da se ne ponavlja):
+#   - kretanje kvota medju kladionicama: pomak r=+0,032, raspon r=+0,029, najbolja kvota
+#     r=-0,015 (n=57) — nema signala; sharp naspram prosjeka r=+0,176 P=0,191 je jedini
+#     tracak, ceka veci uzorak
+#   - vrijeme kao glavni ucinak: temp/vlaga/vjetar/tlak sve |r|<0,11, P>0,16 (n=189)
+#   - temperatura x servisna prednost: na pragu 26C izgleda snazno, na 28C se raspada
+#   - TROSTRUKE kombinacije varijabli: 980 celija testirano, ~49 laznih ocekivano;
+#     svih 8 najjacih PADA na split-halfu -> n=218 je premalo za tri dimenzije
+#   - "bolji hold uz losiji ELO" (korisnikov primjer): n=6, nemjerljivo; hold uz jak ELO
+#     daje -1,3pp, dakle hold ne dodaje nista preko ELO-a
+#   - pojedinacne serve/return varijable: ace, 1. servis, 2. servis, tezinski return,
+#     hold iz BP, ukupna ucinkovitost — sve |r|<0,08
+#   - dob i visina naspram POST-MATCH statistike: sve |r|<0,31, nijedno P<0,05
+#   - stil igre iz scoutinga: baseliner -5,7pp, serve-led -1,3pp, all-court +1,3pp — slabo
+# ---------------------------------------------------------------------------
+_CONF_BAND_LO, _CONF_BAND_HI = 65.0, 68.0
+_CONF_BAND_PENALTY = 5.0
+_TB_LEAD_PENALTY = 4.0
+_TB_LEAD_MIN_GAP_PP = 10.0
+_TB_LEAD_MIN_SAMPLE = 3
+
 
 def _apply_measured_penalties(result: dict, match: dict, p1: dict, p2: dict) -> None:
     """Dvije mjerene kazne, ODUZIMANJEM a ne capiranjem (17.08.2026 11:46).
@@ -2217,6 +2285,35 @@ def _apply_measured_penalties(result: dict, match: dict, p1: dict, p2: dict) -> 
         if p_pick <= 0.50:
             applied.append({"rule": "market_underdog", "penalty": _MARKET_UNDERDOG_PENALTY,
                             "market_p_pick": round(p_pick, 4)})
+
+    # --- 3. nas pick vodi u tie-break zapisu (30.08.2026) ---
+    # Rezervni izracun iz {'won': x, 'lost': y}; oba igraca moraju imati 3+ tie-breaka,
+    # inace je postotak sum nad jednim ili dva meca.
+    def _tb_pct(rec):
+        if not isinstance(rec, dict):
+            return (None, 0)
+        w = safe_float(rec.get("won")) or 0.0
+        l = safe_float(rec.get("lost")) or 0.0
+        n = w + l
+        return ((100.0 * w / n, n) if n else (None, 0))
+
+    tb_pick, n_pick = _tb_pct((p1 if pick_is_p1 else p2).get("tiebreak_record"))
+    tb_opp, n_opp = _tb_pct((p2 if pick_is_p1 else p1).get("tiebreak_record"))
+    if (tb_pick is not None and tb_opp is not None
+            and n_pick >= _TB_LEAD_MIN_SAMPLE and n_opp >= _TB_LEAD_MIN_SAMPLE
+            and (tb_pick - tb_opp) > _TB_LEAD_MIN_GAP_PP):
+        applied.append({"rule": "tiebreak_lead", "penalty": _TB_LEAD_PENALTY,
+                        "gap_pp": round(tb_pick - tb_opp, 1),
+                        "n_pick": int(n_pick), "n_opp": int(n_opp)})
+
+    interim = round(conf - sum(a["penalty"] for a in applied), 1) if applied else conf
+
+    # --- 4. pojas pouzdanosti 65-68 (30.08.2026) ---
+    # NAMJERNO ZADNJE i na broju NAKON ostalih kazni: pojas je izmjeren na
+    # `predicted_confidence` kakav zavrsi u bazi, ne na sirovom broju modela.
+    if _CONF_BAND_LO <= interim < _CONF_BAND_HI:
+        applied.append({"rule": "conf_band_65_68", "penalty": _CONF_BAND_PENALTY,
+                        "band_input": interim})
 
     if not applied:
         return

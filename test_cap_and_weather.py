@@ -1091,6 +1091,81 @@ check("realign ne dira retke koji vec nose _align",
 check("realign upisuje ID-eve PRIJE statistike (polovican upis ostaje bezopasan)",
       _bsrc.index("REDOSLIJED JE NAMJERAN") < _bsrc.index('if save(r["id"], out):'))
 
+print("\n=== 29. Revizija hard modela 30.08.2026: dvije kazne + Med-Low veto ===")
+from agent.predictor import (_apply_measured_penalties, _CONF_BAND_LO, _CONF_BAND_HI,
+                             _CONF_BAND_PENALTY, _TB_LEAD_PENALTY, _TB_LEAD_MIN_GAP_PP,
+                             _TB_LEAD_MIN_SAMPLE)
+
+
+def _pen(conf, tb_pick=(3, 3), tb_opp=(3, 3), scout="High", mp=0.70):
+    r = {"pick": "Ana Anic", "confidence": conf}
+    m = {"player1": "Ana Anic", "player2": "Bruno Bric", "market_p": mp}
+    a = {"scouting": {"confidence": scout},
+         "tiebreak_record": {"won": tb_pick[0], "lost": tb_pick[1]}}
+    b = {"scouting": {"confidence": "High"},
+         "tiebreak_record": {"won": tb_opp[0], "lost": tb_opp[1]}}
+    _apply_measured_penalties(r, m, a, b)
+    rules = [x["rule"] for x in (r.get("measured_penalties") or {}).get("applied", [])]
+    return r["confidence"], rules
+
+
+check("pragovi su 65/68 i kazna 5pp",
+      (_CONF_BAND_LO, _CONF_BAND_HI, _CONF_BAND_PENALTY) == (65.0, 68.0, 5.0))
+check("TB kazna 4pp, prag 10pp, min 3 tie-breaka",
+      (_TB_LEAD_PENALTY, _TB_LEAD_MIN_GAP_PP, _TB_LEAD_MIN_SAMPLE) == (4.0, 10.0, 3))
+
+# --- pojas 65-68 ---
+c, rl = _pen(66)
+check("66%% pada na 61%% (pojas 65-68)", c == 61.0 and "conf_band_65_68" in rl, str((c, rl)))
+c, rl = _pen(65)
+check("65%% je UNUTAR pojasa (donja granica ukljuciva)", c == 60.0, str((c, rl)))
+c, rl = _pen(68)
+check("68%% je IZVAN pojasa (gornja granica iskljuciva)", c == 68 and not rl, str((c, rl)))
+c, rl = _pen(64)
+check("64%% se ne dira", c == 64 and not rl, str((c, rl)))
+c, rl = _pen(70)
+check("70%% se ne dira", c == 70 and not rl, str((c, rl)))
+
+# --- tie-break vodstvo ---
+c, rl = _pen(64, tb_pick=(5, 1), tb_opp=(2, 4))
+check("TB vodstvo 83%% vs 33%% -> kazna 4pp", c == 60.0 and "tiebreak_lead" in rl, str((c, rl)))
+c, rl = _pen(64, tb_pick=(2, 0), tb_opp=(0, 3))
+check("premali uzorak TB (2 meca) -> BEZ kazne", c == 64 and "tiebreak_lead" not in rl, str((c, rl)))
+c, rl = _pen(64, tb_pick=(3, 3), tb_opp=(3, 3))
+check("izjednacen TB -> bez kazne", c == 64 and not rl, str((c, rl)))
+c, rl = _pen(64, tb_pick=(2, 4), tb_opp=(5, 1))
+check("pick ZAOSTAJE u TB -> bez kazne (nalaz je jednosmjeran)",
+      c == 64 and "tiebreak_lead" not in rl, str((c, rl)))
+c, rl = _pen(64, tb_pick=(4, 3), tb_opp=(3, 3))
+check("vodstvo 57%% vs 50%% (<10pp) -> bez kazne", c == 64, str((c, rl)))
+
+# --- redoslijed: pojas se racuna NAKON ostalih kazni ---
+c, rl = _pen(71, tb_pick=(5, 1), tb_opp=(2, 4))
+check("71%% -> TB(-4) -> 67 -> pojas(-5) -> 62",
+      c == 62.0 and rl == ["tiebreak_lead", "conf_band_65_68"], str((c, rl)))
+c, rl = _pen(66, tb_pick=(5, 1), tb_opp=(2, 4))
+check("66%% -> TB(-4) -> 62, pojas se NE aktivira (62 nije u pojasu)",
+      c == 62.0 and "conf_band_65_68" not in rl, str((c, rl)))
+c, rl = _pen(70, scout="Med-Low")
+check("70%% -> Med-Low(-4) -> 66 -> pojas(-5) -> 61", c == 61.0 and len(rl) == 2, str((c, rl)))
+
+# --- Med-Low veto u selekciji ---
+check("_scouting_ok odbija Med-Low",
+      _tb._scouting_ok({"measured_penalties": {"applied": [{"rule": "scouting_med_low"}]}}) is False)
+check("_scouting_ok propusta ostale kazne",
+      _tb._scouting_ok({"measured_penalties": {"applied": [{"rule": "market_underdog"}]}}) is True)
+check("_scouting_ok propusta pick bez kazni", _tb._scouting_ok({}) is True)
+check("_selection_ok koristi _scouting_ok",
+      "_scouting_ok(p)" in inspect.getsource(_tb._selection_ok))
+check("kazna -4pp OSTAJE u prediktoru (analiza treba brojku)",
+      _pen(64, scout="Med-Low")[0] == 60.0)
+
+# --- zamka: model se NIJE promijenio ---
+check("revizija NE dira rules_hash", _pr._model_stamp("hard")["rules_hash"] == "a0424315")
+check("ANALYSIS_PROMPT_TEMPLATE ne spominje nove kazne",
+      "conf_band_65_68" not in _pr.ANALYSIS_PROMPT_TEMPLATE
+      and "tiebreak_lead" not in _pr.ANALYSIS_PROMPT_TEMPLATE)
+
 print("\n" + "=" * 60)
 if _fails:
     print(f"PALO: {len(_fails)}")

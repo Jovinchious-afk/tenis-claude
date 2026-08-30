@@ -227,3 +227,17 @@ prag ionako iznosi 63% (65% na Grand Slamu).
 **Predikcija se i dalje bilježi, razrješava i BRoji u statistici.** Izvedeno iz
 `confidence`, nije stupac u bazi. Mjerenja i obrazlozenje: `utils/helpers.py`, blok iznad
 `MIN_PICK_CONFIDENCE`, i `MODEL_CHANGELOG.md` (2026-08-29 13:40).
+
+## 4d. ULAZI U ODLUKU — tri nove determinističke provjere (30.08.2026 12:40)
+
+Sve tri žive u kodu, ne u promptu; `rules_hash` je netaknut (`a0424315`).
+
+| provjera | gdje | učinak |
+|---|---|---|
+| pouzdanost u pojasu 65-68 | `predictor._apply_measured_penalties` | −5pp (spušta ispod praga 63) |
+| naš pick vodi u tie-break zapisu 10pp+ (uz 3+ TB kod oba) | isto | −4pp |
+| Med-Low scouting profil na našem picku | `ticket_builder._scouting_ok` | **veto** za tiket |
+
+Pojas 65-68 računa se na broju **nakon** ostalih kazni, jer je izmjeren na
+`predicted_confidence` kakav završi u bazi. Mjerenja i obrazloženja:
+`MODEL_CHANGELOG.md` (2026-08-30 12:40) i komentari uz same funkcije.

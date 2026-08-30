@@ -13,6 +13,161 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-08-30 12:40 — DUBINSKA REVIZIJA HARD MODELA na ISPRAVLJENIM podacima.
+## Dvije nove mjerene kazne + Med-Low veto. rules_hash NETAKNUT.
+
+**Povod:** korisnikov zahtjev za dubinskom revizijom prije US Opena, uz izricitu napomenu
+da su ranije analize radjene s krivom post-match statistikom. **Ovo je prva revizija na
+punom i ispravno poravnatom korpusu** (vidi unos 11:05 istog dana).
+
+**Uzorak:** 218 razrijesenih hard meceva s kvotama (05.-29.08.2026). Sve mjereno kao EDGE
+naspram devigirane cijene (`stvarno - trzisno`), jer sirova stopa pobjede mjeri tezinu
+rasporeda, ne nas doprinos.
+
+### POLAZNA BROJKA
+
+    SVI hard pickovi: n=218 | stvarno 60,1% | trziste 62,7% | edge -2,6pp | P=0,427
+
+**Nemamo prednost nad trzistem, ni u jednom pojasu cijene.** To je okvir za sve ostalo:
+ne trazi se "zasto smo pali", nego gdje unutar tog prosjeka postoji struktura.
+
+### Q1 — ANALIZE GUBITAKA: sustavni hindsight, potvrdjeno brojkama
+
+46 analiza od 05.08., od toga **45 u starom formatu** (verdiktni prompt stigao 28.08.).
+
+    46/46 predlozilo je promjenu modela
+     1/46 zakljucilo je "nema sto mijenjati"
+
+Ako 63%-tni pick gubi 37% vremena, u ~37% slucajeva uzroka NEMA — a analiza ga je nasla
+svaki put. Cetiri najcesce preporuke, testirane:
+
+| preporuka | puta | podaci |
+|---|---|---|
+| vise tezine na formu/momentum | 15x | NEMJERLJIVO (formu biljezimo tek od v15) |
+| gledaj tie-break zapis | 8x | **potvrdjeno, ali SUPROTNOG smjera** |
+| vise tezine na umor | 7x | null (r=-0,17..0,00, P>0,3, n=37) |
+| manje vjere u ELO | 7x | r=-0,009 P=0,921 |
+
+### UVEDENO (deterministicki kod, NE prompt)
+
+**1. Pojas pouzdanosti 65-68 -> -5pp** (`_CONF_BAND_*` u predictor.py)
+
+    conf 60-63: n=44 | stvarno 63,6% | trziste 60,5% | edge  +3,1pp
+    conf 63-65: n=96 | stvarno 60,4% | trziste 61,3% | edge  -0,9pp
+    conf 65-68: n=52 | stvarno 50,0% | trziste 67,6% | edge -17,6pp  P=0,008
+
+Najrobusniji nalaz revizije: bootstrap 95% CI **[-30,7, -4,1]** ne prelazi nulu; split-half
+**-17,2pp i -17,8pp**; drzi na sva tri turnira i u ranim rundama i u R16/QF; susjedni
+pojasevi uredni. Sto je posebno: ELO jaz 154 naspram 121, kvota 1,43 naspram 1,58, a
+servisna prednost MANJA (0,99 naspram 2,26) — model dolazi na 65-68 na velikom rejting
+jazu BEZ potvrde iz servisa. Kazna spusta 65-67 u pojas 60-63 (izmjereno +3,1pp) i time
+ispod praga za tiket.
+
+**2. Nas pick vodi u tie-break zapisu 10pp+ -> -4pp** (`_TB_LEAD_*`)
+
+Monotono kroz svih pet pojaseva (n=210): zaostaje 20pp+ **+7,1pp**, zaostaje 5-20 +5,0,
+izjednaceno -4,4, vodi 5-20 -9,1, vodi 20pp+ **-8,1pp**. r=-0,154 P=0,026, parcijalno uz
+kontrolu cijene isto. Drzi u SVAKOM pojasu cijene (14,8/15,5/19,4pp) i kad oba igraca imaju
+4+ tie-breakova. Trazi se 3+ tie-breaka kod oba, inace je postotak sum.
+
+**Pravilo 16 u promptu ovo koristi u SUPROTNOM smjeru** ("ako pick ne vodi u TB i odluc.
+setu, cap 62%"). Pravi popravak je izmjena pravila 16 — ali to mijenja `rules_hash` na dan
+pocetka Grand Slama. Isti obrazac kao hot-hand (srpanj) i Med-Low (kolovoz):
+**prompt REGISTRIRA, kod PROVODI.** Izmjena prompta ide poslije US Opena.
+
+**3. Med-Low scouting -> VETO za tiket** (`_scouting_ok` u ticket_builder.py)
+
+    svi Med-Low:            n=18 | stvarno 22,2% | trziste 60,9% | edge -38,7pp  P=0,001
+    Med-Low + favorit 62%+: n= 9 | stvarno 11,1% | trziste 66,9% | edge -55,7pp  P<0,001
+
+Replicira neovisno mjerenje od 17.08. (26,7%, n=15). Kazna od -4pp je red velicine
+premala — ti pickovi ne gube 4pp nego 39pp. Kazna OSTAJE u prediktoru (analiza treba
+brojku), veto djeluje samo na SELEKCIJU.
+
+### UCINAK — pošteno, izvan uzorka
+
+    kandidati za tiket (conf>=63), CIJELI korpus:
+      stari:  n=162 | stvarno 59,9% | trziste 64,3% | edge -4,5pp
+      novi:   n= 77 | stvarno 68,8% | trziste 64,4% | edge +4,4pp
+      izbaceno: n=85 | edge -12,5pp  P=0,016
+
+    IZVAN UZORKA (pravila iz 1. polovice -> 2. polovica, nikad vidjena):
+      stari:  n=78 | edge -6,2pp
+      novi:   n=38 | edge -1,0pp        poboljsanje +5,2pp
+
+**Cijena je volumen: broj pickova se prepolovi.** Izbacena skupina je mjerljivo losa
+(P=0,016), ali preostala je tek trzisno neutralna, ne pobjednicka. Ovo je skromno
+poboljsanje, ne pronadjena prednost.
+
+### ODBACENO — izmjereno pa odbaceno, da se ne ponavlja
+
+- **Trostruke kombinacije varijabli** (korisnikov izricit zahtjev): 980 celija testirano,
+  ~49 laznih ocekivano pri P<0,05; **svih 8 najjacih PADA na split-halfu**. n=218 je
+  premalo za tri dimenzije. Korisnikov primjer "bolji hold + losiji ELO": n=6, nemjerljivo;
+  hold uz jak ELO daje -1,3pp — **hold ne dodaje nista preko ELO-a**.
+- **Kretanje kvota**: pomak r=+0,032, raspon medju kladionicama r=+0,029, najbolja kvota
+  r=-0,015 (n=57). Sharp naspram prosjeka r=+0,176 P=0,191 je jedini tracak — ceka veci
+  uzorak (US Open ce ga dati, `market_lines` pokriva tek 57 od 218 meceva).
+- **Vrijeme kao glavni ucinak**: temp/vlaga/vjetar/tlak sve |r|<0,11, P>0,16 (n=189).
+- **Temperatura x servisna prednost**: na pragu 26C snazno, na 28C se raspada -> artefakt.
+- **Dob x temperatura**: najveci raspon u analizi (do 39pp) ali split-half PADA.
+- **Pojedinacne serve/return varijable**: ace, 1. servis, 2. servis, tezinski return, hold
+  iz BP, ukupna ucinkovitost — sve |r|<0,08.
+- **Dob i visina naspram POST-MATCH statistike**: sve |r|<0,31, nijedno P<0,05.
+- **Stil igre iz scoutinga**: baseliner -5,7pp, serve-led -1,3pp, all-court +1,3pp — slabo.
+- **Historical Match-Up Context, drugi put**: walk-forward r=-0,016/+0,003/+0,016/-0,011
+  (k=5/10/15/20). **I ORACLE verzija koja smije gledati ishode daje r=-0,034.** Susjedstvo
+  je stvarno (medijan udaljenosti do 10. susjeda 0,59 naspram 1,20 za nasumican mec), ali
+  nema strukture koju bi se moglo naci. Ne otvarati dok korpus ne bude 3-4x veci.
+
+### ZA PRACENJE (hipoteze, nedovoljno dokaza)
+
+- **Dobna razlika**: pick 4+ god stariji -12,7pp (n=29), 4+ mladji +8,5pp (n=26). Smjer se
+  replicira i u mjerenju od 26.08., ali P=0,16 i obrazac nije monoton.
+- **H2H / zajednicki protivnici**: nas pick bolji +9,3pp (n=26), protivnik bolji -14,4pp
+  (n=23), r=+0,151 P=0,178. Smjer smislen, uzorak premalen.
+- **Povijest turnira**: potvrdjuje smjer nalaza od 22.08. (+7,3 / -3,2 / -21,2pp), ali samo
+  26 usporedivih meceva.
+- **R16/QF rupa**: -10,4pp (n=79, P=0,057) naspram +1,3 u ranim i +3,5 u SF/F. Potvrdjuje
+  nalaz od 26.08. USPRKOS poznatom kvaru s oznakama rundi — sto ga cini jacim, jer bi sum
+  u oznakama efekt razrijedio.
+
+### DEKOMPOZICIJA PORAZA — koliko je uopce nasa krivnja
+
+    od 87 poraza:  39% TIJESNIH (pick osvojio 48%+ poena)  <- varijanca
+                   36% srednjih
+                   25% NADIGRANIH (<44% poena)             <- stvarni promasaj modela
+    za usporedbu:  samo 14% pobjeda bilo je tijesnih
+
+**Dvije trecine poraza nisu greska modela.** A nadigrani porazi imaju ELO jaz **120
+naspram 68,7** kod tijesnih — kad nas razbiju, to je na mecevima gdje je rejting rekao
+da smo znatno bolji. Isti mehanizam kao pojas 65-68.
+
+### ISPRAVAK VLASTITE PREPORUKE
+
+Predlozio sam "biljeziti formu/umor/kvalitetu protivnika u svaki snapshot" jer je
+pokrivenost bila 17%. Provjereno: **u eri v15+ pokrivenost je 100% (61/61)** — onih 17%
+odnosilo se na cijeli korpus, ciji je najveci dio stariji od v15. Nema sto popravljati,
+samo cekati uzorak. US Open ce dodati ~100 redaka i formu ce uciniti mjerljivom.
+
+### NIJE UVEDENO, PRIPREMLJENO ZA POSLIJE US OPENA
+
+1. **Pravilo 16**: maknuti tie-break kao potvrdu (danas zaobidjeno kaznom).
+2. **Pravilo 2(b)**: prosiriti na "spaseni BP" — izmjereno r=+0,831 s hold%, a post-match
+   su `bp_saved` i `bp_converted` ALGEBARSKI ISTI BROJ (identicni u 198/198 meceva:
+   iskoristeni BP picka = 100 - spaseni BP protivnika). Pravilo 2 trazi "dvostruku
+   potvrdu", a ona se moze zadovoljiti istim podatkom u tri odijela. Hold naspram
+   serve_pts_won je r=+1,000 — to je vec pokriveno revizijom od 17.08.
+3. **Premjeriti Med-Low** kad se skupi 30+ pickova; ako stopa predje ~45%, veto natrag u kaznu.
+
+### ZAMKA ZA BUDUCU ANALIZU
+
+`rules_hash` ostaje **a0424315**, `context_version` 17, prompt netaknut. Sve tri izmjene su
+u determinističkom kodu i vidljive u `measured_penalties`. Era se za buducu analizu reze po
+**datumu 30.08.2026 12:40**, NE po rules_hashu — isti oprez kao 17.08.
+
+---
+
 ## 2026-08-30 11:05 — POST-MATCH STATISTIKA: nadjena rupa u dohvatu + poravnanje
 ## po igracu podignuto na razinu UPISA. Backfill unatrag odradjen.
 
@@ -80,7 +235,7 @@ Sada:
 
 ### POPRAVAK 3 — backfill unatrag
 
-`scripts/backfill_match_stats.py``scripts/backfill_match_stats.py` (`--dry-run`, `--since`, `--limit`, `--table`, `--realign`).
+`scripts/backfill_match_stats.py` (`--dry-run`, `--since`, `--limit`, `--table`, `--realign`).
 Razrjesava tid po turniru (jednom, pa dijeli), po potrebi trazi player ID-eve za starije
 retke, i sprema **samo kroz poravnati put**. ID-eve upisuje tek kad poravnanje uspije —
 uspjelo poravnanje ih dokazuje, jer se skup ID-eva iz odgovora mora poklopiti s nasim parom.
