@@ -13,6 +13,79 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-08-30 12:37 — FERY VETO UKINUT. Izmjereno da je rezao našu NAJBOLJU skupinu.
+## Selekcijska promjena, `rules_hash` netaknut.
+
+**Povod:** korisnik je pitao treba li prag podignuti s 1 na 2 poraza. Prag je VEĆ bio 2
+(moja ranija tvrdnja da je 1 bila je netočna), pa je pitanje postalo je li 2 uopće ispravno.
+Pravilo do danas nikad nije bilo izmjereno — nastalo je 18.07.2026 iz jednog slučaja
+(Arthur Fery, šest srušenih pickova u tri tjedna), a prag 2 odabran je rasuđivanjem isti dan.
+
+**Uzorak:** 310 riješenih analiza (sve podloge), skupine su tiket-kandidati s conf ≥ 63
+(n=246). Sve naspram devigirane tržišne cijene.
+
+### NALAZ — pravilo je okrenuto naopako
+
+    protivnik nas nije rušio     n=187 | stvarno 60,4% | tržište 63,3% | edge  -2,9pp
+    srušio nas TOČNO 1x          n= 44 | stvarno 56,8% | tržište 66,9% | edge -10,1pp
+    srušio nas 2+ puta           n= 15 | stvarno 93,3% | tržište 70,2% | edge +23,1pp  P=0,050
+
+Skupina koju je veto blokirao (14 od 15) najbolja je skupina u korpusu. Skupina koju veto
+nikad nije dirao ("srušio nas jednom") među najgorima je.
+
+### KONTROLE
+
+- **cijena**: unutar istog raspona devigirane cijene (53-85%) kontrola bez povijesti poraza
+  daje **-2,8pp (n=153)**; svi kratki favoriti (devig ≥68%) daju **-8,8pp (n=60)**
+- **runda**: rane runde +24,5pp (n=5), kasne +22,4pp (n=10) — nije efekt runde. Usporedba je
+  posebno jaka jer kasne runde bez povijesti poraza idu **-14,7pp (n=36)** (poznata QF/SF rupa)
+- **split-half po datumu**: 100% (n=7) pa 87,5% (n=8)
+- **definicija pravila**: predznak isti u sve četiri varijante
+
+        isti turnir, 14 dana:      "1 poraz" -10,1pp (n=44) | "2+" +23,1pp (n=15)
+        bilo gdje, 14 dana:                  -10,9pp (n=54) |     +6,6pp (n=29)
+        bilo gdje, 30 dana:                   -7,9pp (n=56) |     +7,3pp (n=36)
+        bilo gdje, cijela sezona:             -5,5pp (n=59) |     +6,4pp (n=39)
+
+### MEHANIZAM
+
+Igrač koji je na jednom turniru srušio dva naša picka duboko je u naletu iznad vlastite
+razine. Naš sljedeći pick protiv njega tada je stvarno jak igrač (kvote 1,11-1,75, tržište
+mu daje 70%) i nalet završi. To je hot-hand fade koji radi ZA nas — a pravilo ga je
+zabranjivalo. Isti obrazac kao nalaz od 26.08.2026: **naša pravila opreza sustavno uklanjaju
+naše najbolje pickove, ne najgore** (pickovi koje su capovi gurnuli ispod praga: 11W-1L).
+
+### PROMIJENJENO
+
+- `ticket_builder._selection_ok` više ne zove `_opponent_beat_us`
+- `_opponent_beat_us` ostaje kao promatračka funkcija (zastavice se i dalje računaju u
+  `run_daily` i potrebne su za ponovnu provjeru); puni zapis mjerenja je u njezinom docstringu
+- ispis u `run_daily` više ne tvrdi da pick neće ući na tiket
+- ukinut je time i **posljednji deterministički hot-hand veto** — oprez u cijelosti živi u
+  promptu (HARD RULES v1 pravilo 1). Obje mjere koje smo isprobali mjerile su krivu stvar:
+  broj pobjeda u turniru (ukinuto 18.07.) i broj poraza koje nam je igrač nanio (danas)
+- 18 novih provjera, sekcija 30 u `test_cap_and_weather.py`
+
+### ZAŠTO UKIDANJE, A NE PRAG 3
+
+Na pragu 3 bi od 246 kandidata bila blokirana svega 2. To je ukidanje pravila pod drugim
+imenom; iskrenije je reći da pravilo ne valja.
+
+### ODBAČENO — obrnuto pravilo
+
+Podaci sugeriraju veto na "srušio nas TOČNO jednom" (-10,1pp, i negativno u sve četiri
+definicije), ali P=0,10-0,16 i rezalo bi 18% kandidata. Premalo dokaza za novo pravilo.
+Zapisano kao hipoteza u `DECISION_INPUTS.md`, nije u kodu.
+
+### ZA PONOVNU PROVJERU NAKON US OPENA
+
+n=15 je malen, P je točno na granici, a 12 od 15 slučajeva dolazi iz Cincinnatija i
+Montreala. Verzije preko turnira (n=29-39) daju manji efekt (+6,4 do +7,3pp), pa je prava
+veličina vjerojatno bliža tome nego +23pp. **Prag za povratak veta:** ako se na 30+ slučajeva
+skupina "2+ poraza" spusti ispod tržišne cijene, veto se vraća.
+
+---
+
 ## 2026-08-30 12:40 — DUBINSKA REVIZIJA HARD MODELA na ISPRAVLJENIM podacima.
 ## Dvije nove mjerene kazne + Med-Low veto. rules_hash NETAKNUT.
 

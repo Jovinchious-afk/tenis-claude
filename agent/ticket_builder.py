@@ -199,12 +199,59 @@ def _clay_gs_conf_ok(p) -> bool:
 
 
 def _opponent_beat_us(p) -> bool:
-    """Fery pravilo (deterministički veto, sve podloge): protivnik picka je igrač koji je
-    NAMA već srušio pick 2+ PUTA u istom turniru zadnjih 14 dana (zastavice
-    p1_beat_us/p2_beat_us postavlja run_daily; prag 2 poraza korekcija je istog dana —
-    1 poraz je normalna varijanca, 2 poraza od istog igrača je obrazac). Fery nas je
-    srušio 6× u tri tjedna jer je model svaki dan iznova fade-ao istog vrućeg igrača —
-    pravila su rizik registrirala u risk_notes, ali ga nisu PROVODILA. Sada je veto."""
+    """Fery zastavica — VIŠE NIJE VETO, od 30.08.2026 12:37 samo promatračka oznaka.
+
+    ŠTO JE BILO: od 18.07.2026 pick protiv igrača koji nas je 2+ puta srušio u ISTOM
+    turniru zadnjih 14 dana nije smio na tiket. Povod je bio Arthur Fery, koji je u tri
+    tjedna srušio šest naših pickova jer je model svaki dan iznova fade-ao istog vrućeg
+    igrača. Prag 2 (umjesto 1) odabran je rasuđivanjem isti dan: "1 poraz je normalna
+    varijanca, 2 poraza je obrazac". PRAVILO NIKAD NIJE BILO IZMJERENO.
+
+    ŠTO KAŽE MJERENJE (30.08.2026, 310 riješenih analiza, sve podloge, naspram DEVIGIRANE
+    cijene; skupine su tiket-kandidati s conf >= 63, n=246):
+
+        protivnik nas nije rušio       n=187 | stvarno 60,4% | tržište 63,3% | edge  -2,9pp
+        srušio nas TOČNO 1x            n= 44 | stvarno 56,8% | tržište 66,9% | edge -10,1pp
+        srušio nas 2+ puta             n= 15 | stvarno 93,3% | tržište 70,2% | edge +23,1pp
+                                                                              P=0,050
+
+    Skupina koju je veto blokirao je NAJBOLJA skupina u cijelom korpusu — 14 od 15.
+    Skupina koju veto nije dirao ("srušio nas jednom") je među najgorima.
+
+    PREŽIVLJAVA KONTROLE:
+      - cijena: unutar istog raspona devigirane cijene (53-85%) kontrola bez povijesti
+        poraza daje -2,8pp (n=153) naspram +23,1pp; svi kratki favoriti (devig >= 68%)
+        daju -8,8pp (n=60)
+      - runda: rane runde +24,5pp (n=5), kasne +22,4pp (n=10) — dakle NIJE efekt runde,
+        a usporedba je posebno jaka jer kasne runde bez povijesti poraza idu -14,7pp (n=36)
+      - split-half po datumu: 100% (n=7) pa 87,5% (n=8)
+      - definicija pravila: predznak je isti u sve četiri varijante koje sam probao
+            isti turnir 14 dana:  "1 poraz" -10,1pp (n=44) | "2+" +23,1pp (n=15)
+            bilo gdje 14 dana:              -10,9pp (n=54) |     +6,6pp (n=29)
+            bilo gdje 30 dana:               -7,9pp (n=56) |     +7,3pp (n=36)
+            bilo gdje cijela sezona:         -5,5pp (n=59) |     +6,4pp (n=39)
+
+    MEHANIZAM: igrač koji je na jednom turniru srušio dva naša picka duboko je u naletu
+    iznad vlastite razine. Naš sljedeći pick protiv njega tada je stvarno jak igrač
+    (kvote 1,11-1,75, tržište mu daje 70%) i nalet završi. To je hot-hand fade koji radi
+    ZA nas — a pravilo ga je zabranjivalo. Isti obrazac kao nalaz od 26.08.2026: naša
+    pravila opreza sustavno uklanjaju naše najbolje pickove, ne najgore.
+
+    ZAŠTO UKIDANJE, A NE PRAG 3: na pragu 3 bi od 246 kandidata bila blokirana svega 2.
+    To je ukidanje pravila pod drugim imenom; iskrenije je reći da pravilo ne valja.
+
+    ŠTO NIJE UČINJENO: podaci sugeriraju OBRNUTO pravilo (vetirati kad nas je protivnik
+    srušio TOČNO jednom, -10,1pp), ali P=0,10-0,16 i rezalo bi 18% kandidata. Premalo
+    dokaza za novo pravilo — zapisano kao hipoteza u DECISION_INPUTS, nije u kodu.
+
+    ZA PONOVNU PROVJERU nakon US Opena: n=15 je malen, P je točno na granici, a 12 od 15
+    slučajeva dolazi iz Cincinnatija i Montreala. Verzije preko turnira (n=29-39) daju
+    manji efekt (+6,4 do +7,3pp), pa je prava veličina vjerojatno bliža tome nego +23pp.
+    Ako se na 30+ slučajeva skupina "2+ poraza" spusti ispod tržišta, veto se vraća.
+
+    Funkcija OSTAJE jer se zastavice i dalje računaju u run_daily i korisne su za
+    mjerenje — samo se više ne koristi u `_selection_ok`.
+    """
     m = p.get("match", {})
     pick = (p.get("pick") or "").lower()
     if not pick:
@@ -221,8 +268,13 @@ def _opponent_beat_us(p) -> bool:
 # igrači imaju 2+ pobjede (R32→R16→QF), do finala 4 — prag "2+ pobjede" bi okinuo veto na
 # svaki meč završnice i onemogućio tiket. Broj pobjeda mjeri krivu stvar (napredovanje ≠
 # iznenađenje). Hot-hand oprez sada živi CILJANO u promptu (HARD RULES v1 pravilo 1: samo
-# pravi UPSET nalet niže rangiranog igrača), a deterministički ostaje samo Fery-veto
-# (_opponent_beat_us — igrač koji nas je STVARNO srušio, ne puko brojanje pobjeda).
+# pravi UPSET nalet niže rangiranog igrača).
+# DOPUNA 30.08.2026 12:37: time je ukinut i posljednji deterministički hot-hand veto —
+# Fery-veto (`_opponent_beat_us`) izmjeren je i pokazao se okrenutim naopako, pa je i on
+# izbačen iz selekcije. Deterministički hot-hand zaštite više NEMA nigdje u kodu; oprez
+# u potpunosti živi u promptu (HARD RULES v1 pravilo 1). To je namjerno: obje mjere koje
+# smo isprobali (broj pobjeda 18.07., broj poraza koje nam je nanio 30.08.) mjerile su
+# krivu stvar, svaka na svoj način.
 
 
 def _both_declining_ok(p) -> bool:
@@ -314,7 +366,8 @@ def _selection_ok(p) -> bool:
     return (_is_main_tour(p) and _has_odds(p) and _conf_floor_ok(p) and _scouting_ok(p)
             and _grass_bands_ok(p)
             and _hard_gs_conf_ok(p) and _clay_gs_conf_ok(p)
-            and not _opponent_beat_us(p)
+            # `not _opponent_beat_us(p)` MAKNUT 30.08.2026 12:37 — izmjereno da je veto
+            # rezao našu najbolju skupinu (93,3%, n=15, +23,1pp). Vidi `_opponent_beat_us`.
             and _both_declining_ok(p) and _clay_fatigue_ok(p))
 
 

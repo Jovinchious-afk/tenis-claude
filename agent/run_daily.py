@@ -599,14 +599,18 @@ def main():
     _total_draw = sum(len(v) for v in tournament_draw_cache.values())
     print(f"  Draw cache: {_total_draw} zapisa za {len(tournament_draw_cache)} turnira.")
 
-    # 6d. Fery veto podaci (revizija 2026-07-18, korekcija istog dana): igrači koji su
-    # srušili naš pick 2+ PUTA u istom turniru zadnjih 14 dana. Prag podignut s 1 na 2
-    # poraza — jedan poraz je unutar normalne varijance (naši pickovi pogađaju ~60%, pa
-    # čak i ispravan pick gubi ~40% vremena), dok 2 poraza od istog igrača u istom
-    # turniru je jak signal stvarnog obrasca, ne slučajnosti. Ticket builder kroz
-    # zastavice p1_beat_us/p2_beat_us NIKAD ne dopušta daljnji fade takvog igrača u
-    # tom turniru (Fery nas je srušio 6× u 3 tjedna — pravila su rizik zapisivala u
-    # risk_notes, ali ga nisu provodila).
+    # 6d. Fery zastavice: igrači koji su srušili naš pick 2+ PUTA u istom turniru
+    # zadnjih 14 dana.
+    #
+    # VETO UKINUT 30.08.2026 12:37 — zastavice se i dalje računaju i ispisuju, ali
+    # `ticket_builder._selection_ok` ih VIŠE NE ČITA. Mjerenje na 310 riješenih analiza
+    # pokazalo je da je pravilo bilo okrenuto naopako: pickovi protiv igrača koji nas je
+    # 2+ puta srušio prošli su 93,3% (n=15, +23,1pp naspram devigirane cijene), dok su
+    # pickovi protiv onih koji su nas srušili točno jednom — a njih veto nikad nije dirao —
+    # prošli 56,8% (n=44, -10,1pp). Puni zapis s kontrolama: `_opponent_beat_us` docstring
+    # i MODEL_CHANGELOG 30.08.2026 12:37.
+    #
+    # Zastavice OSTAJU jer su jeftine i potrebne za ponovnu provjeru nakon US Opena.
     from collections import Counter as _Counter
     _beat_counts = _Counter()   # {(winner_name_lower, tournament_base_lower): broj poraza}
     beaten_us = set()           # samo oni s 2+ poraza — ovo čita _beat_us ispod
@@ -836,13 +840,14 @@ def main():
                                     screenshot_odds=screenshot_odds)
             match["has_screenshot_odds"] = bool(ss)
 
-            # Fery veto zastavice — ticket_builder._opponent_beat_us ih čita
+            # Fery zastavice — samo evidencija, od 30.08.2026 ne utječu na selekciju
             match["p1_beat_us"] = _beat_us(match["player1"], match.get("tournament", ""))
             match["p2_beat_us"] = _beat_us(match["player2"], match.get("tournament", ""))
             if match["p1_beat_us"] or match["p2_beat_us"]:
                 who = match["player1"] if match["p1_beat_us"] else match["player2"]
-                print(f"    ⚠ Fery veto aktivan: {who} nas je već srušio u ovom turniru — "
-                      f"pick protiv njega neće ući na tiket.")
+                print(f"    ℹ Fery oznaka: {who} nas je već 2+ puta srušio u ovom turniru "
+                      f"(evidencija; veto ukinut 30.08.2026 — izmjereno da je rezao naše "
+                      f"najbolje pickove).")
 
             # Both-players-declining zastavice (18.07., otvrdnuto iz prompta) — univerzalno,
             # sve podloge. ticket_builder._both_declining_ok ih čita.

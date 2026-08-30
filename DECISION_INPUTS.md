@@ -54,7 +54,6 @@ Težine su hard v18; žive u Supabase `model_weights`, ne u kodu.
 
 - pouzdanost < **63%** — iznimka je value-override: conf ≥58 uz edge ≥12pp, najviše 2 po tiketu
 - nije glavni tour, ili nema kvotu
-- **Fery veto** — protivnik nas srušio 2+ puta u istom turniru unutar 14 dana
 - **oba igrača 0/3** u zadnja 3 meča
 - Grand Slam traži **65%** (hard i clay)
 - grass mrtva zona 1,43-1,60 (na travi nikad na tiket)
@@ -109,6 +108,12 @@ Od **15.08.2026**: tržišni konsenzus 40+ kladionica (`market_p`, `market_p_sha
 `market_n_books`, `market_overround`, `market_spread`, `market_gap_pp`, `market_ev_pick`),
 cijena **svake kladionice zasebno** u tablici `market_lines`, i cijena u trenutku oklade u
 `ticket_matches.market_snapshot`.
+Od **30.08.2026 12:37**: `p1_beat_us` / `p2_beat_us` (Fery zastavice) — računaju se i
+ispisuju, ali VIŠE NE ULAZE u selekciju. Veto je ukinut jer je mjerenje pokazalo da je
+blokirao našu najbolju skupinu: pickovi protiv igrača koji nas je 2+ puta srušio prošli
+su 93,3% (n=15, +23,1pp), a pickovi protiv onih koji su nas srušili točno jednom — koje
+veto nikad nije dirao — 56,8% (n=44, -10,1pp). Vidi MODEL_CHANGELOG 30.08.2026 12:37.
+
 Od **17.08.2026**: `serve_gap_raw_pp` (sirovi jaz u poenima na servisu, bez množitelja 1,9)
 i `measured_penalties` (koja je kazna okinula i koliko je oduzela). Od istog dana radi i
 **drugo hvatanje cijena** pred početak mečeva (`scripts/capture_market_close.py`, cron 14:30
@@ -165,6 +170,20 @@ ponovno otvaranje i predloženom arhitekturom: MODEL_CHANGELOG 28.08.2026 20:21.
 
 **Preduvjet za ponovno otvaranje:** ~900 riješenih analiza, `age_gap` / `avg_opp_elo_5` /
 `form_quality` riješeni na većini njih (bilježe se tek od 26.08.), pool unutar jedne `rules_hash` ere.
+
+---
+
+## 4e. HIPOTEZA, NE ulazi u odluku — obrnuti Fery veto (30.08.2026 12:37)
+
+Mjerenje koje je ukinulo Fery veto pokazalo je i suprotan signal: pickovi protiv igrača koji
+nas je srušio **točno jednom** prolaze ispod tržišta u sve četiri testirane definicije
+pravila — `-10,1pp` (n=44, isti turnir 14 dana), `-10,9pp` (n=54, bilo gdje 14 dana),
+`-7,9pp` (n=56, 30 dana), `-5,5pp` (n=59, cijela sezona). Split-half: `-3,8pp` pa `-16,3pp`.
+
+Mehanizam bi bio smislen: igrača koji nas je jednom srušio sustavno podcjenjujemo i nastavimo
+ga fade-ati po cijeni na kojoj smo krivi. **NIJE u kodu** jer je P=0,10-0,16 i rezalo bi 18%
+kandidata — to je prevelik zahvat na dokazu ove snage. Premjeriti nakon US Opena; ako edge
+ostane ispod -8pp na n=80+, pretvoriti u kaznu (ne veto).
 
 ---
 

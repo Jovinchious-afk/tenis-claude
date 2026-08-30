@@ -1166,6 +1166,71 @@ check("ANALYSIS_PROMPT_TEMPLATE ne spominje nove kazne",
       "conf_band_65_68" not in _pr.ANALYSIS_PROMPT_TEMPLATE
       and "tiebreak_lead" not in _pr.ANALYSIS_PROMPT_TEMPLATE)
 
+print()
+print("=== 30. Fery veto UKINUT iz selekcije (30.08.2026 12:37) ===")
+from agent import run_daily as _rd
+
+
+def _cand(beat_p1=False, beat_p2=False, pick="Ana Anic", conf=70.0):
+    """Kandidat koji prolazi sve ostale filtre — mijenja se samo Fery zastavica."""
+    return {"pick": pick, "confidence": conf,
+            "match": {"player1": "Ana Anic", "player2": "Bruno Bric",
+                      "level": "ATP 250", "surface": "Hard", "round": "R32",
+                      "odds_available": True, "has_screenshot_odds": True,
+                      "p1_beat_us": beat_p1, "p2_beat_us": beat_p2}}
+
+
+# --- zastavica se i dalje CITA ispravno (funkcija nije pokvarena) ---
+check("_opponent_beat_us prepoznaje zastavicu na protivniku",
+      _tb._opponent_beat_us(_cand(beat_p2=True)) is True)
+check("_opponent_beat_us ne reagira na zastavicu na NASEM picku",
+      _tb._opponent_beat_us(_cand(beat_p1=True)) is False)
+check("_opponent_beat_us bez zastavica je False",
+      _tb._opponent_beat_us(_cand()) is False)
+check("_opponent_beat_us radi i kad je nas pick player2",
+      _tb._opponent_beat_us(_cand(beat_p1=True, pick="Bruno Bric")) is True)
+
+# --- ali selekcija je vise NE koristi ---
+_sel_src = chr(10).join(l for l in inspect.getsource(_tb._selection_ok).splitlines()
+                        if not l.strip().startswith("#"))
+check("_selection_ok NE zove _opponent_beat_us (izvan komentara)",
+      "_opponent_beat_us" not in _sel_src)
+check("kandidat s Fery zastavicom sada PROLAZI selekciju",
+      _tb._selection_ok(_cand(beat_p2=True)) is True)
+check("kontrola: isti kandidat bez zastavice prolazi",
+      _tb._selection_ok(_cand()) is True)
+check("zastavica ne mijenja ishod selekcije ni u jednom smjeru",
+      _tb._selection_ok(_cand(beat_p2=True)) == _tb._selection_ok(_cand()))
+
+# --- ostali filtri i dalje rezu (nismo slucajno otvorili vrata) ---
+check("Med-Low veto i dalje reze",
+      _tb._selection_ok(dict(_cand(),
+                             measured_penalties={"applied": [{"rule": "scouting_med_low"}]})) is False)
+check("prag pouzdanosti i dalje reze", _tb._selection_ok(_cand(conf=40.0)) is False)
+check("Challenger i dalje reze",
+      _tb._selection_ok({"pick": "Ana Anic", "confidence": 70.0,
+                         "match": {"player1": "Ana Anic", "player2": "Bruno Bric",
+                                   "level": "ATP Challenger", "surface": "Hard",
+                                   "odds_available": True}}) is False)
+check("mec bez kvote i dalje reze",
+      _tb._selection_ok({"pick": "Ana Anic", "confidence": 70.0,
+                         "match": {"player1": "Ana Anic", "player2": "Bruno Bric",
+                                   "level": "ATP 250", "surface": "Hard",
+                                   "odds_available": False}}) is False)
+
+# --- mjerenje je zapisano u kodu, ne samo u changelogu ---
+_src_tb = inspect.getsource(_tb._opponent_beat_us)
+check("docstring nosi datum I vrijeme izmjene", "30.08.2026 12:37" in _src_tb)
+check("docstring nosi obje izmjerene skupine",
+      "93,3%" in _src_tb and "56,8%" in _src_tb)
+check("docstring nosi kontrolu cijene i runde",
+      "-2,8pp" in _src_tb and "-14,7pp" in _src_tb)
+check("docstring nosi uvjet za povratak veta", "veto se vraća" in _src_tb)
+check("run_daily vise ne tvrdi da pick nece uci na tiket",
+      "neće ući na tiket" not in inspect.getsource(_rd))
+check("run_daily i dalje racuna zastavice (potrebne za premjeravanje)",
+      'match["p1_beat_us"]' in inspect.getsource(_rd))
+
 print("\n" + "=" * 60)
 if _fails:
     print(f"PALO: {len(_fails)}")
