@@ -1231,6 +1231,48 @@ check("run_daily vise ne tvrdi da pick nece uci na tiket",
 check("run_daily i dalje racuna zastavice (potrebne za premjeravanje)",
       'match["p1_beat_us"]' in inspect.getsource(_rd))
 
+print()
+print("=== 31. Predlozak prompta: bez manjka i bez viska (31.08.2026 18:31) ===")
+import ast as _ast
+from string import Formatter as _Fmt
+
+_src = io.open(inspect.getsourcefile(_pr), encoding="utf-8").read()
+_Q3 = chr(34) * 3
+_tpl = _src.split("ANALYSIS_PROMPT_TEMPLATE = " + _Q3, 1)[1].split(_Q3)[0]
+_ph = {f for _, f, _, _ in _Fmt().parse(_tpl) if f}
+_kw = None
+for _node in _ast.walk(_ast.parse(_src)):
+    if (isinstance(_node, _ast.Call) and isinstance(_node.func, _ast.Attribute)
+            and _node.func.attr == "format"
+            and isinstance(_node.func.value, _ast.Name)
+            and _node.func.value.id == "ANALYSIS_PROMPT_TEMPLATE"):
+        _kw = {a.arg for a in _node.keywords if a.arg}
+
+check("poziv .format() na predlosku je pronadjen", _kw is not None)
+check("predlozak ima ocekivani broj polja (100)", len(_ph) == 100, "nadjeno %d" % len(_ph))
+check("NIJEDAN placeholder nije bez argumenta (inace KeyError u produkciji)",
+      not (_ph - _kw), "manjka: %s" % sorted(_ph - _kw))
+check("NIJEDAN argument nije bez placeholdera (mrtva varijabla)",
+      not (_kw - _ph), "visak: %s" % sorted(_kw - _ph))
+check("p1_last_match / p2_last_match vise se ne prosljedjuju",
+      "p1_last_match" not in _kw and "p2_last_match" not in _kw)
+check("podatak last_match_date nije izbrisan iz koda", "last_match_date" in _src)
+
+_zone_src = inspect.getsource(_tb._hard_caution_zone_count)
+# Docstring NAMJERNO jos spominje 1,43-1,90 — ali kao opis nedosljednosti s promptom,
+# ne kao tvrdnju o vlastitom rasponu. Provjerava se da je stara TVRDNJA nestala.
+check("stara tvrdnja 'oprezna zona 1.43-1.90' je uklonjena",
+      "oprezna zona 1.43-1.90" not in _zone_src)
+check("spominjanje 1,43-1,90 stoji samo uz prompt-nedosljednost",
+      ("1.43-1.90" not in _zone_src) or ("pravilo 3 u promptu" in _zone_src))
+check("opis oprezne zone navodi stvarni raspon 1,43-1,60", "1,43-1,60" in _zone_src)
+check("konstanta oprezne zone je i dalje (1.43, 1.60)",
+      _tb._HARD_CAUTION_ZONE == (1.43, 1.60))
+check("opis biljezi otvorenu nedosljednost s promptom",
+      "OTVORENA NEDOSLJEDNOST" in _zone_src)
+check("rules_hash netaknut ovim izmjenama",
+      _pr._model_stamp("hard")["rules_hash"] == "a0424315")
+
 print("\n" + "=" * 60)
 if _fails:
     print(f"PALO: {len(_fails)}")

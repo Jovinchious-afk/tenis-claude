@@ -13,6 +13,63 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-08-31 18:31 — REVIZIJA OPISA SLOJEVA ODLUKE: dva ispravka, nula promjena ponasanja.
+
+**Povod:** korisnik je zatrazio provjeru cijelog opisa "sto ulazi u prosudbu za pick" nakon
+sto se pokazalo da je jedna tvrdnja iz tog opisa bila netocna (prag Fery veta). Provjera je
+napravljena protiv koda i protiv baze, sloj po sloj.
+
+### POPRAVLJENO
+
+**B2 — zastarjeli opis oprezne zone.** `_hard_caution_zone_count` je od 26.07.2026 u
+docstringu tvrdio "1.43-1.90", a racunao po `_HARD_CAUTION_ZONE = (1.43, 1.60)`. Ponasanje
+je bilo ispravno cijelo vrijeme; ispravljen je samo opis.
+
+**B3 — dvije mrtve varijable prompta.** `p1_last_match` i `p2_last_match` su se dohvacale i
+prosljedjivale u `.format()`, ali predlozak nema te placeholdere — `str.format` visak tiho
+ignorira. Datum zadnjeg odigranog meca dakle NIKAD nije dosao do modela, iako smo mislili da
+jest. Argumenti su maknuti (ne dodani u predlozak — to bi mijenjalo `rules_hash` usred
+Grand Slama); podatak i dalje stoji u `context_snapshot`.
+
+### ZAPISANO, NIJE DIRANO (`rules_hash` ostaje `a0424315`)
+
+**B1 — prompt i kod ne pokrivaju isti raspon kvota.** Hard pravilo 3 govori o zoni
+**1,43-1,90** i izricito tvrdi da "the ticket builder allows at most ONE hard pick from the
+1.43-1.90 zone per ticket". Kod pokriva **1,43-1,60**. Model dakle dobiva netocnu informaciju
+o vlastitom sustavu, a pickovi u 1,60-1,90 nemaju nikakav deterministicki backstop.
+Mjerenje od 30.08. sugerira da je uzi raspon ispravniji (1,60-1,80 daje +1,5pp), pa se
+uskladjuje TEKST PROMPTA. **Odgodjeno do poslije US Opena** (korisnikova odluka 31.08.2026)
+jer izmjena prompta mijenja `rules_hash`.
+
+### STO JE PROVJERENO I ISPRAVNO JE
+
+- **predlozak**: 100 placeholdera, svi proslijedjeni, nijedan nedostajuci (AST usporedba)
+- **igracka polja**: u eri v15+ (61 analiza, 22.-31.08.) svih 27 mjerenih polja popunjeno
+  100% za oba igraca; jedina iznimka je poznati `ranking_trend` (0%, nema pisaca)
+- **tezine**: hard v18 potvrdjen iz baze
+- **deterministicki sloj**: redoslijed strop 70 -> deklarirani capovi -> mjerene kazne ->
+  `fair_odds`; sve cetiri kazne prisutne
+- **prag pouzdanosti se primjenjuje na 100% redaka** (provjerena sumnja da meč s nepoznatom
+  podlogom zaobilazi floor — sve 525 analiza ima Hard/Clay/Grass)
+
+### OGRADE ZABILJEZENE ISTOM PRILIKOM
+
+- **uvjeti nisu uvijek prisutni**: na svih 20 US Open analiza vrijeme, lokalni sat i sesija
+  su prazni jer je `schedule_provisional=True` (raspored za sutra nije objavljen). To je
+  namjerno — lazna oznaka "day" bi po pravilu 14 smjela DIZATI pouzdanost — ali znaci da
+  pravila o vjetru, vremenu i sesiji na US Openu zasad nemaju nijedan podatak.
+- **`market_p` postoji na 36% analiza** u eri v15+; kazna od -5pp za trzisnog autsajdera i
+  pravilo "market check" rade samo kad cijena 40+ kladionica postoji (na US Openu 100%).
+- **tezine imaju tihi fallback**: ako citanje iz baze baci gresku, koristi se
+  `DEFAULT_WEIGHTS` iz configa (22/20/22/17/11/4/4), sto se od v18 razlikuje u 5 od 7
+  kategorija. Greska se ispise, run se nastavi.
+
+Provjera: 11 novih check-ova, sekcija 31 u `test_cap_and_weather.py` — usporedjuje skup
+placeholdera predloska sa skupom argumenata poziva i pada u OBA smjera (i na manjak, koji
+bi bio `KeyError` u produkciji, i na visak, koji je tiha mrtva varijabla).
+
+---
+
 ## 2026-08-30 12:37 — FERY VETO UKINUT. Izmjereno da je rezao našu NAJBOLJU skupinu.
 ## Selekcijska promjena, `rules_hash` netaknut.
 

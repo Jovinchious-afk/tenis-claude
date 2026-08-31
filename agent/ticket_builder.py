@@ -658,8 +658,24 @@ def _clay_dead_zone_count(combo) -> int:
 
 
 def _hard_caution_zone_count(combo) -> int:
-    """Hard oprezna zona 1.43-1.90 — max 1 po tiketu (ublaženo 26.07.2026: prije je
-    1.43-1.60 bio potpuno zabranjen; vidi komentar uz _HARD_CAUTION_ZONE)."""
+    """Hard oprezna zona **1,43-1,60** — max 1 po tiketu.
+
+    ISPRAVAK OPISA 31.08.2026 18:31: ovaj docstring je od 26.07.2026 tvrdio "1.43-1.90",
+    a funkcija je oduvijek racunala po `_HARD_CAUTION_ZONE = (1.43, 1.60)`. Ponasanje je
+    bilo ispravno, opis nije. Nista se u logici NE mijenja ovom izmjenom.
+
+    Povijest: do 26.07.2026 je zona 1,43-1,60 bila potpuno zabranjena na hardu; tada je
+    ublazena na "najvise jedan takav pick po tiketu" (vidi komentar uz `_HARD_CAUTION_ZONE`).
+
+    OTVORENA NEDOSLJEDNOST — prompt i kod ne pokrivaju isti raspon (31.08.2026 18:31):
+    hard pravilo 3 u promptu govori o zoni **1,43-1,90** i izricito tvrdi da "the ticket
+    builder allows at most ONE hard pick from the 1.43-1.90 zone per ticket". To NIJE tocno:
+    kod pokriva 1,43-1,60, pa pickovi u 1,60-1,90 dobivaju oprez iz prompta ali nemaju
+    nikakav deterministicki backstop. Mjerenje od 30.08.2026 sugerira da je uzi raspon
+    ispravniji (1,60-1,80 daje +1,5pp, dakle uredan pojas), pa se usklađuje TEKST PROMPTA,
+    ne kod. Odgodjeno jer izmjena prompta mijenja `rules_hash` usred Grand Slama —
+    korisnikova odluka 31.08.2026: raditi poslije US Opena.
+    """
     return sum(1 for p in combo
                if _is_hard(p) and _HARD_CAUTION_ZONE[0] <= _pick_odds(p) <= _HARD_CAUTION_ZONE[1])
 

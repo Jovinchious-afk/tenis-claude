@@ -1483,6 +1483,23 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
     odds_p1 = safe_float(match.get("odds_p1", 0))
     odds_p2 = safe_float(match.get("odds_p2", 0))
 
+    # MRTVI ARGUMENTI MAKNUTI 31.08.2026 18:31 — `p1_last_match` / `p2_last_match`.
+    #
+    # Oba su se dohvacala i prosljedjivala u `.format()`, ali u ANALYSIS_PROMPT_TEMPLATE
+    # NE POSTOJI placeholder `{p1_last_match}` ni `{p2_last_match}`. `str.format` visak
+    # tiho ignorira, pa nije bilo greske — samo varijabla za koju smo mislili da je model
+    # vidi, a nije ju vidio nikad. Nadjeno provjerom predloska naspram poziva (AST):
+    # 100 placeholdera, svi proslijedjeni, i tocno ova dva argumenta viska.
+    #
+    # ZASTO SE BRISU, A NE DODAJU U PREDLOZAK: dodavanje retka u predlozak mijenja
+    # `rules_hash` i otvara novu eru modela — usred US Opena to se ne radi. Podatak
+    # `last_match_date` i dalje postoji u `p1`/`p2` i u `context_snapshot`; ako se poslije
+    # Grand Slama procijeni da vrijedi, dodaje se u predlozak zajedno s ostalim izmjenama
+    # prompta (preslagivanje u cetiri sloja + prompt caching).
+    #
+    # PROVJERA koja ovo drzi: sekcija 31 u `test_cap_and_weather.py` usporedjuje skup
+    # placeholdera u predlosku sa skupom argumenata poziva i pada ako se razidju u bilo
+    # kojem smjeru — dakle i ako netko doda argument bez placeholdera, i obrnuto.
     prompt = ANALYSIS_PROMPT_TEMPLATE.format(
         player1=match["player1"], player2=match["player2"],
         tournament=match.get("tournament", ""), level=match.get("level", "ATP 250"),
@@ -1530,7 +1547,6 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         p1_tourn_hist=_format_tourn_hist(match.get("p1_tourn_best_3y")),
         p1_matches_7d=p1.get("matches_7d", 0),
         p1_sets_7d=p1.get("sets_7d", 0) or "N/A",
-        p1_last_match=p1.get("last_match_date", "N/A"),
         p1_days_rest=p1_days_rest,
         p1_tourn_path=p1.get("tournament_path", "N/A"),
         p1_form_trend=p1.get("form_trend", "N/A"),
@@ -1557,7 +1573,6 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         p2_tourn_hist=_format_tourn_hist(match.get("p2_tourn_best_3y")),
         p2_matches_7d=p2.get("matches_7d", 0),
         p2_sets_7d=p2.get("sets_7d", 0) or "N/A",
-        p2_last_match=p2.get("last_match_date", "N/A"),
         p2_days_rest=p2_days_rest,
         p2_tourn_path=p2.get("tournament_path", "N/A"),
         p2_form_trend=p2.get("form_trend", "N/A"),
