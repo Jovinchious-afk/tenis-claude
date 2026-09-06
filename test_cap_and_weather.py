@@ -1128,7 +1128,8 @@ check("70%% se ne dira", c == 70 and not rl, str((c, rl)))
 
 # --- tie-break vodstvo ---
 c, rl = _pen(64, tb_pick=(5, 1), tb_opp=(2, 4))
-check("TB vodstvo 83%% vs 33%% -> kazna 4pp", c == 60.0 and "tiebreak_lead" in rl, str((c, rl)))
+check("TB vodstvo 83%% vs 33%% -> BEZ kazne (uklonjeno 06.09.2026)",
+      c == 64 and "tiebreak_lead" not in rl, str((c, rl)))
 c, rl = _pen(64, tb_pick=(2, 0), tb_opp=(0, 3))
 check("premali uzorak TB (2 meca) -> BEZ kazne", c == 64 and "tiebreak_lead" not in rl, str((c, rl)))
 c, rl = _pen(64, tb_pick=(3, 3), tb_opp=(3, 3))
@@ -1141,17 +1142,17 @@ check("vodstvo 57%% vs 50%% (<10pp) -> bez kazne", c == 64, str((c, rl)))
 
 # --- redoslijed: pojas se racuna NAKON ostalih kazni ---
 c, rl = _pen(71, tb_pick=(5, 1), tb_opp=(2, 4))
-check("71%% -> TB(-4) -> 67 -> pojas(-5) -> 62",
-      c == 62.0 and rl == ["tiebreak_lead", "conf_band_65_68"], str((c, rl)))
+check("71%% ostaje 71 (TB kazne vise nema, pojas se ne aktivira)",
+      c == 71 and not rl, str((c, rl)))
 c, rl = _pen(66, tb_pick=(5, 1), tb_opp=(2, 4))
-check("66%% -> TB(-4) -> 62, pojas se NE aktivira (62 nije u pojasu)",
-      c == 62.0 and "conf_band_65_68" not in rl, str((c, rl)))
+check("66%% -> samo pojas(-5) -> 61 (TB vise ne sudjeluje)",
+      c == 61.0 and rl == ["conf_band_65_68"], str((c, rl)))
 c, rl = _pen(70, scout="Med-Low")
 check("70%% -> Med-Low(-4) -> 66 -> pojas(-5) -> 61", c == 61.0 and len(rl) == 2, str((c, rl)))
 
 # --- Med-Low veto u selekciji ---
-check("_scouting_ok odbija Med-Low",
-      _tb._scouting_ok({"measured_penalties": {"applied": [{"rule": "scouting_med_low"}]}}) is False)
+check("_scouting_ok VISE NE odbija Med-Low (veto ukinut 06.09.2026)",
+      _tb._scouting_ok({"measured_penalties": {"applied": [{"rule": "scouting_med_low"}]}}) is True)
 check("_scouting_ok propusta ostale kazne",
       _tb._scouting_ok({"measured_penalties": {"applied": [{"rule": "market_underdog"}]}}) is True)
 check("_scouting_ok propusta pick bez kazni", _tb._scouting_ok({}) is True)
@@ -1203,9 +1204,9 @@ check("zastavica ne mijenja ishod selekcije ni u jednom smjeru",
       _tb._selection_ok(_cand(beat_p2=True)) == _tb._selection_ok(_cand()))
 
 # --- ostali filtri i dalje rezu (nismo slucajno otvorili vrata) ---
-check("Med-Low veto i dalje reze",
+check("Med-Low pick sada PROLAZI selekciju (veto ukinut 06.09.2026)",
       _tb._selection_ok(dict(_cand(),
-                             measured_penalties={"applied": [{"rule": "scouting_med_low"}]})) is False)
+                             measured_penalties={"applied": [{"rule": "scouting_med_low"}]})) is True)
 check("prag pouzdanosti i dalje reze", _tb._selection_ok(_cand(conf=40.0)) is False)
 check("Challenger i dalje reze",
       _tb._selection_ok({"pick": "Ana Anic", "confidence": 70.0,
@@ -1272,6 +1273,68 @@ check("opis biljezi otvorenu nedosljednost s promptom",
       "OTVORENA NEDOSLJEDNOST" in _zone_src)
 check("rules_hash netaknut ovim izmjenama",
       _pr._model_stamp("hard")["rules_hash"] == "a0424315")
+
+print()
+print("=== 32. Revizija 06.09.2026: uklonjeno ono sto nije repliciralo ===")
+
+# --- kazna za TB vodstvo je UKLONJENA, ali alat i konstante ostaju ---
+check("TB kazna se ne primjenjuje ni pri ekstremnom vodstvu",
+      _pen(64, tb_pick=(8, 0), tb_opp=(0, 8))[0] == 64)
+check("`tiebreak_lead` se vise ne pojavljuje u primijenjenim kaznama",
+      "tiebreak_lead" not in _pen(64, tb_pick=(8, 0), tb_opp=(0, 8))[1])
+check("razlog uklanjanja je zapisan u kodu",
+      "pala je izvan uzorka" in inspect.getsource(_pr._apply_measured_penalties))
+check("zapisane su obje brojke (stara i nova)",
+      "-7,2pp" in inspect.getsource(_pr._apply_measured_penalties)
+      and "+7,9pp" in inspect.getsource(_pr._apply_measured_penalties))
+
+# --- pojas 65-68 OSTAJE (replicirao se na cijelom korpusu) ---
+check("pojas 65-68 i dalje kaznjava", _pen(66)[0] == 61.0)
+check("pojas 65-68 i dalje daje ispravno ime pravila", "conf_band_65_68" in _pen(66)[1])
+
+# --- trzisni autsajder OSTAJE (jedini nalaz s istim predznakom u obje ere) ---
+# 75 -> 70 (kazna -5pp), a 70 NIJE u pojasu 65-68 pa se pojas ne aktivira
+_r = {"pick": "Ana Anic", "confidence": 75.0}
+_pr._apply_measured_penalties(_r, {"player1": "Ana Anic", "player2": "Bruno Bric",
+                                   "market_p": 0.40}, {}, {})
+check("kazna za trzisnog autsajdera OSTAJE (-5pp)", _r["confidence"] == 70.0, str(_r))
+# 70 -> 65 (kazna) -> 65 JE u pojasu -> jos -5 -> 60; kazne se i dalje zbrajaju
+_r2 = {"pick": "Ana Anic", "confidence": 70.0}
+_pr._apply_measured_penalties(_r2, {"player1": "Ana Anic", "player2": "Bruno Bric",
+                                    "market_p": 0.40}, {}, {})
+check("autsajder + pojas se zbrajaju (70 -> 65 -> 60)",
+      _r2["confidence"] == 60.0
+      and [a["rule"] for a in _r2["measured_penalties"]["applied"]] == ["market_underdog",
+                                                                        "conf_band_65_68"],
+      str(_r2))
+
+# --- Med-Low: veto pao, kazna ostala ---
+check("Med-Low kazna -4pp OSTAJE u prediktoru", _pen(64, scout="Med-Low")[0] == 60.0)
+check("_scouting_ok je sada bezuvjetno True", _tb._scouting_ok({}) is True
+      and _tb._scouting_ok({"measured_penalties": {"applied": [{"rule": "scouting_med_low"}]}}) is True)
+check("razlog ukidanja veta zapisan, s pragom za povratak",
+      "PRAG ZA PONOVNO UVODJENJE VETA" in inspect.getsource(_tb._scouting_ok))
+
+# --- GS prag OSTAJE na 65 (moja preporuka za 63 je povucena) ---
+check("hard GS prag je i dalje 65", _tb._HARD_GS_MIN_CONF == 65.0)
+check("obrazlozenje GS praga sadrzi izmjereni pojas 63-65",
+      "-10,3pp" in inspect.getsource(_tb._hard_gs_conf_ok))
+
+# --- analiza gubitaka: kontrolna skupina + omjer winneri/greske ---
+_fa_src = inspect.getsource(_fa)
+check("bazne stope sadrze kontrolnu tablicu pobjeda/poraza",
+      "THE CONTROL TABLE" in _fa_src)
+check("bazne stope imenuju varijable koje NE razdvajaju", "IDENTICAL" in _fa_src)
+check("bazne stope nose upozorenje o replikaciji",
+      "REPLICATION WARNING" in _fa_src and "0 of 3" in _fa_src)
+check("omjer winneri/greske je u statistici meca", "_wue(" in _fa_src)
+_st = {"player1Stats": {"winners": 55, "unforcedErrors": 59, "our_player_id": 1},
+       "player2Stats": {"winners": 41, "unforcedErrors": 54, "our_player_id": 2},
+       "_align": {"verified": True, "our_p1_id": "1", "our_p2_id": "2"}}
+_out = _fa._format_match_stats("Ana Anic", "Bruno Bric", _st, "1", "2")
+check("omjer se stvarno ispisuje", "0.93" in _out and "0.76" in _out, _out[:120])
+
+check("rules_hash i dalje netaknut", _pr._model_stamp("hard")["rules_hash"] == "a0424315")
 
 print("\n" + "=" * 60)
 if _fails:

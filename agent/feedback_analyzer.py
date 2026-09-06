@@ -530,6 +530,14 @@ def _format_match_stats(p1: str, p2: str, stats: dict, p1_id=None, p2_id=None) -
             return None
         return f"  {label}: {p1}={v1 if v1 is not None else 'N/A'} | {p2}={v2 if v2 is not None else 'N/A'}"
 
+    def _wue(w, u):
+        """Winneri po neforsiranoj gresci, na dvije decimale. None ako ijedno nedostaje."""
+        try:
+            w, u = float(w), float(u)
+        except (TypeError, ValueError):
+            return None
+        return round(w / u, 2) if u else None
+
     rows = [
         row("Ace", lambda s: g(s, "aces")),
         row("Dvostruke greške", lambda s: g(s, "doubleFaults", "double_faults")),
@@ -541,6 +549,13 @@ def _format_match_stats(p1: str, p2: str, stats: dict, p1_id=None, p2_id=None) -
         row("Iskorišteni BP", lambda s: _ratio(g(s, "breakPointWonGm"), g(s, "breakPointChanceGm"))),
         row("Sačuvani BP", lambda s: _ratio(g(s, "breakPointSavedGm"), g(s, "breakPointFacedGm"))),
         row("Ukupni poeni", lambda s: g(s, "totalPointsWon", "total_points_won")),
+        # OMJER WINNERI/GRESKE — najjaca veza s ishodom koju smo ikad izmjerili u projektu
+        # (r=+0,705, P<0,0001, n=104; mjereno 06.09.2026). Jaci od svih servisnih postotaka
+        # zajedno i najblizi odgovor na pitanje "tko je diktirao, a tko trcao". Stoji IZNAD
+        # sirovih brojki namjerno: analiza gubitka treba voditi njime, ne servisnim jazom.
+        # Post-match je, dakle nikad ne moze biti prijedlog za izmjenu modela.
+        row("Omjer winneri/greške", lambda s: _wue(g(s, "winners"),
+                                                   g(s, "unforcedErrors", "unforced_errors"))),
         row("Winneri", lambda s: g(s, "winners")),
         row("Neforsirane greške", lambda s: g(s, "unforcedErrors", "unforced_errors")),
         row("Izlasci na mrežu", lambda s: _ratio(g(s, "netApproaches"), g(s, "netApproachesOf"))),
@@ -581,9 +596,53 @@ def _format_match_stats(p1: str, p2: str, stats: dict, p1_id=None, p2_id=None) -
 # broji danasnje meceve jer im vlastiti jutarnji redak dodje natrag kao "povijest").
 # Nalaz nije pao, ali brojku -13,3pp treba premjeriti kad oznake budu stabilne.
 _LOSS_BASE_RATES = """
-=== MEASURED BASE RATES FROM OUR OWN CORPUS (hard, weights v18, 04.-26.08.2026) ===
+=== MEASURED BASE RATES FROM OUR OWN CORPUS (all surfaces, n=414, through 06.09.2026) ===
 Read these BEFORE naming any cause. They tell you what a NORMAL match looks like, so you can
 tell a real signal apart from a number that merely looks extreme in this one match.
+
+*** THE CONTROL TABLE - READ THIS FIRST (measured 06.09.2026, 268 wins vs 146 losses) ***
+A factor can only be a cause of the loss if its value is DIFFERENT in our losses than in our
+wins. Here is every factor these analyses have historically blamed, with both averages:
+
+  factor                        in our WINS   in our LOSSES    P
+  ELO gap (surface)                 145.1         107.2      0.011   <- differs, and ELO HELPS
+  ELO gap (overall)                 137.8          92.4      0.004   <- differs, and ELO HELPS
+  serve points won, gap               1.6           1.7      0.708   <- IDENTICAL
+  hold %, gap                         3.0           3.3      0.702   <- IDENTICAL
+  return points won, gap             -0.7          -0.9      0.682   <- IDENTICAL
+  form last 5, gap                    0.1           0.3      0.642   <- IDENTICAL
+  form last 10, gap                   0.6           0.5      0.814   <- IDENTICAL
+  avg opponent ELO, gap              85.1          76.8      0.662   <- IDENTICAL
+  days rest, gap                      0.1           2.7      0.480   <- IDENTICAL
+  tiebreak record, gap               -3.4          +6.6      0.019   <- differs (see caution)
+
+WHAT THIS MEANS, STATED PLAINLY: serve, hold, return, form, opponent quality and fatigue are
+STATISTICALLY IDENTICAL in the matches we win and the matches we lose. They therefore CANNOT
+be the cause of this loss. If you name one of them, you must write [SIGNAL NOT CONFIRMED].
+
+An audit of our 194 stored loss analyses found ELO blamed in 82%, form in 79%, serve in 78%,
+hold in 64% and fatigue in 47% of them. Per the table above, four of those five separate
+nothing - and ELO, the most-blamed of all, is the one factor that actually works IN OUR
+FAVOUR (the gap is 38 points LARGER in our wins). That pattern is hindsight, not analysis.
+Do not continue it.
+
+*** WHAT ACTUALLY EXPLAINS HOW A MATCH WENT (use these in section 2, n=104) ***
+  winners-to-unforced-errors ratio, gap   r = +0.705   <- strongest relationship we have
+  unforced errors, gap                    r = -0.552
+  net-approach success %, gap             r = +0.445
+  winners, gap                            r = +0.368
+  average 1st-serve speed, gap            r = +0.141 (P=0.15, nothing)
+These describe who dictated and who scrambled, which is what a match report should say. They
+are POST-MATCH ONLY - we have no pre-match season equivalent - so they can never be a model
+fix. Lead section 2 with the winners/errors ratio instead of serve percentages.
+
+*** REPLICATION WARNING (measured 06.09.2026) ***
+Three rules were added on 30.08.2026 from findings with P = 0.008, 0.026 and 0.001. The US
+Open then served as the first independent sample (104 matches) and reversed all three:
+tiebreak lead -8.0pp expected vs +7.9pp actual, Med-Low scouting -38.7pp vs +10.7pp,
+tournament history r=+0.167 vs r=-0.151. Our replication rate on implemented findings is
+currently 0 of 3. Therefore: a factor that "looks strong in this match" is almost certainly
+noise. The correct output of a loss analysis is usually NO proposed change.
 
 OUR PICK'S POST-MATCH NUMBERS - average in matches we WON vs matches we LOST (n=138):
   double faults              won 2.93  |  lost 4.60   (opponent's DF: 3.36 vs 3.35 - flat)
@@ -605,11 +664,16 @@ So: if you want to blame a serve or return statistic, the season numbers do NOT 
 OTHER MEASURED FACTS:
   - double faults are NOT a stable player trait in our corpus: split-half by player r=+0.131
     (P=0.396), and variation WITHIN a player (SD 1.64) exceeds variation BETWEEN players (1.43)
-  - tiebreak record points the OPPOSITE way: r(our TB-rate edge, our pick winning) = -0.186
-    (P=0.014, n=174). Picks whose TB record was BETTER went 54.4%; picks whose opponent led
-    by 20pp+ went 73.8%. Deciding-set record: r=-0.045, nothing.
-  - ELO gap works, but only outside the middle rounds: r=+0.249 in R64/R32, r=-0.033 in R16/QF
-  - round R16/QF is our weak spot: -13.3pp vs the devigged market price, vs +3.7pp elsewhere
+  - tiebreak record: r = -0.186 (P=0.014, n=174) on the older sample, i.e. picks whose TB
+    record was BETTER did WORSE. CAUTION (06.09.2026): this reversed on the US Open sample
+    (+7.9pp vs +3.3pp for the rest), so the penalty built on it was removed. Treat the
+    tiebreak record as carrying NO reliable signal in either direction until re-measured.
+    Deciding-set record: r=-0.045, nothing.
+  - ELO gap works, but weaker in the middle rounds: r(ELO, our pick winning) = +0.197 in
+    R128-R32 (P=0.018), +0.041 in R16/QF (P=0.735), +0.321 in SF/F (P=0.135), n=238 total
+  - round R16/QF is our weak spot: -4.8pp vs the devigged market price (n=72, P=0.398), vs
+    +2.3pp in early rounds and +8.5pp in SF/F. NOTE: round labels are known to be ~43% wrong
+    in our records, so treat any round-based claim as weak evidence
   - quality of the pick's recent opposition IS predictive: form matters only when it was
     earned against strong opponents (r=+0.284) and not at all against weak ones (r=-0.017)
   - weather main effects are zero (temp -0.092, humidity +0.101, wind +0.076, pressure -0.077)

@@ -2312,14 +2312,26 @@ def _apply_measured_penalties(result: dict, match: dict, p1: dict, p2: dict) -> 
         n = w + l
         return ((100.0 * w / n, n) if n else (None, 0))
 
-    tb_pick, n_pick = _tb_pct((p1 if pick_is_p1 else p2).get("tiebreak_record"))
-    tb_opp, n_opp = _tb_pct((p2 if pick_is_p1 else p1).get("tiebreak_record"))
-    if (tb_pick is not None and tb_opp is not None
-            and n_pick >= _TB_LEAD_MIN_SAMPLE and n_opp >= _TB_LEAD_MIN_SAMPLE
-            and (tb_pick - tb_opp) > _TB_LEAD_MIN_GAP_PP):
-        applied.append({"rule": "tiebreak_lead", "penalty": _TB_LEAD_PENALTY,
-                        "gap_pp": round(tb_pick - tb_opp, 1),
-                        "n_pick": int(n_pick), "n_opp": int(n_opp)})
+    # KAZNA ZA TIE-BREAK VODSTVO UKLONJENA 06.09.2026 10:27 — pala je izvan uzorka.
+    #
+    # Uvedena 30.08.2026 na temelju 210 hard meceva (P=0,026): pick koji vodi u tie-break
+    # zapisu 10pp+ isao je -8pp naspram devigirane cijene. US Open je bio prva NEZAVISNA
+    # provjera na 104 nova meca i okrenuo predznak:
+    #
+    #     stari uzorak (do 29.08.)  pogodjeni n= 82  -7,2pp | ostali n=136  +0,2pp | REL  -7,3pp
+    #     NOVI (US Open)            pogodjeni n= 34  +7,9pp | ostali n= 70  +3,3pp | REL  +4,6pp
+    #     sve zajedno               pogodjeni n=116  -2,8pp | ostali n=206  +1,2pp | REL  -4,0pp
+    #
+    # Predznak se mijenja izmedju dva nezavisna uzorka, a zbirni ucinak (-4,0pp) nosi ga
+    # iskljucivo stari uzorak. To je definicija nalaza koji se ne replicira.
+    #
+    # ZASTO SE VARIJABLA I DALJE NE KORISTI: pravilo 16 u promptu i dalje trazi tie-break
+    # zapis kao POTVRDU, sto je bila motivacija za ovu kaznu. Ta izmjena prompta ostaje
+    # odgodjena (mijenja `rules_hash`), ali sada nema kazne koja bi je nadomjestala —
+    # svjesno, jer nemamo dokaz ni za jedan smjer.
+    #
+    # `_tb_pct` je namjerno ZADRZAN: koristi ga buduca analiza i cuva se za premjeravanje
+    # kad korpus naraste. Konstante `_TB_LEAD_*` zadrzane su iz istog razloga.
 
     interim = round(conf - sum(a["penalty"] for a in applied), 1) if applied else conf
 

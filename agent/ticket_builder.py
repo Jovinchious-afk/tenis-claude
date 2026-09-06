@@ -172,7 +172,22 @@ def _grass_bands_ok(p) -> bool:
 
 
 def _hard_gs_conf_ok(p) -> bool:
-    """Na hard Grand Slamu (US Open, BO5) pick treba >=65% — GS je sezonski podbacivao."""
+    """Na hard Grand Slamu (US Open, BO5) pick treba >=65%.
+
+    POTVRDJENO 06.09.2026 10:27, prag OSTAJE. Prvotno uveden preventivno bez hard podataka;
+    sada izmjeren na svim Grand Slamovima (n=133):
+
+        conf >= 65 (prolazi danas)   n=40 | stvarno 75,0% | trziste 80,0% | edge  -5,0pp
+        conf 63-65 (danas ispada)    n=32 | stvarno 56,2% | trziste 66,6% | edge -10,3pp
+        conf < 63                    n=61 | stvarno 75,4% | trziste 64,1% | edge +11,3pp
+
+    Pojas 63-65 je NAJGORA skupina na Grand Slamu, pa ga prag ispravno izbacuje. Spustanje
+    praga na 63 (o cemu se raspravljalo 06.09.) bilo bi POGRESNO — pustilo bi unutra bas
+    tu skupinu. Ta se preporuka povlaci prije implementacije.
+
+    OTVORENO PITANJE koje ovaj prag NE rjesava: skupina ispod 63 nosi +11,3pp i nikad ne
+    dolazi do tiketa jer je opci prag 63. Vidi kandidat K1 u DECISION_INPUTS.
+    """
     if not _is_hard(p):
         return True
     level = p.get("match", {}).get("level", "")
@@ -332,31 +347,32 @@ def _conf_floor_ok(p) -> bool:
 
 
 def _scouting_ok(p) -> bool:
-    """Pick s Med-Low scouting profilom NE ide na tiket (30.08.2026 12:40).
+    """VETO UKINUT 06.09.2026 10:27 — funkcija sada UVIJEK propusta. Kazna -4pp ostaje.
 
-    Izmjereno na 218 razrijesenih hard analiza (05.-29.08.2026), naspram DEVIGIRANE cijene:
+    Veto je uveden 30.08.2026 na 18 Med-Low pickova (-38,7pp, P=0,001). US Open je bio
+    prva nezavisna provjera i okrenuo predznak:
 
-        svi Med-Low pickovi:        n=18 | stvarno 22,2% | trziste 60,9% | edge -38,7pp  P=0,001
-        Med-Low + trzisni favorit:  n= 9 | stvarno 11,1% | trziste 66,9% | edge -55,7pp  P<0,001
+        stari uzorak (do 29.08.)  n=18  -38,7pp | ostali +0,6pp | REL  -39,3pp
+        NOVI (US Open)            n=11  +10,7pp | ostali +4,1pp | REL   +6,6pp
+        sve zajedno               n=29  -19,9pp | ostali +1,6pp | REL  -21,5pp
 
-    Uzorak je malen, ali efekt je golem i REPLICIRA neovisno mjerenje od 17.08.2026
-    (26,7%, n=15, na djelomicno drugom uzorku). Postojeca kazna od -4pp
-    (`_SCOUTING_MEDLOW_PENALTY`) tipican pick sa 64 spusti na 60 — ali to je red
-    velicine premalo: ovi pickovi ne gube 4pp, gube 39pp.
+    ZASTO VETO PADA, A KAZNA OSTAJE: zbirni ucinak je i dalje jasno negativan (-21,5pp),
+    ali ga u cijelosti nosi jedan uzorak od 18 meceva, a drugi ga uzorak opovrgava. Veto
+    je najjaci moguci zahvat — potpuno brisanje picka — i za njega n=29 s okrenutim
+    predznakom nije dovoljno. Kazna od -4pp je razmjerna: spusta tipican pick sa 64 na 60
+    i pusta stvarno jak pick (68+) da prezivi. Ako se pokaze da ni ona ne stoji, pada i ona.
 
-    ZASTO VETO, A NE VECA KAZNA: kazna od 39pp bila bi besmislena (svaki takav pick pao
-    bi na ~25% i nikad se ne bi vidio), a i dalje bi ovisila o tome kolika je pocetna
-    pouzdanost. Veto je iskren opis onoga sto podaci kazu: na profil te kvalitete se ne
-    kladimo. Kazna od -4pp OSTAJE u prediktoru jer analiza (koja se biljezi i uci) i dalje
-    treba brojku; veto djeluje samo na SELEKCIJU.
+    PRAG ZA PONOVNO UVODJENJE VETA: 50+ Med-Low pickova i zbirni ucinak ispod -20pp
+    U OBA razdoblja odvojeno. Prije toga se ne dira.
 
-    ZASTO JE PROFIL LOS BAS KAD JE "Med-Low": ironija izmjerena 17.08. — profili Low i
-    Insufficient prolaze BOLJE (87,5% i 76,9%) jer su izbaceni iz prompta pa se model na
-    njih ne oslanja. Med-Low model vidi, tretira kao upotrebljiv, i pojede se.
-
-    ZA PREMJERAVANJE nakon US Opena: n=18 je premalo za konacnu rijec. Ako se do kraja
-    rujna skupi 30+ Med-Low pickova i stopa se popravi iznad ~45%, veto se vraca na kaznu.
+    Funkcija se NE brise jer je zove `_selection_ok` i pokrivena je testovima; vraca
+    True bezuvjetno, sto je namjerno i dokumentirano.
     """
+    return True
+
+
+def _scouting_ok_LEGACY(p) -> bool:
+    """Stara logika, zadrzana samo kao zapis onoga sto je veto radio (06.09.2026)."""
     pen = (p.get("measured_penalties") or {}).get("applied") or []
     return not any(a.get("rule") == "scouting_med_low" for a in pen)
 

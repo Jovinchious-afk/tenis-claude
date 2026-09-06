@@ -13,6 +13,139 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-09-06 10:27 — PRVA VANUZORACNA PROVJERA: dva pravila uklonjena, kapija uvedena,
+## scouting azuriran. `rules_hash` NETAKNUT (a0424315).
+
+**Povod:** US Open je dao 104 nove razrijesene analize — prvi uzorak koji NIJE koristen za
+pronalazenje ijednog naseg pravila. To je prva prava provjera onoga sto smo uveli 30.08.
+
+### POLAZNA BROJKA — model je bolji nego ikad
+
+    US Open: 77/104 = 74,0% | trziste ocekivalo 69,2% | edge +4,8pp (P=0,290)
+
+Prvi put smo iznad trzista na ozbiljnom uzorku. Ali nijedan tiket nije izasao.
+
+### NALAZ 1: tri pravila od 30.08. ne repliciraju se
+
+Sva tri su pri uvodjenju imala P = 0,008 / 0,026 / 0,001.
+
+| pravilo | ocekivano | US Open |
+|---|---|---|
+| tie-break vodstvo | -8,0pp | **+7,9pp** |
+| Med-Low scouting | -38,7pp | **+10,7pp** |
+| povijest na turniru | r=+0,167 | **r=-0,151** |
+
+**Stopa replikacije: 0 od 3.** Zakljucak nije "prag 0,05 je prestrog" nego "ni 0,05 nije bio
+dovoljan" — zato je uvedena kapija (vidi nize), a ne labaviji prag.
+
+### NALAZ 2: analize gubitaka nemaju kontrolnu skupinu
+
+Revizija svih 194 spremljene analize: okrivljuju ELO u 82%, formu u 79%, servis u 78%,
+hold u 64%, umor u 47% slucajeva. Usporedba s pobjedama (268 pobjeda / 146 poraza):
+
+    faktor                  pobjede   porazi        P
+    ELO jaz (podloga)         145,1    107,2    0,011   <- razlikuje, i ELO NAM POMAZE
+    ELO jaz (overall)         137,8     92,4    0,004   <- razlikuje, i ELO NAM POMAZE
+    poeni na servisu            1,6      1,7    0,708   <- ISTO
+    hold %                      3,0      3,3    0,702   <- ISTO
+    return %                   -0,7     -0,9    0,682   <- ISTO
+    forma 5 / forma 10          0,1/0,6  0,3/0,5 0,64/0,81  <- ISTO
+    kvaliteta protivnika       85,1     76,8    0,662   <- ISTO
+    dani odmora                 0,1      2,7    0,480   <- ISTO
+
+Cetiri od pet najcesce optuzenih faktora ne razdvajaju nista, a peti (ELO) je jedini koji
+radi — i to u NASU korist. To je hindsight koji smo svaki dan zapisivali kao nalaz.
+
+### NALAZ 3: cetiri neiskoristena post-match polja, jedno vrlo jako
+
+    omjer winneri/greske  r = +0,705  P<0,0001  n=104   <- najjaca veza u projektu
+    neforsirane greske    r = -0,552
+    uspjesnost na mrezi   r = +0,445
+    winneri               r = +0,368
+
+Prikazivala su se u analizi gubitaka, nikad izmjerena. Post-match su, dakle iskljucivo za
+objasnjenje — ali su daleko bolje objasnjenje od servisnih postotaka.
+
+### STO JE PROMIJENJENO
+
+**UKLONJENO** (kod, ne prompt):
+- kazna -4pp za tie-break vodstvo (`predictor._apply_measured_penalties`) — predznak se
+  okrenuo izmedju dva nezavisna uzorka; `_tb_pct` i konstante zadrzani za premjeravanje
+- Med-Low VETO na tiketu (`ticket_builder._scouting_ok` sada bezuvjetno True) — zbirno je
+  i dalje -21,5pp, ali to nosi jedan uzorak od 18 meceva koji drugi opovrgava; veto je
+  najjaci moguci zahvat i za njega n=29 s okrenutim predznakom nije dovoljno
+
+**ZADRZANO** (izmjereno da se drzi):
+- kazna -5pp za trzisnog autsajdera — **jedino pravilo s ISTIM predznakom u obje ere**
+  (staro REL -15,2pp, US Open REL -6,7pp, zbirno -7,9pp)
+- kazna -4pp za Med-Low profil (razmjerna, za razliku od veta)
+- kazna -5pp za pojas 65-68 — na cijelom hard korpusu -18,3pp, P=0,004, n=53
+- **hard GS prag 65%** — moja preporuka 06.09. da se spusti na 63 je POVUCENA prije
+  implementacije. Mjerenje na svim Grand Slamovima: conf 63-65 je NAJGORA skupina
+  (-10,3pp, n=32), a prag je upravo izbacuje. Spustanje bi je pustilo unutra.
+
+**POPRAVLJENO:**
+- `_LOSS_BASE_RATES` dobio kontrolnu tablicu pobjeda/poraza, popis varijabli koje NE
+  razdvajaju nista, upozorenje o stopi replikacije i blok o winnerima/greskama
+- omjer winneri/greske dodan kao istaknut redak u `_format_match_stats`
+- tvrdnje o tie-breaku i R16/QF u baznim stopama uskladjene s novim mjerenjima
+
+### UVEDENO: dvostupanjska kapija (DECISION_INPUTS sekcija 0)
+
+Otkrivanje smije biti labavije nego dosad (i ispod P<0,10), ali nijedan nalaz ne ulazi u kod
+bez potvrde na turniru na kojem NIJE nadjen, uz unaprijed zapisan prag. Uz postotak pogodaka
+pratimo i **stopu replikacije** kao metriku zdravlja modela.
+
+### REGISTAR KANDIDATA (DECISION_INPUTS sekcija 0a) — nista od ovoga NIJE u kodu
+
+- **K1 pickovi ispod praga 63% tuku trziste** — jedini nalaz koji nam se REPLICIRAO:
+  staro +2,5pp, US Open +11,4pp, zbirno +6,7pp (n=121) naspram -2,7pp za 63+.
+  Namjerno nije implementiran isti dan kad je kapija uvedena.
+- **K2 pravilo 11 (domaci teren)** ide u krivom smjeru: protivnik doma +7,5pp (n=30),
+  nas pick doma +7,4pp (n=35), nitko doma -1,9pp (n=271)
+- **K3 Bo5 pojas 1,30-1,50**: -12,2pp (n=26)
+- **K4 winneri/greske kao PRE-match varijabla** — ceka izvor sezonskih podataka
+
+### SCOUTING AZURIRAN (102 profila u Excelu, 103 u Supabaseu)
+
+- u `strengths` dodan **percentil** holda i returna naspram 110 igraca koje pratimo —
+  dosad je model vidio "hold 80,8%" bez ikakvog mjerila je li to dobro ili lose
+- u `note` (NE ide u prompt) dodana **nasa vlastita evidencija**: koliko puta smo igraca
+  pickali i s kakvim ishodom, te koliko je puta kao protivnik srusio nas pick
+- **brojke u profilima NISU bile zastarjele** — medijan odstupanja izmedju upisanog i
+  danasnjeg holda je 0,03pp, nijedan profil nije odstupao 1,5pp+. Osvjezavanje bi bilo
+  prazan posao i nije napravljeno.
+- **stilske oznake NISU mijenjane**: automatska provjera nasla je 4 "proturjecja", ali tri
+  su lazna (kljucne rijeci hvataju "fast serve, NOT a big server" i Alcarazov "defense").
+  Bez boljeg kriterija ne diramo.
+- **pouzdanost profila NIJE dizana**: 7 Med-Low igraca ima 5+ nasih analiza, ali podizanje
+  tiera mijenja ponasanje prompta i gasi kaznu — to ide kroz kapiju, ne odmah.
+
+### ODBACENO NA TEMELJU MJERENJA (ne otvarati bez novih podataka)
+
+- **tablica promasaja po igracu** (korisnikov prijedlog -2pp/+2pp): oba citanja mjerena
+  walk-forward. Skupina koju bi pravilo kaznilo ide +2,1pp, koju bi nagradilo -0,3pp.
+  Citanje "protivnik nas rusio" monotono RASTE: 0x -2,7pp, 1x +0,8pp, 2x +6,9pp, 3+x +7,4pp.
+- **prag P<0,10**: na 84 testa daje 3 dodatna nalaza (dva su "razlika u visini", vec
+  oborena kao r=+0,005 naspram pobjede) uz dvostruko vise ocekivanih laznih pozitiva —
+  omjer stvarnih nalaza pada s ~1,8 na ~0,6.
+- **prozor 2 godine za mladje**: r = +0,118 (<=24 g.) / -0,143 (25-27) / +0,085 (28+).
+- **Historical Match-Up Context, treci put**: s korisnikovom tocnom definicijom
+  (stil + kvota + hold) medijan je 1 slican slucaj po mecu, 31% meceva nema nijedan.
+- **odvojene GS statistike**: API ih ne nudi (`surface-summary` daje po godini i podlozi).
+- **distance covered**: nema ga ni na jednom endpointu.
+- **Bo5 povratci 0-2**: izvedivi iz rezultata, ali imamo 75 Bo5 meceva ukupno.
+
+### OGRANICENJE KOJE OSTAJE
+
+`days_rest` je i dalje samo razlika DATUMA. Sat proslog meca ne postoji u izvoru —
+`past-matches` vraca sve datume kao `T00:00:00.000Z`. Za sate bi trebalo graditi vlastitu
+evidenciju iz `local_time` nasih analiza.
+
+Provjera: 18 novih check-ova (sekcija 32) + 5 uskladjenih u sekciji 29.
+
+---
+
 ## 2026-08-31 18:31 — REVIZIJA OPISA SLOJEVA ODLUKE: dva ispravka, nula promjena ponasanja.
 
 **Povod:** korisnik je zatrazio provjeru cijelog opisa "sto ulazi u prosudbu za pick" nakon

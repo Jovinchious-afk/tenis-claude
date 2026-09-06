@@ -187,6 +187,96 @@ ostane ispod -8pp na n=80+, pretvoriti u kaznu (ne veto).
 
 ---
 
+## 0. PRAVILO PROJEKTA — dvostupanjska kapija za svaku izmjenu modela
+
+*(uvedeno 06.09.2026 10:27, korisnikova odluka; vrijedi od danas za sve podloge)*
+
+**Povod.** Tri pravila uvedena 30.08.2026 imala su P = 0,008 / 0,026 / 0,001 — sva ispod
+0,05 — i sva tri su pala na prvom nezavisnom uzorku (US Open, 104 meča). Stopa replikacije
+naših implementiranih nalaza je time **0 od 3**. Prag značajnosti očito nije bio usko grlo.
+
+**Kapija ima dva stupnja i ona su namjerno različito stroga.**
+
+### 1. stupanj — OTKRIVANJE (labavo, ne košta ništa)
+Gleda se sve što ima smisleni mehanizam, **prag smije biti i labaviji od P<0,10**. Nalaz se
+NE implementira. Upisuje se u registar niže, obavezno s **unaprijed zapisanim pragom za
+potvrdu** (koji uzorak, koliki učinak, koji smjer). Prag se zapisuje PRIJE nego što podaci
+za potvrdu postoje — inače je to naknadna pamet.
+
+### 2. stupanj — POTVRDA (strogo, odlučuje o novcu)
+Nalaz ulazi u kod tek kad preživi **turnir na kojem NIJE nađen**, u smjeru i veličini koji
+su unaprijed zapisani. Ako promijeni predznak — pada, bez rasprave.
+
+### Zašto je ovo labavije, a ne strože, nego dosad
+Danas se nalaz s P<0,05 mogao implementirati odmah. Sada se **bilo koji** nalaz smije
+istraživati, ali nijedan ne ulazi u kod bez nezavisne potvrde. Kroz vrijeme daje VIŠE
+upotrebljivih nalaza, jer razdvaja "našli smo 6 stvari, 4 su šum, ne znamo koje" od
+"imamo 15 kandidata i za mjesec dana znamo koja su tri stvarna".
+
+### Nova metrika zdravlja modela: STOPA REPLIKACIJE
+Uz postotak pogodaka pratimo i koliko naših nalaza preživi idući turnir.
+**Stanje 06.09.2026: 0 od 3.**
+
+---
+
+## 0a. REGISTAR KANDIDATA — nalazi koji čekaju potvrdu
+
+Ništa odavde NIJE u kodu. Svaki red ima unaprijed zapisan prag.
+
+### K1 — pickovi ispod praga 63% tuku tržište *(najjači kandidat)*
+
+    sve podloge   <63: n=121  67,8%  edge  +6,7pp  |  >=63: n=293  63,5%  edge  -2,7pp
+    hard          <63: n=113  68,1%  edge  +7,1pp  |  >=63: n=209  62,7%  edge  -4,2pp
+    staro         <63: n= 64  60,9%  edge  +2,5pp  |  >=63: n=246  61,8%  edge  -2,6pp
+    US Open       <63: n= 57  75,4%  edge +11,4pp  |  >=63: n= 47  72,3%  edge  -3,3pp
+
+**Isti predznak u obje ere** — jedini nalaz koji nam se dosad replicirao. Mehanizam je
+poznat: pouzdanost modela ima Brier lošiji od konstante 0,64, pa u pojasu 58-63 nosi
+negativnu informaciju. Pojas 60-63 je naša najbolja skupina s ozbiljnim uzorkom
+(n=82 na hardu, +6,4pp).
+
+**PRAG ZA POTVRDU (zapisano 06.09.2026, prije podataka):** na sljedećem dovršenom turniru
+skupina s conf 58-63 mora dati **edge +3pp ili više uz n>=25**. Ako da, uvodi se oprezno:
+najviše JEDAN pick iz pojasa 58-63 po tiketu, uz zadržan opći prag za ostale.
+Ako edge padne ispod nule — kandidat se odbacuje.
+
+**ZAŠTO SE NE UVODI ODMAH:** kapija je uvedena isti dan; zaobići je na prvom nalazu značilo
+bi da je nemamo. Nalaz je jak i vjerojatno stvaran, ali čeka svoj red kao i svaki drugi.
+
+### K2 — pravilo 11 (domaći teren) ide u krivom smjeru
+
+    protivnik domaći (danas -3pp)   n= 30 | 70,0% | edge +7,5pp
+    naš pick domaći  (danas  0pp)   n= 35 | 77,1% | edge +7,4pp
+    nitko domaći                    n=271 | 62,4% | edge -1,9pp
+
+Split-half drži u oba smjera, isto i samo na hardu. **PRAG:** još 20 mečeva s domaćim
+igračem; ako protivnik-domaći ostane iznad +3pp, penal se briše iz prompta (mijenja
+`rules_hash`, ide u paket s preslagivanjem prompta poslije US Opena).
+
+### K3 — Bo5 pojas kvota 1,30-1,50
+
+    Bo5 1,30-1,50  n=26 | 57,7% | tržište 69,9% | edge -12,2pp
+
+Ista rupa marginalnog favorita koju znamo s harda, izraženija u Bo5. **PRAG:** n>=50 i
+edge ispod -8pp na sljedećem Grand Slamu.
+
+### K4 — omjer winneri/greške kao PRE-match varijabla
+
+Post-match je najjača veza u projektu (r=+0,705). Sezonski ekvivalent ne postoji ni na
+jednom endpointu koji koristimo. **PRAG:** ako se nađe izvor sezonskog winners/UE po igraču,
+testirati kao pre-match ulaz; do tada isključivo za objašnjenje u analizi gubitaka.
+
+### ODBAČENO 06.09.2026 (ne otvarati bez novih podataka)
+
+- **tablica promašaja po igraču** (-2pp iznad prosjeka): izmjereno u oba čitanja; skupina
+  koju bi pravilo kaznilo ide +2,1pp, koju bi nagradilo -0,3pp. Smjer suprotan predloženom.
+- **P<0,10 kao prag značajnosti**: na 84 testa daje 3 dodatna nalaza (dva su "razlika u
+  visini", već oborena) uz dvostruko više očekivanih lažnih pozitiva.
+- **prozor 2 godine za mlađe igrače**: r = +0,118 / -0,143 / +0,085 po dobnim skupinama.
+- **Historical Match-Up Context, treći put**: medijan 1 sličan slučaj po meču.
+
+---
+
 ## 4. Otvorena zamjerka: brojke se prikazuju s više autoriteta nego što ga imaju
 
 *(zabilježeno 08.08.2026 12:30 — NIJE implementirano, ide u paket sa servisom/pragom)*
