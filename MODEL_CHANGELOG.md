@@ -13,6 +13,103 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-09-06 11:20 — REVIZIJA SVIH OTVORENIH ZAPISA U KODU: pet zatvoreno,
+## dva bila napravljena a vodila se kao odgodjena, pet ostaje otvoreno.
+
+**Povod:** korisnikovo pitanje jesmo li ikad prosli kroz sve komentare tipa "premjeriti
+kasnije" koje smo ostavljali po kodu. Nismo — ovo je prvi sustavni prolaz.
+
+Pronadjeno je 20 takvih zapisa. Svaki mjerljiv je izmjeren na danasnjem korpusu (n=414).
+
+### ZATVORENO — izmjereno i PALO
+
+**1. Interakcija temperatura x servisna prednost** (`predictor.py`, zapisano 26.08.)
+Izgledalo je dramaticno: hladno 73,1% sa servisnom prednoscu naspram 50,0% bez, toplo
+51,3% naspram 73,1% (obrnut predznak). Tada neprovjerljivo jer je starija polovica imala
+n=4. Sada n=236 i split-half je moguc:
+
+    1. polovica (07.-25.08.):    hladno 66% / 53%  |  toplo 51% / 75%   <- obrat postoji
+    2. polovica (25.08.-06.09.): hladno 74% / 67%  |  toplo 67% / 64%   <- obrata NEMA
+
+Obrat u toplom urusio se s (51 naspram 75) na (67 naspram 64). **Ne replicira se.**
+
+**2. Mentalna izdrzljivost / povratak iz zaostatka** (`predictor.py`)
+Prvo mjerenje: 75,0% (n=20) naspram 68,6% (n=51), ali trebalo je harvestati povijest.
+Sada izvedeno iz `player_match_history`: 374 meca s 3+ seta, 136 igraca, 368 nasih pickova
+s izracunljivim udjelom povrataka.
+
+    r(postotak povrataka naseg picka, edge) = -0,059  P=0,259  n=368
+    cesto se vraca (50%+):  n=193  edge -1,6pp
+    rijetko:                n=175  edge +5,0pp
+
+Smjer je **obrnut** od prvog nalaza i nije znacajan. Ovo ujedno zatvara korisnikov
+prijedlog od 06.09. da se u Bo5 gleda "koliko se puta vratio od 0-1 ili 0-2".
+
+**3. Hold jaz >= +7pp** (`predictor.py`, kazna razmatrana 17.08. i NIJE uvedena)
+Bilo 47,8% (n=23) naspram 71,4% (n=56), P=0,046. Sada n=59:
+
+    vodi 7pp+   n=59 | edge -3,1pp P=0,611   |   split-half -11,6pp pa +5,1pp
+    vodi 3-7pp  n=66 | edge -2,5pp
+    izjednaceno n=84 | edge +4,4pp
+
+Predznak se okrece. **Dobro sto kazna nije uvedena** — bio bi cetvrti nalaz koji pada.
+
+### ZATVORENO — izmjereno, ishod NEUTRALAN
+
+**4. Visoke kvote na hardu** (`ticket_builder.py`, `_UNDERDOG_MIN_ODDS = 2.00`)
+Ograda je glasila: od 36 pickova >=2,00 u sezoni samo 1 je hard, pa za hard nemamo dokaza.
+Sada ih ima 25:
+
+    hard >= 2,00     n=25 | stvarno 44,0% | trziste 43,7% | edge +0,3pp | P=0,980
+    hard 1,75-2,00   n=45 | edge +3,1pp
+    clay >= 2,00     n= 7 | edge +14,2pp  |  grass >= 2,00  n=3 | edge -5,5pp
+
+Tocno na cijeni. Granica 2.00 ostaje jer nema dokaza ni za pomicanje gore ni dolje.
+
+### DJELOMICNO ZATVORENO
+
+**5. Protivnikovo opterecenje x runda** (`run_daily.py`)
+Dio o RANIM rundama potvrdio se u smjeru "protivnik koji je igrao nije problem", ali je
+razlika sada +1,0pp umjesto zabiljezenih +6 do +10pp — dakle blizu nule.
+R16/QF i dalje ima **n=10** i ostaje nemjerljiv. Stavka OSTAJE otvorena.
+
+### BILA NAPRAVLJENA, A VODILA SE KAO ODGODJENA
+
+Dvije stavke iz zapisa od 29.08. bile su **ucinjene istog dana**, a komentar ih je do danas
+vodio kao "ODGODJENO na poslije US Opena":
+
+- **prikaz imena picka iz baze** — `utils.helpers.pick_ledger` postoji i koristi se u
+  `pages/1_Dnevni_Listic.py`, `pages/2_Arhiva.py` i `utils/email_sender.py`
+- **`confidence < 50` kao "no selection"** — `MIN_PICK_CONFIDENCE = 50.0` i
+  `is_no_selection()` postoje i provode se kroz `_conf_floor_ok`
+
+Obje su sada oznacene kao ucinjene, uz zadrzan izvorni tekst radi traga.
+
+### JOS OTVORENO (s razlogom)
+
+| stavka | gdje | zasto ceka |
+|---|---|---|
+| `ranking_trend` nikad nije popunjen | `predictor.py` | popraviti ili maknuti — oboje mijenja prompt |
+| pristranost `return_won` (+2,33pp) | `data_fetcher.py` | pragovi pravila 13 ugadjani PROTIV nje |
+| `_CITY_UTC_OFFSET` (14/37 gradova krivo) | `data_fetcher.py` | rok listopad 2026. |
+| oznake rundi plutaju (`_verify_late_rounds`) | `predictor.py`, `config` | dvostruko brojanje danasnjih meceva |
+| grass mrtva zona 1,43-1,60 | `ticket_builder.py` | revalidirati prije iduce trave |
+| pravilo 11 (domaci teren) | `ticket_builder.py` | kandidat K2, mijenja `rules_hash` |
+| prompt tvrdi zonu 1,43-1,90, kod ima 1,43-1,60 | `ticket_builder.py` | kandidat K5, mijenja `rules_hash` |
+
+### PRAVILO KOJE IZ OVOGA SLIJEDI
+
+Zapis "premjeriti kasnije" bez datuma i praga nije obveza nego biljeska. Od danas svaki
+takav zapis mora nositi **sto se mjeri, na kojem uzorku i koji je prag** — isto sto kapija
+trazi od kandidata (`DECISION_INPUTS` sekcija 0). Zapisi bez toga su se ovdje pokazali kao
+najskuplji: dva su cekala tri tjedna nakon sto su vec bila rijesena, a tri su drzala ziva
+ocekivanja koja su danas pala iz prvog mjerenja.
+
+8 novih check-ova (sekcija 34) koji paze da zatvorena stavka nosi **ishod**, a otvorena
+ostane vidljivo otvorena.
+
+---
+
 ## 2026-09-06 10:55 — ANALIZA GUBITAKA I KRETANJA KVOTA: tri nova kandidata,
 ## cetiri odbacena nalaza. Nista nije uslo u kod osim baznih stopa.
 

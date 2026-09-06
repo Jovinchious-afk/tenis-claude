@@ -1362,6 +1362,48 @@ check("bazne stope nisu narasle preko razumnog (prompt budzet)",
 
 check("rules_hash i dalje netaknut", _pr._model_stamp("hard")["rules_hash"] == "a0424315")
 
+print()
+print("=== 34. Otvoreni zapisi u kodu: zatvoreni nose nalaz (06.09.2026 11:20) ===")
+
+_src_pr = io.open(inspect.getsourcefile(_pr), encoding="utf-8").read()
+_src_tb = io.open(inspect.getsourcefile(_tb), encoding="utf-8").read()
+_src_fa = io.open(inspect.getsourcefile(_fa), encoding="utf-8").read()
+import agent.run_daily as _rd2
+_src_rd = io.open(inspect.getsourcefile(_rd2), encoding="utf-8").read()
+
+# --- zatvorene stavke moraju nositi i ishod, ne samo oznaku ---
+for _tag, _txt, _where in (
+        ("temperatura x servis", "PREMJERENO I PALO", _src_pr),
+        ("mentalna izdrzljivost", "PREMJERENO NA PUNOM HARVESTU I PALO", _src_pr),
+        ("hold jaz 7pp+", "PREMJERENO 06.09.2026 11:20 I PALO", _src_pr),
+        ("visoke kvote na hardu", "PREMJERENO, ISHOD NEUTRALAN", _src_tb),
+        ("opterecenje x runda", "PREMJERENO 06.09.2026 11:20, n=107", _src_rd),
+        ("bazne stope", "UCINJENO 06.09.2026 10:27", _src_fa)):
+    check("zatvorena stavka '%s' nosi ishod" % _tag, _txt in _where)
+
+# --- vise se ne smiju vodit kao otvorene ---
+check("temperatura x servis vise ne trazi 'Premjeriti ~30 dana'",
+      "Premjeriti ~30 dana" not in _src_pr)
+check("mentalna izdrzljivost vise ne trazi harvest",
+      "sto jos nije napravljeno" not in _src_pr)
+check("visoke kvote na hardu vise ne cekaju revalidaciju",
+      "revalidirati \u010dim skupimo prve hard pickove" not in _src_tb)
+check("stavke 4 i 5 vise nisu 'ODGODJENO'",
+      "UCINJENO 29.08.2026" in _src_tb)
+check("strukturna mana analize gubitaka je oznacena kao popravljena",
+      "POPRAVLJENA 06.09.2026 10:27" in _src_fa)
+
+# --- stavke koje OSTAJU otvorene moraju to i dalje jasno reci ---
+for _tag, _txt, _where in (
+        ("R16/QF opterecenje", "OSTAJE OTVORENA do iduceg Grand Slama", _src_rd),
+        ("ranking_trend", "Odgodjeno na poslije US", _src_pr),
+        ("Med-Low veto", "PRAG ZA PONOVNO UVODJENJE VETA", _src_tb),
+        ("oprezna zona vs prompt", "OTVORENA NEDOSLJEDNOST", _src_tb)):
+    check("otvorena stavka '%s' je i dalje oznacena" % _tag, _txt in _where)
+
+check("rules_hash netaknut nakon zatvaranja zapisa",
+      _pr._model_stamp("hard")["rules_hash"] == "a0424315")
+
 print("\n" + "=" * 60)
 if _fails:
     print(f"PALO: {len(_fails)}")

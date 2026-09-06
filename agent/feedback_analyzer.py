@@ -590,6 +590,13 @@ def _format_match_stats(p1: str, p2: str, stats: dict, p1_id=None, p2_id=None) -
 # PREMJERITI: nakon US Opena (n bi trebao narasti na ~250-280). Ako se brojke pomaknu za
 # vise od nekoliko postotnih bodova, azurirati OVDJE i zabiljeziti u MODEL_CHANGELOG.
 #
+# >>> UCINJENO 06.09.2026 10:27. Korpus je narastao na 414 razrijesenih analiza (268
+#     pobjeda / 146 poraza). Blok baznih stopa je prosiren s tri stvari koje 26.08. nismo
+#     imali: KONTROLNOM TABLICOM pobjeda naspram poraza (pokazala da servis, hold, return,
+#     forma, kvaliteta protivnika i umor NE razdvajaju pobjede od poraza, svi P>0,48),
+#     STRUKTUROM POJASA CIJENE (rupa 1,35-1,60), i UPOZORENJEM O STOPI REPLIKACIJE (0/3).
+#     Iduce premjeravanje: nakon sljedeceg dovrsenog Grand Slama.
+#
 # OGRADA NA REDAK O R16/QF (28.08.2026 19:58) — NAMJERNO NIJE UPISANA U SAM PROMPT, da
 # se tekst koji model cita ne mijenja: oznake rundi jos plutaju. Isti mec je isti dan
 # dobio SF pa QF kad je run pokrenut dvaput (`run_daily._verify_late_rounds` dvostruko
@@ -718,7 +725,21 @@ A recommendation to "add" something from this list is a factual error, not a fin
 def _analyze_lost_match(match: dict, stats: dict = None) -> str:
     """Claude analizira zašto smo pogriješili na konkretnom paru.
 
-    STRUKTURNA MANA — IZMJERENA 26.08.2026 14:01, NIJE POPRAVLJENA (model zamrznut).
+    STRUKTURNA MANA — IZMJERENA 26.08.2026 14:01, POPRAVLJENA 06.09.2026 10:27.
+
+    POPRAVAK: prompt sada dobiva KONTROLNU TABLICU (prosjek svakog optuzenog faktora u
+    nasim pobjedama naspram poraza, s P-vrijednoscu) i izricitu uputu da faktor koji ne
+    razdvaja pobjede od poraza MORA dobiti oznaku [SIGNAL NOT CONFIRMED]. Uz to dobiva
+    strukturu pojasa cijene, jer je ona najcesce stvarno objasnjenje naseg poraza.
+    Revizija 194 spremljene analize (06.09.2026) pokazala je razmjer problema: ELO se
+    okrivljuje u 82% analiza, forma u 79%, servis u 78%, hold u 64%, umor u 47% — a
+    mjereno naspram pobjeda, cetiri od tih pet ne razdvajaju nista, dok je ELO (najcesce
+    optuzen) jedini koji stvarno radi, i to u NASU korist.
+    UCINAK JOS NIJE IZMJEREN — provjeriti na analizama nastalima poslije 06.09.2026:
+    ocekuje se porast udjela [SIGNAL NOT CONFIRMED] i vise odgovora 'No model change
+    justified by this match' (prije popravka: samo 8 od 25 analiza od 30.08.).
+
+    OPIS MANE KAKVA JE BILA (ostavljen radi traga):
     Ovaj prompt vidi isključivo JEDAN GUBITAK: rezultat, post-match statistiku i vlastite
     predmečne bilješke. Nema baznu stopu, ne vidi nijedan DOBITAK, ne zna raspodjelu
     veličine koju optužuje. Takav prompt matematički mora pronaći onu post-match brojku

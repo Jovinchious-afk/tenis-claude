@@ -1503,6 +1503,15 @@ def _count_matches_in_window(matches: list, lo_days: int, hi_days: int,
     ZATO SE SAMO BILJEZI, ne koristi. Ono sto JEST dosljedno (11 od 11 definicija) je da u
     RANIM rundama protivnik koji je igrao NIJE problem (+6 do +10pp) — dakle interakcija s
     rundom postoji, ali velicina unutar R16/QF nije stabilna. Premjeriti na US Openu.
+
+    PREMJERENO 06.09.2026 11:20, n=107 (polje `op_matches_3_9d` postoji tek od kraja
+    kolovoza, pa je gotovo cijeli uzorak US Open):
+        RANE runde (R128-R32)  protivnik 2+ meca: n=43 +2,4pp | 0-1 mec: n=50 +1,4pp
+        R16 + QF               n=10  <- I DALJE PREMALO
+        SF + F                 n= 4  <- premalo
+    Dio nalaza o RANIM rundama POTVRDIO se u smjeru 'nije problem', ali je razlika sada
+    +1,0pp umjesto +6 do +10pp — efekt je manji nego sto se cinilo i blizu nule.
+    R16/QF ostaje nemjerljiv; stavka OSTAJE OTVORENA do iduceg Grand Slama.
     """
     from utils.helpers import today_zagreb
     try:

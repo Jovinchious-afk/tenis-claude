@@ -173,14 +173,26 @@ _AGE_TO_PROMPT = False
 #   - visina/tezina/BMI kao prediktor ishoda
 #   - vrijeme kao glavni ucinak: temperatura r=-0,054, vlaga +0,014, vjetar +0,076,
 #     tlak -0,082 - sve nikakvo (n=152)
-#   - INTERAKCIJA temperatura x servisna prednost izgleda dramaticno (hladno: 73,1% sa
-#     servisnom prednoscu vs 50,0% bez; toplo: 51,3% vs 73,1% - obrnut predznak), ALI
-#     JE NEPROVJERLJIVA: podaci o vremenu postoje tek od 08.2026, pa starija polovica
-#     uzorka ima n=4. Bez split-halfa ovo se NE smije koristiti. Premjeriti ~30 dana.
-#   - mentalna izdrzljivost (povratak iz zaostatka) kao POVIJESNA znacajka: 75,0% (n=20)
-#     naspram 68,6% (n=51) - smjer da, ali samo 78 pickova ima >=2 prethodna meca u korpusu.
-#     Rekord u odlucujucim setovima: -2,9pp, P=0,881 - nista. Za pravi test treba harvestati
-#     povijest meceva po igracu (API `past-matches` to ima), sto jos nije napravljeno.
+#   - INTERAKCIJA temperatura x servisna prednost izgledala je dramaticno (hladno: 73,1%
+#     sa servisnom prednoscu vs 50,0% bez; toplo: 51,3% vs 73,1% - obrnut predznak).
+#     ZATVORENO 06.09.2026 11:20 — PREMJERENO I PALO. Uzorak je narastao s n=4 u starijoj
+#     polovici na n=236 ukupno, sto konacno omogucuje split-half:
+#         1. polovica (07.-25.08.):    hladno 66% / 53%  |  toplo 51% / 75%  <- obrat postoji
+#         2. polovica (25.08.-06.09.): hladno 74% / 67%  |  toplo 67% / 64%  <- obrata NEMA
+#     Obrat u toplom (51 naspram 75) urusio se na (67 naspram 64). Interakcija se NE
+#     replicira. Ne otvarati bez novog mehanizma.
+#   - mentalna izdrzljivost (povratak iz zaostatka) kao POVIJESNA znacajka: prvo mjerenje
+#     dalo je 75,0% (n=20) naspram 68,6% (n=51) - smjer da, ali premalen uzorak.
+#     ZATVORENO 06.09.2026 11:20 — PREMJERENO NA PUNOM HARVESTU I PALO. Iz
+#     `player_match_history` (727 redaka) izvedeno je 374 meca s 3+ seta i poznatim
+#     pobjednikom, 136 igraca, 67 njih s 3+ takvih meceva. Za 368 nasih pickova izracunat
+#     je udio meceva u kojima su izgubili prvi set pa dobili mec:
+#         r(postotak povrataka naseg picka, edge) = -0,059  P=0,259  n=368
+#         pick se cesto vraca (50%+):  n=193  edge -1,6pp
+#         rijetko:                     n=175  edge +5,0pp
+#     Smjer je OBRNUT od prvog nalaza i nije znacajan. Ovo ujedno zatvara korisnikov
+#     prijedlog (06.09.2026) da se u Bo5 gleda 'koliko se puta vratio od 0-1 ili 0-2':
+#     izmjereno je i nema prediktivnu vrijednost.
 #   - sezonske servisne/povratne razlike i dalje ne razlikuju ishod (serve r=-0,073,
 #     return r=-0,013, bp_saved r=-0,067, bp_converted r=-0,007) - cetvrti put isti nalaz.
 #
@@ -2277,6 +2289,13 @@ def _apply_measured_penalties(result: dict, match: dict, p1: dict, p2: dict) -> 
     n=56, P=0,046). Mehanizam je pokriven ponovnim bazdarenjem pragova u pravilu 2(b), a
     P=0,046 na n=23 medju desecima testova nije dovoljno da se jos jednom oduzima. Biljezi
     se `serve_gap_raw_pp` da se moze premjeriti.
+
+    PREMJERENO 06.09.2026 11:20 I PALO — dobro sto nije uvedeno. Uzorak s n=23 na n=59:
+        pick vodi u holdu 7pp+  n=59 | stvarno 64,4% | trziste 67,5% | edge -3,1pp P=0,611
+        vodi 3-7pp              n=66 | edge -2,5pp
+        izjednaceno             n=84 | edge +4,4pp
+        protivnik vodi 3pp+     n=37 | edge +1,4pp
+    Split-half za 7pp+: -11,6pp pa +5,1pp — predznak se okrece. Nalaz je mrtav.
     """
     conf = safe_float(result.get("confidence") or 0)
     pick = str(result.get("pick") or "")

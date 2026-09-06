@@ -659,9 +659,16 @@ _UNDERDOG_EDGE_CAP = 28.0   # pickovi na _UNDERDOG_MIN_ODDS i više (pravi under
 # Isti igrač ilustrira zašto strože stoji: Collignon @2.82 uz conf 71 (35.5pp) IZGUBIO,
 # a @2.79 uz conf 64 (28.2pp) dobio — dva dana razmaka. Problem nije bio igrač nego
 # razina uvjerenja, pa granica treba držati uvjerenje na uzdi.
-# OGRADA (istaknuti pri prvoj hard reviziji): od 36 pickova >=2.00 u sezoni, 23 su GRASS,
-# 12 clay i samo 1 HARD (Tabilo @2.00). Za visoke kvote na hardu nemamo dokaza —
-# revalidirati čim skupimo prve hard pickove iznad 2.00.
+# OGRADA (zapisana ranije): od 36 pickova >=2.00 u sezoni, 23 su GRASS, 12 clay i samo
+# 1 HARD (Tabilo @2.00). Za visoke kvote na hardu nemamo dokaza — revalidirati.
+# ZATVORENO 06.09.2026 11:20 — PREMJERENO, ISHOD NEUTRALAN. Hard pickova >=2,00 sada ima
+# 25 (bilo 1):
+#     hard >= 2,00      n=25 | stvarno 44,0% | trziste 43,7% | edge  +0,3pp | P=0,980
+#     hard 1,75-2,00    n=45 | stvarno 55,6% | trziste 52,5% | edge  +3,1pp
+#     clay >= 2,00      n= 7 | edge +14,2pp    |   grass >= 2,00   n=3 | edge -5,5pp
+# Split-half je bucan (-17,7pp pa +16,9pp) ali se ponistava. Dakle: visoke kvote na hardu
+# nisu ni katastrofa koje smo se bojali ni prilika — tocno su na cijeni. Granica 2.00
+# ostaje gdje jest jer nema dokaza ni za pomicanje gore ni dolje.
 _UNDERDOG_MIN_ODDS = 2.00
 
 _CLAY_DEAD_ZONE = (1.50, 1.90)
@@ -1217,16 +1224,19 @@ like "If I had to risk it today...". Refer to players by surname only."""
 #      skracen). ~16.000 -> ~2.500 tokena, dakle i bitno jeftiniji poziv, i nestaje
 #      sam izvor napasti.
 #
-# NIJE DIRANO ovom izmjenom (svjesno, jer nije kozmetika nego selekcija):
+# STATUS OVIH DVIJU STAVKI (provjereno 06.09.2026 11:20): OBJE SU NAPRAVLJENE isti dan
+# kad su zapisane kao odgodjene (29.08.2026), a ovaj ih je komentar do danas i dalje vodio
+# kao otvorene. Izvorni tekst ostaje radi traga, uz oznaku ucinjenog.
 #   4) Prikaz: ime picka crtati iz baze umjesto iz teksta (Streamlit + mail).
-#      ODGODJENO na poslije US Opena — cisto kozmeticko, ali dira pages/ i mail
-#      predlozak, a pred Grand Slamom se prikaz ne mijenja.
+#      >>> UCINJENO 29.08.2026: `utils.helpers.pick_ledger` sluzbeno crta pickove iz baze;
+#      koristi se u `pages/1_Dnevni_Listic.py`, `pages/2_Arhiva.py`, `utils/email_sender.py`.
 #   5) `confidence < 50` je logicka kontradikcija — pick za koji model sam kaze da
 #      gubi (29.08. Wu 49%, kvota 1,85 uz fair 2,04). U cijeloj razrijesenoj
 #      povijesti NEMA nijednog picka ispod 50%, a u pojasu 50-54% ih je dva i OBA
 #      su izgubila (55-59%: 7/11, 60-64%: 137/222, 65+: 66/102). Kandidat za
 #      pravilo: ispod 50% se mec ne prikazuje kao pick nego kao "no selection".
-#      ODGODJENO na poslije US Opena jer DIRA SELEKCIJU i trazi mjerenje.
+#      >>> UCINJENO 29.08.2026 13:05: `utils.helpers.MIN_PICK_CONFIDENCE = 50.0` i
+#      `is_no_selection()`, provodi se kroz `_conf_floor_ok` unutar `_selection_ok`.
 #
 # Ova izmjena NE dira ANALYSIS_PROMPT_TEMPLATE ni _HARD_RULES_V1 -> rules_hash
 # ostaje a0424315, nijedna predikcija se ne mijenja. Ovo je iskljucivo sloj prikaza.
