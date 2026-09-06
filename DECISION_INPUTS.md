@@ -266,6 +266,65 @@ Post-match je najjača veza u projektu (r=+0,705). Sezonski ekvivalent ne postoj
 jednom endpointu koji koristimo. **PRAG:** ako se nađe izvor sezonskog winners/UE po igraču,
 testirati kao pre-match ulaz; do tada isključivo za objašnjenje u analizi gubitaka.
 
+### K5 — oprezna zona počinje prenisko: rupa je od 1,35, a kod pokriva od 1,43
+
+    pojas kvote      staro (do 29.08.)   US Open      cijeli korpus
+    1,20-1,30            +6,0pp           +23,2pp        +8,8pp
+    1,35-1,43            -6,1pp           -17,8pp        -7,9pp   <- NIJE pokriveno
+    1,43-1,60           -12,1pp           +16,4pp        -9,4pp   <- oprezna zona u kodu
+
+Pojas **1,35-1,43** nosi n=53 i **isti predznak u obje ere**. Provjere za širi pojas
+1,35-1,50 (n=76): hard −10,9pp, Grand Slam −21,2pp, split-half −4,0pp pa −14,8pp.
+Bootstrap 95% CI [−20,0, +2,1] prelazi nulu, pa nije dokazano — ali smjer je dosljedan
+u svakom rezu.
+
+**PRAG ZA POTVRDU (zapisano 06.09.2026 10:55, prije podataka):** na sljedećem dovršenom
+turniru pojas 1,35-1,43 mora dati **−5pp ili gore uz n>=20**. Ako da, `_HARD_CAUTION_ZONE`
+se spušta s (1,43, 1,60) na (1,35, 1,60). Ako edge bude iznad nule — kandidat pada.
+
+### K6 — široko neslaganje kladionica uz kvotu 1,40+
+
+    raspon među kladionicama, gornja trećina   n=55 | 83,6% | tržište 68,7% | +15,0pp | P=0,017
+       split-half:  +13,1pp / +16,8pp   (isti smjer)
+       bootstrap 95% CI: [+3,5, +25,0]  (ne prelazi nulu)
+       nije zamjena za kvotu: prosječna kvota 1,45 naspram 1,49 kod uskog tržišta
+    široko tržište + kvota >= 1,40             n=27 | 85,2% | tržište 56,2% | +29,0pp | P=0,002
+
+Najjača pojedinačna brojka izmjerena 06.09. **ALI: nije monotona** — usko +3,8pp, srednje
+−10,2pp, široko +15,0pp. Da mehanizam postoji, učinak bi rastao postupno. Uz to je ovo bio
+jedan od dvadesetak testova na istom skupu podataka, pa je P=0,002 manje impresivan nego
+što izgleda.
+
+**PRAG ZA POTVRDU:** na sljedećem turniru gornja trećina po rasponu mora dati **+8pp ili
+više uz n>=25**, I srednja trećina ne smije biti najgora (traži se monotonost). Bez
+monotonosti se ne uvodi ni pri jakom P.
+
+### K7 — sharp kladionice naspram konsenzusa
+
+    sharp dao našem picku VIŠE   n=90 | +6,2pp
+    sharp se slaže s konsenzusom n=60 | +0,4pp
+    sharp dao MANJE              n=17 | -6,4pp
+
+Smjer je smislen i **monoton**, ali r=+0,028 (P=0,72) i rep ima samo 17 mečeva.
+**PRAG:** n>=40 u repu i razlika krajnjih skupina >=10pp.
+
+### ODBAČENO 06.09.2026 iz analize kvota (izmjereno, ne otvarati bez novog razloga)
+
+- **kretanje kvote kroz dan**: `r(pomak, EDGE naspram cijene) = +0,007, P=0,927` na 167
+  mečeva. Kad se uzme u obzir završna cijena, pomak ne dodaje **ništa**. Sirova korelacija
+  s pobjedom (+0,077) postoji samo zato što pomak korelira s cijenom. Skupine nisu monotone
+  (mirno tržište je najbolje: +10,7pp). Medijan pomaka je +0,22pp — tržište se kroz dan
+  jedva miče, pa ni nema što mjeriti.
+- **broj snimaka po meču** (koliko je dugo bio na tržištu): 2 snimke −1,3pp, 3 → +1,6,
+  4 → +6,0, 5 → −6,9, 6+ → +20,7pp (P=0,040). Nemonotono; "6+" je vjerojatno zamjena za
+  važnost meča, ne signal.
+- **kratke kvote kao problem**: pickovi na <=1,20 idu 83,0% naspram očekivanih 85,3%
+  (n=53, −2,3pp), split-half +0,1pp / −4,6pp. Pet gubitaka na US Openu ispod 1,20
+  (Musetti 1,04, Jodar 1,06, Fritz 1,12, Đoković 1,15, Fils 1,18) je **varijanca**,
+  ne obrazac.
+- **R16/QF kao uzrok** (jedini obrazac koji se ponavlja u analizama gubitaka od 30.08.):
+  −4,8pp, n=72, P=0,398, a oznake rundi su nam ~43% krive. Prezlabo za bilo kakav zahvat.
+
 ### ODBAČENO 06.09.2026 (ne otvarati bez novih podataka)
 
 - **tablica promašaja po igraču** (-2pp iznad prosjeka): izmjereno u oba čitanja; skupina

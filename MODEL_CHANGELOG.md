@@ -13,6 +13,87 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-09-06 10:55 — ANALIZA GUBITAKA I KRETANJA KVOTA: tri nova kandidata,
+## cetiri odbacena nalaza. Nista nije uslo u kod osim baznih stopa.
+
+**Povod:** korisnikovo pitanje jesmo li ista naucili iz analiza gubitaka od 30.08. i
+ima li signala u kvotama drugih kladionica koje prikupljamo preko Odds API-ja.
+
+### ANALIZE GUBITAKA OD 30.08. (n=25)
+
+Oznake koje je agent sam dao: CONTRADICTED 25, CONFIRMED 21, NOT CONFIRMED 17,
+INSUFFICIENT 5. Ali kad se izvuce sto je stvarno proglaseno POTVRDJENIM uzrokom, ostaju
+**tri tvrdnje**, od kojih su dvije isti mec: forma protiv elitnih protivnika (1x) i
+kalibracija po rundi R16/QF (2x, isti mec).
+
+**Jedini obrazac koji se ponavlja je R16/QF** — izmjereno -4,8pp (n=72, P=0,398), uz
+poznato da su oznake rundi ~43% krive. Preslabo za bilo kakav zahvat.
+
+**Problem poslusnosti:** prompt izricito kaze da je "No model change justified by this
+match" najcesce tocan odgovor. **17 od 25 analiza ipak je predlozilo izmjenu.** Kontrolna
+tablica dodana danas u 10:27 trebala bi to smanjiti; provjeriti na iducim analizama.
+
+### ZASTO SMO FULALI — struktura cijene, ne statistika igraca
+
+Usporedba 27 promasaja i 77 pogodaka na US Openu: razlikuju se SAMO cijena (1,54 naspram
+1,39, P=0,020), trzisna vjerojatnost (P=0,033), ELO jaz (P=0,099) i rank jaz (P=0,088).
+Servis, hold, return, forma, umor, kvaliteta protivnika i povijest turnira su **ravni**.
+
+Ispod toga stoji stvarni kvar:
+
+    pojas kvote      staro (do 29.08.)   US Open      cijeli korpus
+    1,20-1,30            +6,0pp           +23,2pp        +8,8pp
+    1,35-1,43            -6,1pp           -17,8pp        -7,9pp   <- NIJE u kodu
+    1,43-1,60           -12,1pp           +16,4pp        -9,4pp   <- oprezna zona
+
+**Oprezna zona pocinje na 1,43, a rupa pocinje na 1,35.** -> kandidat K5.
+
+Pet gubitaka na US Openu ispod kvote 1,20 (Musetti 1,04, Jodar 1,06, Fritz 1,12,
+Djokovic 1,15, Fils 1,18) izgleda dramaticno, ali na 53 takva meca idemo 83,0% naspram
+ocekivanih 85,3% — **varijanca, ne obrazac**.
+
+### KRETANJE KVOTA — najcisci negativan nalaz dosad
+
+167 meceva, 2-8 snimaka po mecu, 50 kladionica.
+
+    r(pomak cijene kroz dan, pobjeda)              = +0,077  P=0,321
+    r(pomak cijene kroz dan, EDGE naspram cijene)  = +0,007  P=0,927
+
+Drugi red je pravo pitanje. **Kad se uzme u obzir zavrsna cijena, pomak ne dodaje nista.**
+Sirova korelacija s pobjedom postoji samo zato sto pomak korelira s cijenom. Medijan pomaka
+je +0,22pp — trziste se kroz dan jedva mice. Skupine nisu monotone (mirno trziste je
+najbolje, +10,7pp), dakle nema mehanizma.
+
+Potvrdjeno usput: nas model 10pp+ IZNAD trzista ide -7,0pp, ISPOD trzista +6,1pp — pravilo
+koje je vec u promptu i drzi se.
+
+### NOVI KANDIDATI (DECISION_INPUTS 0a) — nista od ovoga NIJE u kodu
+
+- **K5 oprezna zona treba od 1,35**: pojas 1,35-1,43 nosi n=53, -7,9pp, isti predznak u
+  obje ere. PRAG: na iducem turniru -5pp ili gore uz n>=20.
+- **K6 siroko neslaganje kladionica + kvota 1,40+**: n=27, +29,0pp, P=0,002; split-half
+  +13,1/+16,8, bootstrap [+3,5, +25,0]. **ALI nemonotono** (usko +3,8, srednje -10,2,
+  siroko +15,0) i jedan od dvadesetak testova na istom skupu. PRAG trazi I monotonost.
+- **K7 sharp naspram konsenzusa**: +6,2 / +0,4 / -6,4pp, monotono ali r=+0,028 i rep n=17.
+
+### ODBACENO MJERENJEM
+
+kretanje kvote kroz dan (r=+0,007), broj snimaka po mecu (nemonotono, "6+" je zamjena za
+vaznost meca), kratke kvote kao problem (varijanca), R16/QF kao uzrok (P=0,398 uz 43%
+krivih oznaka rundi).
+
+### JEDINA IZMJENA KODA
+
+`_LOSS_BASE_RATES` dobio je tablicu **strukture pojasa cijene** i izricitu zabranu
+objasnjenja "trziste se pomaknulo protiv nas" (uz brojku P=0,927). Cilj: da analiza gubitka
+prestane optuzivati servis i formu za mec koji je jednostavno bio u nasem najgorem pojasu
+cijene. 13 novih check-ova (sekcija 33).
+
+**K6 NIJE implementiran iako je P=0,002** — po kapiji uvedenoj isti dan to je otkrice, ne
+nalaz. Zaobici kapiju na prvoj jakoj brojci znacilo bi da je nemamo.
+
+---
+
 ## 2026-09-06 10:27 — PRVA VANUZORACNA PROVJERA: dva pravila uklonjena, kapija uvedena,
 ## scouting azuriran. `rules_hash` NETAKNUT (a0424315).
 

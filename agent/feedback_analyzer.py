@@ -636,6 +636,25 @@ These describe who dictated and who scrambled, which is what a match report shou
 are POST-MATCH ONLY - we have no pre-match season equivalent - so they can never be a model
 fix. Lead section 2 with the winners/errors ratio instead of serve percentages.
 
+*** PRICE BAND STRUCTURE - the most common real explanation (n=414, 06.09.2026) ***
+Before blaming a player statistic, check where this match sat on price. Our edge versus the
+devigged market is NOT flat across the board:
+
+  odds 1.00-1.20   n= 50 | edge  -3.7pp    (short favourites: roughly break-even, high variance)
+  odds 1.20-1.35   n= 74 | edge  +8.8pp    <- our best band
+  odds 1.35-1.43   n= 53 | edge  -7.9pp    <- HOLE, same sign in both eras
+  odds 1.43-1.60   n= 98 | edge  -9.4pp    <- HOLE (this is the coded caution zone)
+  odds 1.60-1.75   n= 63 | edge  +7.5pp
+  odds 1.75-2.00   n= 54 | edge  +1.4pp
+  odds 2.00+       n= 35 | edge  +2.6pp
+
+A loss on a pick priced 1.35-1.60 is our single most common failure mode and it is a PRICING
+pattern, not a player-statistic failure. If this match sat in that band, say so - that is a
+better and more honest explanation than any serve or form number, all of which are identical
+in our wins and our losses (see the control table above).
+Conversely, a loss at odds <= 1.20 is usually VARIANCE: we run 83.0% there against a market
+expectation of 85.3% (n=53, split-half +0.1pp / -4.6pp). Do not build a theory on one of them.
+
 *** REPLICATION WARNING (measured 06.09.2026) ***
 Three rules were added on 30.08.2026 from findings with P = 0.008, 0.026 and 0.001. The US
 Open then served as the first independent sample (104 matches) and reversed all three:
@@ -677,6 +696,11 @@ OTHER MEASURED FACTS:
   - quality of the pick's recent opposition IS predictive: form matters only when it was
     earned against strong opponents (r=+0.284) and not at all against weak ones (r=-0.017)
   - weather main effects are zero (temp -0.092, humidity +0.101, wind +0.076, pressure -0.077)
+  - ODDS MOVEMENT CARRIES NOTHING (measured 06.09.2026 on 167 matches with 2-8 price snapshots
+    from 50 bookmakers): r(price drift, our edge vs the closing price) = +0.007, P=0.927. The
+    raw correlation with winning (+0.077) exists only because drift correlates with price.
+    Median drift through the day is +0.22pp - the market barely moves. Never explain a loss
+    with "the market moved against us"; it is not evidence of anything.
   - our pick being 4+ years older than the opponent: 42.9%, -15.4pp vs price
 
 INPUTS THE PREDICTION MODEL ALREADY RECEIVES - do NOT recommend adding any of these:

@@ -1336,6 +1336,32 @@ check("omjer se stvarno ispisuje", "0.93" in _out and "0.76" in _out, _out[:120]
 
 check("rules_hash i dalje netaknut", _pr._model_stamp("hard")["rules_hash"] == "a0424315")
 
+print()
+print("=== 33. Registar kandidata + bazne stope o cijeni i kvotama (06.09.2026 10:55) ===")
+
+_di = io.open(r"c:/Users/jovin/Desktop/Tenis Claude/DECISION_INPUTS.md", encoding="utf-8").read()
+for _k in ("### K1 ", "### K2 ", "### K3 ", "### K4 ", "### K5 ", "### K6 ", "### K7 "):
+    check("registar sadrzi kandidata %s" % _k.strip(" #"), _k in _di)
+check("svaki kandidat ima zapisan prag",
+      _di.count("PRAG") >= 6, "nadjeno %d" % _di.count("PRAG"))
+check("K5 nosi izmjereni pojas 1,35-1,43", "1,35-1,43" in _di)
+check("K6 nosi ogradu o monotonosti", "nije monotona" in _di or "monotonos" in _di)
+check("odbaceno kretanje kvota je zapisano s brojkom", "+0,007" in _di)
+check("odbacene su i kratke kvote kao 'problem'", "varijanca" in _di)
+
+_b = _fa._LOSS_BASE_RATES
+check("bazne stope sadrze strukturu pojasa cijene", "PRICE BAND STRUCTURE" in _b)
+check("bazne stope imenuju rupu 1,35-1,60",
+      "1.35-1.43" in _b and "1.43-1.60" in _b)
+check("bazne stope kazu da kratke kvote nisu obrazac", "VARIANCE" in _b)
+check("bazne stope zabranjuju objasnjenje 'trziste se pomaknulo'",
+      "ODDS MOVEMENT CARRIES NOTHING" in _b and "P=0.927" in _b)
+check("bazne stope i dalje nose kontrolnu tablicu", "THE CONTROL TABLE" in _b)
+check("bazne stope nisu narasle preko razumnog (prompt budzet)",
+      len(_b) < 12000, "%d znakova" % len(_b))
+
+check("rules_hash i dalje netaknut", _pr._model_stamp("hard")["rules_hash"] == "a0424315")
+
 print("\n" + "=" * 60)
 if _fails:
     print(f"PALO: {len(_fails)}")
