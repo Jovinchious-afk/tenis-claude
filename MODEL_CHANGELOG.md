@@ -13,6 +13,49 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-09-08 12:07 (treca izmjena istog dana) — ELO: neprekidni razmak u imenima
+
+**Popravljen nalaz od 29.08.2026 13:11 koji je cekao kraj US Opena.** `rules_hash` ostaje
+`61999517` — prompt nije diran.
+
+**Kvar:** svih 578 imena u `elo_cache` sadrzi neprekidni razmak (U+00A0) umjesto obicnog.
+Provjereno 08.09. na zivoj stranici Tennis Abstracta da dolazi **iz izvora**
+(`'Jannik Sinner'`, `'Alex De Minaur'`), a `get_text(strip=True)` u scraperu cisti
+samo rubove imena. Ponovno pokretanje `update_elo_cache.py` NE bi pomoglo — upisalo bi ista
+imena.
+
+**Posljedica:** korak 1 (tocno podudaranje imena) nije pogadjao **nikad, ni za jednog
+igraca, od uvodjenja**. Sve je spasavao korak 2 (prezime) ili 3. Korak 3 prihvaca i puko
+podudaranje POCETNOG SLOVA (`k.startswith(first[0])`), pa je "Dali Blanch" dobivao ELO
+"Darwin Blancha".
+
+**Izmjerena steta prije popravka:** tocno JEDAN igrac s krivim ELO-om (Dali Blanch 1403,4
+umjesto 1253,7). Ostali su se rjesavali tocno, ali **slucajno** — po redoslijedu kandidata.
+19 prezimena u cacheu dijele 2+ igraca, a 22 od nasih 326 igraca pada u tu zonu.
+
+**Ucinak popravka:**
+
+    korak 1 (tocno ime):  prije 0 od 326 (0%)  ->  nakon 281 od 326 (86%)
+    igraca s promijenjenim ELO-om: 1 (Dali Blanch)
+    igraca na zadanih 1500: 36, nepromijenjeno (nisu u Top 578 — Challenger/ITF)
+
+**Popravljeno na OBA mjesta:** citac (`find_player_elo._normalize`) i pisac
+(`update_elo_cache.py`). Citac zato sto popravlja i postojeci kes bez ponovnog skidanja;
+pisac zato sto vlastito pravilo iz ranijih kvarova kaze da se provjeri i pisac, ne samo
+citac. Usput normalizirani i visestruki razmaci (`" ".join(s.split())`).
+
+**Tajming:** namjerno u praznom prozoru — US Open je zavrsio, sljedeca dva dana nema
+meceva glavnog toura, pa nijedan run ne stoji preko izmjene.
+
+**Zapazeno, NIJE mijenjano:** korak 3 je opcenito labav (`k.startswith(first[0])` prihvaca
+bilo koje ime na isto slovo). Sada je manje izlozen jer korak 1 hvata 86%, ali ostaje
+kandidat za pooštravanje ako se pojavi novi slucaj.
+
+**Testovi:** odjeljak 37 (14 provjera), ukljucujuci regresiju na dijakritiku i crtice te
+provjeru da nepoznat igrac i dalje pada na 1500.
+
+---
+
 ## 2026-09-08 12:07 (druga izmjena istog dana) — PROMPT PODIJELJEN NA SYSTEM I USER
 ## RADI KESIRANJA; uklonjena mrtva varijabla `ranking_trend`.
 

@@ -84,8 +84,13 @@ def scrape_elo() -> list:
         elo_clay    = _val(col["clay"]) or elo_overall
         elo_grass   = _val(col["grass"]) or elo_overall
 
+        # Neprekidni razmak (U+00A0) -> obicni, 08.09.2026 12:07. Tennis Abstract pise
+        # imena s njim ('Jannik\xa0Sinner'), a `get_text(strip=True)` cisti samo rubove.
+        # Bez ovoga tocno podudaranje imena u `find_player_elo` NE POGADJA NIKAD i sve se
+        # oslanja na prezime — sto ne moze odluciti kod 19 dijeljenih prezimena.
+        # Citac isto normalizira, pa stari (necisti) keš i dalje radi; ovo cisti izvor.
         entries.append({
-            "player_name": name.lower().strip(),
+            "player_name": " ".join(name.replace("\xa0", " ").lower().split()),
             "elo_overall": elo_overall,
             "elo_hard":    elo_hard,
             "elo_clay":    elo_clay,

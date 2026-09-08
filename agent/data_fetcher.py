@@ -1080,21 +1080,33 @@ def find_player_elo(player_name: str, elo_data: dict) -> dict:
     def _normalize(s: str) -> str:
         """Ukloni dijakritike i standardiziraj razmake.
 
-        NALAZ REVIZIJE 29.08.2026 13:11 — NIJE POPRAVLJENO, ceka poslije US Opena:
-        svih 578 imena u `elo_cache` sadrzi NEPREKIDNI razmak (\xa0, U+00A0) umjesto
-        obicnog, i to oduvijek (tako ih daje izvor, nije od osvjezenja 29.08.). NFD ga ne
-        pretvara u razmak, a `.strip()` ga cisti samo s rubova — pa korak 1 nize (tocno
-        podudaranje) NE POGADJA NIKAD, ni za jednog igraca. Sve lookupe spasava tek korak 2
-        (prezime) odnosno 3.
-        Izmjereno: svih 40 igraca za 30.-31.08.2026 nadjeno, nijedan nije pao na zadanih
-        1500 — ALI 19 prezimena u cacheu dijele 2+ igraca (martin x3, silva x3, wu, paul,
-        harris, cerundolo, berrettini ...), gdje korak 2 ne moze odluciti.
-        POPRAVAK je jedan `.replace("\xa0", " ")` ovdje. Namjerno se NE radi pred Grand
-        Slamom: mijenja ulaz svake analize. Vidi MODEL_CHANGELOG 2026-08-29 13:11.
+        >>> POPRAVLJENO 08.09.2026 12:07 (nalaz od 29.08.2026 13:11, cekao kraj US Opena).
+
+        KVAR: svih 578 imena u `elo_cache` sadrzi NEPREKIDNI razmak (U+00A0) umjesto
+        obicnog. Tako ih daje izvor — provjereno 08.09.2026 na zivoj stranici Tennis
+        Abstracta: 'Jannik\xa0Sinner', 'Alex\xa0De\xa0Minaur'. NFD ga NE pretvara u
+        razmak, a `.strip()` cisti samo rubove, pa korak 1 nize (tocno podudaranje)
+        NIJE POGADJAO NIKAD, ni za jednog igraca, od uvodjenja.
+
+        POSLJEDICA: svaki je lookup spasavao tek korak 2 (prezime) ili 3. To je radilo
+        dok je prezime jedinstveno, ali 19 prezimena u cacheu dijele 2+ igraca
+        (martin x3, silva x3, wu, torres, blanch, singh, smith, berrettini, cerundolo...),
+        a nasih 22 od 326 igraca pada u tu zonu. Ondje korak 2 ne moze odluciti pa se ide
+        na korak 3, koji prihvaca i puko podudaranje POCETNOG SLOVA imena
+        (`k.startswith(first[0])`) — tako je "Dali Blanch" dobivao ELO "Darwin Blancha".
+
+        IZMJERENA STETA PRIJE POPRAVKA: tocno JEDAN igrac je imao krivi ELO (Dali Blanch,
+        1403,4 umjesto 1253,7). Ostali su se rijesili tocno, ali SLUCAJNO — po redoslijedu
+        kandidata. Novi igrac s dijeljenim prezimenom razbio bi to bez upozorenja.
+
+        Popravak je `.replace(NBSP, " ")` ispod. Radi se i pri UPISU (scripts/
+        update_elo_cache.py), ali ovdje ostaje kao obrana: keš moze doci i iz starijih
+        upisa. Vidi MODEL_CHANGELOG 08.09.2026 12:07.
         """
+        s = str(s or "").replace("\xa0", " ")
         s = unicodedata.normalize("NFD", s)
         s = "".join(c for c in s if unicodedata.category(c) != "Mn")
-        return s.lower().strip()
+        return " ".join(s.lower().split())
 
     default = {"elo_overall": 1500, "elo_hard": 1500, "elo_clay": 1500, "elo_grass": 1500}
     if not player_name:

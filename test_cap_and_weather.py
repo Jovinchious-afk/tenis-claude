@@ -1644,6 +1644,71 @@ check("hash racuna oba predloska",
 check("nova era je zabiljezena",
       _pr._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
 
+_src_pr_df37 = io.open("agent/data_fetcher.py", encoding="utf-8").read()
+
+# ==========================================================================
+print("\n=== 37. ELO: neprekidni razmak u imenima (08.09.2026 12:07) ===")
+
+import agent.data_fetcher as _df37
+_NB37 = chr(160)   # U+00A0
+
+# Lazni cache tocno onakav kakav Tennis Abstract stvarno daje.
+_elo37 = {
+    "carlos" + _NB37 + "alcaraz": {"elo_overall": 2100, "elo_hard": 2073.3,
+                                   "elo_clay": 2000, "elo_grass": 1990},
+    "darwin" + _NB37 + "blanch":  {"elo_overall": 1400, "elo_hard": 1403.4,
+                                   "elo_clay": 1380, "elo_grass": 1370},
+    "dali" + _NB37 + "blanch":    {"elo_overall": 1250, "elo_hard": 1253.7,
+                                   "elo_clay": 1240, "elo_grass": 1230},
+    "alex" + _NB37 + "de" + _NB37 + "minaur": {"elo_overall": 1900,
+                                   "elo_hard": 1950, "elo_clay": 1800, "elo_grass": 1850},
+}
+
+# --- A. Tocno podudaranje radi UNATOC neprekidnom razmaku u kljucu ---
+check("ELO: tocno ime pogadja i kad kljuc ima neprekidni razmak",
+      _df37.find_player_elo("Carlos Alcaraz", _elo37)["elo_hard"] == 2073.3)
+check("ELO: ime s vise rijeci pogadja",
+      _df37.find_player_elo("Alex De Minaur", _elo37)["elo_hard"] == 1950)
+
+# --- B. Dijeljeno prezime: svaki igrac dobiva SVOJ rejting ---
+# Ovo je bio stvarni kvar: korak 3 je prihvacao podudaranje POCETNOG SLOVA
+# ("D" iz "Dali" naspram "Darwin"), pa je Dali dobivao Darwinov ELO.
+check("ELO: Dali Blanch dobiva SVOJ rejting",
+      _df37.find_player_elo("Dali Blanch", _elo37)["elo_hard"] == 1253.7)
+check("ELO: Darwin Blanch dobiva SVOJ rejting",
+      _df37.find_player_elo("Darwin Blanch", _elo37)["elo_hard"] == 1403.4)
+check("ELO: dva igraca istog prezimena NEMAJU isti rejting",
+      _df37.find_player_elo("Dali Blanch", _elo37)["elo_hard"]
+      != _df37.find_player_elo("Darwin Blanch", _elo37)["elo_hard"])
+
+# --- C. Nepoznat igrac i dalje pada na zadanih 1500 (ponasanje nepromijenjeno) ---
+check("ELO: nepoznat igrac vraca zadanih 1500",
+      _df37.find_player_elo("Nepostojeci Igrac", _elo37)["elo_hard"] == 1500)
+check("ELO: prazno ime ne baca", _df37.find_player_elo("", _elo37)["elo_hard"] == 1500)
+check("ELO: None ne baca", _df37.find_player_elo(None, _elo37)["elo_hard"] == 1500)
+
+# --- D. Dijakritika i crtice i dalje rade (regresija) ---
+_elo37b = dict(_elo37)
+_elo37b["pablo" + _NB37 + "carreno" + _NB37 + "busta"] = {
+    "elo_overall": 1700, "elo_hard": 1710, "elo_clay": 1750, "elo_grass": 1650}
+check("ELO: crtica u imenu se i dalje razrjesava",
+      _df37.find_player_elo("Carreno-Busta", _elo37b)["elo_hard"] == 1710)
+
+# --- E. Pisac takodjer cisti (da kes od sljedeceg osvjezenja bude cist) ---
+_upd37 = io.open("scripts/update_elo_cache.py", encoding="utf-8").read()
+check("update_elo_cache cisti neprekidni razmak pri upisu",
+      "\\xa0" in _upd37 and "player_name" in _upd37)
+check("pisac nosi obrazlozenje s datumom", "08.09.2026 12:07" in _upd37)
+
+# --- F. Zapis u citacu je oznacen kao rijesen ---
+check("citac vise ne tvrdi da kvar ceka US Open",
+      "NIJE POPRAVLJENO, ceka poslije US Opena" not in _src_pr_df37)
+check("citac nosi izmjerenu stetu",
+      "Dali Blanch" in _src_pr_df37 and "1253,7" in _src_pr_df37)
+
+check("rules_hash netaknut ELO popravkom",
+      _pr._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
+
 print("\n" + "=" * 60)
 if _fails:
     print(f"PALO: {len(_fails)}")
