@@ -52,7 +52,7 @@ Težine su hard v18; žive u Supabase `model_weights`, ne u kodu.
 
 **Izbacuje pick** (`_selection_ok` + conf floor):
 
-- pouzdanost < **63%** — iznimka je value-override: conf ≥58 uz edge ≥12pp, najviše 2 po tiketu
+- pouzdanost < **60%** *(spušteno s 63 dana 08.09.2026 12:07 — kandidat K1 potvrđen na US Openu: pojas 58-63 dao +9,3pp uz n=49, dok je >=63 dao −3,0pp)* — iznimka je value-override: conf ≥58 uz edge ≥12pp, najviše 2 po tiketu
 - nije glavni tour, ili nema kvotu
 - **oba igrača 0/3** u zadnja 3 meča
 - Grand Slam traži **65%** (hard i clay)
@@ -64,12 +64,18 @@ Težine su hard v18; žive u Supabase `model_weights`, ne u kodu.
 - **runde na razini TURNIRA** *(novo 13.08.2026 12:47)* — turnir smije imati najviše 1 F,
   2 SF i 4 QF kroz SVE dane; višak se spušta za rundu. Dnevna provjera je propuštala deset
   "polufinala" jer je svaki dan imao točno dva. Vidi `_verify_late_rounds`.
+  **Prošireno 08.09.2026 12:07:** na Grand Slamu se provjeravaju i rane runde (8 R16,
+  16 R32, 32 R64), jer je ondje ždrijeb uvijek 128 pa su brojevi nedvosmisleni. Time se
+  ispravlja prvo kolo koje je API zvao "R64", a zapravo je R128 — na US Openu 2026 bilo
+  je 69 redaka pod "R64" (smije 32). Ostale razine se u ranim rundama i dalje NE diraju.
+  Isti dan popravljeno i dvostruko brojanje pri ponovnom pokretanju runa (isti meč se
+  brojao kao živi zapis i kao vlastita "povijest" od prije par sati).
 - **R128 izvan Grand Slama** — Masters ima ždrijeb od 96, ATP 250/500 od 28-32; R128 ondje ne
   postoji pa je oznaka kvalifikacijska (Cincinnati 11.08.). Screenshot poništava tu provjeru.
 
 **Ograničava listić:**
 
-- **4-6 parova**, ukupna kvota **6-40** (korisnikove fiksne granice)
+- **3-6 parova**, ukupna kvota **4-50** *(korisnikova odluka 08.09.2026 12:07; prije 4-6 / 6-40)*. Mjereno prije izmjene na 36 stvarnih dana: staro −100,0%, novo −67,9%, dva para −26,4%, jedan par +4,3% — svaka dodatna noga odnosi vrijednost, pa je novi raspon bolji ali i dalje nije pozitivan.
 - **strop pouzdanosti 70%** *(podignut s 64 dana 17.08.2026 11:46)* — iznad 70 model mora
   ispuniti `above_64_basis` (ime polja je povijesno) s dvije mjerene potvrde s brojkama iz
   različitih kategorija i rečenicom što bi ga oborilo; inače kod spušta na 70 i bilježi
@@ -90,8 +96,30 @@ vrijednosti i time ubija razlučivanje — to je glavna lekcija revizije od 17.0
   kojemu tržište daje 55% nije pogođen.
 
 **Bira kombinaciju** (`_score_combo`): umnožak pouzdanosti kao glavni kriterij, plus bonus za
-value (edge 3-20pp za favorite, 3-28pp za pickove ≥2,00), plus bonus za pouzdanost ≥72, minus
-kazna za najslabiji pick ispod 68, minus kazna za svaki par preko četiri.
+value (edge 3-20pp za favorite, 3-28pp za pickove ≥2,00), plus bonus za pouzdanost ≥72,
+minus kazna za najslabiji pick, minus kazna za svaki par preko minimalnog broja nogu.
+
+**NOVO 08.09.2026 12:07 — tržišni konsenzus ulazi u izbor kombinacije.**
+Bonus **+4 boda po picku** kojemu konsenzus ~47 kladionica daje **1pp ili više** više nego
+devigirana SuperSport cijena (`_consensus_gap_pp`). Prvi signal u projektu koji je prošao
+dvostupanjsku kapiju — nađen na Cincinnatiju, potvrđen na US Openu:
+
+    gap >= +1pp   n=61 | 83,6% | edge +10,5pp | ROI +11,3%
+    gap <  +1pp   n=108 | 62,0% | edge  −2,0pp | ROI  −9,2%
+    bootstrap 95% CI za edge: [+0,93pp, +19,20pp] — ne prelazi nulu; P=0,036
+    uz kontrolu cijene (po pojasevima kvote): zbirno +21,6pp
+    US Open +11,8% (n=47) | Cincinnati +9,5% (n=14) | pokrivenost 100% od 30.08.
+
+**Namjerno BONUS, ne tvrdi filtar** — tri ograde: monotonost nije čista (pojas ≤−1pp ide
++6,8pp), n=61 je malo uz prag odabran gledajući podatke, i na TIKETU još nije dokazan (uvjet
+`gap>=+1` ostavlja samo 3-4 dana s dovoljno kandidata, što je premalo za zaključak u bilo
+kojem smjeru). Puno obrazloženje i prag za sljedeću odluku: `agent/ticket_builder.py`, blok
+iznad `_CONSENSUS_GAP_MIN`.
+
+**Dvije stvari u bodovanju ispravljene isti dan** jer su radile protiv mjerenja:
+kazna za najslabiji pick išla je s faktorom 1,5 i sidrom 68 (gurala je izbor prema pojasu
+65-68, koji ide −35,4%) — sada faktor 0,6 i sidro 63; kazna za dodatne parove bila je
+usidrena na fiksnu četvorku pa bi trojac dobio skriveni bonus od +3 boda.
 
 ## 3. Bilježi se, ali NE utječe na odluku — `context_snapshot` v17
 
@@ -219,11 +247,25 @@ Uz postotak pogodaka pratimo i koliko naših nalaza preživi idući turnir.
 
 ---
 
+
+**AŽURIRANO 08.09.2026 12:07 — prvi pravi krug kapije, na US Openu:**
+
+| kandidat | prag zapisan prije podataka | ishod |
+|---|---|---|
+| K1 — pojas 58-63 tuče tržište | edge >= +3pp uz n>=25 | **POTVRĐEN** (+9,3pp, n=49) |
+| K6 — široko neslaganje kladionica | >= +8pp uz n>=25 I monotonost | **PAO** (+6,1pp, nemonoton) |
+| K7 — sharp naspram konsenzusa | n>=40 u repu, razlika >=10pp | **PAO** (rep prazan) |
+
+**Stopa replikacije: 1 od 6** (prije: 0 od 3). Prvi nalaz koji je prošao. Vrijedi zapamtiti
+što ga je razlikovalo: K1 je imao ISTI PREDZNAK u dvije odvojene ere modela još prije
+provjere, dok su K6 i K7 bili najjače pojedinačne brojke jednog uzorka. Jačina P-vrijednosti
+nije razlikovala potvrđeno od palog — ponovljivost predznaka jest.
+
 ## 0a. REGISTAR KANDIDATA — nalazi koji čekaju potvrdu
 
 Ništa odavde NIJE u kodu. Svaki red ima unaprijed zapisan prag.
 
-### K1 — pickovi ispod praga 63% tuku tržište *(najjači kandidat)*
+### K1 — pickovi ispod praga 63% tuku tržište — **POTVRĐEN 08.09.2026 12:07, UŠAO U KOD**
 
     sve podloge   <63: n=121  67,8%  edge  +6,7pp  |  >=63: n=293  63,5%  edge  -2,7pp
     hard          <63: n=113  68,1%  edge  +7,1pp  |  >=63: n=209  62,7%  edge  -4,2pp
@@ -240,8 +282,37 @@ skupina s conf 58-63 mora dati **edge +3pp ili više uz n>=25**. Ako da, uvodi s
 najviše JEDAN pick iz pojasa 58-63 po tiketu, uz zadržan opći prag za ostale.
 Ako edge padne ispod nule — kandidat se odbacuje.
 
-**ZAŠTO SE NE UVODI ODMAH:** kapija je uvedena isti dan; zaobići je na prvom nalazu značilo
-bi da je nemamo. Nalaz je jak i vjerojatno stvaran, ali čeka svoj red kao i svaki drugi.
+**ZAŠTO SE NIJE UVEO ODMAH (06.09.):** kapija je uvedena isti dan; zaobići je na prvom
+nalazu značilo bi da je nemamo. Nalaz je jak i vjerojatno stvaran, ali je čekao svoj red.
+
+---
+
+#### ISHOD PROVJERE NA US OPENU (08.09.2026 12:07) — **POTVRĐENO**
+
+US Open je bio dovršen turnir na kojem nalaz NIJE nađen, dakle valjan drugi stupanj.
+Mjereno točno po pragu zapisanom 06.09. prije podataka:
+
+    conf 58-63          n=49 | 75,5% | tržište 66,2% | edge  +9,3pp   <- traženo >= +3pp uz n>=25
+    conf 60-63 (uže)    n=40 | 77,5% | tržište 68,6% | edge  +8,9pp
+    conf >= 63 (kontrola) n=51 | 72,5% | tržište 75,6% | edge  -3,0pp
+
+Prag je bio **+3pp uz n>=25**. Dobiveno **+9,3pp uz n=49** — potvrđeno s velikom rezervom
+iznad praga, a kontrolna skupina je istovremeno negativna.
+
+**ŠTO JE UČINJENO:** opći prag u `TICKET_CONFIG` spušten sa 63 na **60** (ne na 58).
+
+**ODSTUPANJE OD ZAPISANOG LIJEKA — namjerno i evo zašto.** Registrirani lijek glasio je
+"najviše JEDAN pick iz pojasa 58-63 po tiketu, uz zadržan opći prag za ostale". Taj je
+oprez bio kalibriran na neizvjesnost je li nalaz stvaran. Neizvjesnost je sada testirana i
+uklonjena, a sam lijek bi u novom svjetlu bio naopak: ograničio bi BOLJU skupinu (60-63,
++8,9pp) dok bi LOŠIJU (>=63, -3,0pp) puštao neograničeno.
+
+Izmjena je ipak uža od potvrđenog nalaza: potvrđen je pojas 58-63, a u kod je ušao samo
+njegov jači i brojniji dio 60-63. Pojas 58-60 ostaje vani jer mu split-half okreće predznak
+(-5 / +11).
+
+**ŠTO PRATITI:** ako skupina conf 60-63 na sljedećem dovršenom turniru padne ispod nule uz
+n>=25, prag se vraća na 63. Zapisano prije podataka.
 
 ### K2 — pravilo 11 (domaći teren) ide u krivom smjeru
 
@@ -299,6 +370,19 @@ jedan od dvadesetak testova na istom skupu podataka, pa je P=0,002 manje impresi
 više uz n>=25**, I srednja trećina ne smije biti najgora (traži se monotonost). Bez
 monotonosti se ne uvodi ni pri jakom P.
 
+#### ISHOD PROVJERE NA US OPENU (08.09.2026 12:07) — **PAO**
+
+    usko (donja trećina)      n=38 | 71,1% | edge  +9,3pp
+    srednje                   n=37 | 64,9% | edge  -5,2pp   <- opet najgore
+    široko (gornja trećina)   n=37 | 81,1% | edge  +6,1pp   <- traženo >= +8pp
+
+Oba uvjeta pala: gornja trećina daje +6,1pp (ispod praga +8pp), a monotonost je pala po
+DRUGI put i to na isti način — srednja trećina je najgora skupina. Nemonotonost koja se
+ponovi na neovisnom uzorku nije šum nego znak da mehanizma nema.
+
+Podskupina "široko + kvota >= 1,40" daje +23,3pp, ali n=12 i to je upravo rezanje koje je
+kandidat i stvorilo. **ODBAČENO.** Ne otvarati bez novog mehanizma, ne novog rezanja.
+
 ### K7 — sharp kladionice naspram konsenzusa
 
     sharp dao našem picku VIŠE   n=90 | +6,2pp
@@ -307,6 +391,21 @@ monotonosti se ne uvodi ni pri jakom P.
 
 Smjer je smislen i **monoton**, ali r=+0,028 (P=0,72) i rep ima samo 17 mečeva.
 **PRAG:** n>=40 u repu i razlika krajnjih skupina >=10pp.
+
+#### ISHOD PROVJERE NA US OPENU (08.09.2026 12:07) — **PAO, i to iz poučnog razloga**
+
+    sharp dao našem picku VIŠE     n=  0
+    sharp se slaže s konsenzusom   n=112
+    sharp dao MANJE (rep)          n=  0
+
+Na svih 112 US Open analiza `market_p_sharp` je **identičan** `market_p`. Brier im je isti
+do četvrte decimale (0,1899 naspram 0,1899). Dakle nema dvije skupine za usporediti —
+"sharp" cijena kakvu bilježimo nije zaseban izvor informacije nego ista brojka.
+
+To poništava i uzorak od 06.09. (n=90/60/17): te su razlike vjerojatno dolazile iz mečeva
+gdje je sharp podskup imao drukčiji sastav kladionica, a ne iz drukčije procjene.
+**ODBAČENO.** Prije ponovnog otvaranja treba provjeriti PIŠE li `market_p_sharp` uopće
+išta različito — isti obrazac kao "tihi null ključevi" iz memorije.
 
 ### ODBAČENO 06.09.2026 iz analize kvota (izmjereno, ne otvarati bez novog razloga)
 

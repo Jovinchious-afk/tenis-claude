@@ -576,11 +576,16 @@ check("1.50 je JOS UVIJEK u zoni opreza",
 # D — namjerno NEpromijenjeno
 check("edge cap ostaje 28 (kocnica na uvjerenje, ne na kvotu)", _tbm._UNDERDOG_EDGE_CAP == 28.0)
 check("underdog prag ostaje 2.00", _tbm._UNDERDOG_MIN_ODDS == 2.00)
-check("prag selekcije ostaje 63", _tbm.TICKET_CONFIG["min_confidence"] == 63.0
+# REVIDIRANO 08.09.2026 12:07 — donja dva testa su do tada tvrdila prag 63 i granice
+# 4-6/6-40. Oboje je promijenjeno namjerno i uz korisnikovo odobrenje (mjerenja u
+# config/model_config.py iznad TICKET_CONFIG-a), pa testovi sada cuvaju NOVE vrijednosti.
+check("prag selekcije spusten na 60", _tbm.TICKET_CONFIG["min_confidence"] == 60.0
       if hasattr(_tbm, "TICKET_CONFIG") else True)
-check("granice tiketa nedirnute (4-6 parova, 6-40)",
-      _mc.count('"min_matches": 4') == 1 and _mc.count('"max_matches": 6') == 1
-      and '"min_combined_odds": 6.0' in _mc and '"max_combined_odds": 40.0' in _mc)
+check("granice tiketa: 3-6 parova, kvota 4-50",
+      _mc.count('"min_matches": 3') == 1 and _mc.count('"max_matches": 6') == 1
+      and '"min_combined_odds": 4.0' in _mc and '"max_combined_odds": 50.0' in _mc)
+check("promjena praga nosi obrazlozenje s mjerenjem", "-12,5%" in _mc and "ZASTO PRAG 60" in _mc)
+check("promjena raspona nosi obrazlozenje s mjerenjem", "ZASTO RASPON" in _mc and "-67,9%" in _mc)
 check("return_points_won JOS NIJE ispravljen u promptu", "POZNATA PRISTRANOST" in _dfsrc)
 
 # zamka: rules_hash se NIJE promijenio, pa se era mora rezati po bp_in_prompt
@@ -1402,6 +1407,121 @@ for _tag, _txt, _where in (
     check("otvorena stavka '%s' je i dalje oznacena" % _tag, _txt in _where)
 
 check("rules_hash netaknut nakon zatvaranja zapisa",
+      _pr._model_stamp("hard")["rules_hash"] == "a0424315")
+
+
+# ==========================================================================
+print("\n=== 35. Revizija hard modela 08.09.2026 12:07 ===")
+
+import copy as _copy35
+import agent.run_daily as _rd35
+_rd35src = open("agent/run_daily.py", encoding="utf-8").read()
+
+# --- A. Struktura tiketa i prag ---
+check("tiket: 3-6 parova", _tbm.TICKET_CONFIG["min_matches"] == 3
+      and _tbm.TICKET_CONFIG["max_matches"] == 6)
+check("tiket: kombinirana kvota 4-50",
+      _tbm.TICKET_CONFIG["min_combined_odds"] == 4.0
+      and _tbm.TICKET_CONFIG["max_combined_odds"] == 50.0)
+check("clay fatigue prag vise nije hardkodiran na 63",
+      "return (conf - penalty) >= 63.0" not in _tbsrc
+      and "TICKET_CONFIG[" + chr(34) + "min_confidence" + chr(34) + "]" in _tbsrc)
+
+# --- B. Konsenzus trzista ---
+_m35 = {"player1": "Ana Anic", "player2": "Bruno Bric", "odds_p1": 1.60,
+        "odds_p2": 2.40, "market_p": 0.70}
+check("konsenzus: pick=p1 daje pozitivan gap",
+      abs(_tbm._consensus_gap_pp({"pick": "Ana Anic", "match": _m35}) - 10.0) < 0.5)
+check("konsenzus: pick=p2 daje zrcalni gap",
+      abs(_tbm._consensus_gap_pp({"pick": "Bruno Bric", "match": _m35}) + 10.0) < 0.5)
+check("konsenzus: bez market_p vraca None",
+      _tbm._consensus_gap_pp({"pick": "Ana Anic", "match": {
+          "player1": "Ana Anic", "odds_p1": 1.6, "odds_p2": 2.4}}) is None)
+check("konsenzus: neispravne kvote vracaju None (ne bacaju)",
+      _tbm._consensus_gap_pp({"pick": "Ana Anic", "match": {
+          "player1": "Ana Anic", "odds_p1": 0, "odds_p2": 2.4,
+          "market_p": 0.7}}) is None)
+_b35 = {"confidence": 65, "fair_odds": 1.5, "pick": "Ana Anic",
+        "match": {"player1": "Ana Anic", "player2": "Bruno Bric",
+                  "odds_p1": 1.60, "odds_p2": 2.40}}
+_c_no = tuple(_copy35.deepcopy(_b35) for _ in range(3))
+_c_yes = tuple(_copy35.deepcopy(_b35) for _ in range(3))
+for _x in _c_yes:
+    _x["match"]["market_p"] = 0.70
+check("konsenzus podize bodovanje kombinacije",
+      _tbm._score_combo(_c_yes) > _tbm._score_combo(_c_no))
+check("bodovanje radi i kad trzista nema",
+      isinstance(_tbm._score_combo(_c_no), float))
+
+# --- C. Runde: dvostruko brojanje pri ponovnom pokretanju ---
+_today35 = [
+    {"tournament": "Winston-Salem Open", "level": "ATP 250",
+     "date": "2026-08-28", "player1": "Nicolas Buse",
+     "player2": "Benjamin Bonzi", "round": "SF"},
+    {"tournament": "Winston-Salem Open", "level": "ATP 250",
+     "date": "2026-08-28", "player1": "James Duckworth",
+     "player2": "Arthur Fery", "round": "F"}]
+_hist35 = [
+    {"tournament": "Winston-Salem Open", "match_date": "2026-08-28",
+     "player1": "N. Buse", "player2": "B. Bonzi", "round": "SF"},
+    {"tournament": "Winston-Salem Open", "match_date": "2026-08-28",
+     "player1": "J. Duckworth", "player2": "A. Fery", "round": "F"}]
+_out35 = _rd35._verify_late_rounds(_copy35.deepcopy(_today35), _hist35)
+check("ponovni run istog dana NE spusta rundu (Winston-Salem 28.08.)",
+      [m["round"] for m in _out35] == ["SF", "F"])
+
+# --- D. Runde: Grand Slam prvo kolo je R128, ne R64 ---
+_gs_today = [{"tournament": "U.S. Open", "level": "Grand Slam",
+              "date": "2026-08-25", "player1": "A%d" % i,
+              "player2": "B%d" % i, "round": "R64"} for i in range(8)]
+_gs_hist = [{"tournament": "U.S. Open", "match_date": "2026-08-26",
+             "player1": "C%d" % i, "player2": "D%d" % i,
+             "round": "R64"} for i in range(32)]
+check("GS: visak preko 32 R64 pada u R128",
+      all(m["round"] == "R128" for m in
+          _rd35._verify_late_rounds(_copy35.deepcopy(_gs_today), _gs_hist)))
+_atp_today = [{"tournament": "Umag", "level": "ATP 250",
+               "date": "2026-07-20", "player1": "A%d" % i,
+               "player2": "B%d" % i, "round": "R32"} for i in range(8)]
+_atp_hist = [{"tournament": "Umag", "match_date": "2026-07-21",
+              "player1": "C%d" % i, "player2": "D%d" % i,
+              "round": "R32"} for i in range(20)]
+check("ATP 250 rane runde se NE diraju (zdrijeb varira)",
+      all(m["round"] == "R32" for m in
+          _rd35._verify_late_rounds(_copy35.deepcopy(_atp_today), _atp_hist)))
+_mon_today = [{"tournament": "Montreal", "level": "ATP Masters 1000",
+               "date": "2026-08-13", "player1": "A%d" % i,
+               "player2": "B%d" % i, "round": "SF"} for i in range(2)]
+_mon_hist = [{"tournament": "Montreal", "match_date": "2026-08-%02d" % d,
+              "player1": "C%d%d" % (d, i), "player2": "D%d%d" % (d, i),
+              "round": "SF"} for d in (10, 11, 12) for i in range(2)]
+check("zavrsnice i dalje rade (Montreal: najkasniji SF ostaje SF)",
+      all(m["round"] == "SF" for m in
+          _rd35._verify_late_rounds(_copy35.deepcopy(_mon_today), _mon_hist)))
+
+# --- E. _infer_rounds vise ne vraca istu nemogucu oznaku ---
+_grp35 = [{"tournament": "Umag", "level": "ATP 250", "date": "2026-07-20",
+           "player1": "A%d" % i, "player2": "B%d" % i,
+           "round": "QF"} for i in range(6)]
+check("6 QF u danu vise ne ostaje QF (mora biti ranija runda)",
+      all(m["round"] == "R16" for m in _rd35._infer_rounds(
+          _copy35.deepcopy(_grp35), {}, {("Umag", "2026-07-20", "QF"): 6})))
+
+# --- F. Zapisi nose datum, vrijeme i mjerenje ---
+check("izmjene rundi nose datum i vrijeme",
+      _rd35src.count("08.09.2026 12:07") >= 3)
+check("popravak dvostrukog brojanja oznacen kao ucinjen",
+      ">>> POPRAVLJENO 08.09.2026 12:07" in _rd35src)
+check("stavka ZA REVIZIJU iz 07.08. je zatvorena",
+      "ZA REVIZIJU (uoceno 07.08.2026)" not in _rd35src)
+check("GS ljestvica nosi izmjereno stanje baze",
+      "_GS_ROUND_TOTAL" in _rd35src and "R64 69 redaka" in _rd35src)
+check("konsenzusni signal nosi ogradu o monotonosti",
+      "MONOTONOST NIJE CISTA" in _tbsrc)
+check("konsenzusni signal nosi prag za ponovnu provjeru",
+      "listopada 2026" in _tbsrc)
+
+check("rules_hash netaknut nakon revizije 08.09.",
       _pr._model_stamp("hard")["rules_hash"] == "a0424315")
 
 print("\n" + "=" * 60)

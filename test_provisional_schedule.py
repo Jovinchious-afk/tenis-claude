@@ -350,13 +350,26 @@ _wf = open(".github/workflows/market_close.yml", encoding="utf-8").read()
 check("workflow ima cron", "cron:" in _wf)
 check("workflow ima ODDS_API_KEY", "ODDS_API_KEY" in _wf)
 
-# --- što NIJE dirano (attribution) ---
+# --- REVIDIRANO 08.09.2026 12:07 ---
+# Oba testa ispod tvrdila su da tržište NE dira selekciju i da je prag 63. Oboje je toga
+# dana namjerno promijenjeno (mjerenja: config/model_config.py iznad TICKET_CONFIG-a i
+# agent/ticket_builder.py iznad _CONSENSUS_GAP_MIN). Testovi sada čuvaju NOVO stanje —
+# ostaviti ih na starom značilo bi da paket tvrdi nešto što više nije istina.
 _tb = open("agent/ticket_builder.py", encoding="utf-8").read()
-check("prag 63% nije diran", '"min_confidence": 63.0' in
+check("prag spušten na 60", '"min_confidence": 60.0' in
       open("config/model_config.py", encoding="utf-8").read())
-check("ticket_builder i dalje ne gleda tržište pri selekciji",
+check("build_ticket sam i dalje ne čita tržište izravno",
       "market_p" not in _tb.split("def build_ticket")[1].split("def ")[0]
       if "def build_ticket" in _tb else True)
+check("tržišni konsenzus ulazi u bodovanje kombinacija",
+      "_consensus_gap_pp" in _tb and "consensus_bonus" in _tb)
+check("konsenzus je BONUS, ne tvrdi filtar",
+      "_CONSENSUS_GAP_BONUS" in _tb and "nije tvrdi filtar" in _tb.lower()
+      or "NIJE tvrdi filtar" in _tb)
+check("konsenzusni signal nosi ogradu o monotonosti",
+      "MONOTONOST NIJE CISTA" in _tb)
+check("konsenzusni signal nosi prag za ponovnu provjeru",
+      "listopada 2026" in _tb.split("_CONSENSUS_GAP_MIN")[0][-2500:])
 
 
 # ============================================================================

@@ -330,7 +330,10 @@ def _clay_fatigue_ok(p) -> bool:
         return True
     conf = p.get("confidence") or 0
     penalty = 6.0 if "Grand Slam" in (m.get("level") or "") else 4.0
-    return (conf - penalty) >= 63.0
+    # 08.09.2026 12:07: bilo hardkodirano 63.0, a docstring je govorio "tiketni prag".
+    # Prag je tog dana spusten na 60, pa je konstanta postala tiha nedosljednost — sada
+    # se cita iz konfiguracije i prati je automatski. Clay-only, hard se ovim ne dira.
+    return (conf - penalty) >= TICKET_CONFIG["min_confidence"]
 
 
 def _conf_floor_ok(p) -> bool:
@@ -443,7 +446,7 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
     # I DALJE NIJE MIJENJANO — prag je nosiva greda selekcije, a zamjena (filtri po kvaliteti
     # nedavnih protivnika / dobi / rundi) mjerena je IN-SAMPLE i tek treba potvrdu na US Openu.
     # Vidi MODEL_CHANGELOG 26.08.2026 14:01, točke 4 i 10.
-    conf_floor = cfg["min_confidence"]            # 63
+    conf_floor = cfg["min_confidence"]            # 60 od 08.09.2026 12:07
     VALUE_MIN_CONF = 58.0
     VALUE_MIN_EDGE = 12.0
     VALUE_MAX_PICKS = 2
@@ -748,6 +751,73 @@ def _find_best_combination(candidates: list, cfg: dict) -> Optional[list]:
     return best
 
 
+# ── KONSENZUS 40+ KLADIONICA naspram SuperSporta (uvedeno 08.09.2026 12:07) ──────
+# NAJJACI SIGNAL PRONADJEN U PROJEKTU DOSAD i prvi koji je prosao dvostupanjsku kapiju
+# iz DECISION_INPUTS (nadjen na Cincinnatiju, potvrdjen na US Openu, oba neovisno).
+#
+# Sto se mjeri: `market_p` je vjerojatnost NASEG player1 po konsenzusu ~47 kladionica
+# (agent/market.py `find_for_pair` ju vec poravnava na naseg player1 — provjereno
+# 08.09.2026, poravnanje je ispravno). Devigirana SuperSport cijena je nasa `p_mkt`.
+# Razlika `gap = konsenzus(pick) - SuperSport(pick)`, u postotnim bodovima, pozitivna
+# kad ostatak trzista drzi nas pick JACIM nego kladionica kod koje igramo.
+#
+# MJERENJE (n=169 analiza s konsenzusom, 15.08.-08.09.2026, ravan ulog 50):
+#     gap >= +1pp   n= 61 | pogodak 83,6% | edge naspram cijene +10,5pp | ROI +11,3%
+#     gap <  +1pp   n=108 | pogodak 62,0% | edge                 -2,0pp | ROI  -9,2%
+#   bootstrap 95% CI za edge skupine gap>=+1: [+0,93pp, +19,20pp] — NE prelazi nulu
+#   permutacijski test na razliku edgea: P = 0,036
+#   kontrola cijene (isti pojas kvote, gap>=+1 naspram ostalih):
+#       1,00-1,25  +8,3pp | 1,25-1,45 +10,6pp | 1,45-1,75 +15,3pp | 1,75+ +44,9pp
+#     -> zbirno +21,6pp UZ kontrolu, dakle nije "gap znaci favorit"
+#   podjela po datumu: +11,5% (do 31.08.) i +11,1% (od 31.08.) — stabilno
+#   po turniru: US Open +11,8% (n=47), Cincinnati +9,5% (n=14) — replicira se
+#   pokrivenost: 100% analiza od 30.08.2026 (prije toga 38%, ranije 0%)
+#
+# OGRADE, zapisane namjerno:
+#   1. MONOTONOST NIJE CISTA. Pojas gap <= -1pp ide +6,8pp (n=21), a -1..-0,3 ide
+#      -10,9pp. Da je mehanizam cist, ocekivali bismo ravnomjeran uspon. Nije ga.
+#   2. n=61 u pozitivnoj skupini je malo, a prag +1pp sam sam odabrao gledajuci
+#      podatke. Osjetljivost na prag: +0,5pp -> +6,1% | +1,0 -> +11,3% | +1,25 ->
+#      +17,4% | +1,5 -> +8,7% | +2,0 -> +7,8%. Svi pozitivni, ali vrh je bucan.
+#   3. NA TIKETU JOS NIJE DOKAZAN. Simulacija 3-6 parova uz uvjet gap>=+1 daje samo
+#      3-4 dana s dovoljno kandidata (0W). To NIJE dokaz da ne radi — uzorak je
+#      premalen za bilo kakav zakljucak u bilo kojem smjeru.
+# Zato ovo NIJE tvrdi filtar nego BONUS U BODOVANJU: medju kombinacijama koje ionako
+# prolaze sva pravila, prednost imaju one koje trziste podupire. Ako se do kraja
+# listopada 2026 skupi 60+ pickova uz gap>=+1 i skupina ostane iznad +5pp edgea,
+# razmotriti podizanje u tvrdi uvjet. Ako padne ispod nule — maknuti bonus.
+_CONSENSUS_GAP_MIN = 1.0     # postotnih bodova
+_CONSENSUS_GAP_BONUS = 4.0   # bodova po picku u _score_combo
+
+
+def _consensus_gap_pp(pred: dict):
+    """Koliko je konsenzus trzista naklonjeniji NASEM PICKU od SuperSporta, u pp.
+
+    Vraca None kad konsenzus ili obje kvote nedostaju (prije 15.08.2026, ili kad
+    `find_for_pair` nije nasao par). Nikad ne baca — bodovanje mora raditi i bez trzista.
+    """
+    m = pred.get("match") or {}
+    mp = m.get("market_p")
+    o1, o2 = m.get("odds_p1"), m.get("odds_p2")
+    try:
+        mp = float(mp)
+        o1, o2 = float(o1), float(o2)
+    except (TypeError, ValueError):
+        return None
+    if not (o1 > 1 and o2 > 1) or not (0.0 < mp < 1.0):
+        return None
+    pick = (pred.get("pick") or "").lower()
+    p1 = (m.get("player1") or "").lower()
+    if not pick or not p1:
+        return None
+    is_p1 = pick in p1 or p1 in pick
+    # devigirana SuperSport vjerojatnost za NAS PICK
+    s = 1.0 / o1 + 1.0 / o2
+    ss_pick = (1.0 / (o1 if is_p1 else o2)) / s
+    cons_pick = mp if is_p1 else (1.0 - mp)
+    return 100.0 * (cons_pick - ss_pick)
+
+
 def _score_combo(combo: tuple) -> float:
     """Score a combination using joint probability as primary signal."""
     confs = [max(1, p.get("confidence", 50)) for p in combo]
@@ -787,15 +857,36 @@ def _score_combo(combo: tuple) -> float:
     high_conf_count = sum(1 for c in confs if c >= 72)
 
     # Weakest pick penalty
+    # OSLABLJENO 08.09.2026 12:07 s faktora 1,5 na 0,6, i sidro s 68 na 63.
+    # Razlog: kazna je gurala izbor prema visokoj pouzdanosti, a izmjereno je da je
+    # to upravo skupina koja gubi (conf 65-68 ROI -35,4% n=45; conf 63-65 -8,4% n=97;
+    # conf 60-63 +4,7% n=84). Sidro 68 je znacilo da je SVAKI pick ispod 68 kaznjen,
+    # ukljucujuci najbolji pojas. Nije uklonjena u cijelosti jer i dalje ima smisla
+    # da najslabija noga povlaci kombinaciju dolje — samo ne ovako grubo.
     weakest = min(confs)
-    weakest_penalty = max(0.0, (68 - weakest) * 1.5)
+    weakest_penalty = max(0.0, (63 - weakest) * 0.6)
 
     # Extra pick penalty
-    extra_penalty = (len(combo) - 4) * 3
+    # Sidro pomaknuto s 4 na _MIN_LEGS_ANCHOR 08.09.2026 12:07 uz promjenu strukture na
+    # 3-6 parova. Prije je trojac dobivao SKRIVENI BONUS od +3 boda ((3-4)*3 = -3), sto
+    # nije bila namjera nego posljedica fiksne cetvorke. Kazna sada pocinje od nule na
+    # minimalnom broju nogu i raste s njim, sto se poklapa s mjerenjem (svaka dodatna
+    # noga odnosi vrijednost: 1 par +4,3%, 2-3 para -26,4%, 3-6 para -67,9%).
+    extra_penalty = (len(combo) - TICKET_CONFIG["min_matches"]) * 3
+
+    # Konsenzus trzista (08.09.2026 12:07) — obrazlozenje uz _CONSENSUS_GAP_MIN gore.
+    # Namjerno je bonus, ne filtar, i namjerno je manji od edge bonusa: signal je
+    # izmjeren i znacajan (P=0,036), ali s necistom monotonoscu i n=61.
+    consensus_bonus = 0.0
+    for pr in combo:
+        g = _consensus_gap_pp(pr)
+        if g is not None and g >= _CONSENSUS_GAP_MIN:
+            consensus_bonus += _CONSENSUS_GAP_BONUS
 
     return (joint_prob * 100
             + edge_total * 1.5
             + high_conf_count * 2
+            + consensus_bonus
             - weakest_penalty
             - extra_penalty)
 

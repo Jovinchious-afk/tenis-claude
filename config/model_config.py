@@ -85,18 +85,41 @@ SURFACE_MAP = {
     "carpet": "Carpet",
 }
 
-# Struktura tiketa — UJEDNAČENA za sve podloge (korisnikova odluka, 26.07.2026):
-# 4-6 parova, kombinirana kvota 6.0-40.0. Prije: 4-7 parova / 6.5-40 uz surface override
+# Struktura tiketa — UJEDNAČENA za sve podloge (korisnikova odluka, 26.07.2026;
+# raspon revidiran 08.09.2026 12:07, vidi blok neposredno iznad TICKET_CONFIG-a). Prije: 4-7 parova / 6.5-40 uz surface override
 # za clay (6.5-30, max 6) i hard (max 6). Razlog ujednačavanja: manje parova = manja
 # izloženost akumulator-matematici, a jedinstvena pravila su lakša za praćenje.
-# Kad ima premalo mečeva za 4 para, sustav i dalje ide u analysis-only (nepromijenjeno).
+# Kad ima premalo mečeva za minimalan broj parova, sustav i dalje ide u analysis-only.
+# ── REVIZIJA 08.09.2026 12:07 (korisnikova odluka + mjerenje) ─────────────────
+# Struktura: 3-6 parova, kombinirana kvota 4,0-50,0. Prije: 4-6 parova / 6,0-40,0.
+# Prag pouzdanosti: 63 -> 60.
+#
+# ZASTO RASPON: simulacija na 36 stvarnih dana od 04.08.2026 (302 razrijesene analize,
+# ulog 50 po tiketu, kombinacije gradjene istim redoslijedom kao _select_best_combo):
+#     4-6 para, 6-40 (staro)   11 dana   0W-11L   ROI -100,0%
+#     3-6 para, 4-50 (novo)    13 dana    1W-12L  ROI  -67,9%
+#     2-3 para, 3-12           29 dana    7W-22L  ROI  -26,4%
+#     1 par (najbolji dnevni)  34 dana   27W- 7L  ROI   +4,3%
+# Novi raspon je mjerljivo bolji od starog, ali NIJE pozitivan. Smjer je monoton:
+# svaka dodatna noga odnosi vrijednost. Korisnik je odabrao 3-6 uz punu svijest o tome
+# (poruka 08.09.2026) — zapisano ovdje da se ne mora ponovno mjeriti.
+#
+# ZASTO PRAG 60: pojedinacne oklade ravnim ulogom, isto razdoblje:
+#     conf >= 63 (stari prag)  n=185  63,2%  ROI -12,5%  bootstrap CI [-22,8%, -2,4%]
+#     conf 60-63               n= 84  70,2%  ROI  +4,7%
+#     conf 63-65               n= 97         ROI  -8,4%
+#     conf 65-68               n= 45         ROI -35,4%
+# Interval za conf>=63 NE prelazi nulu — to je jedini statisticki cvrst nalaz u paketu,
+# i negativan je. Prag 63 je aktivno birao skupinu koja gubi. Spusten na 60, NE nize:
+# 58-60 je bucan i split-half mu okrece predznak (-5 / +11).
+# Vidi i memoriju "confidence-je-mrtva-varijabla" — ovo joj je treca neovisna potvrda.
 TICKET_CONFIG = {
     "stake": 50.0,
-    "min_matches": 4,
+    "min_matches": 3,
     "max_matches": 6,
-    "min_combined_odds": 6.0,
-    "max_combined_odds": 40.0,
-    "min_confidence": 63.0,
+    "min_combined_odds": 4.0,
+    "max_combined_odds": 50.0,
+    "min_confidence": 60.0,
     "fallback_confidence": 58.0,
     "last_resort_confidence": 55.0,
 }

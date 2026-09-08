@@ -1742,18 +1742,18 @@ def _infer_rounds(matches: list, screenshot_odds: dict = None,
         if max_for_current is not None and n <= max_for_current:
             continue  # API-jeva oznaka je fizički moguća — vjeruj joj
 
-        # ZA REVIZIJU (uoceno 07.08.2026): ljestvice ispod mogu vratiti ISTU oznaku koja je
-        # maloprije proglasena nemogucom, pa se kriva oznaka ne popravi. Uzrok: pragovi
-        # (`>= 4`, `>= 8`) ukljucuju i maksimum runde ISPOD, a ovamo se dolazi samo kad je
-        # n VECI od maksimuma trenutne oznake — dakle prava runda je nuzno RANIJA (veca).
+        # >>> POPRAVLJENO 08.09.2026 12:07 (bilo "ZA REVIZIJU" od 07.08.2026).
+        # Ljestvice ispod mogle su vratiti ISTU oznaku koja je maloprije proglasena
+        # nemogucom, pa se kriva oznaka nije popravila. Uzrok: pragovi (`>= 4`, `>= 8`)
+        # ukljucuju i maksimum runde ISPOD, a ovamo se dolazi samo kad je n VECI od
+        # maksimuma trenutne oznake — dakle prava runda je nuzno RANIJA (veca).
         # Pogodjeni slucajevi:
-        #   ATP 250/500: oznaka QF  uz n=5..7   -> `n >= 4`  vrati QF  (max QF je 4)
-        #   ATP 250/500: oznaka R16 uz n=9..15  -> `n >= 8`  vrati R16 (max R16 je 8)
-        #   sve razine:  oznaka SF  uz n=3      -> `n in (2,3)` vrati SF (max SF je 2)
-        # Steta je ogranicena — NE stvara novu krivu oznaku, samo ne popravi staru.
-        # Popravak bi bio "inferred mora biti strogo ranija runda od current_round", ali to
-        # mijenja rundu koja ide u prompt, dakle i pickove; model je zamrznut. Ne dirati bez
-        # odluke na reviziji.
+        #   ATP 250/500: oznaka QF  uz n=5..7   -> `n >= 4`  vratilo QF  (max QF je 4)
+        #   ATP 250/500: oznaka R16 uz n=9..15  -> `n >= 8`  vratilo R16 (max R16 je 8)
+        #   sve razine:  oznaka SF  uz n=3      -> `n in (2,3)` vratilo SF (max SF je 2)
+        # Popravak je na dnu bloka: ako izvedena oznaka nije strogo ranija od trenutne,
+        # uzima se prva ranija u `_ROUND_ORDER`. Model (prompt + pravila) se ovim NE
+        # mijenja — mijenja se samo ulaz koji je i dosad trebao biti tocan.
         if "Grand Slam" in level:
             if n >= 32:   inferred = "R128"
             elif n >= 16: inferred = "R64"
@@ -1784,6 +1784,15 @@ def _infer_rounds(matches: list, screenshot_odds: dict = None,
             elif n in (2, 3): inferred = "SF"
             else:         inferred = "F"
 
+        # Dosli smo ovamo samo zato sto je `n` VECI od maksimuma za `current_round`, pa
+        # prava runda mora biti ranija. Ako je ljestvica vratila istu ili kasniju oznaku,
+        # spusti na prvu strogo raniju (08.09.2026 12:07).
+        if current_round in _ROUND_ORDER and inferred in _ROUND_ORDER:
+            if _ROUND_ORDER.index(inferred) >= _ROUND_ORDER.index(current_round):
+                idx = _ROUND_ORDER.index(current_round)
+                if idx > 0:
+                    inferred = _ROUND_ORDER[idx - 1]
+
         if current_round != inferred:
             print(f"  Round fix: {tournament} ({date}) — {current_round} → {inferred} ({n} matches)")
             for m in group:
@@ -1799,6 +1808,19 @@ _ROUND_ORDER = ["R128", "R64", "R32", "R16", "QF", "SF", "F"]
 # zavrsnice. Rane runde ovise o velicini zdrijeba (96 vs 128 vs 32) i mi ionako vidimo
 # samo screenshotane meceve, pa se NE diraju.
 _LATE_ROUND_TOTAL = {"F": 1, "SF": 2, "QF": 4}
+
+# GRAND SLAM: zdrijeb je UVIJEK 128, pa su i rane runde nedvosmislene (08.09.2026 12:07).
+# Ovo je jedina razina turnira gdje velicina zdrijeba ne varira, pa se ista provjera koja
+# se za sve turnire radi na F/SF/QF ovdje smije prosiriti na cijelu ljestvicu.
+#
+# POVOD (izmjereno na bazi 08.09.2026 12:07, korisnik prijavio krive runde):
+#     US Open 2026:  R64 69 redaka (smije 32) | R32 27 (smije 16) | R16 11 (smije 8)
+#                    QF 5 (smije 4) | SF 4 (smije 2)
+# Uzrok viska u R64: prvo kolo zdrijeba od 128 JE R128 (64 meca), a API ga zove "R64".
+# `_infer_rounds` to ne uhvati jer gleda jedan dan — prvo kolo se igra kroz 2-3 dana s
+# ~21 mecom dnevno, a 21 <= 32 (max za R64 u jednom danu), pa oznaka prolazi kao moguca.
+# Nemoguca postaje tek kad se zbroji kroz turnir, sto je tocno posao ove funkcije.
+_GS_ROUND_TOTAL = {"F": 1, "SF": 2, "QF": 4, "R16": 8, "R32": 16, "R64": 32, "R128": 64}
 
 
 def _verify_late_rounds(matches: list, db_history: list = None) -> list:
@@ -1857,9 +1879,10 @@ def _verify_late_rounds(matches: list, db_history: list = None) -> list:
     polufinala. Nalaz se drzao u 3/3 turnira i prezivio kontrolu cijene, pa nije pao, ali od
     danas nosi mjerenu ogradu. Usporedi staru biljesku da su runde bile 42,6% krive.
 
-    POPRAVAK ZA POSLIJE US OPENA (ne prije): izbaciti iz `db_history` retke koji se poklapaju
-    s danasnjim mecevima po (datum + oba igraca) prije spajanja u `pool`. Sitno i cisto, ali
-    mijenja rundu u promptu pa ide zasebno i s razmakom od drugih izmjena.
+    >>> POPRAVLJENO 08.09.2026 12:07. Retci iz `db_history` koji se poklapaju s danasnjim
+    mecevima po (datum + oba prezimena) preskacu se prije spajanja u `pool`, pa se isti mec
+    vise ne broji dvaput kad se run pokrene dvaput u danu. Vidi `_pair_key` nize.
+    Ucinak provjeren na stanju baze 08.09.2026 — opis mjerenja u MODEL_CHANGELOG-u.
     """
     if not matches:
         return matches
@@ -1869,24 +1892,60 @@ def _verify_late_rounds(matches: list, db_history: list = None) -> list:
         r = m.get("round")
         if r in _ROUND_ORDER:
             pool[m.get("tournament", "")].append([m.get("date", ""), m, r])
+    # 08.09.2026 12:07 — kljuc za prepoznavanje ISTOG meca u danasnjem popisu i u bazi.
+    # Prezimena, jer se puni oblik imena razlikuje izmedju API-ja i vec upisanih redaka
+    # ("Botic Van De Zandschulp" naspram "B. van de Zandschulp").
+    def _pair_key(date, a, b):
+        def sn(x):
+            parts = str(x or "").lower().replace("-", " ").split()
+            return parts[-1] if parts else ""
+        return (str(date or "")[:10], frozenset([sn(a), sn(b)]))
+
+    seen_today = {_pair_key(m.get("date"), m.get("player1"), m.get("player2"))
+                  for m in matches}
+    _skipped = 0
     for h in (db_history or []):
         r = h.get("round")
-        if r in _ROUND_ORDER and h.get("tournament") in pool:
-            pool[h["tournament"]].append([h.get("match_date", ""), None, r])
+        if r not in _ROUND_ORDER or h.get("tournament") not in pool:
+            continue
+        # Bez ovoga bi se mec koji je raniji run DANAS vec upisao brojao dvaput —
+        # jednom kao zivi dict, jednom kao vlastita "povijest" od prije par sati.
+        if _pair_key(h.get("match_date"), h.get("player1"), h.get("player2")) in seen_today:
+            _skipped += 1
+            continue
+        pool[h["tournament"]].append([h.get("match_date", ""), None, r])
+    if _skipped:
+        print(f"  Runda: preskoceno {_skipped} redaka iz baze koji su isti mec kao danas "
+              f"(zastita od dvostrukog brojanja pri ponovnom pokretanju).")
+
+    # Razina turnira iz danasnjih mecheva (povijesni retci ju ne nose). 08.09.2026 12:07.
+    level_by_tour = {}
+    for m in matches:
+        t = m.get("tournament", "")
+        if t and m.get("level"):
+            level_by_tour[t] = m["level"]
 
     changed_total = 0
     for tournament, entries in pool.items():
+        # Grand Slam ima fiksan zdrijeb od 128, pa se provjeravaju i rane runde
+        # (obrazlozenje uz `_GS_ROUND_TOTAL`). Ostali turniri samo zavrsnice.
+        is_gs = "Grand Slam" in (level_by_tour.get(tournament) or "")
+        totals = _GS_ROUND_TOTAL if is_gs else _LATE_ROUND_TOTAL
+        # Od kasnijih prema ranijima, da se visak uredno prelijeva stepenicu po stepenicu.
+        check_order = [r for r in reversed(_ROUND_ORDER) if r in totals]
         for _ in range(8):
             by_round = defaultdict(list)
             for e in entries:
                 by_round[e[2]].append(e)
             moved = False
-            for rnd in ("F", "SF", "QF"):
+            for rnd in check_order:
                 lst = by_round.get(rnd, [])
-                mx = _LATE_ROUND_TOTAL[rnd]
+                mx = totals[rnd]
                 if len(lst) > mx:
                     lst.sort(key=lambda x: x[0])
                     idx = _ROUND_ORDER.index(rnd)
+                    if idx == 0:
+                        continue      # R128 nema raniju rundu; visak ostavi na miru
                     for e in lst[:len(lst) - mx]:
                         e[2] = _ROUND_ORDER[idx - 1]
                         moved = True
@@ -1902,7 +1961,7 @@ def _verify_late_rounds(matches: list, db_history: list = None) -> list:
                 changed_total += 1
     if changed_total:
         print(f"  Runda (razina turnira): ispravljeno {changed_total} oznaka "
-              f"(turnir smije imati najvise 1 F, 2 SF, 4 QF ukupno).")
+              f"(najvise 1 F, 2 SF, 4 QF; na Grand Slamu i 8 R16, 16 R32, 32 R64).")
     return matches
 
 

@@ -13,6 +13,138 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-09-08 12:07 — REVIZIJA HARD MODELA NA KRAJU US OPENA: struktura tiketa,
+## prag pouzdanosti, tržišni konsenzus u bodovanju, dva popravka oznaka rundi.
+
+**Povod:** korisnikov zahtjev nakon što su svi tiketi u zadnje vrijeme išli u analysis-only,
+uz prijavu da su oznake rundi na US Openu pokvarene (isti dan viđeni QF, SF i F) i traženje
+da se iz odds-API podataka izvuče nešto s predikcijskom vrijednošću.
+
+`rules_hash` OSTAJE `a0424315` — prompt nije diran ni jednim slovom. Sve izmjene su u
+kodu koji provodi selekciju i u ulaznim podacima. Obrazac "prompt bilježi, kod provodi".
+
+---
+
+### 1. Struktura tiketa: 3-6 parova, kombinirana kvota 4,0-50,0 (bilo 4-6 / 6,0-40,0)
+
+Korisnikova odluka. Simulacija na 36 stvarnih dana od 04.08.2026 (302 razriješene analize,
+ulog 50 po tiketu, kombinacije građene istim redoslijedom kao `_select_best_combo`):
+
+| postavka | dana | W | L | ROI |
+|---|---|---|---|---|
+| 4-6 para, 6-40 (staro) | 11 | 0 | 11 | -100,0% |
+| 3-6 para, 4-50 (novo) | 13 | 1 | 12 | -67,9% |
+| 2-3 para, 3-12 | 29 | 7 | 22 | -26,4% |
+| 1 par (najbolji dnevni) | 34 | 27 | 7 | +4,3% |
+
+Novi raspon je mjerljivo bolji od starog ali NIJE pozitivan. Smjer je monoton: svaka
+dodatna noga odnosi vrijednost. Korisnik je odabrao 3-6 uz punu svijest o tome — zapisano
+da se ne mora ponovno mjeriti.
+
+### 2. Prag pouzdanosti 63 -> 60
+
+Pojedinačne oklade ravnim ulogom, isto razdoblje:
+
+    conf >= 63 (stari prag)  n=185  63,2%  ROI -12,5%  bootstrap CI [-22,8%, -2,4%]
+    conf 60-63               n= 84  70,2%  ROI  +4,7%
+    conf 63-65               n= 97         ROI  -8,4%
+    conf 65-68               n= 45         ROI -35,4%
+
+Interval za `conf>=63` NE prelazi nulu — jedini statistički čvrst nalaz u paketu, i
+negativan je. Prag 63 je aktivno birao skupinu koja gubi. Nije spušten ispod 60: pojas
+58-60 je bučan i split-half mu okreće predznak (-5 / +11).
+
+Ovo je TREĆA neovisna potvrda nalaza iz memorije "confidence je mrtva varijabla"
+(17.08. Brier gori od konstante; 26.08. parcijalna korelacija; sada ROI po pojasu).
+
+### 3. NOVO — tržišni konsenzus ulazi u bodovanje kombinacija
+
+**Prvi signal u projektu koji je prošao dvostupanjsku kapiju iz `DECISION_INPUTS.md`**
+(nađen na Cincinnatiju, potvrđen na US Openu, oba neovisno pozitivna).
+
+Mjeri se razlika između konsenzusa ~47 kladionica (`market_p`, već poravnat na našeg
+player1 u `agent/market.py:find_for_pair` — poravnanje provjereno 08.09.) i devigirane
+SuperSport cijene, u postotnim bodovima, za NAŠ PICK.
+
+    gap >= +1pp   n= 61 | pogodak 83,6% | edge +10,5pp | ROI +11,3%
+    gap <  +1pp   n=108 | pogodak 62,0% | edge  -2,0pp | ROI  -9,2%
+
+    bootstrap 95% CI za edge (gap>=+1): [+0,93pp, +19,20pp]  -> NE prelazi nulu
+    permutacijski test na razliku edgea:  P = 0,036
+    kontrola cijene (isti pojas kvote):   +8,3 / +10,6 / +15,3 / +44,9pp -> zbirno +21,6pp
+    podjela po datumu:                    +11,5% i +11,1%
+    po turniru:                           US Open +11,8% (n=47), Cincinnati +9,5% (n=14)
+    pokrivenost:                          100% analiza od 30.08.2026
+
+**Izvedeno kao BONUS u `_score_combo`, NE kao tvrdi filtar.** Tri ograde, zapisane i u kodu:
+1. Monotonost nije čista — pojas `gap <= -1pp` ide +6,8pp (n=21), a -1..-0,3 ide -10,9pp.
+2. n=61 je malo, a prag +1pp odabran gledajući podatke. Osjetljivost: +0,5 -> +6,1%,
+   +1,0 -> +11,3%, +1,25 -> +17,4%, +1,5 -> +8,7%, +2,0 -> +7,8%. Svi pozitivni, vrh bučan.
+3. NA TIKETU NIJE DOKAZAN: simulacija 3-6 parova uz uvjet `gap>=+1` daje samo 3-4 dana s
+   dovoljno kandidata (0W). To NIJE dokaz da ne radi — uzorak je premalen za bilo kakav
+   zaključak u bilo kojem smjeru.
+
+Prag za sljedeću odluku: ako se do kraja listopada 2026 skupi 60+ pickova uz `gap>=+1` i
+skupina ostane iznad +5pp edgea -> razmotriti podizanje u tvrdi uvjet. Ako padne ispod
+nule -> maknuti bonus.
+
+**Usput izmjereno i ODBAČENO:** raspon među kladionicama (`market_spread`) ne nosi ništa
+(r=+0,015, P=0,844); uski i široki raspon daju +0,9% i -5,2%.
+
+### 4. Bodovanje kombinacija: dvije stvari koje su radile PROTIV mjerenja
+
+- `weakest_penalty`: faktor 1,5 -> 0,6, sidro 68 -> 63. Kazna je gurala izbor prema visokoj
+  pouzdanosti, a to je upravo skupina koja gubi (65-68 ide -35,4%). Sidro 68 značilo je da
+  je SVAKI pick ispod 68 kažnjen, uključujući najbolji pojas 60-63.
+- `extra_penalty`: sidro 4 -> `TICKET_CONFIG["min_matches"]`. Uz staru fiksnu četvorku
+  trojac bi dobio SKRIVENI BONUS od +3 boda ((3-4)*3 = -3), što nije bila namjera.
+
+### 5. Oznake rundi — dva popravka
+
+**Stanje prije (izmjereno na bazi 08.09.2026 12:07):**
+
+    US Open 2026:   R64 69 (smije 32) | R32 27 (16) | R16 11 (8) | QF 5 (4) | SF 4 (2)
+    Cincinnati:     R16 21 (8) | SF 5 (2) | F 3 (1)
+    Winston-Salem:  R16 34 (8) | QF 10 (4)
+
+**(a) Dvostruko brojanje pri ponovnom pokretanju** — `_verify_late_rounds` spajao je
+`db_history` s današnjim mečevima bez uklanjanja duplikata, pa se meč koji je raniji run
+istog dana već upisao brojao dvaput i spuštao za jednu rundu (izmjereno na Winston-Salemu
+28.08.: Buse-Bonzi SF->QF, Duckworth-Fery F->SF). Sada se retci iz baze koji se poklapaju
+s današnjima po (datum + oba prezimena) preskaču. Bilo označeno "POPRAVAK ZA POSLIJE US
+OPENA" — US Open je gotov.
+
+**(b) Grand Slam prvo kolo je R128, ne R64** — ždrijeb od 128 igra prvo kolo kroz 2-3 dana
+s ~21 mečom dnevno; 21 <= 32 (dnevni maksimum za R64), pa je `_infer_rounds` oznaku
+propuštao kao moguću. Nemoguća postaje tek zbrojena kroz turnir. Provjera na razini turnira
+proširena je s F/SF/QF na cijelu ljestvicu, ali SAMO za Grand Slam — jedina razina gdje
+veličina ždrijeba ne varira (uvijek 128). ATP 250/500/Masters se u ranim rundama i dalje
+NE diraju.
+
+**(c) Usput zatvorena stavka "ZA REVIZIJU" od 07.08.2026** — ljestvice u `_infer_rounds`
+mogle su vratiti ISTU oznaku koja je maloprije proglašena nemogućom (npr. 6 mečeva
+označenih QF: `n >= 4` vraćalo je opet QF). Sada izvedena runda mora biti strogo ranija.
+
+### 6. Uklonjena tiha nedosljednost
+
+`_clay_fatigue_ok` je imao hardkodiran prag `63.0` uz docstring koji ga zove "tiketni prag".
+Spuštanjem praga na 60 postao bi kriva konstanta; sada čita `TICKET_CONFIG["min_confidence"]`.
+Clay-only, hard se time ne dira.
+
+---
+
+**Testovi:** `test_cap_and_weather.py` odjeljak 35 (24 provjere) pokriva sve gore navedeno,
+uključujući regresijske testove za oba kvara rundi i provjeru da `rules_hash` ostaje
+`a0424315`. Dva testa koja su čuvala STARE vrijednosti (prag 63, granice 4-6/6-40) i jedan
+u `test_provisional_schedule.py` koji je tvrdio da tržište ne dira selekciju ažurirani su
+na novo stanje — ostaviti ih bilo bi da paket tvrdi nešto što više nije istina.
+
+**Što NIJE dirano:** prompt, težine (v18), `_HARD_GS_MIN_CONF` (65 — 63-65 je najgori GS
+pojas, -10,3pp), `_UNDERDOG_MIN_ODDS` (2,00), `_EDGE_CAP`/`_UNDERDOG_EDGE_CAP`, oprezna
+zona 1,43-1,60 i njezino ograničenje na 1 pick po tiketu.
+
+---
+
 ## 2026-09-06 11:20 — REVIZIJA SVIH OTVORENIH ZAPISA U KODU: pet zatvoreno,
 ## dva bila napravljena a vodila se kao odgodjena, pet ostaje otvoreno.
 
