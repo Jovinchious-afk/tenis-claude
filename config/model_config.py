@@ -95,17 +95,27 @@ SURFACE_MAP = {
 # Prag pouzdanosti: 63 -> 60.
 #
 # ZASTO RASPON: simulacija na 36 stvarnih dana od 04.08.2026 (302 razrijesene analize,
-# ulog 50 po tiketu, kombinacije gradjene istim redoslijedom kao _select_best_combo):
-#     4-6 para, 6-40 (staro)   11 dana   0W-11L   ROI -100,0%
-#     3-6 para, 4-50 (novo)    13 dana    1W-12L  ROI  -67,9%
-#     2-3 para, 3-12           29 dana    7W-22L  ROI  -26,4%
-#     1 par (najbolji dnevni)  34 dana   27W- 7L  ROI   +4,3%
-# Novi raspon je mjerljivo bolji od starog, ali NIJE pozitivan. Smjer je monoton:
-# svaka dodatna noga odnosi vrijednost. Korisnik je odabrao 3-6 uz punu svijest o tome
-# (poruka 08.09.2026) — zapisano ovdje da se ne mora ponovno mjeriti.
+# ulog 50 po tiketu). VAZNO: brojke ispod su iz simulacije koja poziva STVARNI
+# `_find_best_combination` i `_score_combo`, ne skicu. Prva skica je imala `break` nakon
+# prvog broja nogu koji da valjanu kombinaciju — kod ga NEMA (prolazi sve od max do min i
+# bira po bodovima) — pa je precijenila i broj nogu i gubitak. Ako se ovo ikad ponovno
+# mjeri, mora ici kroz pravi kod.
+#     4-6 para, 6-40, conf 63 (staro)    9 dana   0W- 9L   ROI -100,0%   noge 4x7, 5x2
+#     3-6 para, 4-50, conf 60 (novo)    20 dana   3W-17L   ROI  -34,6%   noge 3x14, 4x5, 6x1
+#     isti raspon uz stari prag 63      14 dana   2W-12L   ROI  -37,5%
+#     3-6 para, 3-50, conf 60           24 dana   5W-19L   ROI  -29,1%
+#     2-6 para, 2,5-50, conf 60         28 dana   7W-21L   ROI  -30,7%
+#     1 par (najbolji dnevni)           35 dana  23W-12L   ROI   -6,9%
+# Novi raspon je bitno bolji od starog (-100% -> -34,6%) ali NIJE pozitivan. Bodovanje
+# stvarno preferira manje nogu: trojac je izabran 14 od 20 dana, sto je i bila namjera.
+# NIJEDNA struktura tiketa sama po sebi nije pozitivna — ni jedan par (-6,9%). Jedina
+# pozitivna skupina u cijelom paketu je trzisni konsenzus (vidi _CONSENSUS_GAP_MIN u
+# agent/ticket_builder.py): gap>=+1pp daje +11,3% ROI ravnim ulogom.
+# Korisnik je odabrao 3-6 uz punu svijest o tome (poruka 08.09.2026).
 #
 # ZASTO PRAG 60: pojedinacne oklade ravnim ulogom, isto razdoblje:
 #     conf >= 63 (stari prag)  n=185  63,2%  ROI -12,5%  bootstrap CI [-22,8%, -2,4%]
+#     conf >= 60 (novi prag)   n=269  65,4%  ROI  -7,1%
 #     conf 60-63               n= 84  70,2%  ROI  +4,7%
 #     conf 63-65               n= 97         ROI  -8,4%
 #     conf 65-68               n= 45         ROI -35,4%

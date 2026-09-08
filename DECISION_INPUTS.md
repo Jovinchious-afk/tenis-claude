@@ -75,7 +75,7 @@ Težine su hard v18; žive u Supabase `model_weights`, ne u kodu.
 
 **Ograničava listić:**
 
-- **3-6 parova**, ukupna kvota **4-50** *(korisnikova odluka 08.09.2026 12:07; prije 4-6 / 6-40)*. Mjereno prije izmjene na 36 stvarnih dana: staro −100,0%, novo −67,9%, dva para −26,4%, jedan par +4,3% — svaka dodatna noga odnosi vrijednost, pa je novi raspon bolji ali i dalje nije pozitivan.
+- **3-6 parova**, ukupna kvota **4-50** *(korisnikova odluka 08.09.2026 12:07; prije 4-6 / 6-40)*. Mjereno kroz stvarni `_find_best_combination` na 36 dana: staro −100,0% (9 dana), novo −34,6% (20 dana, od toga 14 trojaca), jedan par −6,9%. Novi raspon je bitno bolji i bodovanje doista bira manje nogu, ali **nijedna struktura tiketa nije pozitivna** — jedina pozitivna skupina je tržišni konsenzus (niže).
 - **strop pouzdanosti 70%** *(podignut s 64 dana 17.08.2026 11:46)* — iznad 70 model mora
   ispuniti `above_64_basis` (ime polja je povijesno) s dvije mjerene potvrde s brojkama iz
   različitih kategorija i rečenicom što bi ga oborilo; inače kod spušta na 70 i bilježi

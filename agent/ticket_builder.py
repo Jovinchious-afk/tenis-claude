@@ -713,8 +713,9 @@ def _find_best_combination(candidates: list, cfg: dict) -> Optional[list]:
       score = joint_probability × 100
             + edge_bonus × 1.5        (edge >= 3pp, proportional, cap 10/pick)
             + high_conf_count × 2     (confidence >= 72%)
-            - weakest_pick_penalty    (max(0, 68 - min_conf) × 1.5)
-            - extra_pick_penalty      ((n_picks - 4) × 3)
+            + consensus_bonus         (+4 po picku uz gap >= +1pp, 08.09.2026 12:07)
+            - weakest_pick_penalty    (max(0, 63 - min_conf) × 0.6, oslabljeno 08.09.2026)
+            - extra_pick_penalty      ((n_picks - min_matches) × 3)
     Combined odds range is a hard filter, not a target.
     Clay disciplina: max 1 clay pick u mrtvoj zoni kvota 1.50-1.90 po kombinaciji.
     """

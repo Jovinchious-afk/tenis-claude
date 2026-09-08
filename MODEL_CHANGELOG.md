@@ -28,18 +28,26 @@ kodu koji provodi selekciju i u ulaznim podacima. Obrazac "prompt bilježi, kod 
 ### 1. Struktura tiketa: 3-6 parova, kombinirana kvota 4,0-50,0 (bilo 4-6 / 6,0-40,0)
 
 Korisnikova odluka. Simulacija na 36 stvarnih dana od 04.08.2026 (302 razriješene analize,
-ulog 50 po tiketu, kombinacije građene istim redoslijedom kao `_select_best_combo`):
+ulog 50 po tiketu), kroz **stvarni** `_find_best_combination` i `_score_combo`:
 
-| postavka | dana | W | L | ROI |
-|---|---|---|---|---|
-| 4-6 para, 6-40 (staro) | 11 | 0 | 11 | -100,0% |
-| 3-6 para, 4-50 (novo) | 13 | 1 | 12 | -67,9% |
-| 2-3 para, 3-12 | 29 | 7 | 22 | -26,4% |
-| 1 par (najbolji dnevni) | 34 | 27 | 7 | +4,3% |
+| postavka | dana | W | L | ROI | raspodjela nogu |
+|---|---|---|---|---|---|
+| 4-6 para, 6-40, conf 63 (staro) | 9 | 0 | 9 | **-100,0%** | 4×7, 5×2 |
+| 3-6 para, 4-50, conf 60 (novo) | 20 | 3 | 17 | **-34,6%** | 3×14, 4×5, 6×1 |
+| isti raspon uz stari prag 63 | 14 | 2 | 12 | -37,5% | 3×8, 4×4, 5×2 |
+| 3-6 para, 3-50, conf 60 | 24 | 5 | 19 | -29,1% | 3×22 |
+| 2-6 para, 2,5-50, conf 60 | 28 | 7 | 21 | -30,7% | 2×24 |
+| 1 par (najbolji dnevni) | 35 | 23 | 12 | -6,9% | 1×35 |
 
-Novi raspon je mjerljivo bolji od starog ali NIJE pozitivan. Smjer je monoton: svaka
-dodatna noga odnosi vrijednost. Korisnik je odabrao 3-6 uz punu svijest o tome — zapisano
-da se ne mora ponovno mjeriti.
+Novi raspon je bitno bolji od starog (−100% → −34,6%), ali **nije pozitivan**. Bodovanje
+stvarno preferira manje nogu — trojac je izabran 14 od 20 dana, što je i bila namjera.
+
+**ISPRAVAK VLASTITE RANIJE BROJKE:** prva skica simulacije imala je `break` nakon prvog
+broja nogu koji dade valjanu kombinaciju; stvarni kod ga nema (prolazi sve od max do min i
+bira po bodovima). Ta je skica davala −67,9% za novu postavku i +4,3% za jedan par — oboje
+netočno. Točno je −34,6% i −6,9%. **Nijedna struktura tiketa sama po sebi nije pozitivna**,
+uključujući pojedinačnu okladu. Jedina pozitivna skupina u cijelom paketu je tržišni
+konsenzus (točka 3 niže). Buduća mjerenja ove vrste moraju ići kroz pravi kod.
 
 ### 2. Prag pouzdanosti 63 -> 60
 

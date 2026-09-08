@@ -585,7 +585,7 @@ check("granice tiketa: 3-6 parova, kvota 4-50",
       _mc.count('"min_matches": 3') == 1 and _mc.count('"max_matches": 6') == 1
       and '"min_combined_odds": 4.0' in _mc and '"max_combined_odds": 50.0' in _mc)
 check("promjena praga nosi obrazlozenje s mjerenjem", "-12,5%" in _mc and "ZASTO PRAG 60" in _mc)
-check("promjena raspona nosi obrazlozenje s mjerenjem", "ZASTO RASPON" in _mc and "-67,9%" in _mc)
+check("promjena raspona nosi obrazlozenje s mjerenjem", "ZASTO RASPON" in _mc and "-34,6%" in _mc)
 check("return_points_won JOS NIJE ispravljen u promptu", "POZNATA PRISTRANOST" in _dfsrc)
 
 # zamka: rules_hash se NIJE promijenio, pa se era mora rezati po bp_in_prompt
