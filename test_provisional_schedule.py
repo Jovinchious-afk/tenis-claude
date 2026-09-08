@@ -164,11 +164,14 @@ check("placeholder ne definira početak vala ostalima",
 #
 # POVIJEST:
 #   a0424315  22.08.2026 - 08.09.2026  (158 analiza)
-#   61999517  od 08.09.2026 12:07 — prompt podijeljen na system+user radi kesiranja,
-#             uklonjen mrtvi `ranking_trend`, popravljene dvije pozicijske reference.
-#             Sadrzaj je inace znak po znak isti; dokaz: usporedba starog i novog
-#             predloska dala je tocno 5 uklonjenih i 5 dodanih redaka, sve namjeravane.
-_ERA_RULES_HASH = "61999517"
+#   61999517  08.09.2026 12:07, ZIVJELA 0 ANALIZA — prompt podijeljen na system+user
+#             radi kesiranja, uklonjen mrtvi `ranking_trend`, popravljene dvije
+#             pozicijske reference. Nijedan run nije prosao kroz nju.
+#   6ca9a0ab  od 08.09.2026 12:07 — popravljeno proturjecje u oznakama slotova 4 i 5
+#             (JSON primjer je nosio oznake od prije 22.08., specifikacija nove).
+#             Napravljeno ODMAH jer era 61999517 nije imala nijednu analizu, pa rez
+#             korpusa nije nastao; odgadjanje bi znacilo drugu promjenu hasha kasnije.
+_ERA_RULES_HASH = "6ca9a0ab"
 
 check("prompt dobiva eksplicitan razlog umjesto sata",
       "Unknown — tomorrow's schedule is not final" in _pr)

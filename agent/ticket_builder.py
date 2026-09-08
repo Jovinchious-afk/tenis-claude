@@ -752,6 +752,25 @@ def _find_best_combination(candidates: list, cfg: dict) -> Optional[list]:
     return best
 
 
+# ── ZASTO KONSENZUS NE IDE U PROMPT (odluka 08.09.2026 12:07) ───────────────────
+# Korisnik je predlozio dodati odjeljak "market research" u dnevnu analizu, koji bi modelu
+# pokazao kvote drugih kladionica. ODBIJENO, i to iz MJERENOG razloga, ne nacelnog:
+#
+#     konsenzus podupire pick, BEZ naseg praga    n=61  ROI +11,3%
+#     isto, ali uz conf >= 63                     n=37  ROI  -2,2%
+#     isto, ali uz conf >= 65                     n=30  ROI  -7,7%
+#
+# Signal radi SAMO dok je odvojen od nase procjene. Ako model u promptu vidi konsenzus,
+# njegov confidence postaje djelomicno odjek trzista — a onda bonus ispod zbraja ISTU
+# informaciju dvaput i unistavamo jedinu stvar koja danas radi.
+#
+# Trziste vec JEST u promptu, ali kao `Market check (NOT an input)` — provjera razilazenja,
+# ne ulaz u procjenu. To je korisnikovo pravilo od pocetka i ima mjereno pokrice (kad smo
+# bili 10pp+ iznad trzista: 2W-6L, ROI -52,5%). Vidi `predictor._market_line`.
+#
+# AKO SE OVO IKAD PONOVNO OTVORI: uvjet je da se prvo izmjeri predvidja li modelov
+# confidence ista NAKON sto vidi konsenzus. Ako postane odjek cijene, oba mehanizma
+# (i bonus i njegova procjena) mjere isto i selekcija se urusava u pracenje trzista.
 # ── KONSENZUS 40+ KLADIONICA naspram SuperSporta (uvedeno 08.09.2026 12:07) ──────
 # NAJJACI SIGNAL PRONADJEN U PROJEKTU DOSAD i prvi koji je prosao dvostupanjsku kapiju
 # iz DECISION_INPUTS (nadjen na Cincinnatiju, potvrdjen na US Openu, oba neovisno).

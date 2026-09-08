@@ -523,11 +523,14 @@ check("krivi nazivi API polja dokumentirani", "breakPointOf" in _dfsrc)
 #
 # POVIJEST:
 #   a0424315  22.08.2026 - 08.09.2026  (158 analiza)
-#   61999517  od 08.09.2026 12:07 — prompt podijeljen na system+user radi kesiranja,
-#             uklonjen mrtvi `ranking_trend`, popravljene dvije pozicijske reference.
-#             Sadrzaj je inace znak po znak isti; dokaz: usporedba starog i novog
-#             predloska dala je tocno 5 uklonjenih i 5 dodanih redaka, sve namjeravane.
-_ERA_RULES_HASH = "61999517"
+#   61999517  08.09.2026 12:07, ZIVJELA 0 ANALIZA — prompt podijeljen na system+user
+#             radi kesiranja, uklonjen mrtvi `ranking_trend`, popravljene dvije
+#             pozicijske reference. Nijedan run nije prosao kroz nju.
+#   6ca9a0ab  od 08.09.2026 12:07 — popravljeno proturjecje u oznakama slotova 4 i 5
+#             (JSON primjer je nosio oznake od prije 22.08., specifikacija nove).
+#             Napravljeno ODMAH jer era 61999517 nije imala nijednu analizu, pa rez
+#             korpusa nije nastao; odgadjanje bi znacilo drugu promjenu hasha kasnije.
+_ERA_RULES_HASH = "6ca9a0ab"
 
 # NAJVAZNIJE: ograda o late-round pravilu NE SMIJE biti unutar prompt templatea —
 # rules_hash je md5 nad njim, a i model bi je citao kao uputu.
@@ -1706,8 +1709,61 @@ check("citac vise ne tvrdi da kvar ceka US Open",
 check("citac nosi izmjerenu stetu",
       "Dali Blanch" in _src_pr_df37 and "1253,7" in _src_pr_df37)
 
+
+# --- H. Oznake slotova 4 i 5: primjer i specifikacija se SLAZU (08.09.2026 12:07) ---
+# Prije popravka su u promptu stajale dvije razlicite upute: specifikacija je govorila
+# "4. Matchup & conditions / 5. Tournament history", a JSON primjer koji model prepisuje
+# jos je nosio oznake od prije 22.08. ("4. Style matchup / 5. Fatigue & conditions").
+# Izmjereno: 2-3 analize po slotu od 146 slijedile su zastarjeli primjer.
+check("JSON primjer nosi NOVE oznake slotova",
+      chr(34) + "4. Matchup & conditions" in _pr._ANALYSIS_SYSTEM_TEMPLATE
+      and chr(34) + "5. Tournament history & context" in _pr._ANALYSIS_SYSTEM_TEMPLATE)
+check("stare oznake slotova vise ne postoje nigdje u promptu",
+      "Style matchup" not in _FULL_PROMPT and "Fatigue & conditions" not in _FULL_PROMPT)
+check("specifikacija i primjer koriste ISTE oznake",
+      _pr._ANALYSIS_SYSTEM_TEMPLATE.count("Matchup & conditions") >= 2
+      and _pr._ANALYSIS_SYSTEM_TEMPLATE.count("Tournament history") >= 2)
+check("popravak nosi obrazlozenje s mjerenjem",
+      "PROTURJECJE U OZNAKAMA SLOTOVA" in _src36 and "141/146" in _src36)
+
 check("rules_hash netaknut ELO popravkom",
       _pr._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
+
+
+# ==========================================================================
+print("\n=== 38. Zapisi odluka moraju ostati u kodu (08.09.2026 12:07) ===")
+
+# Ovi testovi ne provjeravaju ponasanje nego SJECANJE. Nalaz koji nije zapisan na
+# mjestu gdje ce ga netko traziti izgubljen je — a mi smo vec vise puta ponavljali
+# ista mjerenja. Ako neki od ovih padne, netko je obrisao obrazlozenje, ne kod.
+
+check("zapisano ZASTO konsenzus ne ide u prompt",
+      "ZASTO KONSENZUS NE IDE U PROMPT" in _tbsrc)
+check("ta odluka nosi mjerenje koje ju opravdava",
+      "-2,2%" in _tbsrc and "-7,7%" in _tbsrc)
+check("zapisan uvjet pod kojim se odluka smije preispitati",
+      "AKO SE OVO IKAD PONOVNO OTVORI" in _tbsrc)
+
+check("zapisano mjerenje o samim odjeljcima key_factors",
+      "STO SMO IZMJERILI O SAMIM ODJELJCIMA" in _src36)
+check("kandidat K8 je opisan u kodu", "K8:" in _src36 and "23,8%" in _src36)
+check("kandidat K9 je opisan u kodu", "K9:" in _src36 and "racionalizacija" in _src36)
+check("K9 nosi svoju ogradu (duljina moze biti proxy)",
+      "proxy za tezinu meca" in _src36)
+check("zapisano zasto se K8/K9 NISU proveli",
+      "stopa replikacije nam je 1 od 6" in _src36)
+
+# --- registar kandidata mora nositi K8 i K9 s pragovima ---
+_di38 = io.open("DECISION_INPUTS.md", encoding="utf-8").read()
+check("K8 je u registru kandidata", "### K8" in _di38)
+check("K9 je u registru kandidata", "### K9" in _di38)
+check("K8 ima prag zapisan PRIJE podataka",
+      "PRAG ZA POTVRDU (zapisano prije podataka)" in _di38)
+check("K9 ima prag i ogradu", "PRAG ZA POTVRDU" in _di38 and "OGRADA" in _di38)
+check("K1 je oznacen kao potvrdjen i proveden",
+      "POTVRĐEN 08.09.2026 12:07, UŠAO U KOD" in _di38)
+check("K6 i K7 su oznaceni kao pali",
+      "PAO**" in _di38 and _di38.count("ISHOD PROVJERE NA US OPENU") >= 3)
 
 print("\n" + "=" * 60)
 if _fails:

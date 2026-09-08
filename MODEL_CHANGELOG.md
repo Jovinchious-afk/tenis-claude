@@ -13,6 +13,72 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-09-08 12:07 (cetvrta izmjena istog dana) — oznake slotova 4/5 uskladene;
+## odbijen "market research" odjeljak; K8 i K9 upisani u registar.
+
+`rules_hash` mijenja se s `61999517` na **`6ca9a0ab`**.
+
+### 1. Proturjecje u oznakama slotova — popravljeno
+
+U promptu su stajale DVIJE razlicite upute o slotovima 4 i 5:
+
+| izvor | slot 4 | slot 5 |
+|---|---|---|
+| specifikacija (KEY_FACTORS FORMAT) | Matchup & conditions | Tournament history & context |
+| JSON primjer koji model prepisuje | Style matchup | Fatigue & conditions |
+
+Primjer je bio zaostatak od prije 22.08.2026, kad su ta dva slota preslozena. Izmjereno na
+146 analiza od 22.08.: model je uglavnom slusao specifikaciju (slot 4 tocan u **141/146**,
+slot 5 u **144/146**), ali su 2-3 analize po slotu slijedile zastarjeli primjer.
+
+**Zasto odmah, a ne "pri sljedecem dodiru prompta":** era `61999517` u tom trenutku nije
+imala **nijednu** analizu (provjereno u bazi) — nijedan run nije prosao kroz nju. Popravak
+zato NE reze korpus. Odgadjanje bi znacilo drugu promjenu hasha kasnije, koja bi ga rezala.
+
+### 2. "Market research" odjeljak — ODBIJEN, uz mjereni razlog
+
+Korisnikov prijedlog: dodati u dnevnu analizu odjeljak o kvotama drugih kladionica.
+Odbijeno jer bi razbilo ono sto je danas uvedeno:
+
+    konsenzus podupire pick, BEZ naseg praga    n=61  ROI +11,3%
+    isto, ali uz conf >= 63                     n=37  ROI  -2,2%
+    isto, ali uz conf >= 65                     n=30  ROI  -7,7%
+
+Signal radi samo dok je **odvojen** od nase procjene. Da model vidi konsenzus, njegov
+confidence postao bi djelomicno odjek trzista, a bonus u `_score_combo` zbrajao bi istu
+informaciju dvaput. Obrazlozenje je zapisano u kodu iznad `_CONSENSUS_GAP_MIN`, zajedno s
+uvjetom pod kojim se odluka smije preispitati.
+
+### 3. Izmjereni odjeljci — dva nova kandidata, NIJEDAN proveden
+
+Na 529 rijesenih tiket-nogu:
+
+| slot | 'no data' | prisutan |
+|---|---|---|
+| Rating | 0,0% | uvijek |
+| Serve/return | 1,1% | uvijek |
+| Form vs opponent quality | 0,0% | uvijek |
+| Matchup & conditions | **23,8%** | uvijek |
+| Tournament history | **26,8%** | uvijek |
+| Own read | 3,7% | samo 297/529 (57%) |
+
+**K8** — kad slotovi 4 i 5 kazu "no data", pick prolazi BOLJE, uz kontrolu cijene:
++5,7pp (1,30-1,50), +5,7pp (1,50-2,00), +5,3pp (2,00+) za slot 4; +7,3 / +6,7 / +12,6pp za
+slot 5. Konfaund runde provjeren i ne objasnjava nalaz.
+
+**K9** — "Own read" je jedini slot gdje je DULJE = GORE (956 znakova u pobjedama naspram
+1024 u porazima; ostali slotovi imaju +7 do +29 u pobjedama). Ograda: duljina moze biti
+proxy za tezinu meca, sto NIJE kontrolirano.
+
+Oba su nadjena na jednom korpusu, a stopa replikacije nam je 1 od 6. Pragovi za potvrdu
+zapisani su u `DECISION_INPUTS.md` **prije** podataka. Nista nije provedeno.
+
+**Testovi:** odjeljak 38 provjerava da ovi zapisi OSTANU u kodu — nalaz koji nije zapisan
+na mjestu gdje ce ga netko traziti izgubljen je, a vec smo vise puta ponavljali ista
+mjerenja.
+
+---
+
 ## 2026-09-08 12:07 (treca izmjena istog dana) — ELO: neprekidni razmak u imenima
 
 **Popravljen nalaz od 29.08.2026 13:11 koji je cekao kraj US Opena.** `rules_hash` ostaje

@@ -414,6 +414,56 @@ gdje je sharp podskup imao drukčiji sastav kladionica, a ne iz drukčije procje
 **ODBAČENO.** Prije ponovnog otvaranja treba provjeriti PIŠE li `market_p_sharp` uopće
 išta različito — isti obrazac kao "tihi null ključevi" iz memorije.
 
+### K8 — slotovi 4 i 5 u `key_factors` prazni su četvrtinu vremena, a tada prolazimo BOLJE
+
+Mjereno 08.09.2026 12:07 na 441 riješenoj tiket-nozi s potpunim `key_factors`.
+
+    slot 4 "Matchup & conditions"    'no data' u 112 od 470 (23,8%)
+    slot 5 "Tournament history"      'no data' u 118 od 441 (26,8%)
+
+Kad slot kaže "no data", naš pick prolazi **bolje**, i to preživljava kontrolu cijene:
+
+    pojas kvote      slot 4          slot 5
+    1,30-1,50        +5,7pp          +7,3pp
+    1,50-2,00        +5,7pp          +6,7pp
+    2,00+            +5,3pp         +12,6pp
+    1,00-1,30        -5,6pp (n=6)    +0,8pp
+
+Provjeren i konfaund runde: "no data" nije samo oznaka ranog kola (R64 39%/46%, ali R16
+26%/34% i SF 25%/4,5% — nema čistog gradijenta).
+
+**Čitanje koje se nameće:** kad model IMA podatke o stilu, uvjetima i povijesti turnira, on
+ih upotrijebi — a upotreba pogoršava ishod. Isti obrazac kao ranije nađeni "narativni
+override": dodatni kontekst se troši na obrazloženje picka, ne na njegovu provjeru.
+
+**PRAG ZA POTVRDU (zapisano prije podataka):** na sljedeća DVA dovršena turnira razlika
+"no data" naspram "s podatkom" mora ostati **+4pp ili više uz n≥40**, i to u **barem dva**
+pojasa kvote. Ako da → razmotriti spajanje slotova 4 i 5 u jedan i oslobađanje prostora
+(prompt caching to čini jeftinim). Ako padne ispod nule → odbaciti.
+
+**ZAŠTO SE NE DIRA ODMAH:** nađeno na jednom korpusu, a stopa replikacije nam je 1 od 6.
+Uz to bi izmjena dirala prompt, dakle `rules_hash` — a upravo smo ga mijenjali dvaput danas.
+
+### K9 — duljina slota "Own read" obrnuto je povezana s uspjehom
+
+Isti uzorak. "Own read" je jedini neobavezan slot (prisutan u 297 od 529, 57%) i jedini
+s pozitivnim signalom u razini (64,3% naspram 62,6% ukupno). Ali:
+
+    prosječna duljina slota 6 u POBJEDAMA     956 znakova
+    prosječna duljina slota 6 u PORAZIMA     1024 znakova
+
+Jedini je od šest slotova gdje je **dulje = gore** (svi ostali imaju +7 do +29 znakova u
+pobjedama). Čitanje: dug "vlastiti nalaz" nije uvid nego racionalizacija.
+
+**PRAG ZA POTVRDU:** na sljedeća dva turnira razlika duljine (pobjede minus porazi) mora
+ostati **negativna uz n≥60**, i razlika mora biti barem 40 znakova. Ako da → u prompt ide
+tvrda granica duljine za slot 6 (npr. 400 znakova) uz uputu da se piše samo ono što se ne
+uklapa u 1-5. Ako predznak okrene → odbaciti.
+
+**OGRADA:** duljina može biti proxy za težinu meča (težak meč → dulje objašnjenje → i češći
+poraz). To nije kontrolirano. Prije uvođenja bilo kakvog pravila **obavezno** izmjeriti
+duljinu uz kontrolu cijene, kao što je učinjeno za K8.
+
 ### ODBAČENO 06.09.2026 iz analize kvota (izmjereno, ne otvarati bez novog razloga)
 
 - **kretanje kvote kroz dan**: `r(pomak, EDGE naspram cijene) = +0,007, P=0,927` na 167

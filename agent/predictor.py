@@ -321,6 +321,55 @@ _AGE_TO_PROMPT = False
 # Pravilo je zato ZADRŽANO ali NEPOTVRĐENO: smjer je i dalje uvjerljiv, nije opovrgnuto,
 # ali brojke ne treba citirati kao izmjerene. Ponovno izmjeriti tek na uzorku skupljenom
 # od 07.08.2026 nadalje, kad oznake rundi budu pouzdane.
+# ── STO SMO IZMJERILI O SAMIM ODJELJCIMA key_factors (08.09.2026 12:07) ─────────
+# Namjerno stoji IZVAN prompt stringa: mjerenje je o promptu, ne uputa modelu.
+#
+# Sest slotova (Rating / Serve-return / Form vs opp quality / Matchup & conditions /
+# Tournament history / Own read) mjereno na 529 rijesenih tiket-nogu:
+#
+#   slot                     'no data'   prisutan
+#   Rating                       0,0%    uvijek
+#   Serve/return                 1,1%    uvijek
+#   Form vs opp quality          0,0%    uvijek
+#   Matchup & conditions        23,8%    uvijek
+#   Tournament history          26,8%    uvijek
+#   Own read                     3,7%    samo 297/529 (57%) — jedini neobavezan
+#
+# DVA NALAZA, oba upisana u DECISION_INPUTS kao kandidati K8 i K9, NIJEDAN nije proveden:
+#
+# K8: kad slotovi 4 i 5 kazu "no data", nas pick prolazi BOLJE (+5,3 do +12,6pp), i to
+#     prezivljava kontrolu cijene u tri od cetiri pojasa. Konfaund runde provjeren i ne
+#     objasnjava nalaz. Citanje: kad model IMA podatke o stilu, uvjetima i povijesti
+#     turnira, upotrijebi ih — a upotreba pogorsava ishod. Isti obrazac kao raniji
+#     "narativni override": dodatni kontekst ide na obrazlozenje picka, ne na provjeru.
+#
+# K9: "Own read" je jedini slot gdje je DULJE = GORE (956 znakova u pobjedama naspram
+#     1024 u porazima; svi ostali slotovi imaju +7 do +29 u pobjedama). Citanje: dug
+#     vlastiti nalaz nije uvid nego racionalizacija.
+#     OGRADA: duljina moze biti proxy za tezinu meca. NIJE kontrolirano — prije bilo kakvog
+#     pravila obavezno izmjeriti uz kontrolu cijene, kao sto je ucinjeno za K8.
+#
+# ZASTO SE NIJE DIRALO: oba su nadjena na JEDNOM korpusu, a stopa replikacije nam je 1 od 6.
+# Pragovi za potvrdu zapisani su u DECISION_INPUTS PRIJE podataka. Izmjena bi dirala prompt
+# (dakle `rules_hash`), a on je 08.09. vec mijenjan dvaput.
+#
+# AKO SE K8 POTVRDI: spajanje slotova 4 i 5 u jedan je jeftino sada kad postoji prompt
+# caching — fiksni dio se ionako placa jednom po runu.
+# ── PROTURJECJE U OZNAKAMA SLOTOVA — POPRAVLJENO 08.09.2026 12:07 ───────────────
+# Do danas su u promptu stajale DVIJE razlicite upute o tome sto su slotovi 4 i 5:
+#   specifikacija (KEY_FACTORS FORMAT):  4. Matchup & conditions | 5. Tournament history
+#   JSON primjer koji model prepisuje:   4. Style matchup        | 5. Fatigue & conditions
+# Primjer je bio zaostatak od prije 22.08.2026, kad su ta dva slota preslozena (stil i
+# uvjeti spojeni u 4, povijest turnira uvedena kao 5).
+#
+# IZMJERENO PRIJE POPRAVKA na 146 analiza od 22.08.: model je uglavnom slusao
+# specifikaciju (slot 4 tocno u 141/146, slot 5 u 144/146), ali su 2-3 analize po slotu
+# slijedile ZASTARJELI primjer ("style matchup", "fatigue & conditions"). Dakle steta je
+# bila mala, ali je uputa bila proturjecna i to je samo pitanje vremena kad ce odluciti.
+#
+# TAJMING: napravljeno isti dan kad je prompt ionako podijeljen na system+user. Era
+# 61999517 tada jos NIJE imala nijednu analizu, pa ovaj popravak NE reze korpus —
+# odgadjanje bi znacilo drugu promjenu hasha kasnije, koja bi ga rezala.
 # ── PROMPT PODIJELJEN NA FIKSNI I PROMJENJIVI DIO (08.09.2026 12:07) ─────────────
 # RAZLOG: prompt caching. Do danas je cijeli prompt bio jedna korisnicka poruka koja je
 # POCINJALA podacima o mecu, pa nije imala fiksni prefiks koji bi se dao kesirati — a
@@ -492,7 +541,7 @@ Respond ONLY in the following JSON format (no additional text):
   "applied_caps": [{{"rule": "16", "cap": 62}}],
   "above_64_basis": null,
   "market_check": null,
-  "key_factors": ["1. Rating: ...", "2. Serve/return: ...", "3. Form vs opponent quality: ...", "4. Style matchup: ...", "5. Fatigue & conditions: ...", "6. Own read: ..."],
+  "key_factors": ["1. Rating: ...", "2. Serve/return: ...", "3. Form vs opponent quality: ...", "4. Matchup & conditions: ...", "5. Tournament history & context: ...", "6. Own read: ..."],
   "analysis": "2-3 sentences of key match analysis",
   "skip_reason": null
 }}
