@@ -321,157 +321,30 @@ _AGE_TO_PROMPT = False
 # Pravilo je zato ZADRŽANO ali NEPOTVRĐENO: smjer je i dalje uvjerljiv, nije opovrgnuto,
 # ali brojke ne treba citirati kao izmjerene. Ponovno izmjeriti tek na uzorku skupljenom
 # od 07.08.2026 nadalje, kad oznake rundi budu pouzdane.
-ANALYSIS_PROMPT_TEMPLATE = """You are an expert tennis analyst. Evaluate the following match using only the provided data and model weights.
-
-=== MATCH ===
-{player1} vs {player2}
-Tournament: {tournament} | Level: {level}
-Surface: {surface} | Round: {round}
-Date: {date} | Format: {format}
-Round context: {round_context}
-
-=== {player1} ===
-Age: {p1_age} | Playing hand: {p1_hand} | Country: {p1_country}
-ATP Ranking: #{p1_ranking} | Ranking trend: {p1_ranking_trend}
-ELO (overall): {p1_elo_overall} | ELO ({surface}): {p1_elo_surface}
-NOTE: Surface-specific ELO is more predictive than ATP ranking for this match.
-{surface} record (last 3 years): {p1_surface_record}
-Form (last 5): {p1_form_5} | Form (last 10): {p1_form_10}
-Avg opponent ELO (last 10): {p1_avg_opp_elo} — quality-adjusted form signal
-{surface} form (6 months): {p1_surface_form}
---- Serve dominance ---
-Total serve points won: {p1_serve_pts_won}% | Hold % (DERIVED from the number to its left, not measured): {p1_hold_pct}%
-1st serve %: {p1_first_serve_pct} | 1st serve pts won: {p1_first_serve_won}
-2nd serve pts won: {p1_second_serve_won} | Aces/match: {p1_aces}
-BP saved: {p1_bp_saved} | BP converted: {p1_break_conv}
-Return pts won: {p1_return_won}% (break proxy)
-Tiebreaks (own record): {p1_tb_record} | Deciding sets (Bo3 2-1): {p1_decider_record}
---- Physical condition ---
-Matches last 7 days: {p1_matches_7d} | Sets last 7 days: {p1_sets_7d} | Days rest: {p1_days_rest} | Age: {p1_age}
-Build: {p1_build} — height explains SERVE STYLE, not who wins (see rule below)
-Best at THIS tournament, last 3 seasons: {p1_tourn_hist}
-Current tournament path: {p1_tourn_path}
-Form trend: {p1_form_trend}
-Known injuries/news: {p1_news}
-
-=== {player2} ===
-Age: {p2_age} | Playing hand: {p2_hand} | Country: {p2_country}
-ATP Ranking: #{p2_ranking} | Ranking trend: {p2_ranking_trend}
-ELO (overall): {p2_elo_overall} | ELO ({surface}): {p2_elo_surface}
-NOTE: Surface-specific ELO is more predictive than ATP ranking for this match.
-{surface} record (last 3 years): {p2_surface_record}
-Form (last 5): {p2_form_5} | Form (last 10): {p2_form_10}
-Avg opponent ELO (last 10): {p2_avg_opp_elo} — quality-adjusted form signal
-{surface} form (6 months): {p2_surface_form}
---- Serve dominance ---
-Total serve points won: {p2_serve_pts_won}% | Hold % (DERIVED from the number to its left, not measured): {p2_hold_pct}%
-1st serve %: {p2_first_serve_pct} | 1st serve pts won: {p2_first_serve_won}
-2nd serve pts won: {p2_second_serve_won} | Aces/match: {p2_aces}
-BP saved: {p2_bp_saved} | BP converted: {p2_break_conv}
-Return pts won: {p2_return_won}% (break proxy)
-Tiebreaks (own record): {p2_tb_record} | Deciding sets (Bo3 2-1): {p2_decider_record}
---- Physical condition ---
-Matches last 7 days: {p2_matches_7d} | Sets last 7 days: {p2_sets_7d} | Days rest: {p2_days_rest} | Age: {p2_age}
-Build: {p2_build} — height explains SERVE STYLE, not who wins (see rule below)
-Best at THIS tournament, last 3 seasons: {p2_tourn_hist}
-Current tournament path: {p2_tourn_path}
-Form trend: {p2_form_trend}
-Known injuries/news: {p2_news}
-
-=== H2H ===
-Overall: {h2h_overall}
-On {surface}: {h2h_surface}
-Last meeting: {h2h_last}
-Recent trend (last 3): {h2h_trend}
-H2H reliability: {h2h_reliability}
-{h2h_detailed_stats}
-
-=== CONTEXT ===
-Conditions: {weather}
-Altitude: {altitude}
-Venue type: {venue_type}
-Local start time at the venue: {local_time} ({session} session)
-Court pace this event (share of sets going to a tiebreak): {court_pace}
-Market check (NOT an input — see MARKET PRICE rule below): {market_line}
-Tournament draw history — verified API data, last 3 seasons (F/SF/QF/R16):
-{tournament_draw_history}
-STRICT ANTI-HALLUCINATION RULE:
-- Draw history above is the ONLY authoritative source for past champions, finalists, and semifinalists.
-- Tournament records below show ONLY aggregate match win/loss COUNTS — the underlying API endpoint is known to contain round-label errors (e.g. labelling a player "Winner" when they did not win the title). Do NOT use them to make any historical claims about who won or reached which round.
-- Do NOT write "title defence", "defending champion", "winner last year", "finalist last year", or ANY historical tournament achievement for either player unless they are explicitly listed in the draw history above (e.g. "F: PlayerName def. ...").
-- If draw history shows "Nema podataka" — make ZERO historical tournament claims.
-- Do NOT invent geographic, political, or biographical claims beyond the literal Country value given above (e.g. "his home country borders the host nation", "he grew up nearby", "fans from the neighbouring country"). Documented error: the model claimed Slovakia borders Croatia to justify a "home crowd" narrative for a Slovak player at a Croatian tournament — Slovakia does not border Croatia. Use the Country field exactly as given; do not reason about geography, borders, or regional ties beyond it.
-- Read the draw history for what it ACTUALLY says about each player, including losses. Documented error: the model wrote "Van Assche won 2023 R16 here" when the draw history for that event explicitly recorded "2023 R16: Davidovich Fokina def. Luca Van Assche" — i.e. he lost that match. Before citing any past result, confirm the player's name is on the WINNING side of that specific line.
-- BALANCED CITATION (mandatory): if you cite tournament history as evidence FOR your pick, you must first check the SAME history for the opponent and for your pick's recent failures there, and mention anything comparable or stronger. Documented error: the model cited "Rublev won this title in 2023" to support picking Rublev, while the very same draw history in this prompt showed "Darderi: 2025 FW" (the opponent won the title more recently) and "2024 R16: Tirante def. Rublev" (our pick lost early on his most recent appearance). Citing only the half that supports your pick is a reasoning error even when the individual fact is true. Either present both sides or do not use tournament history as a key factor at all.
-Tournament record {player1} (aggregate W/L COUNTS ONLY — do not infer round achievements):
-{p1_tournament_history}
-Tournament record {player2} (aggregate W/L COUNTS ONLY — do not infer round achievements):
-{p2_tournament_history}
-
-=== CAREER FINALS EXPERIENCE (verified API counts) ===
-Relevant mainly from the quarterfinal onwards: how often each player has BEEN in a final and
-how often he CLOSED it. A player with many finals played and a high conversion rate handles
-closing pressure better than one with a poor conversion record; a player with no tour-level
-finals is unproven in that specific situation. Treat this as a supporting factor for late
-rounds (QF/SF/F), not as a driver in early rounds.
-{player1}: {p1_titles}
-{player2}: {p2_titles}
-{odds_alert}
-
-=== SCOUTING PROFILES (secondary evidence — strict usage rules) ===
-Curated analyst scouting notes (qualitative priors, snapshot-dated). Usage rules:
-- SECONDARY evidence only: may adjust confidence by AT MOST ±3pp, and may act as the
-  tie-breaker when the measured factors above are close to even. It must NEVER override
-  the measured statistics (ELO, hold%, form, H2H) when they clearly point one way.
-- A CAP IS A CEILING, NOT A STARTING POINT (added 2026-08-04): when any rule caps this
-  match, scouting may only move confidence DOWN from that cap — never up through it.
-  Documented failure: Landaluce vs Mejia, where rule 2's "one overwhelming category" cap
-  of 64% was treated as a base and +1pp of scouting was added on top for a final 65%.
-  That pick lost. If a cap applies, the cap is the maximum, full stop.
-- THE ±3pp BUDGET SCALES WITH THE PROFILE'S OWN CONFIDENCE (added 2026-08-04). Each block
-  states its confidence — honour it instead of treating every profile as equal evidence:
-    High / Med-High -> the full ±3pp is available.
-    Med             -> at most ±2pp.
-    Med-Low         -> ASYMMETRIC: it may raise DOUBT about a pick, but it may never be
-                       cited as support FOR one. If the only thing backing your pick is a
-                       Med-Low profile, you do not have that evidence at all.
-                       DETERMINISTIC BACKSTOP (added 2026-08-17 11:46): when the profile of
-                       the player YOU pick is Med-Low, code subtracts 4pp from your final
-                       number automatically. Do NOT subtract it yourself as well — state
-                       your honest number and let the deduction happen once.
-                       The measurement behind it: picks whose own profile was Med-Low went
-                       26.7% (n=15, ROI -51%) against 65.8% (n=114) for Med / Med-High /
-                       High. P=0.0035. Note the direction of the irony — profiles rated
-                       Low or Insufficient did BETTER (87.5% and 76.9%), because those are
-                       withheld from this prompt entirely, so nothing was built on them.
-                       Med-Low is the band you can see and therefore lean on.
-  Reason (measured 2026-07-31): the three scouting profiles that turned out to be plainly
-  wrong — Van Assche ("needs a weapon", then beat Rublev and won Estoril), Halys (who then
-  beat three of our picks in one week and took the title) and Majchrzak — were ALL Med-Low,
-  and all three participated in losses. Med-Low means "partial data", which is exactly the
-  profile most likely to be stale on a riser. One third of the table (50 of 150) is
-  Med-Low, so this is not a rare edge case.
-- Do NOT double-count: scouting is qualitative context for INTERPRETING the numbers above
-  (e.g. "big server" explains a high hold%, it is not a second, independent piece of
-  evidence on top of that hold%).
-- Style-vs-style matchups ARE a legitimate factor (research shows style matchups can swing
-  win probability by several points at equal rating, and the surface amplifies this):
-  e.g. big server vs counter-puncher tilts server on grass/indoor, counter-puncher on clay.
-  Use the styles + favourable/tough matchup fields together with the CURRENT surface.
-- Where a profile says "No reliable scouting profile", do NOT substitute your own memory
-  of the player — treat scouting as absent and rely purely on the measured data above.
-- Profiles are a snapshot (see date) — recent form/results above always outrank them.
-Scouting {player1}: {p1_scouting_block}
-Scouting {player2}: {p2_scouting_block}
-
-=== MODEL WEIGHTS ===
-ELO + ranking trend + opponent quality: {w_elo_ranking}%
-Surface + playing style matchup: {w_surface_style}%
-Serve + return stats: {w_serve_return}%
-Recent form (last 5-10 matches): {w_recent_form}%
-Fatigue + injuries + schedule: {w_fatigue_injuries}%
-H2H + tournament context: {w_h2h_context}%
-Tournament trajectory (in-tournament W/L run, current momentum, hot-hand): {w_tournament_trajectory}%
+# ── PROMPT PODIJELJEN NA FIKSNI I PROMJENJIVI DIO (08.09.2026 12:07) ─────────────
+# RAZLOG: prompt caching. Do danas je cijeli prompt bio jedna korisnicka poruka koja je
+# POCINJALA podacima o mecu, pa nije imala fiksni prefiks koji bi se dao kesirati — a
+# fiksni dio je 88,2% teksta (29.318 od 33.235 znakova predloska; s hard pravilima
+# ~11.500 tokena po pozivu). Uz 20-40 analiza po runu to je bilo placeno svaki put.
+#
+# STRUKTURA SADA:
+#   `_ANALYSIS_SYSTEM_TEMPLATE`  -> system blok, jedini placeholder {surface_specific_rules}.
+#                                   Nosi `cache_control: ephemeral`, dakle kesira se.
+#   `ANALYSIS_PROMPT_TEMPLATE`   -> korisnicka poruka, samo podaci o mecu (99 placeholdera).
+#
+# STO SE PROMIJENILO U TEKSTU KOJI MODEL CITA (i zasto `rules_hash` nije vise a0424315):
+#   1. Redoslijed: upute sada dolaze PRIJE podataka (bile su poslije). Ovo je jedina
+#      izmjena s mogucim ucinkom na ponasanje modela — pratiti prvih 20-30 analiza.
+#   2. Dvije pozicijske reference popravljene jer su pokazivale u krivi smjer nakon
+#      premjestanja: "the data above" -> "the match data", "in Conditions above" ->
+#      "in the Conditions section". Namjerno bez rijeci above/below da se ne lome opet.
+#   3. `Ranking trend` maknut iz oba bloka igraca — vidi blok uz _RANKING_TREND_UKLONJEN.
+# Sve ostalo je znak po znak isto.
+#
+# ZASTO SYSTEM A NE SAMO PRVI BLOK KORISNICKE PORUKE: system je prirodan prefiks i ne
+# moze se slucajno "razbiti" ubacivanjem podatka ispred njega. Minimalna duljina za
+# kesiranje je 1024 tokena; ovaj blok ima ~11.500 na hardu, dakle s velikom rezervom.
+_ANALYSIS_SYSTEM_TEMPLATE = """You are an expert tennis analyst. Evaluate the match given in the next message using only the provided data and model weights.
 
 === INSTRUCTIONS ===
 Form your prediction based exclusively on statistical factors and model weights — independent of bookmaker odds.
@@ -537,7 +410,7 @@ INTERNAL CONSISTENCY (mandatory): "risk_notes" and "key_factors" must not contra
 other. Documented error: risk_notes said "Shevchenko fresher (2 vs 13 rest days)" while
 key_factors in the SAME analysis said "Struff's 13 days rest — fatigue factor favours Struff";
 the player with 2 days rest was labelled the fresher one. Before returning, re-read your
-risk_notes against your key_factors and the data above: every name, number and direction
+risk_notes against your key_factors and the match data: every name, number and direction
 ("fresher", "better", "more rested") must point the same way in both fields. If a field is
 too short to state the comparison correctly, name the player the risk applies TO rather than
 compressing it into an ambiguous phrase.
@@ -591,7 +464,7 @@ Wind is not just noise, it has a DIRECTION: it "penalises high-margin spin games
 rewards flatter, more controlled hitting". The mechanism is confirmed in reverse by the
 same document's indoor section — remove wind and precision aggressors and flat hitters
 gain the most, while heavy-topspin players "who rely on wind/heat to make the ball jump
-lose some of that weapon". Read the Wind figure in Conditions above:
+lose some of that weapon". Read the Wind figure in the Conditions section:
   - below ~15 km/h  -> ignore it, this is normal air.
   - ~15-25 km/h     -> meaningful. If OUR PICK is the heavy-topspin / high-margin /
                        spin-reliant player, or a pure defender without a first strike,
@@ -759,6 +632,157 @@ simple match, and every hard loss except one came from a 3-factor analysis.
 
 If the match should be skipped (too much uncertainty, injury, insufficient data), set "skip_reason" to a string with the reason and all other fields to null."""
 
+ANALYSIS_PROMPT_TEMPLATE = """=== MATCH ===
+{player1} vs {player2}
+Tournament: {tournament} | Level: {level}
+Surface: {surface} | Round: {round}
+Date: {date} | Format: {format}
+Round context: {round_context}
+
+=== {player1} ===
+Age: {p1_age} | Playing hand: {p1_hand} | Country: {p1_country}
+ATP Ranking: #{p1_ranking}
+ELO (overall): {p1_elo_overall} | ELO ({surface}): {p1_elo_surface}
+NOTE: Surface-specific ELO is more predictive than ATP ranking for this match.
+{surface} record (last 3 years): {p1_surface_record}
+Form (last 5): {p1_form_5} | Form (last 10): {p1_form_10}
+Avg opponent ELO (last 10): {p1_avg_opp_elo} — quality-adjusted form signal
+{surface} form (6 months): {p1_surface_form}
+--- Serve dominance ---
+Total serve points won: {p1_serve_pts_won}% | Hold % (DERIVED from the number to its left, not measured): {p1_hold_pct}%
+1st serve %: {p1_first_serve_pct} | 1st serve pts won: {p1_first_serve_won}
+2nd serve pts won: {p1_second_serve_won} | Aces/match: {p1_aces}
+BP saved: {p1_bp_saved} | BP converted: {p1_break_conv}
+Return pts won: {p1_return_won}% (break proxy)
+Tiebreaks (own record): {p1_tb_record} | Deciding sets (Bo3 2-1): {p1_decider_record}
+--- Physical condition ---
+Matches last 7 days: {p1_matches_7d} | Sets last 7 days: {p1_sets_7d} | Days rest: {p1_days_rest} | Age: {p1_age}
+Build: {p1_build} — height explains SERVE STYLE, not who wins (see rule below)
+Best at THIS tournament, last 3 seasons: {p1_tourn_hist}
+Current tournament path: {p1_tourn_path}
+Form trend: {p1_form_trend}
+Known injuries/news: {p1_news}
+
+=== {player2} ===
+Age: {p2_age} | Playing hand: {p2_hand} | Country: {p2_country}
+ATP Ranking: #{p2_ranking}
+ELO (overall): {p2_elo_overall} | ELO ({surface}): {p2_elo_surface}
+NOTE: Surface-specific ELO is more predictive than ATP ranking for this match.
+{surface} record (last 3 years): {p2_surface_record}
+Form (last 5): {p2_form_5} | Form (last 10): {p2_form_10}
+Avg opponent ELO (last 10): {p2_avg_opp_elo} — quality-adjusted form signal
+{surface} form (6 months): {p2_surface_form}
+--- Serve dominance ---
+Total serve points won: {p2_serve_pts_won}% | Hold % (DERIVED from the number to its left, not measured): {p2_hold_pct}%
+1st serve %: {p2_first_serve_pct} | 1st serve pts won: {p2_first_serve_won}
+2nd serve pts won: {p2_second_serve_won} | Aces/match: {p2_aces}
+BP saved: {p2_bp_saved} | BP converted: {p2_break_conv}
+Return pts won: {p2_return_won}% (break proxy)
+Tiebreaks (own record): {p2_tb_record} | Deciding sets (Bo3 2-1): {p2_decider_record}
+--- Physical condition ---
+Matches last 7 days: {p2_matches_7d} | Sets last 7 days: {p2_sets_7d} | Days rest: {p2_days_rest} | Age: {p2_age}
+Build: {p2_build} — height explains SERVE STYLE, not who wins (see rule below)
+Best at THIS tournament, last 3 seasons: {p2_tourn_hist}
+Current tournament path: {p2_tourn_path}
+Form trend: {p2_form_trend}
+Known injuries/news: {p2_news}
+
+=== H2H ===
+Overall: {h2h_overall}
+On {surface}: {h2h_surface}
+Last meeting: {h2h_last}
+Recent trend (last 3): {h2h_trend}
+H2H reliability: {h2h_reliability}
+{h2h_detailed_stats}
+
+=== CONTEXT ===
+Conditions: {weather}
+Altitude: {altitude}
+Venue type: {venue_type}
+Local start time at the venue: {local_time} ({session} session)
+Court pace this event (share of sets going to a tiebreak): {court_pace}
+Market check (NOT an input — see MARKET PRICE rule below): {market_line}
+Tournament draw history — verified API data, last 3 seasons (F/SF/QF/R16):
+{tournament_draw_history}
+STRICT ANTI-HALLUCINATION RULE:
+- Draw history above is the ONLY authoritative source for past champions, finalists, and semifinalists.
+- Tournament records below show ONLY aggregate match win/loss COUNTS — the underlying API endpoint is known to contain round-label errors (e.g. labelling a player "Winner" when they did not win the title). Do NOT use them to make any historical claims about who won or reached which round.
+- Do NOT write "title defence", "defending champion", "winner last year", "finalist last year", or ANY historical tournament achievement for either player unless they are explicitly listed in the draw history above (e.g. "F: PlayerName def. ...").
+- If draw history shows "Nema podataka" — make ZERO historical tournament claims.
+- Do NOT invent geographic, political, or biographical claims beyond the literal Country value given above (e.g. "his home country borders the host nation", "he grew up nearby", "fans from the neighbouring country"). Documented error: the model claimed Slovakia borders Croatia to justify a "home crowd" narrative for a Slovak player at a Croatian tournament — Slovakia does not border Croatia. Use the Country field exactly as given; do not reason about geography, borders, or regional ties beyond it.
+- Read the draw history for what it ACTUALLY says about each player, including losses. Documented error: the model wrote "Van Assche won 2023 R16 here" when the draw history for that event explicitly recorded "2023 R16: Davidovich Fokina def. Luca Van Assche" — i.e. he lost that match. Before citing any past result, confirm the player's name is on the WINNING side of that specific line.
+- BALANCED CITATION (mandatory): if you cite tournament history as evidence FOR your pick, you must first check the SAME history for the opponent and for your pick's recent failures there, and mention anything comparable or stronger. Documented error: the model cited "Rublev won this title in 2023" to support picking Rublev, while the very same draw history in this prompt showed "Darderi: 2025 FW" (the opponent won the title more recently) and "2024 R16: Tirante def. Rublev" (our pick lost early on his most recent appearance). Citing only the half that supports your pick is a reasoning error even when the individual fact is true. Either present both sides or do not use tournament history as a key factor at all.
+Tournament record {player1} (aggregate W/L COUNTS ONLY — do not infer round achievements):
+{p1_tournament_history}
+Tournament record {player2} (aggregate W/L COUNTS ONLY — do not infer round achievements):
+{p2_tournament_history}
+
+=== CAREER FINALS EXPERIENCE (verified API counts) ===
+Relevant mainly from the quarterfinal onwards: how often each player has BEEN in a final and
+how often he CLOSED it. A player with many finals played and a high conversion rate handles
+closing pressure better than one with a poor conversion record; a player with no tour-level
+finals is unproven in that specific situation. Treat this as a supporting factor for late
+rounds (QF/SF/F), not as a driver in early rounds.
+{player1}: {p1_titles}
+{player2}: {p2_titles}
+{odds_alert}
+
+=== SCOUTING PROFILES (secondary evidence — strict usage rules) ===
+Curated analyst scouting notes (qualitative priors, snapshot-dated). Usage rules:
+- SECONDARY evidence only: may adjust confidence by AT MOST ±3pp, and may act as the
+  tie-breaker when the measured factors above are close to even. It must NEVER override
+  the measured statistics (ELO, hold%, form, H2H) when they clearly point one way.
+- A CAP IS A CEILING, NOT A STARTING POINT (added 2026-08-04): when any rule caps this
+  match, scouting may only move confidence DOWN from that cap — never up through it.
+  Documented failure: Landaluce vs Mejia, where rule 2's "one overwhelming category" cap
+  of 64% was treated as a base and +1pp of scouting was added on top for a final 65%.
+  That pick lost. If a cap applies, the cap is the maximum, full stop.
+- THE ±3pp BUDGET SCALES WITH THE PROFILE'S OWN CONFIDENCE (added 2026-08-04). Each block
+  states its confidence — honour it instead of treating every profile as equal evidence:
+    High / Med-High -> the full ±3pp is available.
+    Med             -> at most ±2pp.
+    Med-Low         -> ASYMMETRIC: it may raise DOUBT about a pick, but it may never be
+                       cited as support FOR one. If the only thing backing your pick is a
+                       Med-Low profile, you do not have that evidence at all.
+                       DETERMINISTIC BACKSTOP (added 2026-08-17 11:46): when the profile of
+                       the player YOU pick is Med-Low, code subtracts 4pp from your final
+                       number automatically. Do NOT subtract it yourself as well — state
+                       your honest number and let the deduction happen once.
+                       The measurement behind it: picks whose own profile was Med-Low went
+                       26.7% (n=15, ROI -51%) against 65.8% (n=114) for Med / Med-High /
+                       High. P=0.0035. Note the direction of the irony — profiles rated
+                       Low or Insufficient did BETTER (87.5% and 76.9%), because those are
+                       withheld from this prompt entirely, so nothing was built on them.
+                       Med-Low is the band you can see and therefore lean on.
+  Reason (measured 2026-07-31): the three scouting profiles that turned out to be plainly
+  wrong — Van Assche ("needs a weapon", then beat Rublev and won Estoril), Halys (who then
+  beat three of our picks in one week and took the title) and Majchrzak — were ALL Med-Low,
+  and all three participated in losses. Med-Low means "partial data", which is exactly the
+  profile most likely to be stale on a riser. One third of the table (50 of 150) is
+  Med-Low, so this is not a rare edge case.
+- Do NOT double-count: scouting is qualitative context for INTERPRETING the numbers above
+  (e.g. "big server" explains a high hold%, it is not a second, independent piece of
+  evidence on top of that hold%).
+- Style-vs-style matchups ARE a legitimate factor (research shows style matchups can swing
+  win probability by several points at equal rating, and the surface amplifies this):
+  e.g. big server vs counter-puncher tilts server on grass/indoor, counter-puncher on clay.
+  Use the styles + favourable/tough matchup fields together with the CURRENT surface.
+- Where a profile says "No reliable scouting profile", do NOT substitute your own memory
+  of the player — treat scouting as absent and rely purely on the measured data above.
+- Profiles are a snapshot (see date) — recent form/results above always outrank them.
+Scouting {player1}: {p1_scouting_block}
+Scouting {player2}: {p2_scouting_block}
+
+=== MODEL WEIGHTS ===
+ELO + ranking trend + opponent quality: {w_elo_ranking}%
+Surface + playing style matchup: {w_surface_style}%
+Serve + return stats: {w_serve_return}%
+Recent form (last 5-10 matches): {w_recent_form}%
+Fatigue + injuries + schedule: {w_fatigue_injuries}%
+H2H + tournament context: {w_h2h_context}%
+Tournament trajectory (in-tournament W/L run, current momentum, hot-hand): {w_tournament_trajectory}%
+"""
+
 
 _model_stamp_cache: dict = {}
 
@@ -784,8 +808,12 @@ def _model_stamp(surface: str) -> dict:
     if key in _model_stamp_cache:
         return _model_stamp_cache[key]
     import hashlib
+    # 08.09.2026 12:07: prompt je podijeljen na system + user, pa hash mora pokriti OBA
+    # predloska — inace bi izmjena uputa (koje su sada u `_ANALYSIS_SYSTEM_TEMPLATE`)
+    # prosla neprimijeceno i era modela bi se tiho stopila sa starom.
     rules_hash = hashlib.md5(
-        (_surface_specific_rules(surface or "") + ANALYSIS_PROMPT_TEMPLATE).encode("utf-8")
+        (_surface_specific_rules(surface or "")
+         + _ANALYSIS_SYSTEM_TEMPLATE + ANALYSIS_PROMPT_TEMPLATE).encode("utf-8")
     ).hexdigest()[:8]
     version = None
     try:
@@ -1398,15 +1426,23 @@ and MUST be enforced from day one.
 _ANALYSIS_MAX_TOKENS = (4000, 6000)   # prvi pokusaj, ponovljeni
 
 
-def _call_analysis_model(prompt: str, label: str = "") -> tuple:
+def _call_analysis_model(prompt: str, label: str = "", system: str = None) -> tuple:
     """Posalji prompt modelu i vrati (parsirani_rezultat_ili_None, meta).
 
     `meta` uvijek nosi dijagnostiku i onda kad sve prodje — sprema se u `context_snapshot`
     pa se ucestalost rezanja moze pratiti umjesto naslucivati.
+
+    `system` (08.09.2026 12:07) je FIKSNI dio prompta i salje se s `cache_control:
+    ephemeral`, pa se placa punom cijenom samo pri prvom pozivu u runu, a svaki sljedeci
+    ga cita iz kesa. Kes ima klizeci prozor od 5 minuta koji se obnavlja pri svakom
+    citanju — analize idu jedna za drugom pa prozor ostaje topao kroz cijeli run.
+    `meta` biljezi koliko je tokena stvarno zapisano u kes a koliko procitano, da se
+    usteda MJERI umjesto da se pretpostavlja.
     """
     client = _get_client()
     meta = {"attempts": 0, "error": None, "stop_reason": None,
-            "raw_chars": None, "max_tokens": None, "output_tokens": None}
+            "raw_chars": None, "max_tokens": None, "output_tokens": None,
+            "cache_write": None, "cache_read": None, "input_tokens": None}
     for attempt, mt in enumerate(_ANALYSIS_MAX_TOKENS, start=1):
         meta["attempts"] = attempt
         meta["max_tokens"] = mt
@@ -1424,13 +1460,21 @@ def _call_analysis_model(prompt: str, label: str = "") -> tuple:
                 # "xhigh" NIJE podržan za ovaj model (API 400: "Supported levels: high, low, max,
                 # medium") — korisnik odabrao "high" (ne "max").
                 output_config={"effort": "high"},
+                # Fiksni dio ide kao system blok s oznakom za kesiranje (08.09.2026 12:07).
+                # Kad `system` nije predan (stariji pozivi, testovi), ponasanje je kao prije.
+                **({"system": [{"type": "text", "text": system,
+                                "cache_control": {"type": "ephemeral"}}]} if system else {}),
                 messages=[{"role": "user", "content": prompt}]
             )
             meta["stop_reason"] = getattr(response, "stop_reason", None)
-            try:
-                meta["output_tokens"] = response.usage.output_tokens
-            except AttributeError:
-                pass
+            for _fld, _key in (("output_tokens", "output_tokens"),
+                               ("input_tokens", "input_tokens"),
+                               ("cache_creation_input_tokens", "cache_write"),
+                               ("cache_read_input_tokens", "cache_read")):
+                try:
+                    meta[_key] = getattr(response.usage, _fld)
+                except AttributeError:
+                    pass
             raw = ""
             for block in (response.content or []):
                 raw += getattr(block, "text", "") or ""
@@ -1522,15 +1566,24 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         p1_age=(p1.get("age") or "N/A") if _AGE_TO_PROMPT else "N/A",
         p1_hand=_format_hand(p1.get("hand", "")),
         p1_country=p1.get("nationality") or "N/A",
-        # NALAZ REVIZIJE 29.08.2026 13:11 — `ranking_trend` NIKAD nije imao vrijednost.
-        # U cijelom kodu ne postoji nijedno mjesto koje to polje POSTAVLJA; postoje samo
-        # dva ovakva citanja i dva upisa u snapshot. Model dakle na svakoj analizi cita
-        # "Ranking trend: N/A", od uvodjenja. SESTI slucaj iste obitelji tihih praznih
-        # polja (break lopte, dob, visina/tezina/ruka, harvest turnir+runda, find_player_elo
-        # koji vraca 1500 umjesto None) — vidi memoriju [[tihi-null-kljucevi]].
-        # ODLUKA: ili napuniti iz izvora, ili maknuti iz prompta. Odgodjeno na poslije US
-        # Opena jer oboje mijenja tekst koji model cita.
-        p1_ranking=p1.get("ranking", "N/A"), p1_ranking_trend=p1.get("ranking_trend", "N/A"),
+        # >>> RIJESENO 08.09.2026 12:07 — `ranking_trend` UKLONJEN iz prompta.
+        # Nalaz od 29.08.2026 13:11: polje NIKAD nije imalo vrijednost — u cijelom kodu
+        # nije postojalo nijedno mjesto koje ga POSTAVLJA, pa je model na svakoj analizi
+        # od uvodjenja citao doslovno "Ranking trend: N/A". Sesti slucaj iste obitelji
+        # tihih praznih polja (break lopte, dob, visina/tezina/ruka, harvest turnir+runda,
+        # find_player_elo koji vraca 1500 umjesto None) — vidi [[tihi-null-kljucevi]].
+        #
+        # ZASTO MAKNUTO A NE NAPUNJENO (izmjereno 08.09.2026):
+        #   - nasi podaci to ne mogu dati: medijan raspona zabiljezenih rangova po igracu
+        #     je 6 dana, NIJEDAN igrac nema 28+ dana, a ATP ljestvica se mijenja tjedno;
+        #   - `/atp/ranking/singles` IGNORIRA `date` i `rankDate` — uvijek vrati tekucu
+        #     listu, dakle povijest ranga se odande ne da dohvatiti;
+        #   - "Get Player Ranking History" je na DRUGOM hostu (404 na nasem).
+        # Da se napuni, trebala bi tjedna snimka ljestvice i 6-8 tjedana cekanja prije
+        # prvog mjerenja. Prior je slab: ELO se mijenja poslije SVAKOG meca i imamo ga po
+        # podlozi (tezina 19), `recent_form` nosi 17, a uz to vec saljemo form_5, form_10,
+        # form_trend i avg_opp_elo. Rang po konstrukciji kasni do 52 tjedna.
+        p1_ranking=p1.get("ranking", "N/A"),
         p1_elo_overall=p1.get("elo_overall", 1500), p1_elo_surface=p1.get(elo_key, 1500),
         p1_surface_record=p1_surface_record,
         p1_form_5=p1_form5, p1_form_10=p1_form10, p1_surface_form=p1_surface_form,
@@ -1567,7 +1620,7 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         p2_age=(p2.get("age") or "N/A") if _AGE_TO_PROMPT else "N/A",
         p2_hand=_format_hand(p2.get("hand", "")),
         p2_country=p2.get("nationality") or "N/A",
-        p2_ranking=p2.get("ranking", "N/A"), p2_ranking_trend=p2.get("ranking_trend", "N/A"),
+        p2_ranking=p2.get("ranking", "N/A"),
         p2_elo_overall=p2.get("elo_overall", 1500), p2_elo_surface=p2.get(elo_key, 1500),
         p2_surface_record=p2_surface_record,
         p2_form_5=p2_form5, p2_form_10=p2_form10, p2_surface_form=p2_surface_form,
@@ -1632,12 +1685,17 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
                     else (match.get("local_time") or "unknown")),
         session=match.get("session") or "unknown",
         court_pace=match.get("court_pace_str") or "no data",
+    )
+
+    # Fiksni dio prompta (08.09.2026 12:07). Jedini placeholder su pravila podloge, pa se
+    # za isti surface sastavi identican tekst na svakoj analizi — to je uvjet za kes.
+    system_prompt = _ANALYSIS_SYSTEM_TEMPLATE.format(
         surface_specific_rules=_surface_specific_rules(surface),
     )
 
     try:
         _label = f"{match.get('player1')} vs {match.get('player2')}"
-        result, _call_meta = _call_analysis_model(prompt, _label)
+        result, _call_meta = _call_analysis_model(prompt, _label, system=system_prompt)
 
         # POPRAVAK 3 (27.08.2026 18:55): kad poziv ne da JSON, NE izlazimo vise odmah.
         # Do danas je greska vodila ravno u `except` na dnu, pa je redak zavrsavao u bazi bez
@@ -1873,8 +1931,6 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             "p2_tournament_path": p2.get("tournament_path"),
             "p1_ranking": safe_int(p1.get("ranking")) or None,
             "p2_ranking": safe_int(p2.get("ranking")) or None,
-            "p1_ranking_trend": p1.get("ranking_trend"),
-            "p2_ranking_trend": p2.get("ranking_trend"),
             "p1_aces": safe_float(p1.get("aces_per_match") or p1.get("aces")),
             "p2_aces": safe_float(p2.get("aces_per_match") or p2.get("aces")),
             "p1_first_serve_won": safe_float(p1.get("first_serve_points_won")),

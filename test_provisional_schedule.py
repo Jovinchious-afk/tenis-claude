@@ -132,6 +132,14 @@ print("\n=== 7. Ožičenje kroz pipeline ===")
 import inspect
 from agent import predictor as pr
 
+# ── PROVJERE SADRZAJA GLEDAJU OBA PREDLOSKA (08.09.2026 12:07) ──────────────────
+# Prompt je toga dana podijeljen na `_ANALYSIS_SYSTEM_TEMPLATE` (fiksne upute, kesira
+# se) i `ANALYSIS_PROMPT_TEMPLATE` (podaci o mecu). Provjere koje pitaju "je li ovo
+# pravilo u promptu" moraju gledati SPOJENI tekst — inace bi tiho prestale provjeravati
+# ono zbog cega postoje, jer je vecina pravila u sistemskom dijelu.
+# `_FULL_PROMPT` je tocno ono sto model procita, istim redoslijedom.
+_FULL_PROMPT = pr._ANALYSIS_SYSTEM_TEMPLATE + pr.ANALYSIS_PROMPT_TEMPLATE
+
 _rd = inspect.getsource(sys.modules["agent.run_daily"])
 _pr = inspect.getsource(pr)
 
@@ -148,15 +156,29 @@ check("wave_first ostaje prazan, ne lažni True",
 check("placeholder ne definira početak vala ostalima",
       'or match.get("schedule_provisional")' in _rd)
 
+# ── ZIG ERE MODELA (uvedeno kao konstanta 08.09.2026 12:07) ─────────────────────
+# Do danas je hash bio upisan kao doslovna nizanka na 12 mjesta u ovom paketu. Svaka je
+# od tih provjera cuvala istu stvar: "moja izmjena NIJE dirala tekst koji model cita".
+# Kad se prompt jednom stvarno promijeni, dvanaest mjesta treba rucno ispraviti — sto je
+# poziv na gresku. Sada je jedno mjesto, a povijest era ostaje zapisana ovdje.
+#
+# POVIJEST:
+#   a0424315  22.08.2026 - 08.09.2026  (158 analiza)
+#   61999517  od 08.09.2026 12:07 — prompt podijeljen na system+user radi kesiranja,
+#             uklonjen mrtvi `ranking_trend`, popravljene dvije pozicijske reference.
+#             Sadrzaj je inace znak po znak isti; dokaz: usporedba starog i novog
+#             predloska dala je tocno 5 uklonjenih i 5 dodanih redaka, sve namjeravane.
+_ERA_RULES_HASH = "61999517"
+
 check("prompt dobiva eksplicitan razlog umjesto sata",
       "Unknown — tomorrow's schedule is not final" in _pr)
 check("snapshot bilježi schedule_provisional", '"schedule_provisional"' in _pr)
 check("snapshot bilježi iz koje rubrike je sat", '"scheduled_start_source_date"' in _pr)
 check("context_version 17 (snapshot i kod neuspjele analize, 27.08.2026)", '"context_version": 17' in _pr)
-check("rules_hash a0424315 (era od 22.08.2026)",
-      pr._model_stamp("hard")["rules_hash"] == "a0424315")
+check("rules_hash odgovara zigu ere",
+      pr._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
 check("nova polja ne cure u predložak prompta",
-      "schedule_provisional" not in pr.ANALYSIS_PROMPT_TEMPLATE)
+      "schedule_provisional" not in _FULL_PROMPT)
 
 
 print("\n=== 8. Dob: popravljen dohvat, ali NAMJERNO izvan prompta (15.08.2026) ===")
@@ -173,8 +195,8 @@ check("besmislena dob se odbacuje", df._get_age({"age": 99, "birthday": ""}) is 
 check("dob NE ide u prompt dok traje mjerenje", pr._AGE_TO_PROMPT is False)
 check("dob se ipak biljezi u snapshot", '"age_in_prompt"' in _pr)
 check("context_version 17 (snapshot i kod neuspjele analize, 27.08.2026)", '"context_version": 17' in _pr)
-check("rules_hash a0424315 (era od 22.08.2026)",
-      pr._model_stamp("hard")["rules_hash"] == "a0424315")
+check("rules_hash odgovara zigu ere",
+      pr._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
 
 
 print("\n=== 9. Tržišni konsenzus — samo mjeri, ne odlučuje (15.08.2026) ===")
@@ -220,12 +242,12 @@ check("preokreće vjerojatnost kad je par obrnut",
 check("nepoznat par -> {}", mkt.find_for_pair(_idx, "Neki Igrac", "Drugi Igrac") == {})
 
 # najvažnije: tržište NE smije doći do prompta
-check("market_p NIJE u predlošku prompta", "market_p" not in pr.ANALYSIS_PROMPT_TEMPLATE)
+check("market_p NIJE u predlošku prompta", "market_p" not in _FULL_PROMPT)
 check("snapshot bilježi market_p", '"market_p"' in _pr)
 check("snapshot bilježi EV picka", '"market_ev_pick"' in _pr)
 check("context_version 17 (snapshot i kod neuspjele analize, 27.08.2026)", '"context_version": 17' in _pr)
-check("rules_hash a0424315 (era od 22.08.2026)",
-      pr._model_stamp("hard")["rules_hash"] == "a0424315")
+check("rules_hash odgovara zigu ere",
+      pr._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
 # ticket_builder SMIJE zapisati tržište uz odigrani pick, ali NE SMIJE po njemu birati.
 _tb = inspect.getsource(__import__("agent.ticket_builder", fromlist=["x"]))
 check("ticket_builder zapisuje tržište uz pick", '"market_snapshot"' in _tb)
@@ -380,12 +402,12 @@ _rdsrc = inspect.getsource(sys.modules["agent.run_daily"])
 
 # --- PRIJEDLOG 2: povijest na turniru ---
 check("prompt ima redak o povijesti na turniru",
-      "Best at THIS tournament, last 3 seasons:" in pr.ANALYSIS_PROMPT_TEMPLATE)
-check("prompt ima pravilo o povijesti", "TOURNAMENT HISTORY" in pr.ANALYSIS_PROMPT_TEMPLATE)
-check("pravilo nosi izmjereni broj", "71.6% (n=102)" in pr.ANALYSIS_PROMPT_TEMPLATE)
+      "Best at THIS tournament, last 3 seasons:" in _FULL_PROMPT)
+check("prompt ima pravilo o povijesti", "TOURNAMENT HISTORY" in _FULL_PROMPT)
+check("pravilo nosi izmjereni broj", "71.6% (n=102)" in _FULL_PROMPT)
 check("pravilo izricito kaze da NIJE osobni strop",
-      "not a personal ceiling" in pr.ANALYSIS_PROMPT_TEMPLATE)
-check("pravilo upozorava na QF", "In QUARTER-FINALS this signal breaks down" in pr.ANALYSIS_PROMPT_TEMPLATE)
+      "not a personal ceiling" in _FULL_PROMPT)
+check("pravilo upozorava na QF", "In QUARTER-FINALS this signal breaks down" in _FULL_PROMPT)
 check("run_daily racuna povijest", "_tourn_best_3y" in _rdsrc)
 check("povijest se racuna za 3 sezone", "datetime.date.today().year - 3" in _rdsrc)
 check("_format_tourn_hist postoji", hasattr(pr, "_format_tourn_hist"))
@@ -395,11 +417,11 @@ check("3 -> polufinale", pr._format_tourn_hist(3) == "semi-final")
 check("5 -> naslov", "title" in pr._format_tourn_hist(5))
 
 # --- PRIJEDLOG 4: visina kao OPIS, ne prediktor ---
-check("prompt ima redak Build:", "Build: {p1_build}" in pr.ANALYSIS_PROMPT_TEMPLATE)
-check("prompt ima pravilo o visini", "HEIGHT AND BUILD" in pr.ANALYSIS_PROMPT_TEMPLATE)
+check("prompt ima redak Build:", "Build: {p1_build}" in _FULL_PROMPT)
+check("prompt ima pravilo o visini", "HEIGHT AND BUILD" in _FULL_PROMPT)
 check("pravilo izricito zabranjuje 'visi pobjedjuje'",
-      'NEVER write "X is taller so he should win"' in pr.ANALYSIS_PROMPT_TEMPLATE)
-check("pravilo nosi nulti nalaz", "r = +0.005 (P=0.947)" in pr.ANALYSIS_PROMPT_TEMPLATE)
+      'NEVER write "X is taller so he should win"' in _FULL_PROMPT)
+check("pravilo nosi nulti nalaz", "r = +0.005 (P=0.947)" in _FULL_PROMPT)
 check("_format_build postoji", hasattr(pr, "_format_build"))
 check("build spaja visinu/tezinu/ruku",
       pr._format_build({"height_cm": 198, "weight_kg": 90, "plays": "Right-Handed"})
@@ -408,17 +430,17 @@ check("build bez podataka -> N/A", pr._format_build({}) == "N/A")
 check("build s djelomicnim podatkom radi", pr._format_build({"height_cm": 185}) == "185 cm")
 
 # --- kategorije key_factors: 6 slotova, 4+5 spojeni ---
-check("kategorija 4 je spojena", "4. Matchup & conditions" in pr.ANALYSIS_PROMPT_TEMPLATE)
-check("kategorija 5 je nova", "5. Tournament history & context" in pr.ANALYSIS_PROMPT_TEMPLATE)
+check("kategorija 4 je spojena", "4. Matchup & conditions" in _FULL_PROMPT)
+check("kategorija 5 je nova", "5. Tournament history & context" in _FULL_PROMPT)
 check("i dalje 6 kategorija (own read ostaje 6.)",
-      "6. Own read" in pr.ANALYSIS_PROMPT_TEMPLATE)
+      "6. Own read" in _FULL_PROMPT)
 check("stara zasebna kategorija stila je maknuta",
-      "4. Style matchup —" not in pr.ANALYSIS_PROMPT_TEMPLATE)
+      "4. Style matchup —" not in _FULL_PROMPT)
 
 # --- PRIJEDLOG 1 + 3: biljezenje ---
 for _f in ("p1_matches_7d", "p1_sets_7d", "p1_days_rest", "p1_avg_opp_elo", "p1_form_5",
            "p1_form_10", "p1_surface_record", "p1_tournament_path", "p1_ranking",
-           "p1_ranking_trend", "p1_height_cm", "p1_weight_kg", "p1_plays",
+           "p1_height_cm", "p1_weight_kg", "p1_plays",
            "round_is_qf", "p1_tourn_best_3y"):
     check(f"snapshot biljezi {_f}", f'"{_f}"' in _pr)
 check("days_rest se sprema kao BROJ", hasattr(pr, "_days_rest_num"))
@@ -582,8 +604,11 @@ import agent.run_daily as _rd_mod
 # --- prompt i pravila NISU dirani: zig ere mora ostati isti ---
 import hashlib as _hl
 from agent.predictor import _HARD_RULES_V1 as _HR, ANALYSIS_PROMPT_TEMPLATE as _APT
-check("rules_hash hard ostaje a0424315 (prompt netaknut)",
-      _hl.md5((_HR + _APT).encode()).hexdigest()[:8] == "a0424315")
+# 08.09.2026 12:07: hash sada pokriva OBA predloska (system + user), jer su upute
+# preseljene u `_ANALYSIS_SYSTEM_TEMPLATE` pa bi inace izmjena uputa prosla neprimijeceno.
+from agent.predictor import _ANALYSIS_SYSTEM_TEMPLATE as _AST
+check("rules_hash hard odgovara zigu ere",
+      _hl.md5((_HR + _AST + _APT).encode()).hexdigest()[:8] == _ERA_RULES_HASH)
 
 # --- nove velicine se BILJEZE, ali NE ulaze u prompt ---
 _prv = open("agent/predictor.py", encoding="utf-8").read()

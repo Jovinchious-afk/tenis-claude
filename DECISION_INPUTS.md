@@ -9,7 +9,14 @@ zabilježiti izmjenu u `MODEL_CHANGELOG.md`.
 
 ---
 
-## 1. Ulazi u ODLUKU — analiza (prompt, ~9.700 tokena)
+## 1. Ulazi u ODLUKU — analiza (prompt, ~13.800 tokena, od 08.09.2026 u DVA dijela)
+
+**Od 08.09.2026 12:07 prompt je podijeljen** radi kesiranja (`rules_hash` `61999517`):
+`_ANALYSIS_SYSTEM_TEMPLATE` nosi fiksne upute i pravila podloge (~10.974 tokena, šalje se
+kao `system` s `cache_control: ephemeral`), a `ANALYSIS_PROMPT_TEMPLATE` samo podatke o
+meču (~2.805 tokena, 97 placeholdera). Sadržaj je isti kao prije uz pet namjeravanih
+izmjena; upute sada dolaze PRIJE podataka. `ranking_trend` je uklonjen — nikad nije imao
+vrijednost. Detalji: MODEL_CHANGELOG 08.09.2026 12:07 (druga izmjena).
 
 Model za oba igrača dobiva sve navedeno, uz izričito navedene težine po kategoriji.
 Težine su hard v18; žive u Supabase `model_weights`, ne u kodu.

@@ -13,6 +13,115 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-09-08 12:07 (druga izmjena istog dana) — PROMPT PODIJELJEN NA SYSTEM I USER
+## RADI KESIRANJA; uklonjena mrtva varijabla `ranking_trend`.
+
+**`rules_hash` mijenja se s `a0424315` na `61999517`.** Ovo je jedina izmjena danas koja
+dira tekst koji model čita — jutarnja revizija (struktura tiketa, prag, konsenzus, runde)
+prompt nije dirala.
+
+---
+
+### 1. Zašto: 80% prompta se plaćalo iznova na svakoj analizi
+
+Prompt je do danas bio jedna korisnička poruka koja je **počinjala podacima o meču**, pa
+nije imala fiksni prefiks koji bi se dao kesirati. Izmjereno na stvarnom pozivu:
+
+| dio | tokena |
+|---|---|
+| fiksne upute + pravila podloge (hard) | **10.974** |
+| podaci o meču | 2.805 |
+
+Uz 20-40 analiza po runu, tih ~11.000 tokena plaćalo se 20-40 puta.
+
+### 2. Što je napravljeno
+
+Predložak je razdvojen na dvoje:
+
+- `_ANALYSIS_SYSTEM_TEMPLATE` — fiksne upute, jedini placeholder `{surface_specific_rules}`.
+  Šalje se kao `system` blok s `cache_control: ephemeral`.
+- `ANALYSIS_PROMPT_TEMPLATE` — samo podaci o meču (97 placeholdera).
+
+`system` je odabran umjesto prvog bloka korisničke poruke jer je prirodan prefiks i ne može
+se slučajno razbiti ubacivanjem podatka ispred njega.
+
+### 3. Provjereno ŽIVIM pozivom (dva uzastopna poziva)
+
+```
+poziv 1:  zapisano u keš 10.974 | pročitano 0      | JSON parsiran: da
+poziv 2:  zapisano u keš 0      | pročitano 10.974 | JSON parsiran: da
+```
+
+Ušteda u naplativim ulaznim tokenima (keš-pisanje 1,25×, keš-čitanje 0,1×):
+
+| analiza po runu | bez keša | s kešom | ušteda |
+|---|---|---|---|
+| 10 | 137.790 | 51.087 | **62,9%** |
+| 20 | 275.580 | 62.057 | **67,7%** |
+| 30 | 413.370 | 129.694 | **68,6%** |
+| 40 | 551.160 | 173.331 | **68,5%** |
+
+Ranija procjena u memoriji bila je −43%; stvarna je ušteda veća jer je fiksni udio (80,4%)
+bio podcijenjen. Keš ima klizeći prozor od 5 minuta koji se obnavlja pri svakom čitanju —
+analize idu jedna za drugom pa prozor ostaje topao kroz cijeli run.
+
+`meta` sada bilježi `cache_write` i `cache_read` po pozivu, pa se ušteda **mjeri** umjesto
+da se pretpostavlja.
+
+### 4. Što se točno promijenilo u tekstu — dokazano usporedbom
+
+Stari predložak i novi (system + user) uspoređeni su red po red. Rezultat: **437 redaka s
+obje strane, točno 5 uklonjenih i 5 dodanih**, sve namjeravane:
+
+1. Uvod: "Evaluate the following match" → "Evaluate the match given in the next message"
+2. i 3. `Ranking trend` maknut iz oba bloka igrača
+4. "risk_notes against your key_factors and the data above" → "…and the match data"
+5. "Read the Wind figure in Conditions above" → "…in the Conditions section"
+
+Točke 4 i 5 su bile nužne: upute sada dolaze PRIJE podataka, pa je "above" pokazivalo u
+krivi smjer. Namjerno su zamijenjene formulacijom **bez** riječi above/below, da se ne
+razbiju pri sljedećem preslagivanju.
+
+**Sve ostalo je znak po znak isto — promijenjen je samo redoslijed.**
+
+### 5. Jedini stvarni rizik: redoslijed
+
+Upute su prije dolazile POSLIJE podataka, sada dolaze PRIJE. To je standardna i općenito
+preporučena struktura, ali jest promjena konteksta u kojem model radi. **Pratiti prvih
+20-30 analiza** — posebno raspon pouzdanosti i udio `NO SELECTION`. Ako se ponašanje
+vidljivo promijeni, era `61999517` je jasno odvojena u `context_snapshot` pa se usporedba
+sa `a0424315` može napraviti egzaktno.
+
+### 6. `ranking_trend` — uklonjen, ne napunjen
+
+Nalaz od 29.08.2026 13:11: polje **nikad** nije imalo vrijednost — u kodu nije postojalo
+nijedno mjesto koje ga postavlja, pa je model od uvođenja čitao doslovno `Ranking trend: N/A`.
+Šesti slučaj iste obitelji tihih praznih polja.
+
+Izmjereno 08.09. prije odluke:
+
+- **naši podaci to ne mogu dati** — medijan raspona zabilježenih rangova po igraču je
+  **6 dana**, nijedan igrač nema 28+, a ATP ljestvica se mijenja tjedno;
+- **`/atp/ranking/singles` ignorira `date` i `rankDate`** — uvijek vraća tekuću listu;
+- **"Get Player Ranking History" je na drugom hostu** (404 na našem).
+
+Da se napuni, trebala bi tjedna snimka ljestvice i 6-8 tjedana čekanja prije prvog mjerenja.
+Prior je slab: ELO se mijenja poslije svakog meča i imamo ga po podlozi (težina 19),
+`recent_form` nosi 17, a već šaljemo `form_5`, `form_10`, `form_trend`, `avg_opp_elo`.
+Rang po konstrukciji kasni do 52 tjedna. **Odluka: maknuto.**
+
+---
+
+**Testovi:** novi odjeljak 36 (27 provjera). Odjeljak 31 (provjera placeholdera u oba
+smjera) proširen je da pokriva OBA predloška — inače bi tiho prestao provjeravati ono zbog
+čega postoji. Žig ere je izvučen u konstantu `_ERA_RULES_HASH` (bio je upisan doslovno na
+14 mjesta u dva paketa), s poviješću era u komentaru.
+
+**Što NIJE dirano:** težine (v18), pravila podloge, sve determinističke provjere i kazne,
+struktura tiketa i konsenzusni bonus iz jutarnje izmjene.
+
+---
+
 ## 2026-09-08 12:07 — REVIZIJA HARD MODELA NA KRAJU US OPENA: struktura tiketa,
 ## prag pouzdanosti, tržišni konsenzus u bodovanju, dva popravka oznaka rundi.
 

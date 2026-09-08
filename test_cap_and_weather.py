@@ -8,7 +8,8 @@ import io
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
-from agent.predictor import _enforce_stated_caps, ANALYSIS_PROMPT_TEMPLATE
+from agent.predictor import (_enforce_stated_caps, ANALYSIS_PROMPT_TEMPLATE,
+                             _ANALYSIS_SYSTEM_TEMPLATE)
 
 _fails = []
 
@@ -101,7 +102,7 @@ check("fair_odds izveden iz 60, ne iz 65", r["fair_odds"] == round(100 / 60, 2),
       f"dobiveno {r['fair_odds']}")
 
 print("\n=== 5. Prompt nosi nova pravila ===")
-t = ANALYSIS_PROMPT_TEMPLATE
+t = _ANALYSIS_SYSTEM_TEMPLATE + ANALYSIS_PROMPT_TEMPLATE
 check("applied_caps u JSON shemi", '"applied_caps"' in t)
 check("upute za deklariranje capova", "DECLARE YOUR CAPS" in t)
 check("'technically triggered' izrijekom znači TRIGGERED", "technically triggered" in t)
@@ -450,6 +451,14 @@ check("upsert_elo_cache izricito upisuje updated_at",
 
 print("\n=== 13. Break lopte + servis/povrat (07.08.2026) ===")
 from agent import predictor as _pr
+
+# ── PROVJERE SADRZAJA GLEDAJU OBA PREDLOSKA (08.09.2026 12:07) ──────────────────
+# Prompt je toga dana podijeljen na `_ANALYSIS_SYSTEM_TEMPLATE` (fiksne upute, kesira
+# se) i `ANALYSIS_PROMPT_TEMPLATE` (podaci o mecu). Provjere koje pitaju "je li ovo
+# pravilo u promptu" moraju gledati SPOJENI tekst — inace bi tiho prestale provjeravati
+# ono zbog cega postoje, jer je vecina pravila u sistemskom dijelu.
+# `_FULL_PROMPT` je tocno ono sto model procita, istim redoslijedom.
+_FULL_PROMPT = _pr._ANALYSIS_SYSTEM_TEMPLATE + _pr.ANALYSIS_PROMPT_TEMPLATE
 from agent import data_fetcher as _df
 
 # (a) nazivi polja: kod mora traziti ono sto API stvarno vraca
@@ -489,8 +498,8 @@ check("context_version podignut na 17 (v15 22.08., v16 26.08., v17 27.08.)",
 
 # (e) nove vrijednosti ne smiju procuriti u prompt template
 check("prompt template nema novih polja",
-      "hold_pct_from_bp" not in _pr.ANALYSIS_PROMPT_TEMPLATE
-      and "return_won_weighted" not in _pr.ANALYSIS_PROMPT_TEMPLATE)
+      "hold_pct_from_bp" not in _FULL_PROMPT
+      and "return_won_weighted" not in _FULL_PROMPT)
 
 print("\n=== 14. Otvorene stavke zapisane u kodu (07.08.2026) ===")
 _tb = open("agent/ticket_builder.py", encoding="utf-8").read()
@@ -506,16 +515,30 @@ check("pristranost povrata zapisana uz izracun", "POZNATA PRISTRANOST" in _dfsrc
 check("ograda na hold proxy zapisana uz izracun", "OGRADA NA OVAJ PROXY" in _dfsrc)
 check("krivi nazivi API polja dokumentirani", "breakPointOf" in _dfsrc)
 
+# ── ZIG ERE MODELA (uvedeno kao konstanta 08.09.2026 12:07) ─────────────────────
+# Do danas je hash bio upisan kao doslovna nizanka na 12 mjesta u ovom paketu. Svaka je
+# od tih provjera cuvala istu stvar: "moja izmjena NIJE dirala tekst koji model cita".
+# Kad se prompt jednom stvarno promijeni, dvanaest mjesta treba rucno ispraviti — sto je
+# poziv na gresku. Sada je jedno mjesto, a povijest era ostaje zapisana ovdje.
+#
+# POVIJEST:
+#   a0424315  22.08.2026 - 08.09.2026  (158 analiza)
+#   61999517  od 08.09.2026 12:07 — prompt podijeljen na system+user radi kesiranja,
+#             uklonjen mrtvi `ranking_trend`, popravljene dvije pozicijske reference.
+#             Sadrzaj je inace znak po znak isti; dokaz: usporedba starog i novog
+#             predloska dala je tocno 5 uklonjenih i 5 dodanih redaka, sve namjeravane.
+_ERA_RULES_HASH = "61999517"
+
 # NAJVAZNIJE: ograda o late-round pravilu NE SMIJE biti unutar prompt templatea —
 # rules_hash je md5 nad njim, a i model bi je citao kao uputu.
 check("ograda je IZVAN prompt templatea (rules_hash netaknut)",
-      "OGRADA NA PRAVILO" not in _pr.ANALYSIS_PROMPT_TEMPLATE)
+      "OGRADA NA PRAVILO" not in _FULL_PROMPT)
 import hashlib as _hl
-_h = _hl.md5((_surface_specific_rules("Hard") + _pr.ANALYSIS_PROMPT_TEMPLATE)
+_h = _hl.md5((_surface_specific_rules("Hard") + _FULL_PROMPT)
              .encode("utf-8")).hexdigest()[:8]
 # Ako ovo padne, prompt se PROMIJENIO. To je u redu kad je namjerno — tada osvjezi
 # vrijednost ovdje i zabiljezi izmjenu u MODEL_CHANGELOG. Ako nije bilo namjerno, vrati je.
-check("hard rules_hash je a0424315 (era od 22.08.2026)", _h == "a0424315", _h)
+check("hard rules_hash odgovara zigu ere", _h == _ERA_RULES_HASH, _h)
 
 print("\n=== 15. Natpisi podloge u selekciji (07.08.2026) ===")
 from agent import ticket_builder as _tbm
@@ -561,8 +584,8 @@ check("PYTHONUNBUFFERED aktiviran", 'PYTHONUNBUFFERED: "1"' in _wf2)
 check("hard okidac vise ne vristi na 30", "_HARD_NEXT_TRIGGER = 180" in _rd2)
 # ELO NE smije uci u prompt (samo biljezenje)
 check("ELO polja NISU u prompt templateu",
-      "elo_gap_surface" not in _pr.ANALYSIS_PROMPT_TEMPLATE
-      and "avg_opp_elo_n" not in _pr.ANALYSIS_PROMPT_TEMPLATE)
+      "elo_gap_surface" not in _FULL_PROMPT
+      and "avg_opp_elo_n" not in _FULL_PROMPT)
 
 # B — mijenja pickove
 check("break lopte idu u prompt", _pr._BP_TO_PROMPT is True)
@@ -589,11 +612,11 @@ check("promjena raspona nosi obrazlozenje s mjerenjem", "ZASTO RASPON" in _mc an
 check("return_points_won JOS NIJE ispravljen u promptu", "POZNATA PRISTRANOST" in _dfsrc)
 
 # zamka: rules_hash se NIJE promijenio, pa se era mora rezati po bp_in_prompt
-_hh = _h2.md5((_surface_specific_rules("Hard") + _pr.ANALYSIS_PROMPT_TEMPLATE)
+_hh = _h2.md5((_surface_specific_rules("Hard") + _FULL_PROMPT)
               .encode("utf-8")).hexdigest()[:8]
 # Prompt JE mijenjan 13.08.2026 (strop 64 + trzisna provjera) -> hash se MORAO promijeniti.
 # Ako ovo padne, prompt je diran: osvjezi vrijednost i zabiljezi izmjenu u MODEL_CHANGELOG.
-check("hard rules_hash je a0424315 (era od 22.08.2026)", _hh == "a0424315", _hh)
+check("hard rules_hash odgovara zigu ere", _hh == _ERA_RULES_HASH, _hh)
 check("zamka o rezanju ere dokumentirana", "ZAMKA ZA BUDUĆU ANALIZU" in _prsrc)
 check("bp_in_prompt se biljezi kao oznaka ere", '"bp_in_prompt": _BP_TO_PROMPT' in _prsrc)
 
@@ -690,17 +713,17 @@ print("\n=== 21. Trzisna cijena kao PROVJERA, ne ulaz ===")
 _ml = _market_line(1.28, 3.60, "Rublev", "Shang")
 check("prikazuje impliciranu vjerojatnost, ne kvotu", "78%" in _ml and "1.28" not in _ml)
 check("bez kvota vraca N/A", _market_line(0, 0, "A", "B") == "N/A")
-check("prompt nosi Market check redak", "Market check (NOT an input" in _pr.ANALYSIS_PROMPT_TEMPLATE)
+check("prompt nosi Market check redak", "Market check (NOT an input" in _FULL_PROMPT)
 check("prompt izricito kaze da NIJE ulaz",
-      "must NOT enter your estimate" in _pr.ANALYSIS_PROMPT_TEMPLATE)
+      "must NOT enter your estimate" in _FULL_PROMPT)
 check("prompt trazi obrazlozenje samo iznad 10pp",
-      "differs by more than 10pp" in _pr.ANALYSIS_PROMPT_TEMPLATE)
-check("mjerenje 2W-6L zapisano u pravilu", "2W-6L" in _pr.ANALYSIS_PROMPT_TEMPLATE)
+      "differs by more than 10pp" in _FULL_PROMPT)
+check("mjerenje 2W-6L zapisano u pravilu", "2W-6L" in _FULL_PROMPT)
 check("stara zabrana oslanjanja na kvotu i dalje stoji",
-      "independent of bookmaker odds" in _pr.ANALYSIS_PROMPT_TEMPLATE)
+      "independent of bookmaker odds" in _FULL_PROMPT)
 check("nova polja u JSON shemi",
-      '"above_64_basis"' in _pr.ANALYSIS_PROMPT_TEMPLATE
-      and '"market_check"' in _pr.ANALYSIS_PROMPT_TEMPLATE)
+      '"above_64_basis"' in _FULL_PROMPT
+      and '"market_check"' in _FULL_PROMPT)
 check("context_version podignut na 17", '"context_version": 17' in _all2)
 
 print("\n=== 22. Runde na razini TURNIRA (13.08.2026) ===")
@@ -852,7 +875,7 @@ check("stari nacin ODLUCIVANJA je uklonjen",
 
 # --- zamka: ovo je sloj prikaza, model se NE mijenja ---
 check("write-up popravak NE dira rules_hash",
-      _pr._model_stamp("hard")["rules_hash"] == "a0424315")
+      _pr._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
 
 print("\n=== 26. Sluzbeni popis pickova + prag 50% (29.08.2026) ===")
 from utils.helpers import is_no_selection, pick_ledger, MIN_PICK_CONFIDENCE
@@ -944,7 +967,7 @@ check("arhiva oznacava NO SELECTION", "NO SELECTION" in _ar_src)
 # --- zamka: predikcija se i dalje BILJEZI i BODUJE ---
 check("nista ne brise pick iz ticket_matches",
       "no_selection" not in inspect.getsource(_tb.build_analysis_only_ticket))
-check("prag NE dira rules_hash", _pr._model_stamp("hard")["rules_hash"] == "a0424315")
+check("prag NE dira rules_hash", _pr._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
 
 print("\n=== 27. Streamlit: zastarjeli utils.helpers u sys.modules (29.08.2026) ===")
 import io as _io27
@@ -1167,10 +1190,10 @@ check("kazna -4pp OSTAJE u prediktoru (analiza treba brojku)",
       _pen(64, scout="Med-Low")[0] == 60.0)
 
 # --- zamka: model se NIJE promijenio ---
-check("revizija NE dira rules_hash", _pr._model_stamp("hard")["rules_hash"] == "a0424315")
+check("revizija NE dira rules_hash", _pr._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
 check("ANALYSIS_PROMPT_TEMPLATE ne spominje nove kazne",
-      "conf_band_65_68" not in _pr.ANALYSIS_PROMPT_TEMPLATE
-      and "tiebreak_lead" not in _pr.ANALYSIS_PROMPT_TEMPLATE)
+      "conf_band_65_68" not in _FULL_PROMPT
+      and "tiebreak_lead" not in _FULL_PROMPT)
 
 print()
 print("=== 30. Fery veto UKINUT iz selekcije (30.08.2026 12:37) ===")
@@ -1244,22 +1267,38 @@ from string import Formatter as _Fmt
 
 _src = io.open(inspect.getsourcefile(_pr), encoding="utf-8").read()
 _Q3 = chr(34) * 3
-_tpl = _src.split("ANALYSIS_PROMPT_TEMPLATE = " + _Q3, 1)[1].split(_Q3)[0]
-_ph = {f for _, f, _, _ in _Fmt().parse(_tpl) if f}
-_kw = None
+# 08.09.2026 12:07: predlozaka je sada DVA. Provjera mora pokriti oba, i to u oba
+# smjera — placeholder bez argumenta rusi produkciju (KeyError), argument bez
+# placeholdera je mrtva varijabla (tocno takva je bio `ranking_trend`).
+_ph_by_tpl, _kw_by_tpl = {}, {}
+for _name in ("_ANALYSIS_SYSTEM_TEMPLATE", "ANALYSIS_PROMPT_TEMPLATE"):
+    _body = _src.split(_name + " = " + _Q3, 1)[1].split(_Q3)[0]
+    _ph_by_tpl[_name] = {f for _, f, _, _ in _Fmt().parse(_body) if f}
+    _kw_by_tpl[_name] = None
 for _node in _ast.walk(_ast.parse(_src)):
     if (isinstance(_node, _ast.Call) and isinstance(_node.func, _ast.Attribute)
             and _node.func.attr == "format"
             and isinstance(_node.func.value, _ast.Name)
-            and _node.func.value.id == "ANALYSIS_PROMPT_TEMPLATE"):
-        _kw = {a.arg for a in _node.keywords if a.arg}
+            and _node.func.value.id in _kw_by_tpl):
+        _kw_by_tpl[_node.func.value.id] = {a.arg for a in _node.keywords if a.arg}
 
-check("poziv .format() na predlosku je pronadjen", _kw is not None)
-check("predlozak ima ocekivani broj polja (100)", len(_ph) == 100, "nadjeno %d" % len(_ph))
-check("NIJEDAN placeholder nije bez argumenta (inace KeyError u produkciji)",
-      not (_ph - _kw), "manjka: %s" % sorted(_ph - _kw))
-check("NIJEDAN argument nije bez placeholdera (mrtva varijabla)",
-      not (_kw - _ph), "visak: %s" % sorted(_kw - _ph))
+_ph = _ph_by_tpl["ANALYSIS_PROMPT_TEMPLATE"]
+_kw = _kw_by_tpl["ANALYSIS_PROMPT_TEMPLATE"]
+for _name in _kw_by_tpl:
+    check("poziv .format() na %s je pronadjen" % _name, _kw_by_tpl[_name] is not None)
+check("korisnicki predlozak ima ocekivani broj polja (97)",
+      len(_ph) == 97, "nadjeno %d" % len(_ph))
+check("sistemski predlozak ima tocno jedno polje (pravila podloge)",
+      _ph_by_tpl["_ANALYSIS_SYSTEM_TEMPLATE"] == {"surface_specific_rules"},
+      "nadjeno %s" % sorted(_ph_by_tpl["_ANALYSIS_SYSTEM_TEMPLATE"]))
+for _name in _kw_by_tpl:
+    _p, _k = _ph_by_tpl[_name], _kw_by_tpl[_name] or set()
+    check("%s: nijedan placeholder nije bez argumenta" % _name,
+          not (_p - _k), "manjka: %s" % sorted(_p - _k))
+    check("%s: nijedan argument nije bez placeholdera" % _name,
+          not (_k - _p), "visak: %s" % sorted(_k - _p))
+check("ranking_trend vise nije ni u jednom predlosku",
+      not any("ranking_trend" in x for x in (_ph | _ph_by_tpl["_ANALYSIS_SYSTEM_TEMPLATE"])))
 check("p1_last_match / p2_last_match vise se ne prosljedjuju",
       "p1_last_match" not in _kw and "p2_last_match" not in _kw)
 check("podatak last_match_date nije izbrisan iz koda", "last_match_date" in _src)
@@ -1277,7 +1316,7 @@ check("konstanta oprezne zone je i dalje (1.43, 1.60)",
 check("opis biljezi otvorenu nedosljednost s promptom",
       "OTVORENA NEDOSLJEDNOST" in _zone_src)
 check("rules_hash netaknut ovim izmjenama",
-      _pr._model_stamp("hard")["rules_hash"] == "a0424315")
+      _pr._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
 
 print()
 print("=== 32. Revizija 06.09.2026: uklonjeno ono sto nije repliciralo ===")
@@ -1339,7 +1378,7 @@ _st = {"player1Stats": {"winners": 55, "unforcedErrors": 59, "our_player_id": 1}
 _out = _fa._format_match_stats("Ana Anic", "Bruno Bric", _st, "1", "2")
 check("omjer se stvarno ispisuje", "0.93" in _out and "0.76" in _out, _out[:120])
 
-check("rules_hash i dalje netaknut", _pr._model_stamp("hard")["rules_hash"] == "a0424315")
+check("rules_hash i dalje netaknut", _pr._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
 
 print()
 print("=== 33. Registar kandidata + bazne stope o cijeni i kvotama (06.09.2026 10:55) ===")
@@ -1365,7 +1404,7 @@ check("bazne stope i dalje nose kontrolnu tablicu", "THE CONTROL TABLE" in _b)
 check("bazne stope nisu narasle preko razumnog (prompt budzet)",
       len(_b) < 12000, "%d znakova" % len(_b))
 
-check("rules_hash i dalje netaknut", _pr._model_stamp("hard")["rules_hash"] == "a0424315")
+check("rules_hash i dalje netaknut", _pr._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
 
 print()
 print("=== 34. Otvoreni zapisi u kodu: zatvoreni nose nalaz (06.09.2026 11:20) ===")
@@ -1401,13 +1440,12 @@ check("strukturna mana analize gubitaka je oznacena kao popravljena",
 # --- stavke koje OSTAJU otvorene moraju to i dalje jasno reci ---
 for _tag, _txt, _where in (
         ("R16/QF opterecenje", "OSTAJE OTVORENA do iduceg Grand Slama", _src_rd),
-        ("ranking_trend", "Odgodjeno na poslije US", _src_pr),
         ("Med-Low veto", "PRAG ZA PONOVNO UVODJENJE VETA", _src_tb),
         ("oprezna zona vs prompt", "OTVORENA NEDOSLJEDNOST", _src_tb)):
     check("otvorena stavka '%s' je i dalje oznacena" % _tag, _txt in _where)
 
 check("rules_hash netaknut nakon zatvaranja zapisa",
-      _pr._model_stamp("hard")["rules_hash"] == "a0424315")
+      _pr._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
 
 
 # ==========================================================================
@@ -1522,7 +1560,89 @@ check("konsenzusni signal nosi prag za ponovnu provjeru",
       "listopada 2026" in _tbsrc)
 
 check("rules_hash netaknut nakon revizije 08.09.",
-      _pr._model_stamp("hard")["rules_hash"] == "a0424315")
+      _pr._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
+
+
+# ==========================================================================
+print("\n=== 36. Prompt caching + uklonjen ranking_trend (08.09.2026 12:07) ===")
+
+import inspect as _insp36
+_src36 = _src_pr
+
+# --- A. Struktura: dva predloska, cist rez ---
+check("postoji sistemski predlozak", hasattr(_pr, "_ANALYSIS_SYSTEM_TEMPLATE"))
+check("sistemski predlozak nosi upute",
+      "=== INSTRUCTIONS ===" in _pr._ANALYSIS_SYSTEM_TEMPLATE)
+check("korisnicki predlozak vise NE nosi upute",
+      "=== INSTRUCTIONS ===" not in _pr.ANALYSIS_PROMPT_TEMPLATE)
+check("korisnicki predlozak nosi podatke o mecu",
+      "=== MATCH ===" in _pr.ANALYSIS_PROMPT_TEMPLATE)
+check("sistemski predlozak NE nosi podatke o mecu",
+      "=== MATCH ===" not in _pr._ANALYSIS_SYSTEM_TEMPLATE)
+
+# --- B. Oba se renderiraju bez KeyError ---
+_vals36 = {f: "X" for _, f, _, _ in _Fmt().parse(_pr.ANALYSIS_PROMPT_TEMPLATE) if f}
+try:
+    _pr.ANALYSIS_PROMPT_TEMPLATE.format(**_vals36)
+    _ok36 = True
+except KeyError:
+    _ok36 = False
+check("korisnicki predlozak se renderira bez KeyError", _ok36)
+for _s36 in ("hard", "clay", "grass"):
+    _out36 = _pr._ANALYSIS_SYSTEM_TEMPLATE.format(
+        surface_specific_rules=_pr._surface_specific_rules(_s36))
+    check("sistemski predlozak se renderira za %s" % _s36, len(_out36) > 20000)
+
+# --- C. Kesiranje: system se salje s cache_control ---
+_cm36 = _insp36.getsource(_pr._call_analysis_model)
+check("poziv prima system parametar", "system: str = None" in _cm36)
+check("system se salje s oznakom za kesiranje",
+      "cache_control" in _cm36 and "ephemeral" in _cm36)
+check("bez system parametra ponasanje je kao prije (nema praznog bloka)",
+      "if system else {}" in _cm36)
+check("biljezi se koliko je kesirano", "cache_write" in _cm36 and "cache_read" in _cm36)
+check("pozivno mjesto predaje system", "system=system_prompt" in _src36)
+check("system se gradi iz pravila podloge",
+      "_ANALYSIS_SYSTEM_TEMPLATE.format(" in _src36)
+
+# --- D. Fiksni dio je dovoljno velik da se uopce kesira (minimum 1024 tokena) ---
+_sys_hard36 = _pr._ANALYSIS_SYSTEM_TEMPLATE.format(
+    surface_specific_rules=_pr._surface_specific_rules("hard"))
+check("fiksni dio je iznad minimuma za kesiranje",
+      len(_sys_hard36) / 3.4 > 1024, "~%d tokena" % (len(_sys_hard36) / 3.4))
+check("fiksni dio je vecina prompta",
+      len(_sys_hard36) > 3 * len(_pr.ANALYSIS_PROMPT_TEMPLATE))
+
+# --- E. ranking_trend je posve uklonjen ---
+check("ranking_trend nije ni u jednom predlosku",
+      "ranking_trend" not in _pr._ANALYSIS_SYSTEM_TEMPLATE
+      and "ranking_trend" not in _pr.ANALYSIS_PROMPT_TEMPLATE)
+check("ranking_trend se vise ne cita iz podataka igraca",
+      "p1_ranking_trend=" not in _src36 and "p2_ranking_trend=" not in _src36)
+check("ranking_trend se vise ne upisuje u snapshot",
+      '"p1_ranking_trend"' not in _src36)
+check("uklanjanje nosi obrazlozenje s mjerenjem",
+      "ZASTO MAKNUTO A NE NAPUNJENO" in _src36 and "IGNORIRA" in _src36)
+check("ranking (bez trenda) je i dalje u promptu",
+      "{p1_ranking}" in _pr.ANALYSIS_PROMPT_TEMPLATE)
+
+# --- F. Pozicijske reference popravljene (upute su sada PRIJE podataka) ---
+check("nema vise \"the data above\"",
+      "the data above" not in _pr._ANALYSIS_SYSTEM_TEMPLATE)
+check("nema vise \"in Conditions above\"",
+      "in Conditions above" not in _pr._ANALYSIS_SYSTEM_TEMPLATE)
+check("zamjene su bez pozicijske rijeci",
+      "and the match data" in _pr._ANALYSIS_SYSTEM_TEMPLATE
+      and "in the Conditions section" in _pr._ANALYSIS_SYSTEM_TEMPLATE)
+check("uvod upucuje na sljedecu poruku",
+      "next message" in _pr._ANALYSIS_SYSTEM_TEMPLATE)
+
+# --- G. rules_hash pokriva OBA predloska ---
+_ms36 = _insp36.getsource(_pr._model_stamp)
+check("hash racuna oba predloska",
+      "_ANALYSIS_SYSTEM_TEMPLATE" in _ms36 and "ANALYSIS_PROMPT_TEMPLATE" in _ms36)
+check("nova era je zabiljezena",
+      _pr._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
 
 print("\n" + "=" * 60)
 if _fails:
