@@ -781,6 +781,58 @@ def _find_best_combination(candidates: list, cfg: dict) -> Optional[list]:
 # AKO SE OVO IKAD PONOVNO OTVORI: uvjet je da se prvo izmjeri predvidja li modelov
 # confidence ista NAKON sto vidi konsenzus. Ako postane odjek cijene, oba mehanizma
 # (i bonus i njegova procjena) mjere isto i selekcija se urusava u pracenje trzista.
+# ── KRETANJE KVOTA: ISKOPANO DO KRAJA I ODBACENO (13.09.2026 12:50) ─────────────
+#
+# Korisnik je zatrazio da se provjeri nosi li informaciju NACIN na koji se kvota mijenja
+# kroz sate — ne samo neto pomak nego i broj pomaka, kolebljivost, i obrazac "spusti se pa
+# se digne", i to po SVAKOJ kladionici posebno. Provjereno je sve navedeno.
+#
+# STO IMAMO: 30.350 redaka, 50 kladionica, 192 dogadjaja, 15.08.-11.09.2026.
+# 6.028 serija po (dogadjaj, kladionica) s 3+ snimke; 90% ih se barem jednom pomakne.
+# Podaci su dakle bogati — nalaz nije posljedica manjka podataka.
+#
+# NASPRAM OSTATKA NAKON POCETNE CIJENE (n=108 dogadjaja s ishodom):
+#     neto pomak         r = -0,092  P = 0,371
+#     broj pomaka        r = -0,029  P = 0,757
+#     kolebljivost       r = -0,051  P = 0,625
+#     najveci izlet      r = -0,101  P = 0,321
+#     udio preokreta     r = +0,169  P = 0,081   <- najblizi, i dalje nista
+#
+# PO KLADIONICI (predvidja li BAS NJEZIN pomak ishod, min 25 meceva):
+#     48 kladionica s dovoljnim uzorkom
+#     s P < 0,05:  NULA        (slucajno bi se ocekivalo 2,4)
+# Dobili smo MANJE naizgled znacajnih rezultata nego sto bi cisti sum dao. Ukljucujuci
+# sharp kladionice — smarkets je najbolji s r=+0,127 P=0,230.
+#
+# PO POJASU NASE KVOTE: sest testova, jedan je ispao P=0,03 (nasa strana 68%+, r=-0,382,
+# n=33). NIJE nalaz: uz sest testova jedan ispod 0,05 ocekivan je u ~26% slucajeva, a
+# predznak je naopak — tvrdio bi da prolazimo LOSIJE kad se cijena pomakne prema nasem
+# igracu. Nema mehanizma koji to objasnjava.
+#
+# RANIJE ISTOG DANA vec je odbaceno i jednostavnije citanje: zavrsna cijena nije bolja od
+# pocetne ni na podskupu gdje snimka doista dosegne zatvaranje (n=67, <2,5h prije pocetka,
+# Brier 0,2021 -> 0,2044).
+#
+# ZAKLJUCAK: jedino sto iz trzista koristimo — i jedino sto radi — je JEDNOKRATNI
+# konsenzus u trenutku slaganja tiketa, dakle bonus ispod. Kretanje NE ulazi nikamo.
+# `capture_market_close.py` ostaje jer podaci kostaju malo i sluze mjerenju
+# zatvarajuce cijene, koje zivi u zasebnoj skripti — NE ovdje.
+# NAPOMENA ZA BUDUCE UREDJIVANJE: postoji test koji trazi da se kratica za tu mjeru
+# (tri slova, pocinje na C) NIKAD ne pojavi u ovoj datoteci, jer je to bio nacin da se
+# selekcija drzi odvojenom od mjerenja zatvarajuce cijene. Ako taj test pukne zbog
+# komentara, popravlja se KOMENTAR, ne test.
+#
+# NE PONAVLJATI bez novog razloga. Ovo je treci put da se trziste kopa i treci put da
+# ostane samo konsenzus.
+#
+# ── DRUGI IZVOR KVOTA: ODGODJENO, i to uz priznanje da je prijedlog bio prejak ──
+# Predlozeno je dodati drugi izvor kvota uz The Odds API, jer konsenzusni bonus (jedini
+# nalaz koji je prosao kapiju) visi o jednom izvoru. Argument je bio OTPORNOST NA KVAR,
+# ne novi signal — i to je nakon gornjeg mjerenja jos slabiji nego sto je zvucao: ako 50
+# kladionica kroz mjesec dana ne nose nista osim jednokratnog konsenzusa, pedeset prva iz
+# drugog izvora vjerojatno nece ni ona.
+# Korisnik je 13.09.2026 odlucio da se ZASAD NE RADI. Otvoriti samo ako Odds API stvarno
+# zaigra (pad pokrivenosti, kvota, ili gasenje) — tada je to hitan popravak, ne poboljsanje.
 # ── KONSENZUS 40+ KLADIONICA naspram SuperSporta (uvedeno 08.09.2026 12:07) ──────
 # NAJJACI SIGNAL PRONADJEN U PROJEKTU DOSAD i prvi koji je prosao dvostupanjsku kapiju
 # iz DECISION_INPUTS (nadjen na Cincinnatiju, potvrdjen na US Openu, oba neovisno).

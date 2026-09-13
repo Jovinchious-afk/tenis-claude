@@ -13,6 +13,60 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-09-13 12:50 — kretanje kvota iskopano do kraja i ODBACENO; berba zdrijeba
+
+Nista od ovoga ne dira prompt. `rules_hash` ostaje `b2139075`.
+
+### 1. NACIN kretanja kvote ne nosi nista — provjereni SVI obrasci
+
+Korisnik je zatrazio da se ne gleda samo neto pomak nego i broj pomaka, kolebljivost i
+obrazac "spusti se pa se digne", i to po SVAKOJ kladionici. Provjereno je sve.
+
+Opseg podataka (da se poslije ne kaze "premalo"): 30.350 redaka, 50 kladionica, 192
+dogadjaja, 15.08.-11.09.2026; **6.028 serija po (dogadjaj, kladionica) s 3+ snimke,
+od kojih se 90% barem jednom pomakne.**
+
+    naspram ostatka nakon pocetne cijene (n=108 dogadjaja s ishodom):
+    neto pomak       r=-0,092 P=0,371      najveci izlet   r=-0,101 P=0,321
+    broj pomaka      r=-0,029 P=0,757      udio preokreta  r=+0,169 P=0,081
+    kolebljivost     r=-0,051 P=0,625
+
+**Po kladionici** (min 25 meceva): 48 kladionica s dovoljnim uzorkom, **nijedna s
+P<0,05**, a slucajno bi se ocekivalo 2,4. Dobili smo MANJE naizgled znacajnih rezultata
+nego sto bi cisti sum dao. Sharp nisu iznimka (najbolji smarkets r=+0,127 P=0,230).
+
+**Po pojasu nase kvote:** sest testova, jedan ispao P=0,03 (nasa strana 68%+, r=-0,382,
+n=33). Nije nalaz — uz sest testova jedan ispod 0,05 ocekivan je u ~26% slucajeva, a
+predznak je naopak: tvrdio bi da prolazimo LOSIJE kad se cijena pomakne prema nama.
+
+Zajedno s ranijim nalazom istog dana (zavrsna cijena nije bolja od pocetne ni na n=67 s
+pravim tajmingom) tema je zatvorena. **Iz trzista koristimo i radi samo jednokratni
+konsenzus.** Obrazlozenje je zapisano u `ticket_builder` iznad konsenzusnog bonusa.
+
+### 2. Drugi izvor kvota — ODGODJEN korisnikovom odlukom
+
+Predlozen radi otpornosti (konsenzusni bonus visi o jednom izvoru), ne radi novog signala.
+Nakon nalaza gore argument je jos slabiji. Otvoriti samo ako Odds API zaigra.
+Priznato u komentaru: prijedlog je bio prejak kad je iznesen.
+
+### 3. `scripts/harvest_draw_stats.py` — berba statistike CIJELOG zdrijeba
+
+Sluzi jednoj svrsi: odluci o **K12**. Prag zapisan jutros trazi n>=40 na dubini 3+, a iz
+`analyzed_matches` imamo 23 — jer ta tablica drzi samo mecheve koje smo MI analizirali.
+`tournament/results` daje sve odigrane mecheve turnira:
+
+    dubina                      sada    nakon berbe
+    2+ meca (nas prag)            69         260
+    3+ meca (QF nadalje)          23         114
+    4+ meca (SF/F)                 -          41
+
+Cijena ~1.255 poziva (~14 min). Sprema se u lokalni JSON, **bez nove Supabase tablice** —
+podatak sluzi jednokratnoj odluci. Produkcija i dalje vuce statistiku uzivo i ne cita tu
+datoteku; nijedan pick se ne mijenja. Poravnanje ide kroz `get_match_stats_aligned`, koji
+odbija nedokazive zapise.
+
+---
+
 ## 2026-09-13 12:20 — DVIJE NOVE VARIJABLE ULAZE U ODLUKU; nova era `b2139075`
 
 `rules_hash` **6ca9a0ab -> b2139075** (hard), `fc9e42e2 -> 03ff79e9` (clay),

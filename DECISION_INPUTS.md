@@ -655,6 +655,35 @@ istom promptu, pa se mjeri predviđa li SLAGANJE dvaju modela bolje od jednog.**
 bila zamjena za pouzdanost, koja je kod nas mrtva varijabla. Ograda: oba modela vide
 iste ulaze pa će jako korelirati. Prioritet nizak dok se ne potroše K5/K8/K9/K10.
 
+**(d) NAČIN kretanja kvote ne nosi ništa — iskopano do kraja 13.09.2026 12:50.**
+Na korisnikov zahtjev provjereni su svi obrasci, ne samo neto pomak. Podaci: 30.350 redaka,
+50 kladionica, 192 događaja, 6.028 serija po (događaj, kladionica) s 3+ snimke, od kojih se
+90% barem jednom pomakne — nalaz dakle nije posljedica manjka podataka.
+
+    naspram ostatka nakon početne cijene (n=108):
+    neto pomak       r=-0,092 P=0,371      najveći izlet   r=-0,101 P=0,321
+    broj pomaka      r=-0,029 P=0,757      udio preokreta  r=+0,169 P=0,081
+    kolebljivost     r=-0,051 P=0,625
+
+Po kladionici, min 25 mečeva: **48 kladionica, nijedna s P<0,05** — a slučajno bi se
+očekivalo 2,4. Dobili smo *manje* naizgled značajnih rezultata nego što bi čisti šum dao.
+Sharp kladionice nisu iznimka (najbolji smarkets r=+0,127 P=0,230).
+
+Po pojasu naše kvote: šest testova, jedan ispao P=0,03 (naša strana 68%+, r=-0,382, n=33).
+Nije nalaz — uz šest testova jedan ispod 0,05 očekivan je u ~26% slučajeva, a predznak je
+naopak (tvrdio bi da prolazimo lošije kad se cijena pomakne prema nama).
+
+Zajedno s ranijim nalazom istog dana (završna cijena nije bolja od početne ni na n=67 s
+pravim tajmingom, Brier 0,2021 -> 0,2044) ovo zatvara temu. **Iz tržišta koristimo i radi
+samo jednokratni konsenzus.** Ne ponavljati bez novog razloga — treći je put da se tržište
+kopa i treći put da ostane samo konsenzus.
+
+**(e) Drugi izvor kvota — ODGOĐENO 13.09.2026 korisnikovom odlukom.** Predložen radi
+otpornosti (konsenzusni bonus visi o jednom izvoru), ne radi novog signala. Nakon nalaza
+(d) argument je još slabiji: ako 50 kladionica kroz mjesec dana ne nosi ništa osim
+jednokratnog konsenzusa, pedeset prva neće ni ona. Otvoriti samo ako Odds API zaigra
+(pad pokrivenosti, kvota, ili gašenje) — tada je to hitan popravak, ne poboljšanje.
+
 ### ODBAČENO 06.09.2026 iz analize kvota (izmjereno, ne otvarati bez novog razloga)
 
 - **kretanje kvote kroz dan**: `r(pomak, EDGE naspram cijene) = +0,007, P=0,927` na 167

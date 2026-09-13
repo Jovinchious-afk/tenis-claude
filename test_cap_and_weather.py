@@ -2076,6 +2076,48 @@ check("zapisano zasto varijabla ulazi unatoc nuli u mjerenju",
 check("zapisan uvjet pod kojim varijabla IZLAZI",
       "varijabla izlazi" in _pr40)
 
+
+# ==========================================================================
+print("\n=== 41. Kretanje kvota odbaceno; berba zdrijeba (13.09.2026 12:50) ===")
+
+_tb41 = io.open("agent/ticket_builder.py", encoding="utf-8").read()
+_di41 = io.open("DECISION_INPUTS.md", encoding="utf-8").read()
+
+# --- zapis o kretanju kvota mora ostati, sa svim brojkama ---
+check("zapisano da je kretanje kvota iskopano do kraja",
+      "KRETANJE KVOTA: ISKOPANO DO KRAJA I ODBACENO" in _tb41)
+check("zapisan opseg podataka (da se ne kaze 'premalo podataka')",
+      "6.028 serija" in _tb41 and "50 kladionica" in _tb41)
+check("zapisan nalaz po kladionici i njegova poanta",
+      "s P < 0,05:  NULA" in _tb41 and "ocekivalo 2,4" in _tb41)
+check("zapisano zasto P=0,03 po pojasu NIJE nalaz",
+      "sest testova" in _tb41 and "predznak je naopak" in _tb41)
+check("zapisana zabrana ponavljanja", "NE PONAVLJATI bez novog razloga" in _tb41)
+check("drugi izvor kvota je oznacen kao ODGODJEN, s uvjetom za otvaranje",
+      "DRUGI IZVOR KVOTA: ODGODJENO" in _tb41 and "ako Odds API stvarno" in _tb41)
+check("priznato da je prijedlog bio prejak",
+      "prijedlog bio prejak" in _tb41)
+
+# --- registar nosi isto ---
+check("registar ima nalaz (d) o kretanju kvote", "**(d) NAČIN kretanja kvote" in _di41)
+check("registar ima odluku (e) o drugom izvoru", "**(e) Drugi izvor kvota" in _di41)
+# Tekst prelama redak, pa se provjerava na normaliziranim razmacima.
+check("registar biljezi da je to treci put",
+      "treći je put da se tržište kopa" in " ".join(_di41.split()))
+
+# --- skripta za berbu zdrijeba postoji i objasnjava se ---
+_hv41 = io.open("scripts/harvest_draw_stats.py", encoding="utf-8").read()
+check("skripta za berbu zdrijeba postoji", len(_hv41) > 2000)
+check("skripta objasnjava vezu s K12", "K12" in _hv41 and "dubina 3+" in _hv41)
+check("skripta biljezi ocekivani rast uzorka",
+      "23" in _hv41 and "114" in _hv41)
+check("skripta je izricito ANALITICKA, ne produkcijska",
+      "Produkcija" in _hv41 and "ne cita ovu datoteku" in _hv41)
+check("skripta ne pogadja poravnanje",
+      "NIKAD NE POGADJA" in _hv41 and "get_match_stats_aligned" in _hv41)
+check("skripta je nastavljiva (ne pocinje iznova)",
+      "nastavlja gdje je stala" in _hv41 or "if key in have" in _hv41)
+
 print("\n" + "=" * 60)
 if _fails:
     print(f"PALO: {len(_fails)}")
