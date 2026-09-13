@@ -449,6 +449,29 @@ Key analytical priorities:
 - Surface-specific ELO outweighs ATP ranking. A player ranked #15 with clay ELO 1750 is better on clay than a #8 with clay ELO 1680.
 - Serve dominance matters in ATP tennis (a player who wins 70%+ of serve points rarely loses service games), but read it off "Total serve points won" — "Hold %" is derived from that same number and is not a second signal. Measured caution (17.08.2026): the SEASON-AVERAGE serve gap does not predict who serves better on the day — within-match variation is roughly three times the typical gap between two players.
 - Average opponent ELO context: if a player has 8/10 form but avg opponent ELO was 1600, that form is less significant than 7/10 against avg ELO 1900.
+- THIS TOURNAMENT so far ("over N matches here"): these are the player's REAL post-match
+  numbers from the rounds he has already played at this event — same conditions, same
+  balls, same court. Use them as the freshest read on how he is actually serving and
+  returning right now, and prefer them over season averages when the two disagree.
+  THREE HARD LIMITS, because this variable was measured and did NOT predict:
+    (a) It is worth AT MOST a few percentage points of confidence either way. It never
+        overrides ELO, surface record, or price-relevant evidence.
+    (b) Ignore the difference unless it is LARGE. Serve points won differing by less
+        than 4pp, or aces/100 by less than 3, is noise between two players who both won
+        their way here.
+    (c) The opponents differ. A player who beat three qualifiers has easier numbers than
+        one who beat three seeds. Read the opponent list before trusting the average.
+  It says "N/A" until a player has completed 2+ matches here, which means it is normally
+  empty in R128/R64 and only becomes usable from R16 onwards.
+- Injury / news line: when it names a REAL physical problem for one of these two players
+  (withdrawal, retirement, treatment, a body part, a fitness doubt), treat it as genuine
+  evidence and let it move your confidence — down for the affected player, and by more
+  than a token amount if the problem touches the shot that decides this matchup (a wrist
+  or shoulder against a huge server, a knee or ankle against a grinder). If the line is
+  about someone else, is only a result report, or says "No news", it carries NOTHING —
+  do not invent concern from its absence, and never treat a quiet news line as a positive
+  signal. This line is deliberately filtered to physical news only; it will never contain
+  odds, predictions or who anyone thinks is the favourite.
 - H2H: only apply meaningfully if H2H has 3+ recent matches on same/similar surface. Small or old H2H samples are noise — downweight them.
 - Tournament trajectory: only meaningful from R3 onwards (2+ wins tracked in this tournament). For R1/R2 or when tournament path shows "N/A", this factor has no data — redistribute its 4% weight mentally to recent_form. Never penalise a player for having no tournament path data.
 - Fatigue compounds across rounds: a player who played a 3-hour match yesterday is not the same as one who had 2 days rest, especially in BoF5.
@@ -697,6 +720,7 @@ NOTE: Surface-specific ELO is more predictive than ATP ranking for this match.
 Form (last 5): {p1_form_5} | Form (last 10): {p1_form_10}
 Avg opponent ELO (last 10): {p1_avg_opp_elo} — quality-adjusted form signal
 {surface} form (6 months): {p1_surface_form}
+THIS TOURNAMENT so far: {p1_tourn_form}
 --- Serve dominance ---
 Total serve points won: {p1_serve_pts_won}% | Hold % (DERIVED from the number to its left, not measured): {p1_hold_pct}%
 1st serve %: {p1_first_serve_pct} | 1st serve pts won: {p1_first_serve_won}
@@ -721,6 +745,7 @@ NOTE: Surface-specific ELO is more predictive than ATP ranking for this match.
 Form (last 5): {p2_form_5} | Form (last 10): {p2_form_10}
 Avg opponent ELO (last 10): {p2_avg_opp_elo} — quality-adjusted form signal
 {surface} form (6 months): {p2_surface_form}
+THIS TOURNAMENT so far: {p2_tourn_form}
 --- Serve dominance ---
 Total serve points won: {p2_serve_pts_won}% | Hold % (DERIVED from the number to its left, not measured): {p2_hold_pct}%
 1st serve %: {p2_first_serve_pct} | 1st serve pts won: {p2_first_serve_won}
@@ -1664,6 +1689,7 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         p1_days_rest=p1_days_rest,
         p1_tourn_path=p1.get("tournament_path", "N/A"),
         p1_form_trend=p1.get("form_trend", "N/A"),
+        p1_tourn_form=_fmt_tourn_form(p1.get("tournament_form")),
         p1_news=p1.get("news", "No news") or "No news",
 
         p2_age=(p2.get("age") or "N/A") if _AGE_TO_PROMPT else "N/A",
@@ -1690,6 +1716,7 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         p2_days_rest=p2_days_rest,
         p2_tourn_path=p2.get("tournament_path", "N/A"),
         p2_form_trend=p2.get("form_trend", "N/A"),
+        p2_tourn_form=_fmt_tourn_form(p2.get("tournament_form")),
         p2_news=p2.get("news", "No news") or "No news",
 
         h2h_overall=f"{h2h.get('p1_wins', 0)}-{h2h.get('p2_wins', 0)} (total {h2h.get('total', 0)})",
@@ -1860,7 +1887,31 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             #                      mrtav i uvijek prazan. Biljezi se da se prvi put moze
             #                      izmjeriti prolaze li mecevi S VIJESCU drugacije.
             # Granica ere za svako mjerenje ulaza — rezati po `context_version`.
-            "context_version": 18,
+            # v19 (13.09.2026 12:20): DVIJE NOVE VARIJABLE ULAZE U ODLUKU, na korisnikov
+            # izricit zahtjev i nakon sto je jedna od njih izmjerena kao nula:
+            #   `p*_tourn_form_*` — prosjek stvarne post-match statistike NA OVOM turniru.
+            #       Izmjereno 13.09. na n=127: NE predvidja (serve_won r=+0,008 P=0,924).
+            #       Korisnikov prigovor mjerenju je da uzorak nije imao dubinu (58 od 127
+            #       slucajeva imalo je jedan jedini raniji mec), a razlika bi se vidjela tek
+            #       u QF/SF. Prigovor je legitiman, pa varijabla ulazi uz prag od 2 meca i
+            #       izricitu ogradu u promptu. OVA POLJA POSTOJE DA SE HIPOTEZA MOZE
+            #       PROVJERITI: za 2-3 turnira usporediti ishod po dubini (2 meca / 3 / 4+).
+            #       Ako i na dubini 3+ bude nula, varijabla izlazi.
+            #   `p*_news` vec postoji od v18, ali OD DANAS UTJECE NA ODLUKU (prompt joj daje
+            #       izricitu tezinu). Rez korpusa je zato ovdje, ne na v18.
+            # Granica ere: rules_hash 6ca9a0ab -> b2139075 (hard).
+            "context_version": 19,
+            "p1_tourn_form_matches": (p1.get("tournament_form") or {}).get("matches"),
+            "p2_tourn_form_matches": (p2.get("tournament_form") or {}).get("matches"),
+            "p1_tourn_form_serve_won": (p1.get("tournament_form") or {}).get("serve_won"),
+            "p2_tourn_form_serve_won": (p2.get("tournament_form") or {}).get("serve_won"),
+            "p1_tourn_form_ace_rate": (p1.get("tournament_form") or {}).get("ace_rate"),
+            "p2_tourn_form_ace_rate": (p2.get("tournament_form") or {}).get("ace_rate"),
+            "p1_tourn_form_bp_saved": (p1.get("tournament_form") or {}).get("bp_saved"),
+            "p2_tourn_form_bp_saved": (p2.get("tournament_form") or {}).get("bp_saved"),
+            "p1_tourn_form_bp_conv": (p1.get("tournament_form") or {}).get("bp_conv"),
+            "p2_tourn_form_bp_conv": (p2.get("tournament_form") or {}).get("bp_conv"),
+            "news_influences_decision": True,
             "round_source": match.get("round_source") or "heuristic",
             "p1_build_source": ("scouting" if (p1.get("scouting") or {}).get("height_cm")
                                 else ("api" if p1.get("height_cm") else "none")),
@@ -2549,6 +2600,19 @@ def _format_tourn_hist(best) -> str:
     slab dokaz, ne dokaz odsutnosti."""
     b = safe_int(best)
     return _TOURN_ROUND_LABEL.get(b, _TOURN_ROUND_LABEL[0])
+
+
+def _fmt_tourn_form(tf: dict) -> str:
+    """Prosjek statistike na OVOM turniru -> jedan redak prompta (13.09.2026 12:20).
+
+    Sadrzaj i obrazlozenje: `data_fetcher.format_tournament_form`. Ovdje je samo omotac
+    koji podnosi None i prazan dict, jer p1/p2 dolaze iz vise razlicitih putova (daily
+    run, testovi, ponovna obrada) i ne nose svi ovo polje."""
+    try:
+        from agent.data_fetcher import format_tournament_form
+        return format_tournament_form(tf or {})
+    except Exception:
+        return "N/A"
 
 
 def _format_build(sc: dict, api: dict = None) -> str:

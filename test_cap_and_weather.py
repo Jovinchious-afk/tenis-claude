@@ -493,8 +493,8 @@ for f in ("p1_serve_pts_won", "p1_hold_pct", "p1_hold_pct_from_bp", "p1_return_w
           "p1_return_won_weighted", "p1_bp_saved", "p1_bp_converted", "p1_first_serve_pct",
           "bp_in_prompt"):
     check(f"snapshot biljezi {f}", f'"{f}"' in _all)
-check("context_version podignut na 18 (v15 22.08., v16 26.08., v17 27.08., v18 13.09.)",
-      '"context_version": 18' in _all)
+check("context_version podignut na 19 (v17 27.08., v18 13.09. 10:44, v19 13.09. 12:20)",
+      '"context_version": 19' in _all)
 
 # (e) nove vrijednosti ne smiju procuriti u prompt template
 check("prompt template nema novih polja",
@@ -530,14 +530,14 @@ check("krivi nazivi API polja dokumentirani", "breakPointOf" in _dfsrc)
 #             (JSON primjer je nosio oznake od prije 22.08., specifikacija nove).
 #             Napravljeno ODMAH jer era 61999517 nije imala nijednu analizu, pa rez
 #             korpusa nije nastao; odgadjanje bi znacilo drugu promjenu hasha kasnije.
-_ERA_RULES_HASH = "6ca9a0ab"
+_ERA_RULES_HASH = "b2139075"
 
 # Verzija oblika `context_snapshot`. Do 13.09.2026 je bila doslovno upisana na 8
 # mjesta u dva testna paketa, pa je svako podizanje znacilo lov po datotekama.
-# Povijest: v15 22.08. | v16 26.08. | v17 27.08. | v18 13.09.2026 10:44
+# Povijest: v15 22.08. | v16 26.08. | v17 27.08. | v18 13.09. 10:44 | v19 13.09. 12:20
 # (v18 = izvor runde, izvor gradje, vijesti po igracu — sve tri su do tada bile
 #  pokvarene, pa se biljezi ODAKLE vrijednost dolazi.)
-_CTX_VERSION = 18
+_CTX_VERSION = 19
 
 
 # NAJVAZNIJE: ograda o late-round pravilu NE SMIJE biti unutar prompt templatea —
@@ -589,7 +589,7 @@ _wf2 = open(".github/workflows/daily_ticket.yml", encoding="utf-8").read()
 
 # A — bez utjecaja na pickove
 check("ELO se biljezi u snapshot", '"p1_elo_overall"' in _prsrc and '"elo_gap_surface"' in _prsrc)
-check("context_version podignut na 18", '"context_version": 18' in _prsrc)
+check("context_version podignut na 19", '"context_version": 19' in _prsrc)
 check("broj protivnika u avg_opp_elo se biljezi", "_avg_opponent_elo_n" in _rd2)
 check("PYTHONUNBUFFERED aktiviran", 'PYTHONUNBUFFERED: "1"' in _wf2)
 check("hard okidac vise ne vristi na 30", "_HARD_NEXT_TRIGGER = 180" in _rd2)
@@ -735,7 +735,7 @@ check("stara zabrana oslanjanja na kvotu i dalje stoji",
 check("nova polja u JSON shemi",
       '"above_64_basis"' in _FULL_PROMPT
       and '"market_check"' in _FULL_PROMPT)
-check("context_version podignut na 18", '"context_version": 18' in _all2)
+check("context_version podignut na 19", '"context_version": 19' in _all2)
 
 print("\n=== 22. Runde na razini TURNIRA (13.08.2026) ===")
 from agent.run_daily import _verify_late_rounds, _LATE_ROUND_TOTAL
@@ -1297,8 +1297,8 @@ _ph = _ph_by_tpl["ANALYSIS_PROMPT_TEMPLATE"]
 _kw = _kw_by_tpl["ANALYSIS_PROMPT_TEMPLATE"]
 for _name in _kw_by_tpl:
     check("poziv .format() na %s je pronadjen" % _name, _kw_by_tpl[_name] is not None)
-check("korisnicki predlozak ima ocekivani broj polja (97)",
-      len(_ph) == 97, "nadjeno %d" % len(_ph))
+check("korisnicki predlozak ima ocekivani broj polja (99)",
+      len(_ph) == 99, "nadjeno %d" % len(_ph))
 check("sistemski predlozak ima tocno jedno polje (pravila podloge)",
       _ph_by_tpl["_ANALYSIS_SYSTEM_TEMPLATE"] == {"surface_specific_rules"},
       "nadjeno %s" % sorted(_ph_by_tpl["_ANALYSIS_SYSTEM_TEMPLATE"]))
@@ -1918,7 +1918,7 @@ check("rules_hash je i dalje era 6ca9a0ab (mijenjaju se VRIJEDNOSTI, ne predloza
       _h39 == _ERA_RULES_HASH, _h39)
 
 # --- (i) context_snapshot v18 biljezi ODAKLE svaka vrijednost dolazi ---
-check("context_version podignut na 18", '"context_version": 18' in _prsrc39)
+check("context_version podignut na 19", '"context_version": 19' in _prsrc39)
 check("biljezi se round_source", '"round_source"' in _prsrc39)
 check("biljezi se izvor gradje za oba igraca",
       '"p1_build_source"' in _prsrc39 and '"p2_build_source"' in _prsrc39)
@@ -1983,6 +1983,98 @@ check("panel izricito kaze da model to NE vidi", "model ovo NE vidi" in _pg39)
 check("zapisano zasto vijesti NISU sedmi odjeljak u key_factors",
       "NAMJERNO ODVOJENO OD MODELA" in _pg39 and "rules_hash" in _pg39)
 check("panel je kesiran da ne vuce stranicu", "cache_data(ttl=" in _pg39)
+
+
+# ==========================================================================
+print("\n=== 40. Prosjek s turnira + vijesti kao ULAZ U ODLUKU (13.09.2026 12:20) ===")
+
+import agent.data_fetcher as _df40
+from agent.predictor import _fmt_tourn_form as _ftf40
+
+_src40 = io.open("agent/data_fetcher.py", encoding="utf-8").read()
+_pr40 = io.open("agent/predictor.py", encoding="utf-8").read()
+_sys40 = _pr_sys_rendered if "_pr_sys_rendered" in dir() else None
+
+# --- (a) formatiranje prosjeka s turnira ---
+check("prazan prosjek daje N/A s razlogom",
+      _ftf40({}).startswith("N/A") and "2 completed" in _ftf40({}))
+check("None ne rusi formatiranje", _ftf40(None).startswith("N/A"))
+_tf40 = {"matches": 4, "serve_won": 70.5, "first_in": 68.1, "ace_rate": 12.7,
+         "bp_saved": 70.4, "bp_conv": 41.8, "opponents": ["A", "B", "C", "D"]}
+_out40 = _ftf40(_tf40)
+check("puni prosjek nosi broj meceva", "over 4 matches here" in _out40, _out40)
+check("puni prosjek nosi servis, asove i break-pointe",
+      all(x in _out40 for x in ("serve pts won 70.5%", "aces/100 serve pts 12.7",
+                                "BP saved 70.4%", "BP converted 41.8%")), _out40)
+
+# --- (b) prag od 2 meca: jedan mec NIJE prosjek ---
+_orig40 = _df40._get
+def _fake_results40(pid, n_matches):
+    rows = []
+    for i in range(n_matches):
+        rows.append({"player1Id": pid, "player2Id": 900 + i, "match_winner": pid,
+                     "date": "2026-09-0%d" % (i + 1),
+                     "player2": {"name": "Opp %d" % i}})
+    return {"data": {"singles": rows}}
+def _run40(n):
+    _df40._tournament_form_cache.clear()
+    _df40._get = lambda path, *a, **k: _fake_results40(77, n)
+    _df40.get_match_stats_aligned = lambda t, a, b: (
+        {"player1Stats": {"winningOnFirstServeOf": 40, "winningOnSecondServeOf": 20,
+                          "winningOnFirstServe": 30, "winningOnSecondServe": 10,
+                          "aces": 6, "breakPointSavedGm": 3, "breakPointFacedGm": 4,
+                          "breakPointWonGm": 2, "breakPointChanceGm": 5,
+                          "firstServe": 28, "firstServeOf": 40}}, "ok")
+    try:
+        return _df40.tournament_form_stats("T40", 77)
+    finally:
+        _df40._get = _orig40
+_orig_align40 = _df40.get_match_stats_aligned
+check("jedan odigran mec NE daje prosjek (prag je 2)", _run40(1) == {})
+_r40 = _run40(3)
+check("tri odigrana meca daju prosjek", _r40.get("matches") == 3, str(_r40))
+check("servis se racuna iz stvarnih poena", _r40.get("serve_won") == 66.7, str(_r40.get("serve_won")))
+check("obranjeni break-pointi se racunaju", _r40.get("bp_saved") == 75.0, str(_r40.get("bp_saved")))
+check("popis protivnika se cuva (kvaliteta se mora moci procitati)",
+      len(_r40.get("opponents", [])) == 3, str(_r40.get("opponents")))
+_df40.get_match_stats_aligned = _orig_align40
+_df40._tournament_form_cache.clear()
+
+# --- (c) prompt: nova polja i pravila ---
+check("prompt ima redak o ovom turniru za oba igraca",
+      _FULL_PROMPT.count("THIS TOURNAMENT so far:") == 2)
+check("pravilo kaze da je varijabla IZMJERENA kao slaba",
+      "measured and did NOT predict" in _FULL_PROMPT)
+# Prompt prelama retke, pa se ove provjere rade na normaliziranim razmacima —
+# inace pucaju cim se odlomak preformatira, a ne kad se znacenje izgubi.
+_FLAT40 = " ".join(_FULL_PROMPT.split())
+check("pravilo trazi da razlika bude VELIKA da bi se citala",
+      "less than 4pp" in _FLAT40 and "by less than 3" in _FLAT40)
+check("pravilo upozorava da protivnici nisu isti",
+      "The opponents differ" in _FLAT40 and "Read the opponent list" in _FLAT40)
+check("pravilo ogranicava utjecaj na par postotnih bodova",
+      "AT MOST a few percentage points" in _FULL_PROMPT)
+
+check("vijesti su sada ULAZ U ODLUKU, ne pozadina",
+      "Injury / news line" in _FULL_PROMPT and "let it move your confidence" in _FULL_PROMPT)
+check("vijesti smiju vise kad diraju odlucujuci udarac",
+      "wrist or shoulder against a huge server" in _FLAT40)
+check("tisina u vijestima NIJE pozitivan signal",
+      "never treat a quiet news line as a positive signal" in _FLAT40)
+check("promptu je receno da vijesti NIKAD ne nose kvote",
+      "it will never contain odds, predictions or who anyone thinks is the favourite" in _FLAT40)
+
+# --- (d) snapshot v19 biljezi obje varijable radi kasnijeg mjerenja ---
+check("snapshot biljezi dubinu (broj meceva na turniru)",
+      '"p1_tourn_form_matches"' in _pr40 and '"p2_tourn_form_matches"' in _pr40)
+check("snapshot biljezi servis i break-pointe s turnira",
+      '"p1_tourn_form_serve_won"' in _pr40 and '"p1_tourn_form_bp_saved"' in _pr40)
+check("snapshot biljezi da vijesti od sada utjecu",
+      '"news_influences_decision": True' in _pr40)
+check("zapisano zasto varijabla ulazi unatoc nuli u mjerenju",
+      "Korisnikov prigovor mjerenju" in _pr40 or "korisnikov prigovor" in _pr40.lower())
+check("zapisan uvjet pod kojim varijabla IZLAZI",
+      "varijabla izlazi" in _pr40)
 
 print("\n" + "=" * 60)
 if _fails:

@@ -1565,6 +1565,125 @@ def get_match_stats_aligned(tournament_id: str, our_p1_id, our_p2_id) -> tuple:
     return align_match_stats(raw, our_p1_id, our_p2_id)
 
 
+# ── PROSJEK STATISTIKE NA OVOM TURNIRU (13.09.2026 12:20, korisnikov zahtjev) ────
+#
+# STO RADI: za igraca koji je na ovom turniru vec odigrao 1+ mec, prosjecuje njegovu
+# stvarnu post-match statistiku iz TIH meceva — servis, asovi, obranjeni break-pointi,
+# iskoristeni break-pointi. Ide u prompt, u odjeljak forme.
+#
+# ZASTO POSTOJI IAKO JE IZMJERENO KAO NULA — ovo treba procitati prije nego se dira:
+# 13.09.2026 izmjereno je na n=127 da razlika u tim prosjecima NE predvidja ishod
+# sljedeceg meca (serve_won r=+0,008 P=0,924; ace_rate -0,097 P=0,283; bp_saved -0,004
+# P=0,966), a naspram devigane cijene sve tri glavne mjere idu u KRIVU stranu.
+# Uzorak je pritom bio plitak: 58 od 127 slucajeva imalo je samo JEDAN raniji mec.
+#
+# Korisnik je nakon tog nalaza svejedno zatrazio uvodjenje, uz obrazlozenje da razlika
+# postaje vidljiva tek u cetvrtfinalu i polufinalu, kad iza igraca stoje 3-4 meca — a
+# bas taj dio uzorka je kod nas bio najtanji. To je legitiman prigovor mjerenju, jer
+# mjerenje NIJE imalo snagu na dubini 3+. Zato varijabla ulazi, ali:
+#
+#   1. `min_matches=2` — ispod dva odigrana meca prosjek je jedan mec, dakle sum.
+#   2. Prompt je izricito upozorava da je ovo IZMJERENO KAO SLAB signal i da smije
+#      pomaknuti procjenu najvise za par postotnih bodova (isti tretman kao scouting).
+#   3. Sve se biljezi u `context_snapshot` (v19) da se za 2-3 turnira moze izmjeriti
+#      je li korisnikova hipoteza o dubini tocna. Ovo je zapis unaprijed: ako se na
+#      dubini 3+ pokaze ista nula, varijabla izlazi.
+#
+# IZVOR: `tournament/results` daje sve odigrane meceve turnira s ID-evima igraca, a
+# `h2h/match-stats` statistiku svakog. Kesirano po (turnir, igrac) — jedan igrac u
+# polufinalu kosta 3-4 poziva, i to jednom po runu.
+
+_tournament_form_cache: dict = {}
+
+
+def _tf_ratio(num, den):
+    n, d = safe_float(num), safe_float(den)
+    return (100.0 * n / d) if d and d > 0 else None
+
+
+def tournament_form_stats(tournament_id, player_id, min_matches: int = 2) -> dict:
+    """Prosjek post-match statistike igraca NA OVOM TURNIRU.
+
+    Vraca {} ako igrac nije odigrao barem `min_matches` meceva sa statistikom.
+    Inace {matches, serve_won, ace_rate, bp_saved, bp_conv, first_in, opponents}."""
+    tid, pid = str(tournament_id or ""), str(player_id or "")
+    if not tid or not pid:
+        return {}
+    key = (tid, pid)
+    if key in _tournament_form_cache:
+        return _tournament_form_cache[key]
+
+    data = _get(f"/atp/tournament/results/{tid}")
+    singles = ((data or {}).get("data") or {}).get("singles") or []
+    mine = []
+    for m in singles:
+        a, b = str(m.get("player1Id") or ""), str(m.get("player2Id") or "")
+        if pid not in (a, b):
+            continue
+        if not m.get("match_winner"):        # neodigran/prekinut — nema statistike
+            continue
+        opp = b if pid == a else a
+        opp_name = ((m.get("player2") if pid == a else m.get("player1")) or {}).get("name", "")
+        mine.append((m.get("date") or "", opp, opp_name))
+    mine.sort()
+
+    acc = {"serve_won": [], "ace_rate": [], "bp_saved": [], "bp_conv": [], "first_in": []}
+    opponents = []
+    for _d, opp, opp_name in mine:
+        stats, _why = get_match_stats_aligned(tid, pid, opp)
+        if not stats:
+            continue
+        blk = stats.get("player1Stats") or {}   # poravnato: nas igrac je "player1"
+        f1o = safe_float(blk.get("winningOnFirstServeOf"))
+        f2o = safe_float(blk.get("winningOnSecondServeOf"))
+        sp = (f1o or 0) + (f2o or 0)
+        if sp > 0:
+            won = (safe_float(blk.get("winningOnFirstServe")) or 0) + \
+                  (safe_float(blk.get("winningOnSecondServe")) or 0)
+            acc["serve_won"].append(100.0 * won / sp)
+            acc["ace_rate"].append(100.0 * (safe_float(blk.get("aces")) or 0) / sp)
+        v = _tf_ratio(blk.get("breakPointSavedGm"), blk.get("breakPointFacedGm"))
+        if v is not None:
+            acc["bp_saved"].append(v)
+        v = _tf_ratio(blk.get("breakPointWonGm"), blk.get("breakPointChanceGm"))
+        if v is not None:
+            acc["bp_conv"].append(v)
+        v = _tf_ratio(blk.get("firstServe"), blk.get("firstServeOf"))
+        if v is not None:
+            acc["first_in"].append(v)
+        opponents.append(opp_name or opp)
+
+    n = len(opponents)
+    if n < max(1, min_matches):
+        _tournament_form_cache[key] = {}
+        return {}
+    out = {"matches": n, "opponents": opponents}
+    for k, vals in acc.items():
+        out[k] = round(sum(vals) / len(vals), 1) if vals else None
+    _tournament_form_cache[key] = out
+    return out
+
+
+def format_tournament_form(tf: dict) -> str:
+    """Jedan citljiv redak za prompt. "N/A" dok igrac nema dovoljno meceva."""
+    if not tf or not tf.get("matches"):
+        return "N/A (fewer than 2 completed matches at this tournament)"
+    bits = []
+    if tf.get("serve_won") is not None:
+        bits.append(f"serve pts won {tf['serve_won']}%")
+    if tf.get("first_in") is not None:
+        bits.append(f"1st serve in {tf['first_in']}%")
+    if tf.get("ace_rate") is not None:
+        bits.append(f"aces/100 serve pts {tf['ace_rate']}")
+    if tf.get("bp_saved") is not None:
+        bits.append(f"BP saved {tf['bp_saved']}%")
+    if tf.get("bp_conv") is not None:
+        bits.append(f"BP converted {tf['bp_conv']}%")
+    if not bits:
+        return "N/A (no post-match stats recorded at this tournament)"
+    return f"over {tf['matches']} matches here: " + ", ".join(bits)
+
+
 def get_player_surface_summary(player_id: str) -> dict:
     """
     Endpoint: GET /atp/player/surface-summary/{player_id}

@@ -872,8 +872,26 @@ def main():
                 _p2_m7d >= 2 and _p1_rest >= 0 and _p2_rest >= 0 and _p2_rest <= _p1_rest - 2
             )
 
+            # PROSJEK STATISTIKE NA OVOM TURNIRU (13.09.2026 12:20, korisnikov zahtjev).
+            # Ide u prompt, u odjeljak forme. Puno obrazlozenje — ukljucujuci to da je
+            # signal IZMJEREN KAO NULA na plitkom uzorku i zasto svejedno ulazi — stoji uz
+            # `data_fetcher.tournament_form_stats`. Kesirano po (turnir, igrac); igrac u
+            # polufinalu kosta 3-4 poziva jednom po runu.
+            _tid = match.get("tournament_id")
+            try:
+                p1_tourn_form = df.tournament_form_stats(_tid, p1_id) if (_tid and p1_id) else {}
+                p2_tourn_form = df.tournament_form_stats(_tid, p2_id) if (_tid and p2_id) else {}
+            except Exception as e:
+                print(f"  Prosjek s turnira nedostupan ({str(e)[:60]}) — ide N/A.")
+                p1_tourn_form, p2_tourn_form = {}, {}
+            if p1_tourn_form or p2_tourn_form:
+                print(f"    Prosjek s turnira: {match.get('player1','')} "
+                      f"{p1_tourn_form.get('matches', 0)} meceva, "
+                      f"{match.get('player2','')} {p2_tourn_form.get('matches', 0)} meceva.")
+
             # Kompajliraj p1_data i p2_data
             p1_data = {**p1_info, **p1_stats,
+                       "tournament_form": p1_tourn_form,
                        "form_recent": p1_form,
                        "elo_overall": p1_elo.get("elo_overall", 1500),
                        "elo_clay": p1_elo.get("elo_clay", 1500),
@@ -897,6 +915,7 @@ def main():
                        }
 
             p2_data = {**p2_info, **p2_stats,
+                       "tournament_form": p2_tourn_form,
                        "form_recent": p2_form,
                        "elo_overall": p2_elo.get("elo_overall", 1500),
                        "elo_clay": p2_elo.get("elo_clay", 1500),

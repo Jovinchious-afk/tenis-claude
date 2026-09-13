@@ -171,21 +171,21 @@ check("placeholder ne definira početak vala ostalima",
 #             (JSON primjer je nosio oznake od prije 22.08., specifikacija nove).
 #             Napravljeno ODMAH jer era 61999517 nije imala nijednu analizu, pa rez
 #             korpusa nije nastao; odgadjanje bi znacilo drugu promjenu hasha kasnije.
-_ERA_RULES_HASH = "6ca9a0ab"
+_ERA_RULES_HASH = "b2139075"
 
 # Verzija oblika `context_snapshot`. Do 13.09.2026 je bila doslovno upisana na 8
 # mjesta u dva testna paketa, pa je svako podizanje znacilo lov po datotekama.
-# Povijest: v15 22.08. | v16 26.08. | v17 27.08. | v18 13.09.2026 10:44
+# Povijest: v15 22.08. | v16 26.08. | v17 27.08. | v18 13.09. 10:44 | v19 13.09. 12:20
 # (v18 = izvor runde, izvor gradje, vijesti po igracu — sve tri su do tada bile
 #  pokvarene, pa se biljezi ODAKLE vrijednost dolazi.)
-_CTX_VERSION = 18
+_CTX_VERSION = 19
 
 
 check("prompt dobiva eksplicitan razlog umjesto sata",
       "Unknown — tomorrow's schedule is not final" in _pr)
 check("snapshot bilježi schedule_provisional", '"schedule_provisional"' in _pr)
 check("snapshot bilježi iz koje rubrike je sat", '"scheduled_start_source_date"' in _pr)
-check("context_version 18 (snapshot i kod neuspjele analize; v18 13.09.2026)", '"context_version": 18' in _pr)
+check("context_version 19 (snapshot i kod neuspjele analize; v19 13.09.2026)", '"context_version": 19' in _pr)
 check("rules_hash odgovara zigu ere",
       pr._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
 check("nova polja ne cure u predložak prompta",
@@ -205,7 +205,7 @@ check("besmislena dob se odbacuje", df._get_age({"age": 99, "birthday": ""}) is 
 
 check("dob NE ide u prompt dok traje mjerenje", pr._AGE_TO_PROMPT is False)
 check("dob se ipak biljezi u snapshot", '"age_in_prompt"' in _pr)
-check("context_version 18 (snapshot i kod neuspjele analize; v18 13.09.2026)", '"context_version": 18' in _pr)
+check("context_version 19 (snapshot i kod neuspjele analize; v19 13.09.2026)", '"context_version": 19' in _pr)
 check("rules_hash odgovara zigu ere",
       pr._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
 
@@ -256,7 +256,7 @@ check("nepoznat par -> {}", mkt.find_for_pair(_idx, "Neki Igrac", "Drugi Igrac")
 check("market_p NIJE u predlošku prompta", "market_p" not in _FULL_PROMPT)
 check("snapshot bilježi market_p", '"market_p"' in _pr)
 check("snapshot bilježi EV picka", '"market_ev_pick"' in _pr)
-check("context_version 18 (snapshot i kod neuspjele analize; v18 13.09.2026)", '"context_version": 18' in _pr)
+check("context_version 19 (snapshot i kod neuspjele analize; v19 13.09.2026)", '"context_version": 19' in _pr)
 check("rules_hash odgovara zigu ere",
       pr._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
 # ticket_builder SMIJE zapisati tržište uz odigrani pick, ali NE SMIJE po njemu birati.
@@ -626,7 +626,7 @@ _prv = open("agent/predictor.py", encoding="utf-8").read()
 for _f in ("p1_avg_opp_elo_5", "p1_form_quality", "p1_matches_3_9d", "age_gap"):
     check(f"{_f} ide u context_snapshot", f'"{_f}"' in _prv)
     check(f"{_f} NIJE u predlosku prompta", "{" + _f + "}" not in _APT)
-check("context_version 18", '"context_version": 18' in _prv)
+check("context_version 19", '"context_version": 19' in _prv)
 
 # --- zastita od curenja u novom brojacu opterecenja ---
 _m = [{"date": "2026-08-19", "won": True}, {"date": "2026-08-17", "won": True},

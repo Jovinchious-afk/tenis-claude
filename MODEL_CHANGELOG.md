@@ -13,6 +13,63 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-09-13 12:20 — DVIJE NOVE VARIJABLE ULAZE U ODLUKU; nova era `b2139075`
+
+`rules_hash` **6ca9a0ab -> b2139075** (hard), `fc9e42e2 -> 03ff79e9` (clay),
+`4857944d -> 3457b2e3` (grass). `context_snapshot` v18 -> **v19**.
+Ovo je REZ KORPUSA — analize prije i poslije nisu izravno usporedive.
+
+### 1. Prosjek post-match statistike NA OVOM TURNIRU -> odjeljak forme
+
+Novi redak u bloku svakog igraca:
+
+    THIS TOURNAMENT so far: over 6 matches here: serve pts won 70.5%, 1st serve in 68.1%,
+    aces/100 serve pts 12.7, BP saved 70.4%, BP converted 41.8%
+
+Izvor je `tournament/results` + `h2h/match-stats`, kesirano po (turnir, igrac). Vazno:
+ovo NE ovisi o tome jesmo li mec analizirali — vuce CIJELI put igraca kroz turnir. Za
+Sheltona danas to znaci i mec s Hurkaczem, koji u nasoj bazi ne postoji.
+
+**ZASTO ULAZI IAKO JE IZMJERENO KAO NULA.** Isti dan (10:44) izmjereno je na n=127 da
+razlika u tim prosjecima ne predvidja ishod (serve_won r=+0,008 P=0,924; ace_rate -0,097;
+bp_saved -0,004), a naspram devigane cijene sve tri glavne mjere idu u krivu stranu.
+Korisnik je nakon tog nalaza svejedno zatrazio uvodjenje, uz obrazlozenje da razlika
+postaje vidljiva tek u QF/SF, kad iza igraca stoje 3-4 meca.
+
+**Taj prigovor je legitiman i mjerenje ga ne pobija:** 58 od 127 slucajeva imalo je samo
+JEDAN raniji mec, a dubina 3+ imala je n=23. Mjerenje dakle nije imalo snagu bas ondje
+gdje korisnik tvrdi da signal zivi. Varijabla ulazi, ali ogradjena:
+
+  1. `min_matches=2` — ispod dva meca prosjek je jedan mec, dakle sum. U R128/R64 stoji N/A.
+  2. Prompt izricito kaze da je varijabla IZMJERENA kao slaba, da vrijedi najvise par
+     postotnih bodova, da se razlika ignorira ako nije velika (servis <4pp, asovi <3),
+     i da protivnici nisu isti — uz popis protivnika koji se cuva.
+  3. Sve se biljezi u snapshot v19 PO DUBINI (`p*_tourn_form_matches`), da se hipoteza
+     moze provjeriti umjesto ponavljati.
+
+### 2. Vijesti o ozljedama -> od danas UTJECU na odluku
+
+Polje `news` bilo je u promptu od pocetka, ali kao pozadina, i k tome prazno jer je kanal
+bio mrtav do jutros. Od danas prompt ima izricito pravilo: kad redak imenuje stvaran
+fizicki problem jednog od DVA igraca, model to smije pretociti u pouzdanost, i to jace ako
+problem dira udarac koji odlucuje bas taj matchup (zglob ili rame protiv velikog servera,
+koljeno ili gleznjaj protiv grindera).
+
+Tri ograde u istom pravilu: vijest o trecoj osobi ne znaci nista; puki izvjestaj o
+rezultatu ne znaci nista; **tisina NIJE pozitivan signal** (model ne smije zakljuciti da
+je igrac bez vijesti u dobroj formi). Uz to mu je receno da taj redak nikad ne sadrzi
+kvote ni prognoze — sto je i istina, zbog `_NEWS_EXCLUDE` uvedenog u 11:55.
+
+### Kako cemo znati je li bilo vrijedno
+
+Snapshot v19 nosi sve sto treba. Za 2-3 dovrsena turnira usporediti:
+  - ishod po DUBINI prosjeka (2 meca / 3 / 4+) naspram devigane cijene — je li korisnikova
+    hipoteza o QF/SF tocna;
+  - mecevi s nepraznim `p*_news` naspram onih bez, uz kontrolu cijene.
+Ako se na dubini 3+ pokaze ista nula kao na plitkom uzorku, varijabla izlazi.
+
+---
+
 ## 2026-09-13 11:55 — vijesti: ODBIJEN sedmi odjeljak, zabranjen trzisni jezik,
 ## dodan panel za citanje
 

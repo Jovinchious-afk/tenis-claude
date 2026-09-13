@@ -128,7 +128,7 @@ kazna za najslabiji pick išla je s faktorom 1,5 i sidrom 68 (gurala je izbor pr
 65-68, koji ide −35,4%) — sada faktor 0,6 i sidro 63; kazna za dodatne parove bila je
 usidrena na fiksnu četvorku pa bi trojac dobio skriveni bonus od +3 boda.
 
-## 3. Bilježi se, ali NE utječe na odluku — `context_snapshot` v18
+## 3. Bilježi se, ali NE utječe na odluku — `context_snapshot` v19
 
 Vremenski uvjeti u punom obliku (temperatura, vlaga, vjetar, tlak na razini mora i na tlu,
 uvjet, koliko je prognoza udaljena od sata meča); je li teren natkriven; je li meč u prvom
@@ -546,6 +546,53 @@ pitanje zauvijek, jer je onda i stara verzija bila artefakt.
 
 **NE DIRATI PROMPT.** Model ne smije doznati da je R16 "opasan" — to je ista zamka kao s
 konsenzusom: procjena bi postala odjek pravila i mehanizam bi se udvostručio.
+
+### K12 — prosjek statistike s turnira: UVEDEN unatoc nuli, mjeri se po DUBINI
+
+Uveden 13.09.2026 12:20 na korisnikov izricit zahtjev, nakon sto je isti dan izmjeren kao
+nula. Ovo je prvi put da nesto ulazi u kod BEZ prolaska kroz kapiju, pa je vrijedno
+zapisati tocno zasto i pod kojim uvjetom izlazi.
+
+**Sto je mjerenje reklo (n=127, 13.09.2026 10:44):** razlika u prosjecima ne predvidja
+ishod — serve_won r=+0,008 P=0,924; ace_rate −0,097 P=0,283; bp_saved −0,004 P=0,966.
+Naspram devigane cijene sve tri idu u krivu stranu.
+
+**Zasto to nije kraj price:** dubina uzorka bila je 1 raniji mec u 58 od 127 slucajeva,
+a dubina 3+ imala je n=23. Korisnikova tvrdnja je da signal zivi bas u QF/SF, gdje iza
+igraca stoje 3-4 meca. **Mjerenje tu tvrdnju nije testiralo, jer ondje nije imalo snagu.**
+
+**Sto je ugradjeno kao zastita:** prag od 2 meca; prompt izricito kaze da je varijabla
+izmjerena kao slaba i da vrijedi najvise par postotnih bodova; razlika se ignorira ako
+nije velika (servis <4pp, asovi/100 <3); popis protivnika se cuva i prompt trazi da se
+procita prije nego se prosjeku vjeruje.
+
+**PRAG ZA ODLUKU (zapisano prije podataka):** nakon 2-3 dovrsena turnira, na mecevima gdje
+OBA igraca imaju **3+ meca** na turniru (dakle QF nadalje), razlika u `serve_won` mora
+korelirati s ostatkom nakon devigane cijene uz **r >= +0,15 i n >= 40**. Ako da → varijabla
+ostaje i razmatra se pojacanje. Ako r ostane ispod +0,05 ili predznak bude negativan →
+**varijabla izlazi iz prompta**, jer je onda i korisnikova hipoteza o dubini izmjerena i
+pala.
+
+Polja u snapshotu v19: `p*_tourn_form_matches` (dubina), `p*_tourn_form_serve_won`,
+`_ace_rate`, `_bp_saved`, `_bp_conv`.
+
+### K13 — vijesti o ozljedama kao ulaz u odluku
+
+Uveden isti dan. Kanal je do 13.09.2026 10:44 bio mrtav (deveti tihi null), pa varijabla
+nikad nije ni postojala u praksi — nema sto mjeriti unatrag.
+
+**Ocekivana ucestalost je mala:** od 66 stavki oba feeda samo 2% je ozljeda. Varijabla ce
+biti prazna u velikoj vecini mecheva. To je u redu — cilj je da kad se pojavi, znaci nesto.
+
+**PRAG ZA ODLUKU (zapisano prije podataka):** nakon 2-3 turnira usporediti mecheve s
+nepraznim `p*_news` naspram onih bez, **uz kontrolu cijene**. Ako pickovi protiv igraca s
+vijescu o ozljedi prolaze bolje uz n>=15 → varijabla ostaje. Ako nema razlike ili je
+obrnuta → prompt-pravilo se skracuje na puko biljezenje.
+
+**OGRADA KOJA SE NE SMIJE ZABORAVITI:** `_NEWS_EXCLUDE` mora ostati. Cim jedna vijest s
+rijecju "favorite" ili "odds" prodje u prompt, model prestaje biti neovisan o trzistu i
+ruse se i konsenzusni bonus i ovo mjerenje. Vidi mjerenje od 08.09.2026 (+11,3% → −2,2%
+→ −7,7%).
 
 ### IZMJERENO I ZATVORENO 13.09.2026 10:44 — tri hipoteze, sve tri nula
 
