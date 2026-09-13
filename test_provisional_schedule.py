@@ -171,7 +171,7 @@ check("placeholder ne definira početak vala ostalima",
 #             (JSON primjer je nosio oznake od prije 22.08., specifikacija nove).
 #             Napravljeno ODMAH jer era 61999517 nije imala nijednu analizu, pa rez
 #             korpusa nije nastao; odgadjanje bi znacilo drugu promjenu hasha kasnije.
-_ERA_RULES_HASH = "b2139075"
+_ERA_RULES_HASH = "adb358d0"
 
 # Verzija oblika `context_snapshot`. Do 13.09.2026 je bila doslovno upisana na 8
 # mjesta u dva testna paketa, pa je svako podizanje znacilo lov po datotekama.

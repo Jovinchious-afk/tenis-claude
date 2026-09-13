@@ -576,6 +576,60 @@ pala.
 Polja u snapshotu v19: `p*_tourn_form_matches` (dubina), `p*_tourn_form_serve_won`,
 `_ace_rate`, `_bp_saved`, `_bp_conv`.
 
+### K12 — ISHOD PROVJERE 13.09.2026 13:40: korisnikova hipoteza o DUBINI POTVRĐENA
+
+Test proveden isti dan, na **pobranom cijelom ždrijebu** (1.255 mečeva, 28 turnira, 0
+preskočenih). Uzorak narastao s 23 na 115 mečeva na dubini 3+.
+
+**Sirovo, naspram pobjede — čist monoton gradijent, sve CI izvan nule:**
+
+    oba igrača 1 meč    n=551   r=+0,099   95% CI [+0,014 , +0,183]
+    oba igrača 2 meča   n=262   r=+0,121   95% CI [+0,002 , +0,239]
+    oba igrača 3 meča   n=115   r=+0,273   95% CI [+0,095 , +0,437]
+    oba igrača 4 meča   n=41    r=+0,443   95% CI [+0,190 , +0,639]
+
+Replicira u obje polovice: veliki turniri (7 rundi) r=+0,362 n=43, manji r=+0,219 n=72.
+
+**Koliko velika razlika treba biti** (dubina 3+, po kvartilima razlike u serve_won):
+
+    najlošiji kvartil   −6,3pp   pobjeda 39%
+    2. kvartil          −1,5pp   pobjeda 29%
+    3. kvartil          +2,7pp   pobjeda 39%
+    najbolji kvartil    +8,1pp   pobjeda 64%
+
+**Nakon kontrole cijene (pre-registrirani test):**
+
+    dubina 3+   n=51   r=+0,160   95% CI [−0,088 , +0,394]
+    dubina 4+   n=23   r=+0,172   95% CI [−0,206 , +0,491]
+
+**ODLUKA: K12 OSTAJE.** Prag je glasio "r ≥ +0,15 i n ≥ 40 na dubini 3+" — ispunjen je
+(r=+0,160, n=51).
+
+**ALI MORAM PRIZNATI MANU U VLASTITOM PRAGU:** zapisao sam ga bez zahtjeva za intervalom
+pouzdanosti, a CI prelazi nulu. Prag je dakle ispunjen po slovu, ali priraštaj naspram
+tržišne cijene **nije dokazan** na ovom uzorku. Ne pomičem stativu ni u jednom smjeru:
+pravilo je bilo zapisano prije podataka i poštujem ga, a manu bilježim da se ne ponovi —
+**svaki budući prag mora tražiti i CI koji ne prelazi nulu, ne samo r i n.**
+
+**Što je promijenjeno u promptu (13.09.2026 13:40, era `b2139075` → `adb358d0`):**
+pravilo više ne nosi paušalnu ogradu "izmjereno kao slabo" nego **stvarni gradijent po
+dubini**, uputu da je na 2 meča najviše tiebreaker a na 3+ pravi dokaz, mjereni prag
+veličine (+8pp = 64%), izričitu napomenu da tržište to uglavnom već ukalkulira
+(r pada na +0,16 uz CI koji prelazi nulu), i upozorenje da `bp_saved` duboko u ždrijebu
+pokazuje u KRIVU stranu (−0,259 na dubini 3+, −0,585 na 4+).
+
+Izmjena je bila besplatna: era `b2139075` imala je **0 analiza**.
+
+**SLJEDEĆA PROVJERA:** kad dubina 3+ s cijenom dosegne n≥100, ponoviti test. Ako CI tada
+i dalje prelazi nulu, varijabla se svodi na bilježenje.
+
+**KVAR U PRVOJ VERZIJI TESTA, ZA POUKU:** `tournament/results` ima `player1Id` koji je
+**uvijek pobjednik** (1.255 od 1.255). Prva verzija testa nije to znala, pa je ishod bio
+konstanta i sirova korelacija izašla točno `r=+0,000 P=1,000` na sva četiri retka.
+Nemoguć rezultat je i bio jedini znak. Verzija naspram cijene nije bila prazna nego
+**gore** — mjerila je nešto sasvim drugo, a izgledala uvjerljivo (r=−0,332 P=0,019).
+Pravilo: prije zaključka provjeri ima li ishodna varijabla uopće varijancu.
+
 ### K13 — vijesti o ozljedama kao ulaz u odluku
 
 Uveden isti dan. Kanal je do 13.09.2026 10:44 bio mrtav (deveti tihi null), pa varijabla

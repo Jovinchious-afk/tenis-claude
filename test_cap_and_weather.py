@@ -530,7 +530,7 @@ check("krivi nazivi API polja dokumentirani", "breakPointOf" in _dfsrc)
 #             (JSON primjer je nosio oznake od prije 22.08., specifikacija nove).
 #             Napravljeno ODMAH jer era 61999517 nije imala nijednu analizu, pa rez
 #             korpusa nije nastao; odgadjanje bi znacilo drugu promjenu hasha kasnije.
-_ERA_RULES_HASH = "b2139075"
+_ERA_RULES_HASH = "adb358d0"
 
 # Verzija oblika `context_snapshot`. Do 13.09.2026 je bila doslovno upisana na 8
 # mjesta u dva testna paketa, pa je svako podizanje znacilo lov po datotekama.
@@ -2041,19 +2041,31 @@ _df40.get_match_stats_aligned = _orig_align40
 _df40._tournament_form_cache.clear()
 
 # --- (c) prompt: nova polja i pravila ---
-check("prompt ima redak o ovom turniru za oba igraca",
-      _FULL_PROMPT.count("THIS TOURNAMENT so far:") == 2)
-check("pravilo kaze da je varijabla IZMJERENA kao slaba",
-      "measured and did NOT predict" in _FULL_PROMPT)
 # Prompt prelama retke, pa se ove provjere rade na normaliziranim razmacima —
 # inace pucaju cim se odlomak preformatira, a ne kad se znacenje izgubi.
 _FLAT40 = " ".join(_FULL_PROMPT.split())
+check("prompt ima redak o ovom turniru za oba igraca",
+      _FULL_PROMPT.count("THIS TOURNAMENT so far:") == 2)
+# Pravilo je 13.09.2026 13:40 prebazdareno: umjesto pausalnog "izmjereno kao slabo"
+# nosi STVARNI gradijent po dubini (r=+0,10 / +0,12 / +0,27 / +0,44) izmjeren na 551
+# mecu iz 28 turnira, jer je korisnikova hipoteza o dubini POTVRDJENA.
+check("pravilo nosi izmjereni gradijent po dubini, ne pausalnu ogradu",
+      "r = +0.27" in _FLAT40 and "r = +0.44" in _FLAT40)
+check("pravilo kaze da trziste to vec ukalkulira",
+      "drops to r = +0.16" in _FLAT40 and "crosses zero" in _FLAT40)
+check("pravilo nosi izmjereni prag velicine (gornji kvartil +8pp -> 64%)",
+      "+8pp" in _FLAT40 and "64% of the time" in _FLAT40)
+check("pravilo upozorava da bp_saved ide u drugu stranu",
+      "pointed the wrong way" in _FLAT40)
 check("pravilo trazi da razlika bude VELIKA da bi se citala",
-      "less than 4pp" in _FLAT40 and "by less than 3" in _FLAT40)
+      "under 4pp of serve points won" in _FLAT40 and "under 3 aces/100" in _FLAT40)
 check("pravilo upozorava da protivnici nisu isti",
       "The opponents differ" in _FLAT40 and "Read the opponent list" in _FLAT40)
-check("pravilo ogranicava utjecaj na par postotnih bodova",
-      "AT MOST a few percentage points" in _FULL_PROMPT)
+check("pravilo ogranicava utjecaj i zabranjuje fadeanje cijene",
+      "never overrides ELO" in _FLAT40 and "not a reason to fade a price" in _FLAT40)
+check("pravilo skalira povjerenje s dubinom, ne pausalno",
+      "at 2 matches each it is a tiebreaker at most" in _FLAT40
+      and "at 3+ each it is real evidence" in _FLAT40)
 
 check("vijesti su sada ULAZ U ODLUKU, ne pozadina",
       "Injury / news line" in _FULL_PROMPT and "let it move your confidence" in _FULL_PROMPT)

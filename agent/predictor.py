@@ -453,16 +453,30 @@ Key analytical priorities:
   numbers from the rounds he has already played at this event — same conditions, same
   balls, same court. Use them as the freshest read on how he is actually serving and
   returning right now, and prefer them over season averages when the two disagree.
-  THREE HARD LIMITS, because this variable was measured and did NOT predict:
-    (a) It is worth AT MOST a few percentage points of confidence either way. It never
-        overrides ELO, surface record, or price-relevant evidence.
-    (b) Ignore the difference unless it is LARGE. Serve points won differing by less
-        than 4pp, or aces/100 by less than 3, is noise between two players who both won
-        their way here.
+  HOW MUCH TO TRUST IT DEPENDS ON N. Measured on 551 matches across 28 tournaments,
+  correlation between the serve-points-won gap and who won:
+      both players 1 match in    r = +0.10
+      both players 2 matches in  r = +0.12
+      both players 3 matches in  r = +0.27
+      both players 4 matches in  r = +0.44
+  So the same gap means much more deep in a draw than early. Weight it accordingly:
+  at 2 matches each it is a tiebreaker at most; at 3+ each it is real evidence and may
+  be worth several points of confidence.
+  FOUR LIMITS THAT STILL APPLY:
+    (a) It never overrides ELO, surface record, or price-relevant evidence. Even at
+        maximum trust the market already prices most of this: after controlling for the
+        bookmaker price the same signal drops to r = +0.16 and its confidence interval
+        crosses zero. Treat it as a nudge, not a reason to fade a price.
+    (b) SIZE MATTERS MORE THAN DIRECTION. Measured at 3+ matches each, the top quarter
+        of gaps averaged +8pp of serve points won and won 64% of the time, while
+        everything below that hovered near 35%. A gap under 4pp of serve points won, or
+        under 3 aces/100, is noise — ignore it entirely.
     (c) The opponents differ. A player who beat three qualifiers has easier numbers than
         one who beat three seeds. Read the opponent list before trusting the average.
-  It says "N/A" until a player has completed 2+ matches here, which means it is normally
-  empty in R128/R64 and only becomes usable from R16 onwards.
+    (d) Break points saved does NOT behave like serve points won — deep in draws it has
+        pointed the wrong way in our data. Do not build an argument on it alone.
+  It says "N/A" until a player has completed 2 matches here, so it is normally empty in
+  the first two rounds and becomes usable from the third onwards.
 - Injury / news line: when it names a REAL physical problem for one of these two players
   (withdrawal, retirement, treatment, a body part, a fitness doubt), treat it as genuine
   evidence and let it move your confidence — down for the affected player, and by more

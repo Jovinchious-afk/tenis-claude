@@ -13,6 +13,54 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-09-13 13:40 — K12 PROVJEREN na pobranom zdrijebu; hipoteza o dubini POTVRDJENA
+
+`rules_hash` **b2139075 -> adb358d0**. Izmjena je BESPLATNA: era `b2139075` imala je
+**0 analiza**, pa rez korpusa ne nastaje. (Ista lekcija kao 08.09.2026 — prompt se mijenja
+dok era jos nema analiza.)
+
+### Sto je test pokazao
+
+Berba: 1.255 meceva, 28 turnira, **0 preskocenih**. Uzorak na dubini 3+ narastao s 23 na 115.
+
+Sirovo, naspram pobjede — cist monoton gradijent, sve CI izvan nule:
+
+    oba igraca 1 mec    n=551   r=+0,099   CI [+0,014 , +0,183]
+    oba igraca 2 meca   n=262   r=+0,121   CI [+0,002 , +0,239]
+    oba igraca 3 meca   n=115   r=+0,273   CI [+0,095 , +0,437]
+    oba igraca 4 meca   n=41    r=+0,443   CI [+0,190 , +0,639]
+
+Replicira u obje polovice (veliki turniri +0,362 n=43, manji +0,219 n=72).
+Po kvartilima razlike na dubini 3+: gornji kvartil (+8,1pp) pobjedjuje **64%**, sve ispod
+oko 35%.
+
+Nakon kontrole cijene: dubina 3+ r=+0,160 CI [-0,088 , +0,394]; dubina 4+ r=+0,172.
+
+### Odluka i priznanje mane
+
+**K12 OSTAJE** — prag je glasio "r >= +0,15 i n >= 40" i ispunjen je (r=+0,160, n=51).
+ALI prag je bio LOSE NAPISAN: nije trazio interval pouzdanosti, a CI prelazi nulu.
+Priraštaj naspram cijene dakle NIJE dokazan. Stativa se ne pomice ni u jednom smjeru;
+mana je zabiljezena. **Svaki buduci prag mora traziti i CI koji ne prelazi nulu.**
+
+### Sto je promijenjeno u promptu
+
+Pravilo vise ne nosi pausalno "izmjereno kao slabo" nego STVARNI gradijent po dubini,
+uputu da je na 2 meca tiebreaker a na 3+ pravi dokaz, mjereni prag velicine (+8pp = 64%),
+napomenu da trziste to uglavnom vec ukalkulira, i upozorenje da `bp_saved` duboko u
+zdrijebu pokazuje u KRIVU stranu (-0,259 na dubini 3+, -0,585 na 4+).
+
+### Kvar u prvoj verziji testa — vrijedi zapamtiti
+
+`tournament/results` ima `player1Id` koji je **UVIJEK pobjednik** (1.255 od 1.255). Prva
+verzija testa to nije znala, pa je ishod bio konstanta i sirova korelacija izasla tocno
+`r=+0,000 P=1,000` na sva cetiri retka — nemoguc rezultat i jedini znak da nesto ne valja.
+Verzija naspram cijene nije bila prazna nego GORE: mjerila je nesto sasvim drugo, a
+izgledala uvjerljivo (r=-0,332 P=0,019) i vodila bi na tocno suprotan zakljucak.
+**Pravilo: prije zakljucka provjeri ima li ishodna varijabla uopce varijancu.**
+
+---
+
 ## 2026-09-13 12:50 — kretanje kvota iskopano do kraja i ODBACENO; berba zdrijeba
 
 Nista od ovoga ne dira prompt. `rules_hash` ostaje `b2139075`.
