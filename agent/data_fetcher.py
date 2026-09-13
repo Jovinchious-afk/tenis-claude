@@ -1373,6 +1373,34 @@ _NEWS_KEYWORDS = ("withdraw", "withdrew", "injur", "retire", "ruled out", "scrat
                   "abdomen", "wrist", "shoulder", "knee", "ankle", "hamstring",
                   "illness", "cramp", "taped", "treatment")
 
+# ── ZABRANJENI JEZIK: TRZISTE I PROGNOZE (13.09.2026 11:55) ─────────────────────
+# RUPA KOJU OVO ZATVARA, I KOJA JE NASTALA ISTI DAN GORE:
+# naslov "Against the odds: Rybakina's unexpected US Open title — from a questionable
+# INJURY status to world No. 1" prolazi filtar ozljeda (sadrzi "injur") i nosi u prompt
+# rijec "odds" i cijeli okvir "protiv ocekivanja trzista". Provjereno zivim pozivom —
+# tocno bi to danas uslo.
+#
+# ZASTO JE TO OZBILJNO, A NE SITNICA: 08.09.2026 izmjereno je da signal konsenzusa
+# kladionica radi SAMO dok je odvojen od nase procjene (bez naseg praga ROI +11,3%,
+# uz conf>=63 pada na -2,2%, uz conf>=65 na -7,7%). Cim model vidi trzisno misljenje,
+# njegov confidence postaje djelomicno odjek cijene. Vijest koja kaze "Zverev je
+# favorit" je trzisno misljenje u recenici. Vidi `ticket_builder`, odjeljak
+# "ZASTO KONSENZUS NE IDE U PROMPT".
+#
+# Razvrstavanje 66 stavki oba feeda (13.09.2026 11:55) pokazuje zasto je uzak filtar
+# jedini ispravan:
+#     rezultati            40 (61%)  <- vec imamo u podacima o formi, suvisno
+#     ostalo               19 (29%)  <- kolumne, boja turnira
+#     trziste/prognoze      3 (5%)   <- STETNO, ovo zabranjujemo
+#     umor/raspored         3 (5%)   <- vec mjerimo (dani odmora, sat meca)
+#     ozljede               1 (2%)   <- JEDINA kategorija s neovisnim mehanizmom
+#
+# Zabrana ima PREDNOST pred kljucnim rijecima: stavka koja spominje i ozljedu i kvote
+# se odbacuje. Radije izgubiti pravu vijest nego pustiti cijenu u prompt.
+_NEWS_EXCLUDE = ("odds", "favourite", "favorite", "experts' pick", "expert pick",
+                 "who will win", "prediction", "predict", "betting", "bookmaker",
+                 "tipped to", "title favourite", "title favorite")
+
 _NEWS_FEEDS = [
     ("ESPN", "https://www.espn.com/espn/rss/tennis/news"),
     ("BBC",  "https://feeds.bbci.co.uk/sport/tennis/rss.xml"),
@@ -1386,6 +1414,7 @@ def get_atp_injury_news() -> str:
     vracanje prazne vrijednosti bio uzrok da kvar prodje neprimjeceno."""
     combined = []
     fetched = 0
+    dropped = 0
     healthy = []
     for name, url in _NEWS_FEEDS:
         try:
@@ -1400,7 +1429,12 @@ def get_atp_injury_news() -> str:
                 title = it.find("title")
                 desc = it.find("description")
                 text = " ".join(x.get_text(strip=True) for x in (title, desc) if x)
-                if any(kw in text.lower() for kw in _NEWS_KEYWORDS):
+                low = text.lower()
+                # Zabrana IMA PREDNOST — vidi `_NEWS_EXCLUDE`.
+                if any(bad in low for bad in _NEWS_EXCLUDE):
+                    dropped += 1
+                    continue
+                if any(kw in low for kw in _NEWS_KEYWORDS):
                     combined.append(text[:220])
         except Exception as e:
             print(f"  Vijesti: izvor {name} nedostupan ({str(e)[:60]}).")
@@ -1410,7 +1444,8 @@ def get_atp_injury_news() -> str:
               "kanal je vjerojatno pukao, polje `news` ide prazno u prompt.")
         return "Nema dostupnih vijesti."
     print(f"  Vijesti: {fetched} stavki ({', '.join(healthy)}), "
-          f"{len(combined)} spominje ozljedu/odustajanje.")
+          f"{len(combined)} spominje ozljedu/odustajanje"
+          + (f", {dropped} odbaceno zbog trzisnog jezika." if dropped else "."))
     return "; ".join(combined[:15]) if combined else "Nema dostupnih vijesti."
 
 

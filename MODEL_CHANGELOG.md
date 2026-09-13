@@ -13,6 +13,62 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-09-13 11:55 — vijesti: ODBIJEN sedmi odjeljak, zabranjen trzisni jezik,
+## dodan panel za citanje
+
+`rules_hash` ostaje `6ca9a0ab`. Nista od ovoga ne dira prompt.
+
+### 1. "Odjeljak s vijestima" u `key_factors` — ODBIJEN, uz mjereni razlog
+
+Korisnikov prijedlog: uz rating / serve / form / matchup / tournament history / own read
+dodati sedmi odjeljak koji sazima sto pisu BBC i ESPN.
+
+Prvo izmjereno koliko taj kanal uopce nosi. Razvrstanih 66 stavki oba feeda:
+
+| vrsta | udio | ocjena |
+|---|---|---|
+| rezultati ("Zverev storms into semi-finals") | 61% | vec imamo u podacima o formi |
+| kolumne, boja turnira | 29% | bez informacije |
+| trziste i prognoze | 5% | **stetno** |
+| umor i raspored | 5% | vec mjerimo (dani odmora, sat meca) |
+| ozljede | 2% | **jedina kategorija s neovisnim mehanizmom** |
+
+Sedmi odjeljak bio bi dakle prazan gotovo uvijek, a kad ne bi bio, uglavnom bi nosio
+naraciju. To se poklapa s vec izmjerenim K8: slotovi 4 i 5 prazni su cetvrtinu vremena, i
+kad su prazni **prolazimo bolje** (+5,3 do +12,6pp uz kontrolu cijene). Dodatni kontekst
+se trosi na obrazlozenje picka, ne na provjeru. Uz to bi izmjena promijenila `rules_hash`
+i prerezala korpus.
+
+Provjera pokrivenosti (da odbijanje ne bude nagadjanje): feedovi **dobro** pokrivaju nase
+igrace — 32 od 66 stavki spominje nekoga iz korpusa. Problem nije pokrivenost nego vrsta
+sadrzaja.
+
+### 2. Trzisni jezik u vijestima — ZABRANJEN (rupa nastala i zatvorena istog dana)
+
+Filtar ozljeda uveden jutros propustao je naslov:
+
+> "**Against the odds**: Rybakina's unexpected US Open title — from a questionable
+> **injury** status to world No. 1"
+
+Sadrzi "injur", pa prolazi; nosi "odds" i cijeli okvir "protiv ocekivanja trzista". To je
+tocno ono sto je 08.09.2026 izmjereno kao stetno (konsenzus bez naseg praga ROI +11,3%,
+uz conf>=63 pada na -2,2%, uz conf>=65 na -7,7%): cim model vidi trzisno misljenje,
+njegov confidence postaje odjek cijene.
+
+Uveden `_NEWS_EXCLUDE` (odds, favourite/favorite, experts' pick, who will win, prediction,
+betting, bookmaker, tipped to). **Zabrana ima prednost pred kljucnim rijecima** — stavka
+koja spominje i ozljedu i kvote se odbacuje. Radije izgubiti pravu vijest nego pustiti
+cijenu u prompt. Ucinak danas: 3 stavke odbacene, ostala 1 cista vijest o ozljedi.
+
+### 3. Panel s vijestima na Dnevnom listicu — za COVJEKA, ne za model
+
+Korisnik zeli vidjeti sto pise, i to je besplatno. `pages/1_Dnevni_Listic.py` dobio je
+expander koji za svakog igraca s listica pokazuje naslove oba feeda, s poveznicama.
+Filtar je ondje NAMJERNO siri nego u promptu — covjek sam procjenjuje sto je vazno.
+Panel izricito pise "model ovo NE vidi". Kesiran 30 minuta.
+
+---
+
 ## 2026-09-13 10:44 — tri pokvarena ULAZA popravljena; `rules_hash` NEPROMIJENJEN
 
 `rules_hash` ostaje **`6ca9a0ab`** — predlozak prompta nije diran. Mijenjaju se

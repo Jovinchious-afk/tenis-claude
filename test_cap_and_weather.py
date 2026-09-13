@@ -1943,6 +1943,47 @@ check("zatvoreno: kretanje linije ne predvidja ni s pravim tajmingom",
       "0,2021" in _di39 and "0,2044" in _di39)
 check("zatvoreno: drugi AI model kao recenzent (Kimi)", "Kimi" in _di39)
 
+
+# --- (l) vijesti: TRZISNI JEZIK je zabranjen, i zabrana ima prednost ---
+# Rupa nastala i zatvorena istog dana: naslov "Against the odds: Rybakina's unexpected
+# US Open title — from a questionable INJURY status..." prolazi filtar ozljeda i nosi
+# rijec "odds" u prompt. Trzisno misljenje u promptu unistava konsenzusni signal
+# (mjereno 08.09.2026: ROI +11,3% -> -2,2% -> -7,7%).
+check("postoji popis zabranjenog trzisnog jezika", "_NEWS_EXCLUDE" in _src39)
+_ex39 = _src39.split("_NEWS_EXCLUDE = (")[1].split(")")[0]
+check("zabranjeni su odds/favorite/experts' pick/prediction",
+      all(w in _ex39 for w in ('"odds"', '"favorite"', '"prediction"')))
+check("zabrana ima PREDNOST pred kljucnim rijecima",
+      "Zabrana IMA PREDNOST" in _src39 and "dropped += 1" in _src39)
+check("zapisano zasto (veza s konsenzusnim mjerenjem)",
+      "ZASTO KONSENZUS NE IDE U PROMPT" in _src39)
+
+# ponasanje, ne samo tekst: stavka s ozljedom I kvotom mora ispasti
+import agent.data_fetcher as _df39b
+_kw39b = _df39b._NEWS_KEYWORDS
+_ex39b = _df39b._NEWS_EXCLUDE
+def _passes39(text):
+    low = text.lower()
+    if any(b in low for b in _ex39b):
+        return False
+    return any(k in low for k in _kw39b)
+check("stavka s ozljedom I trzisnim jezikom se ODBACUJE",
+      not _passes39("Against the odds: from a questionable injury status to world No. 1"))
+check("cista vijest o ozljedi PROLAZI",
+      _passes39("Alcaraz a doubt for the final after wrist treatment"))
+check("'Experts picks: who will win' ne prolazi ni slucajno",
+      not _passes39("Experts' picks: Who will win the US Open title?"))
+check("obican rezultat bez ozljede ne prolazi",
+      not _passes39("Zverev storms into semi-finals"))
+
+# --- (m) vijesti u PRIKAZU su odvojene od modela ---
+_pg39 = io.open("pages/1_Dnevni_Listic.py", encoding="utf-8").read()
+check("dnevni listic ima panel s vijestima", "Vijesti o igracima s listica" in _pg39)
+check("panel izricito kaze da model to NE vidi", "model ovo NE vidi" in _pg39)
+check("zapisano zasto vijesti NISU sedmi odjeljak u key_factors",
+      "NAMJERNO ODVOJENO OD MODELA" in _pg39 and "rules_hash" in _pg39)
+check("panel je kesiran da ne vuce stranicu", "cache_data(ttl=" in _pg39)
+
 print("\n" + "=" * 60)
 if _fails:
     print(f"PALO: {len(_fails)}")

@@ -200,6 +200,73 @@ for i, m in enumerate(matches):
             for factor in m.get("key_factors", []):
                 st.write(f"• {factor}")
 
+# ── VIJESTI O IGRACIMA S LISTICA (13.09.2026 11:55) ─────────────────────────────
+#
+# NAMJERNO ODVOJENO OD MODELA. Korisnik je pitao zelimo li vijesti kao SEDMI odjeljak u
+# `key_factors` (uz rating / serve / form / matchup / tournament history / own read).
+# Odgovor je bio NE, i to iz mjerenja, ne iz nacela — razvrstavanje 66 stavki oba feeda
+# (13.09.2026 11:55) pokazalo je da je 61% rezultata koje vec imamo u podacima o formi,
+# 29% kolumni, 5% trzisnih prognoza koje su DOKAZANO stetne, 5% umora koji vec mjerimo,
+# i samo 2% ozljeda. Sedmi odjeljak bi dakle bio prazan gotovo uvijek, a kad ne bi bio,
+# uglavnom bi nosio naraciju. Uz to bi promijenio `rules_hash` i prerezao korpus.
+#
+# ALI korisnik zeli VIDJETI sto pise, i to je posve legitimno i besplatno: ovaj panel je
+# za COVJEKA, ne za model. Ne dira prompt, ne dira `rules_hash`, ne ulazi ni u jednu
+# odluku. Filtar je ovdje SIRI nego u promptu (namjerno) — covjek sam procjenjuje sto
+# je vazno, a model ne smije.
+with st.expander("📰 Vijesti o igracima s listica (samo za citanje — model ovo NE vidi)"):
+    st.caption("Izvori: ESPN i BBC tennis RSS. Ovaj panel ne utjece na pickove; model u "
+               "prompt dobiva SAMO vijesti o ozljedama, i to bez ijedne recenice o kvotama.")
+
+    @st.cache_data(ttl=1800, show_spinner=False)
+    def _tennis_headlines():
+        """Naslovi oba feeda. Kesirano 30 min da se stranica ne vuce na svako osvjezavanje."""
+        import requests
+        from bs4 import BeautifulSoup
+        out = []
+        for name, url in (("ESPN", "https://www.espn.com/espn/rss/tennis/news"),
+                          ("BBC", "https://feeds.bbci.co.uk/sport/tennis/rss.xml")):
+            try:
+                r = requests.get(url, timeout=10,
+                                 headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+                soup = BeautifulSoup(r.text, "xml")
+                for it in soup.find_all("item"):
+                    t, d = it.find("title"), it.find("description")
+                    out.append((name,
+                                t.get_text(strip=True) if t else "",
+                                d.get_text(strip=True) if d else "",
+                                (it.find("link").get_text(strip=True) if it.find("link") else "")))
+            except Exception as e:
+                out.append((name, f"(izvor nedostupan: {str(e)[:60]})", "", ""))
+        return out
+
+    _heads = _tennis_headlines()
+    _names = []
+    for _m in matches:
+        for _k in ("player1", "player2"):
+            if _m.get(_k):
+                _names.append(_m[_k])
+
+    _shown = 0
+    for _nm in _names:
+        _sn = _nm.split()[-1].lower() if _nm.split() else ""
+        if len(_sn) < 4:
+            continue
+        _rel = [(src, ti, de, ln) for src, ti, de, ln in _heads
+                if _sn in (ti + " " + de).lower()]
+        if not _rel:
+            continue
+        _shown += 1
+        st.markdown(f"**{_nm}**")
+        for src, ti, de, ln in _rel[:4]:
+            _txt = f"[{src}] {ti}"
+            st.markdown(f"- {('[' + _txt + '](' + ln + ')') if ln else _txt}")
+            if de and de[:60] != ti[:60]:
+                st.caption(de[:260])
+    if not _shown:
+        st.info(f"Nijedan od {len(_names)} igraca s listica ne spominje se u "
+                f"{len(_heads)} trenutnih naslova.")
+
 st.markdown("---")
 if status != "analysis_only":
     col1, col2 = st.columns(2)
