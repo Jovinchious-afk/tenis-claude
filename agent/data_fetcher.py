@@ -199,9 +199,160 @@ def get_tournament_tier(tournament_id: str) -> str:
 
 
 def _round_from_id(round_id) -> str:
+    """ZASTARJELO OD 13.09.2026 10:44 — koristi `resolve_round(tournament_id, round_id)`.
+
+    Ostaje samo kao POSLJEDNJI fallback za turnire za koje `tournament/results` jos nema
+    nijedan odigran mec (prvi dan turnira). Vidi `get_tournament_round_map`."""
     if round_id is None:
         return ""
     return _ROUND_ID_MAP.get(int(round_id), f"R{round_id}")
+
+
+# ── RUNDE IZ STVARNOG ZDRIJEBA (13.09.2026 10:44) ────────────────────────────────
+#
+# STO JE BILO KRIVO: `_ROUND_ID_MAP` gore pretpostavlja da je `roundId` GLOBALNA
+# konstanta (1=R128 ... 7=F). NIJE — relativan je po turniru. Izmjereno 13.09.2026:
+#
+#     U.S. Open (zdrijeb 128)   4=R128(64)  5=R64(32)  6=R32(16)  7=R16(8)  9=QF(4)  10=SF(2)
+#     Cassis Challenger (32)    4=R32(16)   5=R16(8)                        9=QF(4)  10=SF(2)  12=F(1)
+#
+# Isti `roundId=4` znaci R128 na jednom turniru i R32 na drugom. NIJEDNA fiksna mapa ne
+# moze biti tocna. Posljedica na nasem korpusu: 16 od zadnjih 40 analiziranih meceva
+# (40%) imalo je krivu rundu, i to sustavno — PRVI dan svake runde tocan, DRUGI dan
+# napuhan za jednu do dvije runde (Zverev-Darderi R16 zapisan kao "F", Shelton-Alcaraz
+# QF kao "SF", Zverev-Tabilo R32 kao "SF").
+#
+# ZASTO TO `_infer_rounds` NIJE UHVATIO: ono popravlja rundu samo kad broj meceva tog
+# dana PRELAZI fizicki maksimum te runde. Na velike dane (7 meceva oznacenih "SF")
+# uhvati; na tanke dane (2 meca oznacena "SF", maksimum za SF je 2) propusti smece.
+# Heuristika po broju meceva bila je zaobilaznica za krivu mapu, ne rjesenje.
+#
+# RJESENJE: `tournament/results` daje cijeli odigrani zdrijeb. Broj meceva po `roundId`
+# odredjuje rundu JEDNOZNACNO (64->R128, 32->R64, ... 2->SF, 1->F). Sidrimo se na
+# NAJNIZI `roundId` ciji je broj meceva cista potencija dvojke, pa hodamo ljestvicom.
+# Sidrenje na najnizi, a ne na svaki pojedini broj, cini postupak otpornim na nepotpune
+# runde: Seville Challenger ima R16 sa 7 umjesto 8 meceva (predaja) i svejedno se
+# ispravno razrijesi.
+#
+# PROVJERENO NA 9 TURNIRA (13.09.2026 10:44): U.S. Open (128) + 8 Challengera (32) —
+# 100% tocno, ukljucujuci turnire u tijeku.
+#
+# ZASTO NIJE SKUPO: jedan poziv po turniru po runu, kesiran u procesu. Daily run dira
+# 1-4 turnira.
+#
+# OGRADA: prvi dan turnira `results` je prazan (nema odigranih meceva) pa mape nema —
+# tada se pada na staru heuristiku. To je i najbezopasniji slucaj: prvi dan su svi
+# mecevi u prvom kolu, a `_infer_rounds` velike dane pogadja.
+
+_ROUND_LADDER = ["R128", "R64", "R32", "R16", "QF", "SF", "F"]
+# Koliko meceva runda ima u PUNOM zdrijebu bez bye-ova.
+_ROUND_FULL_COUNT = [64, 32, 16, 8, 4, 2, 1]
+
+# str(tournamentId) -> {roundId: oznaka}
+_tournament_round_map_cache: dict = {}
+
+
+def _fit_ladder(counts: dict) -> dict:
+    """Poravnaj rastuce `roundId`-eve na ljestvicu rundi po BROJU meceva.
+
+    ZASTO NIJE DOVOLJNO "prvi roundId s cistim brojem" (prvi pokusaj 13.09.2026 10:44,
+    pao na zdravorazumskoj provjeri prije nego sto je isao u bazu):
+    zdrijebovi s bye-ovima imaju DVIJE UZASTOPNE RUNDE S ISTIM BROJEM meceva.
+
+        Cincinnati (zdrijeb 96)     32, 32, 15, 8, 4, 2
+        Winston-Salem (zdrijeb 48)  16, 16, 8, 4, 2
+
+    Sidrenje na prvi cisti broj tu polomi cijelu ljestvicu za jedan korak i proglasi
+    polufinale finalom (Cincinnati je dobio "F" s dva meca, sto je nemoguce).
+
+    STO RADI UMJESTO TOGA: proba SVA moguca poravnanja i bira ono koje najbolje pristaje,
+    uz jedno tvrdo ogranicenje —
+
+        broj odigranih meceva NIKAD ne smije biti VECI od punog broja te runde
+
+    Runda moze imati MANJE meceva (bye-ovi, predaje, runda jos traje), ali nikad vise.
+    To ogranicenje samo odbacuje sva kriva poravnanja, a medju preostalima se bira ono s
+    najvise TOCNIH pogodaka.
+
+    Zasto je otporno i usred turnira: ako je polufinale odigrano dopola (1 od 2), broj 1
+    je i dalje <= 2, pa poravnanje ostaje isto i runda se ispravno zove SF, a ne F.
+    """
+    rids = sorted(counts)
+    n = len(rids)
+    if not n or n > len(_ROUND_LADDER):
+        return {}
+    best, best_score = None, -1
+    for offset in range(0, len(_ROUND_LADDER) - n + 1):
+        exact = 0
+        ok = True
+        for k, rid in enumerate(rids):
+            full = _ROUND_FULL_COUNT[offset + k]
+            got = counts[rid]
+            if got > full:          # nemoguce — ovo poravnanje otpada
+                ok = False
+                break
+            if got == full:
+                exact += 1
+        if ok and exact > best_score:
+            best_score, best = exact, offset
+    if best is None:
+        return {}
+    return {rid: _ROUND_LADDER[best + k] for k, rid in enumerate(rids)}
+
+
+def get_tournament_round_map(tournament_id) -> dict:
+    """{roundId: oznaka runde} izvedeno iz STVARNOG zdrijeba tog turnira.
+
+    Vraca {} ako turnir jos nema nijedan odigran mec (prvi dan) ili ako se ljestvica ne
+    moze poravnati. Kesirano po procesu — jedan poziv po turniru po runu."""
+    tid = str(tournament_id or "")
+    if not tid:
+        return {}
+    if tid in _tournament_round_map_cache:
+        return _tournament_round_map_cache[tid]
+
+    data = _get(f"/atp/tournament/results/{tid}")
+    singles = ((data or {}).get("data") or {}).get("singles") or []
+    counts: dict = {}
+    for m in singles:
+        rid = m.get("roundId")
+        if rid is None:
+            continue
+        try:
+            rid = int(rid)
+        except (TypeError, ValueError):
+            continue
+        counts[rid] = counts.get(rid, 0) + 1
+
+    out = _fit_ladder(counts) if counts else {}
+    _tournament_round_map_cache[tid] = out
+    return out
+
+
+def resolve_round(tournament_id, round_id) -> str:
+    """Oznaka runde za jedan mec, izvedena iz zdrijeba. "" ako se ne moze utvrditi.
+
+    Runda koja se TEK IGRA jos nije u `results`, pa njezin `roundId` nadmasuje sve
+    poznate — tada je to sljedeca runda na ljestvici (danasnje finale US Opena ima
+    roundId=12, najveci poznati je 10=SF, dakle F).
+
+    `roundId` MANJI od najnizeg poznatog je kvalifikacija (results ih drzi u zasebnoj
+    listi `qualifying` s vlastitim ID-evima 1/2/3) — namjerno vracamo "" da se ne dira
+    postojeca Q-logika u `_infer_rounds`."""
+    m = get_tournament_round_map(tournament_id)
+    if not m:
+        return ""
+    try:
+        rid = int(round_id)
+    except (TypeError, ValueError):
+        return ""
+    if rid in m:
+        return m[rid]
+    known = sorted(m)
+    if rid > known[-1]:
+        nxt = _ROUND_LADDER.index(m[known[-1]]) + 1
+        return _ROUND_LADDER[nxt] if nxt < len(_ROUND_LADDER) else ""
+    return ""
 
 
 # ── Fixtures / Mečevi ─────────────────────────────────────────────────────────
@@ -492,6 +643,28 @@ def get_player_info(player_id: str) -> dict:
     p = raw[0] if isinstance(raw, list) and raw else (raw if isinstance(raw, dict) else {})
 
     ranking_data = p.get("rankings", {}) if isinstance(p.get("rankings"), dict) else {}
+
+    # ── OSMI TIHI NULL KLJUC, ZATVOREN 13.09.2026 10:44 ─────────────────────────
+    # `p.get("height")` i `p.get("heightCm")` su None za SVAKOG igraca — provjereno na
+    # 10 od 10 (Alcaraz, Sinner, Djokovic, Rune, Bublik, Mpetshi Perricard, Diallo,
+    # Korda, Shelton, Zverev). Ovo polje je vracalo prazan string OD PRVOG DANA, a
+    # `weight` i `plays` ovdje uopce nisu ni postojali kao kljucevi.
+    #
+    # Podatak je cijelo vrijeme bio jedan nivo dublje, u `data.information`:
+    #     information.height = '183'   information.weight = '74'
+    #     information.plays  = 'Right-Handed, Two-Handed Backhand'
+    #
+    # Taj put je otkriven jos 22.08.2026 (vidi `scripts/import_scouting.py`), ali je
+    # iskoristen SAMO da se rucno popuni Excel — nikad nije spojen u pipeline. Zato je
+    # 18 od 150 igraca u `player_scouting` ostalo bez visine/tezine/ruke, medju njima
+    # Alcaraz, Sinner, Djokovic, Rune, Bublik, Mpetshi Perricard i Diallo. Model je za
+    # njih citao "Build: N/A" iako je podatak bio besplatno dostupan u pozivu koji smo
+    # ionako vec radili.
+    #
+    # PRAVILO KOJE SE OVDJE PONOVNO POTVRDILO: kad je polje prazno u ~100% redaka, prvo
+    # ispisi SIROVE kljuceve odgovora. Nikad ne zakljucuj da izvor nema podatak.
+    info = p.get("information") if isinstance(p.get("information"), dict) else {}
+
     return {
         "id":             player_id,
         "name":           p.get("name", "") or p.get("player_name", "") or p.get("fullName", ""),
@@ -502,8 +675,15 @@ def get_player_info(player_id: str) -> dict:
         "ranking_points": safe_int(ranking_data.get("singles_points") or ranking_data.get("singlesPoints")
                                    or p.get("ranking_points") or p.get("rankingPoints")),
         "age":            _get_age(p),
-        "height":         str(p.get("height", "") or p.get("heightCm", "")),
-        "hand":           p.get("hand", "") or p.get("plays", "") or p.get("playingHand", ""),
+        "height":         str(info.get("height", "") or p.get("height", "") or p.get("heightCm", "")),
+        # Nova tri polja (13.09.2026 10:44) — sluze `predictor._format_build` kao izvor
+        # kad scouting redak nema visinu. Imena su namjerno ista kao stupci u
+        # `player_scouting` da se dva izvora mogu spojiti bez prevodjenja.
+        "height_cm":      safe_int(info.get("height")),
+        "weight_kg":      safe_int(info.get("weight")),
+        "plays":          str(info.get("plays", "") or ""),
+        "hand":           (str(info.get("plays", "")).split(",")[0].strip()
+                           or p.get("hand", "") or p.get("plays", "") or p.get("playingHand", "")),
     }
 
 
@@ -1150,19 +1330,87 @@ def find_player_elo(player_name: str, elo_data: dict) -> dict:
 
 # ── ATP News ──────────────────────────────────────────────────────────────────
 
+# ── VIJESTI O OZLJEDAMA — DEVETI TIHI NULL KLJUC, ZATVOREN 13.09.2026 10:44 ──────
+#
+# STO JE BILO: stara verzija je scrapeala `atpworldtour.com/en/news` i `tennisworld.net`
+# i trazila kljucne rijeci u <h2>/<h3>/<h4>/<a> tagovima. Obje stranice se danas
+# renderiraju JavaScriptom, pa BeautifulSoup vidi samo navigaciju ("DIGITAL INNOVATION
+# PARTNER", izbornik s imenima igraca). Filtar po kljucnim rijecima to uredno odbaci i
+# funkcija vrati "Nema dostupnih vijesti." — SVAKI PUT.
+#
+# Provjereno zivim pozivom 13.09.2026 10:44: `len(get_atp_injury_news()) == 23`, tj.
+# doslovno samo ta poruka. Polje `news` u promptu bilo je prazno otkad je uvedeno.
+#
+# STO JE TO KOSTALO: korisnik je primijetio da se pred mec Shelton-Alcaraz (US Open,
+# 09.09.2026) u medijima raspravljalo hoce li Alcarazov zglob izdrzati Sheltonov servis.
+# Alcaraz je bio ozlijedjen, Shelton je bio na 4,10 i prosao. Ta informacija NIJE mogla
+# doci do modela jer je kanal bio mrtav. Ovo je deveti put da isti obrazac (polje prazno
+# u ~100% slucajeva, a izvor postoji) prodje neprimjeceno mjesecima.
+#
+# STO SE PROMIJENILO: dva RSS feeda provjerena uzivo istog trenutka —
+#     ESPN tennis  HTTP 200, 11 stavki
+#     BBC tennis   HTTP 200, 55 stavki
+# RSS je otporan na JavaScript jer je feed, ne stranica. Stari HTML izvori su MAKNUTI,
+# ne zadrzani "za svaki slucaj" — davali su nula upotrebljivih stavki i samo su skrivali
+# kvar.
+#
+# ZASTO OVO NIJE ISTA ZAMKA KAO TRZISNE INFORMACIJE: izmjereno je da model koji vidi
+# trzisni konsenzus prestaje biti neovisan i unisti taj signal (vidi `ticket_builder`,
+# odjeljak "ZASTO KONSENZUS NE IDE U PROMPT"). Vijest o ozljedi nije cijena i ne moze
+# postati odjek nase procjene. ALI: polje se od danas BILJEZI u `context_snapshot`
+# (`news_items`, `news_p1`, `news_p2`) da se poslije moze izmjeriti prolaze li mecevi s
+# vijescu drugacije od onih bez — do sada se to nije moglo ni provjeriti.
+#
+# ZDRAVLJE IZVORA: funkcija od danas VICE kad ne dobije nista. Tihi povratak prazne
+# vrijednosti je tocno ono sto je ovaj kvar drzalo skrivenim devet mjeseci.
+
+# "out of" je NAMJERNO izbacen (13.09.2026 10:44): hvatao je "Out of this world!" i
+# "crash out of US Open" — naslove bez ikakve veze s ozljedom. Zamijenjen je uzim
+# oblicima. Filtar je ionako drugi sloj obrane; `_extract_player_news` poslije trazi
+# prezime, pa lazno pozitivan naslov steti samo ako slucajno sadrzi ime naseg igraca.
+_NEWS_KEYWORDS = ("withdraw", "withdrew", "injur", "retire", "ruled out", "scratch",
+                  "pull out", "pulled out", "fitness doubt", "major doubt", "medical",
+                  "abdomen", "wrist", "shoulder", "knee", "ankle", "hamstring",
+                  "illness", "cramp", "taped", "treatment")
+
+_NEWS_FEEDS = [
+    ("ESPN", "https://www.espn.com/espn/rss/tennis/news"),
+    ("BBC",  "https://feeds.bbci.co.uk/sport/tennis/rss.xml"),
+]
+
+
 def get_atp_injury_news() -> str:
-    sources = ["https://www.atpworldtour.com/en/news", "https://www.tennisworld.net/"]
+    """Naslovi tenisih vijesti koji spominju ozljedu/odustajanje. Vidi blok iznad.
+
+    Vraca stavke spojene s "; ". Prazan rezultat se PRIJAVLJUJE na izlaz, jer je tiho
+    vracanje prazne vrijednosti bio uzrok da kvar prodje neprimjeceno."""
     combined = []
-    for url in sources:
+    fetched = 0
+    healthy = []
+    for name, url in _NEWS_FEEDS:
         try:
-            r = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
-            soup = BeautifulSoup(r.text, "lxml")
-            for tag in soup.find_all(["h2", "h3", "h4", "a"], limit=50):
-                text = tag.get_text(strip=True)
-                if any(kw in text.lower() for kw in ["withdraw", "injur", "retire", "out of", "scratch"]):
-                    combined.append(text[:150])
-        except Exception:
-            pass
+            r = requests.get(url, timeout=12,
+                             headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+            soup = BeautifulSoup(r.text, "xml")
+            items = soup.find_all("item")
+            if items:
+                healthy.append(f"{name}:{len(items)}")
+            fetched += len(items)
+            for it in items:
+                title = it.find("title")
+                desc = it.find("description")
+                text = " ".join(x.get_text(strip=True) for x in (title, desc) if x)
+                if any(kw in text.lower() for kw in _NEWS_KEYWORDS):
+                    combined.append(text[:220])
+        except Exception as e:
+            print(f"  Vijesti: izvor {name} nedostupan ({str(e)[:60]}).")
+
+    if not fetched:
+        print("  UPOZORENJE vijesti: nijedan izvor nije vratio nijednu stavku — "
+              "kanal je vjerojatno pukao, polje `news` ide prazno u prompt.")
+        return "Nema dostupnih vijesti."
+    print(f"  Vijesti: {fetched} stavki ({', '.join(healthy)}), "
+          f"{len(combined)} spominje ozljedu/odustajanje.")
     return "; ".join(combined[:15]) if combined else "Nema dostupnih vijesti."
 
 

@@ -535,6 +535,16 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
             candidates.append(p)
 
     # Sort by score potential: value pick > high confidence > tournament level
+    #
+    # OVO SORTIRANJE JE INERTNO (utvrdjeno 13.09.2026 10:44) — ne bira nista:
+    #   1. `_apply_daily_limits` odmah ispod ponovno sortira svaku grupu po pouzdanosti
+    #      i rezanje radi po TOM poretku, ne po ovom.
+    #   2. `_find_best_combination` prolazi `itertools.combinations` preko SVIH kandidata,
+    #      pa redoslijed ulaza ne mijenja pobjednicku kombinaciju — samo koja se od dvije
+    #      JEDNAKO bodovane nadje prva.
+    # Ostavljeno jer je bezopasno i ispis je citljiviji, ali nitko ne smije zakljucivati
+    # da "tiket preferira value pickove" na temelju ove linije. Jedini zivi mehanizam je
+    # `edge_bonus` u `_score_combo` — vidi opsezan komentar ondje.
     candidates.sort(key=lambda p: (
         _is_value_pick(p),
         (p.get("confidence") or 0),
@@ -861,6 +871,41 @@ def _score_combo(combo: tuple) -> float:
     # raspon 2.30-2.60 nam je NAJBOLJI (6W-2L, ROI +79.4%), dok 1.30-1.60 gubi (-10.2%, n=93).
 # NAPOMENA: taj nalaz je grass/clay — od 36 pickova >=2.00 samo je JEDAN bio na hardu.
     # Kontrola: Collignon @2.82 uz conf 71 (35.5pp) i dalje ostaje bez bonusa.
+    # ── STO `edge_bonus` STVARNO JEST (izmjereno 13.09.2026 10:44) ──────────────
+    # Rastavljeno na papiru: `fair_odds = 100/confidence`, pa je `model_prob == confidence`
+    # i cijeli izraz se svede na
+    #
+    #       edge = confidence - 100/kvota
+    #
+    # Confidence je prakticki konstanta (medijan 63, SD 3,72 na n=469). Uz konstantu je
+    # `edge` MONOTONA FUNKCIJA KVOTE i nista drugo. Provjereno brojanjem: zastavica
+    # `value` (edge >= 3) reproducira se PUKIM pragom `kvota >= 1,66` s 84,6% tocnosti.
+    #
+    # Dakle ovaj clan NIJE mjera neslaganja s trzistem — to je prerusena sklonost duzim
+    # kvotama, tezine do +10 po picku. Za trojac je to do +30 boda, dok `joint_prob*100`
+    # daje oko 25. Najveci clan u cijelom bodovanju nosi informaciju koju sam sebi
+    # skriva.
+    #
+    # NOSI LI ISTA? Ne, kad se kontrolira cijena (n=427 razrijesenih s kvotom):
+    #     sirovo        value=TRUE 58,0% (n=162)   value=FALSE 68,6% (n=293)   -10,6pp
+    #     US Open       value=TRUE 55,0% (n=20)    value=FALSE 76,3% (n=97)    -21,3pp
+    #     stratificirano po uskim pojasima kvote:   -1,2pp, 95% CI [-16,9 , +13,0]
+    # Sirova razlika je Simpsonov paradoks: medijan kvote je 1,80 kod TRUE i 1,40 kod
+    # FALSE, pa se usporedjuju dvije razlicite cjenovne populacije, ne dvije kvalitete.
+    #
+    # ZASTO SE IPAK NE VADI (odluka 13.09.2026 10:44): po ROI-ju je strana koja izgleda
+    # losije zapravo bolja — value=TRUE -1,1% naspram value=FALSE -7,0% — jer sjedi u
+    # pojasu 1,65-1,85, a to je nas najbolji pojas (+17,4% n=57 / +14,2% n=25). Clan
+    # dakle SLUCAJNO radi nesto razumno: gura izbor prema pojasu koji zaradjuje. Izvaditi
+    # ga znacilo bi zamijeniti sretan mehanizam nicim, na temelju nalaza koji kaze samo
+    # da nema NEOVISNU informaciju — ne da steti.
+    #
+    # PRAVO PITANJE je zato drugo i upisano je kao kandidat K10 u DECISION_INPUTS:
+    # zelimo li IZRICITU sklonost pojasu cijene umjesto ove prerusene? To je izmjena
+    # selekcije i ide kroz kapiju kao i sve ostalo, s pragom zapisanim prije podataka.
+    #
+    # NE PONAVLJATI MJERENJE bez kontrole cijene. Sirova usporedba value=TRUE/FALSE tri
+    # puta je dosad izgledala kao dramatican nalaz i tri puta je bila cijena.
     edge_total = 0.0
     for p in combo:
         fair = p.get("fair_odds") or 0

@@ -170,6 +170,10 @@ def main():
         print("Uploadaj kvote screenshot za 'danas' i/ili 'sutra' pa pokreni ponovno.")
         return
 
+    # RUNDA IZ STVARNOG ZDRIJEBA (13.09.2026 10:44) — PRIMARNI izvor. Sve ispod je
+    # fallback za turnire koji jos nemaju nijedan odigran mec.
+    all_matches = _apply_draw_rounds(all_matches)
+
     # Fix unreliable round labels using match count per tournament per day
     all_matches = _infer_rounds(all_matches, screenshot_odds, pre_gate_counts)
 
@@ -1657,6 +1661,44 @@ def _detect_provisional_schedule(matches: list, tomorrow_str: str) -> set:
     return flagged
 
 
+def _apply_draw_rounds(matches: list) -> list:
+    """Postavi rundu iz STVARNOG zdrijeba turnira (13.09.2026 10:44).
+
+    Ovo je od danas PRIMARNI izvor runde; `_infer_rounds` i `_verify_late_rounds` su
+    pali na razinu fallbacka za turnire koji jos nemaju odigran mec. Puno obrazlozenje
+    i mjerenje (16 od 40 krivih oznaka, 40%) stoji uz `data_fetcher.get_tournament_round_map`.
+
+    Mecevi kojima je runda ovako utvrdjena nose `round_source="draw"` i te dvije
+    heuristike ih od danas NE DIRAJU — inace bi ispravnu oznaku "popravile" natrag."""
+    resolved = 0
+    for m in matches:
+        tid = m.get("tournament_id")
+        rid = m.get("round_id")
+        if not tid or not rid:
+            continue
+        try:
+            label = df.resolve_round(tid, rid)
+        except Exception as e:
+            print(f"  Runda iz zdrijeba nedostupna za turnir {tid} ({e}) — padam na heuristiku.")
+            continue
+        if not label:
+            continue
+        if m.get("round") != label:
+            print(f"  Runda (zdrijeb): {m.get('tournament','')} — "
+                  f"{m.get('player1','')} vs {m.get('player2','')}: "
+                  f"{m.get('round')} -> {label}")
+        m["round"] = label
+        m["round_id"] = _ROUND_ORDER.index(label) + 1
+        m["round_source"] = "draw"
+        resolved += 1
+    if resolved:
+        print(f"  Runda: {resolved} od {len(matches)} oznaka utvrdjeno iz stvarnog zdrijeba "
+              f"(pouzdan izvor); ostalo ide na heuristiku.")
+    else:
+        print("  Runda: zdrijeb jos nije dostupan ni za jedan turnir — koristim heuristiku.")
+    return matches
+
+
 def _infer_rounds(matches: list, screenshot_odds: dict = None,
                   pre_gate_counts: dict = None) -> list:
     """
@@ -1717,6 +1759,10 @@ def _infer_rounds(matches: list, screenshot_odds: dict = None,
     # Grupiranje po (turnir, datum, RUNDA) — vidi (a) u docstringu.
     counts: dict = defaultdict(list)
     for m in matches:
+        # Runda utvrdjena iz stvarnog zdrijeba je pouzdana — heuristika po broju meceva
+        # ju NE SMIJE dirati (13.09.2026 10:44). Vidi `_apply_draw_rounds`.
+        if m.get("round_source") == "draw":
+            continue
         key = (m.get("tournament", ""), m.get("date", ""), m.get("round", ""))
         counts[key].append(m)
 
@@ -1890,7 +1936,7 @@ def _verify_late_rounds(matches: list, db_history: list = None) -> list:
     pool = defaultdict(list)          # turnir -> [(datum, dict-ili-None, oznaka)]
     for m in matches:
         r = m.get("round")
-        if r in _ROUND_ORDER:
+        if r in _ROUND_ORDER and m.get("round_source") != "draw":
             pool[m.get("tournament", "")].append([m.get("date", ""), m, r])
     # 08.09.2026 12:07 — kljuc za prepoznavanje ISTOG meca u danasnjem popisu i u bazi.
     # Prezimena, jer se puni oblik imena razlikuje izmedju API-ja i vec upisanih redaka

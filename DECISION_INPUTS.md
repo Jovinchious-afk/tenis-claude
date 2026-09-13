@@ -128,7 +128,7 @@ kazna za najslabiji pick išla je s faktorom 1,5 i sidrom 68 (gurala je izbor pr
 65-68, koji ide −35,4%) — sada faktor 0,6 i sidro 63; kazna za dodatne parove bila je
 usidrena na fiksnu četvorku pa bi trojac dobio skriveni bonus od +3 boda.
 
-## 3. Bilježi se, ali NE utječe na odluku — `context_snapshot` v17
+## 3. Bilježi se, ali NE utječe na odluku — `context_snapshot` v18
 
 Vremenski uvjeti u punom obliku (temperatura, vlaga, vjetar, tlak na razini mora i na tlu,
 uvjet, koliko je prognoza udaljena od sata meča); je li teren natkriven; je li meč u prvom
@@ -463,6 +463,150 @@ uklapa u 1-5. Ako predznak okrene → odbaciti.
 **OGRADA:** duljina može biti proxy za težinu meča (težak meč → dulje objašnjenje → i češći
 poraz). To nije kontrolirano. Prije uvođenja bilo kakvog pravila **obavezno** izmjeriti
 duljinu uz kontrolu cijene, kao što je učinjeno za K8.
+
+### K10 — `edge_bonus` je prerušena sklonost duljoj kvoti; treba li nam IZRIČITA?
+
+Izmjereno 13.09.2026 10:44 na 427 razriješenih analiza s kvotom i ishodom.
+
+`edge = confidence − 100/kvota`. Uz confidence koji je praktički konstanta (medijan 63,
+SD 3,72, n=469), to je **monotona funkcija kvote i ništa drugo**. Zastavica `value`
+(edge ≥ 3) reproducira se pukim pragom **`kvota ≥ 1,66` s 84,6% točnosti**.
+
+To je najveći član u `_score_combo`: do +10 po picku, dakle do +30 za trojac, dok
+`joint_prob × 100` daje oko 25.
+
+**Nosi li išta?** Ne, kad se kontrolira cijena:
+
+    sirovo          value=TRUE 58,0% (n=162)   value=FALSE 68,6% (n=293)   −10,6pp
+    samo US Open    value=TRUE 55,0% (n=20)    value=FALSE 76,3% (n=97)    −21,3pp
+    stratificirano  −1,2pp, 95% CI [−16,9 , +13,0]
+
+Sirova razlika je **Simpsonov paradoks** — medijan kvote 1,80 kod TRUE, 1,40 kod FALSE.
+
+**Zašto član ipak ostaje:** po ROI-ju je "lošija" strana zapravo bolja (−1,1% naspram
+−7,0%), jer sjedi u pojasu 1,65-1,85, a to je naš najbolji pojas.
+
+    pojas         ROI value=TRUE      ROI value=FALSE
+    1,20-1,35       −5,6% (n=8)        +6,3% (n=68)
+    1,35-1,50      −11,4% (n=8)       −17,4% (n=70)
+    1,50-1,65      −21,6% (n=8)       −19,4% (n=70)
+    1,65-1,85      +17,4% (n=57)      +14,2% (n=25)
+
+**PRAG ZA POTVRDU (zapisano prije podataka):** na sljedeća DVA dovršena turnira profil po
+pojasima mora zadržati isti oblik — pojas 1,35-1,65 negativan, a **barem jedan** od
+1,20-1,35 i 1,65-1,85 pozitivan, uz n≥25 po pojasu. Ako da → `edge_bonus` se zamjenjuje
+IZRIČITIM bonusom po pojasu cijene i prestaje se pretvarati da mjeri neslaganje s
+tržištem. Ako se oblik raspline → član se vadi bez zamjene.
+
+**Veza:** ovo je isti nalaz kao [K5](#k5), gledan s druge strane. K5 kaže da oprezna zona
+u kodu počinje na 1,43 a rupa je od 1,35; K10 kaže da je jedini mehanizam koji na tu rupu
+uopće reagira prerušen u nešto drugo. Riješiti ih zajedno.
+
+**NE PONAVLJATI** sirovu usporedbu value=TRUE/FALSE bez kontrole cijene. Tri je puta
+izgledala kao dramatičan nalaz i tri je puta bila cijena.
+
+### K11 — rupa u R16/QF PREŽIVJELA je ispravak oznaka rundi
+
+Premjereno 13.09.2026 11:30, **prvi put na točnim oznakama** (prije ispravka je 79,2%
+oznaka bilo krivo, pa se nalaz iz revizije 26.08.2026 nije mogao ni potvrditi ni odbaciti).
+
+    runda    n     WR      ROI      očekivani WR   reziduum
+    R128   119   68,1%   +0,4%        65,0%        +3,1pp
+    R64    104   64,4%   −7,9%        67,0%        −2,6pp
+    R32    113   65,5%   −3,6%        63,4%        +2,1pp
+    R16     44   52,3%  −24,2%        64,4%       −12,1pp
+    QF      27   55,6%  −18,4%        64,0%        −8,4pp
+    SF      15   86,7%  +41,8%        61,8%       +24,8pp
+
+Objedinjeno:
+
+    R16+QF       n=71   WR 53,5%   ROI −22,0%   reziduum −10,7pp
+    sve ostalo   n=356  WR 66,9%   ROI  −1,7%   reziduum  +2,0pp
+    razlika −12,7pp   P(permutacija)=0,036   bootstrap 95% CI [−24,8 , −0,9]
+
+CI **ne prelazi nulu**, i nalaz replicira u obje polovice korpusa:
+
+    US Open          R16+QF n=11  −12,2pp   ostalo +5,2pp   razlika −17,4pp
+    ostali turniri   R16+QF n=60  −10,4pp   ostalo +0,6pp   razlika −11,0pp
+
+Stara brojka (26.08.2026, na pokvarenim oznakama) bila je **−13,3pp** — praktički ista.
+To je jedini nalaz u projektu koji je prežio i zamjenu podloge pod sobom.
+
+**Zašto BAŠ R16/QF:** hipoteza je da ELO i forma prestaju razlikovati igrače kad su svi
+preostali dobri, a `tournament_trajectory` (7% težine) tek tada postaje smislen — ali
+model ga ne koristi jer je do R16 uglavnom "N/A". SF ide u SUPROTNOM smjeru (+24,8pp),
+što je konzistentno s tim čitanjem: u SF razlike su opet velike i vidljive.
+**OGRADA:** SF ima n=15, to je jedan loš tjedan od preokreta.
+
+**PRAG ZA POTVRDU (zapisano prije podataka):** na sljedeća DVA dovršena turnira reziduum
+za R16+QF mora ostati **negativan uz najmanje −5pp i n≥20**, i razlika naspram ostatka
+mora ostati negativna. Ako da → u `ticket_builder` ide kazna za R16/QF noge (nije filtar,
+nego bod u `_score_combo`, kao konsenzus). Ako predznak okrene → odbaciti i zatvoriti
+pitanje zauvijek, jer je onda i stara verzija bila artefakt.
+
+**NE DIRATI PROMPT.** Model ne smije doznati da je R16 "opasan" — to je ista zamka kao s
+konsenzusom: procjena bi postala odjek pravila i mehanizam bi se udvostručio.
+
+### IZMJERENO I ZATVORENO 13.09.2026 10:44 — tri hipoteze, sve tri nula
+
+Sve tri su bile korisnikovi prijedlozi ili moji, sve tri su izmjerene **prije** nego što
+je išta ušlo u kod. Zapisane su da se ne mjere po četvrti put.
+
+**(a) Prosjek post-match statistike NA TOM TURNIRU ne predviđa sljedeći meč.**
+Ideja: tko kroz turnir servira i brani break bolje, ima prednost u sljedećem kolu.
+Građeni tekući prosjeci po (turnir, igrač), samo iz mečeva **strogo ranijih**. n=127
+mečeva gdje oba igrača imaju bar jedan raniji meč na tom turniru.
+
+    serve_won  r=+0,008 P=0,924      bp_saved  r=−0,004 P=0,966
+    ace_rate   r=−0,097 P=0,283      bp_conv   r=−0,073 P=0,423
+    first_in   r=+0,079 P=0,372      first_won r=−0,044 P=0,630
+    second_won r=+0,011 P=0,893      df_rate   r=+0,008 P=0,920
+
+Naspram devigane tržišne cijene sve tri glavne mjere idu u **krivu** stranu
+(serve_won −0,047 P=0,60; ace_rate −0,099 P=0,27; bp_saved −0,060 P=0,50).
+Kvartili pri većoj dubini izgledaju velikodušno ali **nisu monotoni**
+(bp_saved: 29% → 80% → 33% → 47%) i stoje na 5-6 mečeva po kvartilu.
+
+Ilustracija na finalu US Opena 13.09.2026: Zverev 70,5% servis / 12,7 asova na 100 /
+70% BP spašenih naspram Sheltonovih 70,6% / 12,1 / 64%. Mjera ih ne razdvaja.
+
+*Ograda:* uzorak je plitak (58 od 127 ima samo jedan raniji meč) jer korpus drži samo
+mečeve koje smo analizirali. Jači test traži pobrane statistike cijelog ždrijeba
+(`scripts/backfill_match_stats.py`). Ali prior nije ohrabrujuć — sezonske serve/return
+statistike već su izmjerene kao čisti šum (svi |r|<0,06, revizija 26.08.2026).
+`winners` i `unforcedErrors` su u ovom feedu **uvijek null**, pa omjer winneri/greške
+(kandidat K4) iz ovog izvora nije izvediv.
+
+**(b) Kretanje linije ne predviđa ništa — ni kad snimka doista dosegne zatvaranje.**
+Hipoteza: ako je ozljeda poznata tržištu, cijena se pomakne, pa je pomak mjerljiva
+zamjena za vijesti. Podaci postoje i zdravi su — **30.350 redaka, 189 od 192 događaja
+ima dvije ili više snimaka**. Sparen 149 događaja s poznatim ishodom.
+
+    podskup                        n     r(pomak, ostatak)    P      Brier početna → završna
+    svi                          149          +0,036        0,691      0,1915 → 0,1917
+    zadnja snimka <2,5h prije     67          +0,000        1,000      0,2021 → 0,2044
+    zadnja snimka <6h prije      126          +0,015        0,873      0,1984 → 0,1995
+
+Medijan pomaka je 1,29pp, 90. percentil 4,11pp — dakle pomaka **ima**, samo ne nosi
+informaciju. Ključno: **završna cijena nije bolja od početne** ni na podskupu gdje je
+snimka doista blizu početka. U efikasnom tržištu završna linija jasno pobjeđuje raniju;
+kad ne pobjeđuje na n=67 s pravim tajmingom, hipoteza je izmjerena, a ne neizmjerena.
+
+Posljedica: kretanje linije **ne** ulazi ni u prompt ni u bodovanje. Skripta
+`capture_market_close.py` ostaje jer podaci koštaju malo, a jedini ozbiljan preostali
+razlog je CLV mjerenje.
+
+**(c) Drugi AI model (Kimi) kao recenzent — odbijeno za ovu namjenu, otvoreno za jednu drugu.**
+Korisnikovo pitanje: može li besplatan drugi model revidirati analize. Ne za provjeru
+mjerenja — ona su provjerljiva ponovnim pokretanjem koda, pa mišljenje drugog modela
+nije dokaz. Sva četiri kvara nađena 13.09.2026 (visina, runde, vijesti, `edge_bonus`)
+nađena su upitima nad podacima; drugi bi model gledao isti prazan `p2_build` i isto ne
+bi znao da API ima podatak.
+
+Jedina mjerljiva uloga koja ostaje otvorena: **drugi model kao neovisni analitičar na
+istom promptu, pa se mjeri predviđa li SLAGANJE dvaju modela bolje od jednog.** To bi
+bila zamjena za pouzdanost, koja je kod nas mrtva varijabla. Ograda: oba modela vide
+iste ulaze pa će jako korelirati. Prioritet nizak dok se ne potroše K5/K8/K9/K10.
 
 ### ODBAČENO 06.09.2026 iz analize kvota (izmjereno, ne otvarati bez novog razloga)
 

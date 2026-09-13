@@ -493,8 +493,8 @@ for f in ("p1_serve_pts_won", "p1_hold_pct", "p1_hold_pct_from_bp", "p1_return_w
           "p1_return_won_weighted", "p1_bp_saved", "p1_bp_converted", "p1_first_serve_pct",
           "bp_in_prompt"):
     check(f"snapshot biljezi {f}", f'"{f}"' in _all)
-check("context_version podignut na 17 (v15 22.08., v16 26.08., v17 27.08.)",
-      '"context_version": 17' in _all)
+check("context_version podignut na 18 (v15 22.08., v16 26.08., v17 27.08., v18 13.09.)",
+      '"context_version": 18' in _all)
 
 # (e) nove vrijednosti ne smiju procuriti u prompt template
 check("prompt template nema novih polja",
@@ -531,6 +531,14 @@ check("krivi nazivi API polja dokumentirani", "breakPointOf" in _dfsrc)
 #             Napravljeno ODMAH jer era 61999517 nije imala nijednu analizu, pa rez
 #             korpusa nije nastao; odgadjanje bi znacilo drugu promjenu hasha kasnije.
 _ERA_RULES_HASH = "6ca9a0ab"
+
+# Verzija oblika `context_snapshot`. Do 13.09.2026 je bila doslovno upisana na 8
+# mjesta u dva testna paketa, pa je svako podizanje znacilo lov po datotekama.
+# Povijest: v15 22.08. | v16 26.08. | v17 27.08. | v18 13.09.2026 10:44
+# (v18 = izvor runde, izvor gradje, vijesti po igracu — sve tri su do tada bile
+#  pokvarene, pa se biljezi ODAKLE vrijednost dolazi.)
+_CTX_VERSION = 18
+
 
 # NAJVAZNIJE: ograda o late-round pravilu NE SMIJE biti unutar prompt templatea —
 # rules_hash je md5 nad njim, a i model bi je citao kao uputu.
@@ -581,7 +589,7 @@ _wf2 = open(".github/workflows/daily_ticket.yml", encoding="utf-8").read()
 
 # A — bez utjecaja na pickove
 check("ELO se biljezi u snapshot", '"p1_elo_overall"' in _prsrc and '"elo_gap_surface"' in _prsrc)
-check("context_version podignut na 17", '"context_version": 17' in _prsrc)
+check("context_version podignut na 18", '"context_version": 18' in _prsrc)
 check("broj protivnika u avg_opp_elo se biljezi", "_avg_opponent_elo_n" in _rd2)
 check("PYTHONUNBUFFERED aktiviran", 'PYTHONUNBUFFERED: "1"' in _wf2)
 check("hard okidac vise ne vristi na 30", "_HARD_NEXT_TRIGGER = 180" in _rd2)
@@ -727,7 +735,7 @@ check("stara zabrana oslanjanja na kvotu i dalje stoji",
 check("nova polja u JSON shemi",
       '"above_64_basis"' in _FULL_PROMPT
       and '"market_check"' in _FULL_PROMPT)
-check("context_version podignut na 17", '"context_version": 17' in _all2)
+check("context_version podignut na 18", '"context_version": 18' in _all2)
 
 print("\n=== 22. Runde na razini TURNIRA (13.08.2026) ===")
 from agent.run_daily import _verify_late_rounds, _LATE_ROUND_TOTAL
@@ -1764,6 +1772,176 @@ check("K1 je oznacen kao potvrdjen i proveden",
       "POTVRĐEN 08.09.2026 12:07, UŠAO U KOD" in _di38)
 check("K6 i K7 su oznaceni kao pali",
       "PAO**" in _di38 and _di38.count("ISHOD PROVJERE NA US OPENU") >= 3)
+
+
+_tbsrc39 = io.open("agent/ticket_builder.py", encoding="utf-8").read()
+_src39 = io.open("agent/data_fetcher.py", encoding="utf-8").read()
+_prsrc39 = io.open("agent/predictor.py", encoding="utf-8").read()
+_di39 = io.open("DECISION_INPUTS.md", encoding="utf-8").read()
+
+# ==========================================================================
+print("\n=== 39. Revizija 13.09.2026 10:44: runde iz zdrijeba, gradja, vijesti ===")
+
+import agent.data_fetcher as _df39
+import agent.run_daily as _rd39
+
+# --- (a) izvodjenje mape rundi iz BROJA meceva ---
+# Sinteticki zdrijeb: US Open oblik (128) i Challenger oblik (32). Poanta testa je da
+# ISTI roundId=4 mora dati R128 na jednom i R32 na drugom turniru — to je cijeli kvar
+# koji je 40% oznaka rundi cinio krivima (16 od 40 izmjereno 13.09.2026).
+def _fake_results39(counts):
+    rows = []
+    for rid, n in counts.items():
+        rows.extend([{"roundId": rid}] * n)
+    return {"data": {"singles": rows}}
+
+_orig_get39 = _df39._get
+
+def _mk_map39(counts, tid):
+    _df39._tournament_round_map_cache.pop(str(tid), None)
+    _df39._get = lambda path, *a, **k: _fake_results39(counts)
+    try:
+        return _df39.get_tournament_round_map(tid)
+    finally:
+        _df39._get = _orig_get39
+
+def _resolve39(counts, tid, rid):
+    _df39._tournament_round_map_cache.pop(str(tid), None)
+    _df39._get = lambda path, *a, **k: _fake_results39(counts)
+    try:
+        return _df39.resolve_round(tid, rid)
+    finally:
+        _df39._get = _orig_get39
+
+_gs39 = _mk_map39({4: 64, 5: 32, 6: 16, 7: 8, 9: 4, 10: 2}, "T_GS")
+_ch39 = _mk_map39({4: 16, 5: 8, 9: 4, 10: 2, 12: 1}, "T_CH")
+check("Grand Slam zdrijeb: roundId 4 -> R128", _gs39.get(4) == "R128", str(_gs39))
+check("Grand Slam zdrijeb: roundId 9 -> QF", _gs39.get(9) == "QF", str(_gs39))
+check("Grand Slam zdrijeb: roundId 10 -> SF", _gs39.get(10) == "SF", str(_gs39))
+check("Challenger zdrijeb: ISTI roundId 4 -> R32", _ch39.get(4) == "R32", str(_ch39))
+check("Challenger zdrijeb: roundId 12 -> F", _ch39.get(12) == "F", str(_ch39))
+check("mapa je RELATIVNA po turniru, ne globalna", _gs39.get(4) != _ch39.get(4))
+
+# --- (a2) ZDRIJEBOVI S BYE-OVIMA — greska uhvacena zdravorazumskom provjerom ---
+# Prvi pokusaj sidrenja ("uzmi prvi roundId s cistim brojem meceva") polomio se na
+# zdrijebovima gdje DVIJE UZASTOPNE runde imaju ISTI broj meceva, jer nositelji imaju
+# slobodan prolaz. Cincinnati (96) je tada dobio "F" s DVA meca, sto je nemoguce.
+# Ovi testovi postoje da se to ne vrati.
+_cin39 = _mk_map39({4: 32, 5: 32, 6: 15, 7: 8, 9: 4, 10: 2, 12: 1}, "T_CIN")
+check("zdrijeb 96 s bye-ovima (Cincinnati): dvije runde po 32 se ne lome",
+      [_cin39.get(k) for k in (4, 5, 6, 7, 9, 10, 12)]
+      == ["R128", "R64", "R32", "R16", "QF", "SF", "F"], str(_cin39))
+_ws39 = _mk_map39({4: 16, 5: 16, 6: 8, 9: 4, 10: 2, 12: 1}, "T_WS")
+check("zdrijeb 48 s bye-ovima (Winston-Salem): dvije runde po 16 se ne lome",
+      [_ws39.get(k) for k in (4, 5, 6, 9, 10, 12)]
+      == ["R64", "R32", "R16", "QF", "SF", "F"], str(_ws39))
+check("finale NIKAD ne moze imati dva meca",
+      not any(lbl == "F" and cnt == 2
+              for m, cnts in ((_cin39, {4: 32, 5: 32, 6: 15, 7: 8, 9: 4, 10: 2, 12: 1}),
+                              (_ws39, {4: 16, 5: 16, 6: 8, 9: 4, 10: 2, 12: 1}))
+              for rid, lbl in m.items() for cnt in [cnts[rid]]))
+
+# --- (a3) runda u TIJEKU ne smije se proglasiti sljedecom ---
+# Polufinale odigrano dopola (1 od 2 meca) mora ostati SF, ne postati F.
+_half39 = _mk_map39({4: 64, 5: 32, 6: 16, 7: 8, 9: 4, 10: 1}, "T_HALF")
+check("polufinale odigrano dopola ostaje SF, ne postaje F",
+      _half39.get(10) == "SF", str(_half39))
+
+# --- (b) nepotpuna runda ne smije razbiti sidro (stvarni slucaj Seville: R16 ima 7) ---
+_sev39 = _mk_map39({4: 16, 5: 7, 9: 4, 10: 2}, "T_SEV")
+check("nepotpuna runda: sidro drzi (R32/R16/QF/SF)",
+      [_sev39.get(k) for k in (4, 5, 9, 10)] == ["R32", "R16", "QF", "SF"], str(_sev39))
+
+# --- (c) runda koja se TEK IGRA nije u results i mora se ekstrapolirati ---
+check("finale koje jos nije odigrano (roundId iznad svih poznatih) -> F",
+      _resolve39({4: 64, 5: 32, 6: 16, 7: 8, 9: 4, 10: 2}, "T_LIVE", 12) == "F")
+check("kvalifikacije (roundId ispod najnizeg) vracaju prazno, ne pogadjaju",
+      _resolve39({4: 64, 5: 32}, "T_Q", 2) == "")
+check("prazan zdrijeb (prvi dan turnira) vraca prazno, pa se pada na heuristiku",
+      _resolve39({}, "T_EMPTY", 5) == "")
+
+# --- (d) _apply_draw_rounds oznaci izvor, a obje heuristike ga vise ne diraju ---
+_df39._tournament_round_map_cache["T_D"] = {6: "R32"}
+_m39 = [{"tournament": "X", "date": "2026-09-05", "tournament_id": "T_D",
+         "round_id": 6, "round": "SF", "player1": "A B", "player2": "C D"}]
+_out39 = _rd39._apply_draw_rounds([dict(x) for x in _m39])
+check("runda iz zdrijeba prepisuje krivu API oznaku (SF -> R32)",
+      _out39[0]["round"] == "R32", _out39[0].get("round"))
+check("mec nosi round_source=draw", _out39[0].get("round_source") == "draw")
+_after39 = _rd39._infer_rounds([dict(x) for x in _out39], {}, {})
+check("_infer_rounds NE dira ono sto je iz zdrijeba",
+      _after39[0]["round"] == "R32", _after39[0].get("round"))
+_ver39 = _rd39._verify_late_rounds([dict(x) for x in _out39], [])
+check("_verify_late_rounds NE dira ono sto je iz zdrijeba",
+      _ver39[0]["round"] == "R32", _ver39[0].get("round"))
+
+# --- (e) gradja: scouting pa ZIVI API kao fallback ---
+from agent.predictor import _format_build as _fb39
+check("scouting ima prednost pred API-jem",
+      _fb39({"height_cm": 193, "weight_kg": 88, "plays": "Left-Handed"},
+            {"height_cm": 150, "weight_kg": 50, "plays": "Right-Handed"}).startswith("193 cm"))
+check("prazan scouting pada na API (stvarni slucaj Alcaraz/Sinner/Djokovic)",
+      _fb39({}, {"height_cm": 183, "weight_kg": 74,
+                 "plays": "Right-Handed, Two-Handed Backhand"})
+      == "183 cm, 74 kg, Right-Handed, Two-Handed Backhand")
+check("bez ijednog izvora ostaje N/A", _fb39({}, {}) == "N/A")
+check("stari poziv s jednim argumentom i dalje radi", _fb39({"height_cm": 198}) == "198 cm")
+
+# --- (f) get_player_info cita information.*, ne data.height ---
+check("get_player_info cita information", 'p.get("information")' in _src39)
+check("vraca height_cm/weight_kg/plays",
+      all(k in _src39 for k in ('"height_cm":', '"weight_kg":', '"plays":')))
+check("osmi tihi null kljuc je zapisan", "OSMI TIHI NULL KLJUC" in _src39)
+
+# --- (g) vijesti: RSS radi, mrtvi HTML izvori maknuti, kanal vice kad pukne ---
+check("vijesti idu na RSS feedove", "_NEWS_FEEDS" in _src39 and "feeds.bbci.co.uk" in _src39)
+# Stari URL-ovi SMIJU stajati u obrazlozenju (zapis zasto su maknuti je vrijedan) —
+# ne smiju biti IZVOR. Provjerava se dakle popis feedova, ne cijela datoteka.
+_feeds39 = _src39.split("_NEWS_FEEDS = [")[1].split("]")[0]
+check("mrtvi HTML izvori vise NISU izvor (samo zapis u komentaru)",
+      "atpworldtour" not in _feeds39 and "tennisworld" not in _feeds39, _feeds39)
+check("izvori su dva provjerena RSS feeda",
+      "espn.com" in _feeds39 and "bbci.co.uk" in _feeds39)
+check("kanal vice kad ne dobije nista", "UPOZORENJE vijesti" in _src39)
+check("deveti tihi null kljuc je zapisan", "DEVETI TIHI NULL KLJUC" in _src39)
+_kw39 = _src39.split("_NEWS_KEYWORDS = (")[1][:500]
+check("'out of' je izbacen iz kljucnih rijeci (hvatao 'Out of this world')",
+      '"out of"' not in _kw39)
+check("'ruled out' je zamjena koja ne hvata smece", '"ruled out"' in _kw39)
+
+# --- (h) era NIJE prelomljena: predlozak prompta nije diran ---
+import hashlib as _hl39
+from agent import predictor as _pr39
+_h39 = _hl39.md5((_pr39._surface_specific_rules("hard") + _pr39._ANALYSIS_SYSTEM_TEMPLATE
+                  + _pr39.ANALYSIS_PROMPT_TEMPLATE).encode("utf-8")).hexdigest()[:8]
+check("rules_hash je i dalje era 6ca9a0ab (mijenjaju se VRIJEDNOSTI, ne predlozak)",
+      _h39 == _ERA_RULES_HASH, _h39)
+
+# --- (i) context_snapshot v18 biljezi ODAKLE svaka vrijednost dolazi ---
+check("context_version podignut na 18", '"context_version": 18' in _prsrc39)
+check("biljezi se round_source", '"round_source"' in _prsrc39)
+check("biljezi se izvor gradje za oba igraca",
+      '"p1_build_source"' in _prsrc39 and '"p2_build_source"' in _prsrc39)
+check("biljeze se vijesti po igracu",
+      '"p1_news"' in _prsrc39 and '"p2_news"' in _prsrc39)
+
+# --- (j) value/edge_bonus: dokumentiran, ponasanje NEPROMIJENJENO ---
+check("zapisano sto edge_bonus stvarno jest", "STO `edge_bonus` STVARNO JEST" in _tbsrc39)
+check("zapisan Simpsonov paradoks i kontrola cijene",
+      "Simpsonov paradoks" in _tbsrc39 and "-1,2pp" in _tbsrc39)
+check("zapisano da je sortiranje po value INERTNO", "OVO SORTIRANJE JE INERTNO" in _tbsrc39)
+check("prag 3.0 za edge NIJE mijenjan (ponasanje ostaje isto)",
+      "if 3.0 <= edge <= edge_cap:" in _tbsrc39)
+
+# --- (k) registar nosi K10 i tri zatvorena mjerenja ---
+check("K10 je u registru", "### K10" in _di39)
+check("K10 ima prag zapisan prije podataka",
+      "PRAG ZA POTVRDU (zapisano prije podataka)" in _di39.split("### K10")[1][:3500])
+check("zatvoreno: statistika s turnira ne predvidja (n=127, sve nula)",
+      "IZMJERENO I ZATVORENO 13.09.2026" in _di39 and "r=+0,008 P=0,924" in _di39)
+check("zatvoreno: kretanje linije ne predvidja ni s pravim tajmingom",
+      "0,2021" in _di39 and "0,2044" in _di39)
+check("zatvoreno: drugi AI model kao recenzent (Kimi)", "Kimi" in _di39)
 
 print("\n" + "=" * 60)
 if _fails:

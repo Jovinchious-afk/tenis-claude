@@ -13,6 +13,131 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-09-13 10:44 — tri pokvarena ULAZA popravljena; `rules_hash` NEPROMIJENJEN
+
+`rules_hash` ostaje **`6ca9a0ab`** — predlozak prompta nije diran. Mijenjaju se
+VRIJEDNOSTI koje u njega ulaze. `context_snapshot` ide s v17 na **v18** i biljezi odakle
+svaka od te tri vrijednosti dolazi, da se korpus prije i poslije moze posteno usporediti.
+
+### 1. Runde: `roundId` je RELATIVAN PO TURNIRU, a mi smo ga citali kao globalnu konstantu
+
+Izmjereno po mecu naspram stvarnog zdrijeba: **16 od zadnjih 40 analiza (40%) imalo je
+krivu rundu.** Obrazac je pravilan — prvi dan svake runde tocan, drugi dan napuhan:
+
+| datum | mec | nasa oznaka | tocna |
+|---|---|---|---|
+| 09-10 | Zverev - Van De Zandschulp | F | QF |
+| 09-09 | Shelton - Alcaraz | SF | QF |
+| 09-08 | Zverev - Darderi | F | R16 |
+| 09-07 | Khachanov - Tien | QF | R16 |
+| 09-06 | Zverev - Tabilo | SF | R32 |
+| 09-04 | Zverev - Halys | QF | R64 |
+
+Uzrok nije brojanje nego mapa. `_ROUND_ID_MAP` pretpostavlja 1=R128 ... 7=F. Stvarnost:
+
+    U.S. Open (zdrijeb 128)   4=R128(64)  5=R64(32)  6=R32(16)  7=R16(8)  9=QF(4)  10=SF(2)
+    Cassis Challenger (32)    4=R32(16)   5=R16(8)                        9=QF(4)  10=SF(2)  12=F(1)
+
+Isti `roundId=4` znaci R128 na jednom turniru i R32 na drugom. **Nijedna fiksna mapa ne
+moze biti tocna.** `_infer_rounds` je popravljao samo dane gdje broj meceva prelazi
+fizicki maksimum — velike dane spasio, tanke propustio.
+
+**Rjesenje:** `data_fetcher.get_tournament_round_map` izvodi mapu iz `tournament/results`
+tako da broji meceve po `roundId` (64->R128, 32->R64, ... 1->F), sidreci se na najnizi
+`roundId` s cistom potencijom dvojke pa hodajuci ljestvicom. Sidrenje na najnizi cini
+postupak otpornim na nepotpune runde — Seville Challenger ima R16 sa 7 umjesto 8 meceva
+i svejedno se ispravno razrijesi.
+
+**Provjereno:** 9 turnira (US Open + 8 Challengera) daju ispravnu mapu; ponovna obrada
+svih dana US Opena kroz novi put daje **47 tocnih, 0 krivih**, ukljucujuci danasnje
+finale (`roundId=12`, koji stara mapa pretvara u besmisleno "R12").
+
+Mecevi rijeseni iz zdrijeba nose `round_source="draw"` i `_infer_rounds` /
+`_verify_late_rounds` ih vise NE DIRAJU. Obje heuristike ostaju kao fallback za prvi dan
+turnira, kad `results` jos nema nijedan odigran mec.
+
+**Zasto je ovo vise od kozmetike:** runda ULAZI u prompt i u svaku retrospektivnu analizu.
+Nalaz "rupa u R16/QF" iz revizije 26.08.2026 mjeren je na 40% krivim oznakama i mora se
+premjeriti.
+
+### 2. Visina/tezina/ruka: osmi tihi null kljuc
+
+`get_player_info` je citao `p.get("height")` i `p.get("heightCm")` — **oba su None za
+svakog igraca**, provjereno 10 od 10. Polje je vracalo prazan string od prvog dana, a
+`weight` i `plays` ondje nisu ni postojali kao kljucevi. Podatak je cijelo vrijeme bio u
+`data.information`.
+
+Posljedica: `{p1_build}` u promptu punio se iskljucivo iz Excela (`player_scouting`), a
+ondje je **18 od 150 redaka** bez visine — i to bas najvaznija imena:
+
+> Alcaraz, Sinner, Djokovic, Rune, Bublik, Mpetshi Perricard, Diallo, Korda, Davidovich
+> Fokina, Molcan, Shevchenko, Moutet, Dzumhur, Nava, Quinn, Majchrzak, Giron, Safiullin
+
+Za njih je model citao "Build: N/A" iako je podatak bio besplatno dostupan u pozivu koji
+smo ionako radili. Put `information.*` otkriven je jos 22.08.2026, ali je iskoristen samo
+za rucno punjenje Excela — nikad spojen u pipeline.
+
+Popravljeno na dva mjesta: `get_player_info` sada vraca `height_cm`/`weight_kg`/`plays`,
+a `_format_build(sc, api)` uzima scouting pa pada na zivi API. Provjereno: **8 od 10
+testiranih igraca prelazi iz "N/A" u puni opis**, dva koja su podatak imala ostaju ista.
+
+### 3. Vijesti: deveti tihi null kljuc
+
+`get_atp_injury_news()` je scrapeao dvije stranice koje se danas renderiraju
+JavaScriptom, pa je BeautifulSoup vidio samo navigaciju. Zivi poziv 13.09.2026 10:44:
+`len(...) == 23`, tj. doslovno "Nema dostupnih vijesti." Polje `news` u promptu bilo je
+prazno **otkad je uvedeno**.
+
+Povod: pred Shelton-Alcaraz (09.09.2026) mediji su raspravljali hoce li Alcarazov zglob
+izdrzati Sheltonov servis. Shelton je bio na 4,10 i prosao. Ta informacija nije mogla
+doci do modela.
+
+Prebaceno na dva RSS feeda provjerena uzivo (ESPN 11 stavki, BBC 55). Stari HTML izvori
+su MAKNUTI, ne zadrzani — davali su nulu i samo skrivali kvar. Funkcija od danas VICE
+kad ne dobije nista; tiho vracanje prazne vrijednosti drzalo je ovaj kvar skrivenim.
+Kljucne rijeci suzene jer je `"out of"` hvatao "Out of this world!".
+
+### 4. `value_bet` / `edge_bonus`: dokumentirano, NE mijenjano
+
+Korisnik je primijetio da su pickovi s `value_detected=true` prosli 11/20 (55%), a oni
+bez 72/95 (76%). Brojke su tocne, ali razlika je **cijena, ne kvaliteta** — vidi K10 u
+`DECISION_INPUTS.md`. Stratificirano po pojasima kvote razlika je −1,2pp uz CI koji uredno
+prelazi nulu. Kod je dokumentiran, ponasanje nepromijenjeno, pitanje upisano u registar.
+
+Usput utvrdjeno: sortiranje kandidata po `_is_value_pick` je **inertno** — ne bira nista.
+
+### 5. Tri hipoteze izmjerene i zatvorene
+
+Prosjek post-match statistike na turniru (n=127, svih 8 mjera nula), kretanje linije
+(n=149, i n=67 s pravim tajmingom, nula), i drugi AI model kao recenzent. Sve u
+`DECISION_INPUTS.md`, odjeljak "IZMJERENO I ZATVORENO 13.09.2026".
+
+---
+
+### 6. Povijest ispravljena, i nalaz o R16/QF prvi put posteno izmjeren
+
+`scripts/backfill_rounds_from_draw.py` ispravio je **414 redaka**, 0 neuspjelih.
+Provjera nakon upisa: **523 tocnih, 0 krivih** (prije: 414 krivih od 523 = 79,2%).
+
+Sidrenje ljestvice moralo je biti prepravljeno usred posla. Prvi pokusaj ("uzmi prvi
+`roundId` s cistim brojem meceva") polomio se na zdrijebovima s bye-ovima, gdje dvije
+uzastopne runde imaju ISTI broj meceva — Cincinnati (96) je dobio "F" s DVA meca.
+Uhvatila ga je zdravorazumska provjera prije upisa, ne test. Ispravno sidrenje
+(`_fit_ladder`) proba sva poravnanja, odbacuje svako gdje je broj odigranih meceva veci
+od punog broja te runde, i medju preostalima bira ono s najvise tocnih pogodaka.
+Provjereno na 28 turnira (GS 128, Masters 96, ATP s bye-ovima, 48-draw, Challengeri 32).
+
+Na ispravljenim oznakama nalaz o R16/QF **prezivljava i replicira**:
+
+    R16+QF       n=71   WR 53,5%   ROI -22,0%   reziduum -10,7pp
+    sve ostalo   n=356  WR 66,9%   ROI  -1,7%   reziduum  +2,0pp
+    razlika -12,7pp   P=0,036   bootstrap 95% CI [-24,8 , -0,9]
+
+Stara brojka na pokvarenim oznakama bila je -13,3pp — prakticki ista. Upisano kao **K11**
+s pragom za potvrdu. U kod NE ide dok ne prodje kapiju.
+
+---
+
 ## 2026-09-08 12:07 (cetvrta izmjena istog dana) — oznake slotova 4/5 uskladene;
 ## odbijen "market research" odjeljak; K8 i K9 upisani u registar.
 

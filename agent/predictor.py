@@ -1657,7 +1657,7 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         p1_bp_saved=p1.get("break_points_saved") if _BP_TO_PROMPT else None,
         p1_break_conv=p1.get("break_points_converted") if _BP_TO_PROMPT else None,
         p1_return_won=p1.get("return_points_won", "N/A"),
-        p1_build=_format_build(p1.get("scouting")),
+        p1_build=_format_build(p1.get("scouting"), p1),
         p1_tourn_hist=_format_tourn_hist(match.get("p1_tourn_best_3y")),
         p1_matches_7d=p1.get("matches_7d", 0),
         p1_sets_7d=p1.get("sets_7d", 0) or "N/A",
@@ -1683,7 +1683,7 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         p2_bp_saved=p2.get("break_points_saved") if _BP_TO_PROMPT else None,
         p2_break_conv=p2.get("break_points_converted") if _BP_TO_PROMPT else None,
         p2_return_won=p2.get("return_points_won", "N/A"),
-        p2_build=_format_build(p2.get("scouting")),
+        p2_build=_format_build(p2.get("scouting"), p2),
         p2_tourn_hist=_format_tourn_hist(match.get("p2_tourn_best_3y")),
         p2_matches_7d=p2.get("matches_7d", 0),
         p2_sets_7d=p2.get("sets_7d", 0) or "N/A",
@@ -1847,7 +1847,27 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             # se sastav korpusa: prije v17 neuspjeli pozivi nisu ostavljali nikakav trag o
             # uvjetima prije meca, od v17 ostavljaju. Tko broji analize po erama mora to znati.
             # Granica ere — rezati po `context_version`, ne po rules_hashu.
-            "context_version": 17,
+            # v18 (13.09.2026 10:44): tri ulaza koja su do danas bila POKVARENA pocinju
+            # raditi, pa se biljezi ODAKLE svaki dolazi. Bez toga se korpus prije i
+            # poslije ne moze posteno usporediti.
+            #   `round_source`   — "draw" znaci runda iz stvarnog zdrijeba (pouzdano),
+            #                      sve ostalo je stara heuristika po broju meceva.
+            #                      Do 13.09. je 40% oznaka bilo krivo (16 od 40).
+            #   `p*_build_source` — "scouting" / "api" / "none". 18 od 150 igraca imalo
+            #                      je praznu gradju u Excelu (Alcaraz, Sinner, Djokovic...),
+            #                      od danas se dopunjava iz zivog profila.
+            #   `p*_news`        — polje `news` je u promptu od pocetka, ali je kanal bio
+            #                      mrtav i uvijek prazan. Biljezi se da se prvi put moze
+            #                      izmjeriti prolaze li mecevi S VIJESCU drugacije.
+            # Granica ere za svako mjerenje ulaza — rezati po `context_version`.
+            "context_version": 18,
+            "round_source": match.get("round_source") or "heuristic",
+            "p1_build_source": ("scouting" if (p1.get("scouting") or {}).get("height_cm")
+                                else ("api" if p1.get("height_cm") else "none")),
+            "p2_build_source": ("scouting" if (p2.get("scouting") or {}).get("height_cm")
+                                else ("api" if p2.get("height_cm") else "none")),
+            "p1_news": (p1.get("news") or "")[:400] or None,
+            "p2_news": (p2.get("news") or "")[:400] or None,
             # v13 (15.08.2026 10:12, korisnikov zahtjev): TRZISNI KONSENZUS.
             # Cijene 20-46 kladionica (The Odds API), razvigane i spojene medijanom.
             # `market_p` je vjerojatnost za NASEG player1 po trzistu; `market_ev_pick` je
@@ -1990,10 +2010,13 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             # visina objasnjava STIL (r=+0,597 sa serve_pts_won, -0,458 s return_won,
             # +0,317 s asovima) ali NE ISHOD (r=+0,005 s pobjedom, P=0,947).
             # Biljezi se da se moze pratiti odnos sa stilovima kroz vrijeme.
-            "p1_height_cm": safe_float((p1.get("scouting") or {}).get("height_cm")),
-            "p2_height_cm": safe_float((p2.get("scouting") or {}).get("height_cm")),
-            "p1_weight_kg": safe_float((p1.get("scouting") or {}).get("weight_kg")),
-            "p2_weight_kg": safe_float((p2.get("scouting") or {}).get("weight_kg")),
+            # 13.09.2026 10:44: biljezi se STVARNO koristena vrijednost (scouting, pa
+            # ziva API vrijednost kao fallback) — do danas se biljezio samo scouting, pa
+            # je snapshot tvrdio da Alcaraz nema visinu iako ju je API imao.
+            "p1_height_cm": safe_float((p1.get("scouting") or {}).get("height_cm") or p1.get("height_cm")),
+            "p2_height_cm": safe_float((p2.get("scouting") or {}).get("height_cm") or p2.get("height_cm")),
+            "p1_weight_kg": safe_float((p1.get("scouting") or {}).get("weight_kg") or p1.get("weight_kg")),
+            "p2_weight_kg": safe_float((p2.get("scouting") or {}).get("weight_kg") or p2.get("weight_kg")),
             "p1_plays": (p1.get("scouting") or {}).get("plays"),
             "p2_plays": (p2.get("scouting") or {}).get("plays"),
             # PRIJEDLOG 3: QF se samo OZNACAVA, ne kaznjava. Izmjereno 22.08.2026:
@@ -2528,14 +2551,31 @@ def _format_tourn_hist(best) -> str:
     return _TOURN_ROUND_LABEL.get(b, _TOURN_ROUND_LABEL[0])
 
 
-def _format_build(sc: dict) -> str:
-    """Visina/tezina/ruka iz scouting retka -> jedan redak (22.08.2026 09:24).
+def _format_build(sc: dict, api: dict = None) -> str:
+    """Visina/tezina/ruka -> jedan redak (22.08.2026 09:24; izvor prosiren 13.09.2026 10:44).
 
     Izmjereno na 207 razrijesenih meceva: visina jako korelira sa stilom servisa
     (r=+0,597 sa serve_pts_won, -0,458 s return_won) i NIKAKO s ishodom (r=+0,005,
-    P=0,947). Prompt to izricito kaze da model ne izmisli vezu koje nema."""
+    P=0,947). Prompt to izricito kaze da model ne izmisli vezu koje nema.
+
+    DVA IZVORA OD 13.09.2026 10:44, tim redom:
+      1. `player_scouting` (korisnikov Excel) — rucna snimka, ima i kvalitativni kontekst
+      2. ZIVI API profil (`information.height/weight/plays`) — fallback
+
+    ZASTO JE FALLBACK BIO NUZAN: Excel je snimka i imao je rupu u 18 od 150 redaka, i to
+    bas kod najvaznijih imena (Alcaraz, Sinner, Djokovic, Rune, Bublik, Mpetshi
+    Perricard, Diallo, Korda). Za njih je model citao "Build: N/A" iako je API imao
+    podatak u pozivu koji smo ionako vec radili za svakog igraca. Provjereno 10 od 10.
+
+    NAPOMENA O ERI: ovo NE mijenja `rules_hash` — predlozak prompta je nepromijenjen,
+    mijenja se samo VRIJEDNOST koja se u njega upisuje. Ali korpus se mijenja: analize
+    od 13.09.2026 za tih 18 igraca imaju opis grade, ranije nemaju. Tko usporedjuje
+    ponasanje modela prije i poslije, mora to znati."""
     sc = sc or {}
-    h, w, pl = sc.get("height_cm"), sc.get("weight_kg"), sc.get("plays")
+    api = api or {}
+    h = sc.get("height_cm") or api.get("height_cm")
+    w = sc.get("weight_kg") or api.get("weight_kg")
+    pl = sc.get("plays") or api.get("plays")
     if not (h or w or pl):
         return "N/A"
     bits = []
