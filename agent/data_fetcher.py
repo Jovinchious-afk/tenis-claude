@@ -1684,6 +1684,111 @@ def format_tournament_form(tf: dict) -> str:
     return f"over {tf['matches']} matches here: " + ", ".join(bits)
 
 
+# ── STANJE DAVIS CUP SUSRETA I MRTVI RUBBERI (19.09.2026 11:40) ─────────────────
+#
+# ZASTO POSTOJI: Davis Cup susret ide na 5 meceva (2 singla, parovi, jos 2 singla) kroz
+# dva dana, a odlucuje prva ekipa do 3 pobjede. Kad je rezultat vec 3:0, preostali
+# mecevi NIKOME NISTA NE ZNACE — kapetani u njih redovito stavljaju zamjene, a igraci
+# koji ipak izadju nemaju motiv. To je jedini poznati mehanizam u Davis Cupu koji moze
+# posve obrnuti ocekivanje iz ELO-a i forme.
+#
+# ZASTO SE MORA RACUNATI, A NE SAMO SPOMENUTI U PROMPTU: 19.09.2026 izmjereno je stanje
+# svih 7 susreta tog dana i DVA su bila 2-0 (CAN-FRA i KOR-IND). Da je bilo opce
+# upozorenje "pazi na mrtve rubbere", model bi ga jednako primijenio na CZE-USA (1-1,
+# posve ziv) kao i na CAN-FRA. Ovako dobiva broj.
+#
+# PRVI POKUSAJ PROCJENE BIO JE KRIV, ZA POUKU: pretpostavio sam da se petkom igraju
+# rubberi 1-2 pa mrtvih nema. Podaci kazu suprotno — rubberi 1-2 odigrani su u CETVRTAK,
+# a u petak idu parovi i rubberi 4-5. Dakle bas dani koje gledamo su najizlozeniji.
+# Pravilo: stanje natjecanja se cita iz podataka, ne iz pretpostavke o rasporedu.
+#
+# OGRADA KOJA SE NE SMIJE ZABORAVITI: zapis meca parova u `results` nosi
+# `countryAcr = "N/A"` (par je dvoje ljudi), pa se pobjeda u parovima NE MOZE pripisati
+# zemlji. Zato se broje SAMO singlovi, a parovi se prijavljuju zasebno kao "neodredjeno".
+# Susret na 2-0 u singlovima moze nakon parova biti 3-0 (mrtvo) ili 2-1 (zivo) — prompt
+# to mora reci upravo tako, bez izmisljanja.
+
+_dc_tie_cache: dict = {}
+
+
+def davis_cup_tie_state(tournament_id, tournament_name: str = "") -> dict:
+    """Stanje Davis Cup susreta iz vec odigranih meceva.
+
+    Vraca {} ako to nije Davis Cup ili se nista ne moze utvrditi. Inace:
+        {a, b, a_wins, b_wins, doubles_played, decided, at_risk, text}
+    `decided`  = jedna zemlja vec ima 3 pobjede u SINGLOVIMA (susret je gotov)
+    `at_risk`  = vodeca ima 2, pa je moguce da je susret odlucen u parovima"""
+    tid = str(tournament_id or "")
+    if not tid:
+        return {}
+    # BRANA (dodana odmah po testiranju 19.09.2026 11:45): bez nje je funkcija na
+    # U.S. Openu vratila "TIE ALREADY DECIDED: USA has won 3 rubbers" — jer tamo
+    # `countryAcr` postoji za svakog igraca pa se brojanje "pobjeda po zemlji" uredno
+    # izvrti na 126 meceva. Besmislica bi usla ravno u prompt. Ova funkcija smije
+    # raditi ISKLJUCIVO na ekipnim natjecanjima, prepoznatim po imenu.
+    _nm = str(tournament_name or "").lower()
+    if not any(x in _nm for x in ("davis cup", "billie jean king cup", "united cup",
+                                  "atp cup", "laver cup")):
+        return {}
+    key = (tid, tournament_name or "")
+    if key in _dc_tie_cache:
+        return _dc_tie_cache[key]
+
+    # Zemlje iz imena: "Davis Cup, World Group, Q2, CAN-FRA"
+    a = b = ""
+    for part in reversed(str(tournament_name or "").split(",")):
+        part = part.strip()
+        if "-" in part:
+            bits = [x.strip() for x in part.split("-")]
+            if len(bits) == 2 and all(1 <= len(x) <= 4 and x.isalpha() for x in bits):
+                a, b = bits[0].upper(), bits[1].upper()
+                break
+
+    data = _get(f"/atp/tournament/results/{tid}")
+    d = (data or {}).get("data") or {}
+    wins: dict = {}
+    for m in (d.get("singles") or []):
+        # U `results` je player1 UVIJEK pobjednik (provjereno 13.09.2026, 1255/1255).
+        c = ((m.get("player1") or {}).get("countryAcr") or "").upper()
+        if c and c != "N/A":
+            wins[c] = wins.get(c, 0) + 1
+    doubles_played = len([m for m in (d.get("doubles") or []) if m.get("match_winner")])
+
+    if not wins and not doubles_played:
+        _dc_tie_cache[key] = {}
+        return {}
+
+    if not a:
+        order = sorted(wins.items(), key=lambda x: -x[1])
+        a = order[0][0] if order else ""
+        b = order[1][0] if len(order) > 1 else ""
+    aw, bw = wins.get(a, 0), wins.get(b, 0)
+    decided = max(aw, bw) >= 3
+    at_risk = (not decided) and max(aw, bw) >= 2 and doubles_played >= 0
+
+    lead = a if aw > bw else (b if bw > aw else "")
+    if decided:
+        text = (f"TIE ALREADY DECIDED: {lead} has won 3 rubbers. This match is a DEAD RUBBER "
+                f"— it changes nothing in the tie.")
+    elif at_risk:
+        text = (f"Singles rubbers so far: {a} {aw} - {bw} {b}"
+                + (f", plus {doubles_played} doubles rubber(s) whose side cannot be "
+                   f"determined from the feed" if doubles_played else "")
+                + f". First to 3 wins the tie, so {lead} is one rubber away. If {lead} "
+                  f"takes the doubles, this match becomes a DEAD RUBBER.")
+    else:
+        text = (f"Singles rubbers so far: {a} {aw} - {bw} {b}"
+                + (f", plus {doubles_played} doubles rubber(s), side undetermined"
+                   if doubles_played else "")
+                + ". The tie is still live — this match matters.")
+
+    out = {"a": a, "b": b, "a_wins": aw, "b_wins": bw,
+           "doubles_played": doubles_played, "decided": decided,
+           "at_risk": at_risk, "text": text}
+    _dc_tie_cache[key] = out
+    return out
+
+
 def get_player_surface_summary(player_id: str) -> dict:
     """
     Endpoint: GET /atp/player/surface-summary/{player_id}
@@ -2051,10 +2156,48 @@ def _normalize_surface(surface: str, tournament_name: str) -> str:
 
 
 def _get_tournament_level(name: str, category: str = "") -> str:
-    # category = tier from API: "Grand Slam", "ATP Masters 1000", "ATP 500", "ATP 250",
-    #            "Finals", "Challenger 125/100/75/50", "Future"
-    cat = category.lower()
-    n   = name.lower()
+    """Razina turnira iz imena i API-jevog `tier`.
+
+    ── PAD ZBOG `tier = None`, POPRAVLJEN 19.09.2026 11:20 ─────────────────────
+    Ovo je funkcija rusila CIJELI daily run 19.09.2026. `category.lower()` pada na
+    `AttributeError` kad API vrati `tier = None`, a to radi za **svaki Davis Cup
+    turnir** (provjereno na 7 susreta istog dana: CAN-FRA, CZE-USA, GER-CRO, CHI-ESP,
+    AUT-BEL, GBR-ECU, KOR-IND — svi `tier=None`).
+
+    `_get_tournament_level` se zove iz `get_matches_for_date`, koji je PRVI poziv
+    dnevnog runa. Dakle run nije "preskakao Davis Cup" nego je umirao prije nego sto
+    bi uopce dohvatio Grand Slam i ATP mecheve. Od pocetka tjedna Davis Cupa to bi se
+    ponavljalo svaki dan.
+
+    Deseti put isti obrazac (krivi/prazan kljuc iz API-ja), samo prvi put GLASAN
+    umjesto tihog — vidi biljesku o tihim null kljucevima. Zato su od danas oba ulaza
+    zasticena, ne samo `category`.
+
+    ── DAVIS CUP JE OD 19.09.2026 VLASTITA RAZINA ──────────────────────────────
+    Prije bi pao na zadnji `return "ATP 250"` i tiho se pomijesao s pravim ATP 250
+    turnirima. To je stetno iz tri razloga, svi mjerljivi:
+      1. Sve analize po RAZINI (ROI, stopa pogodaka) dobile bi 14 dnevnih meceva
+         drukcijeg tipa u ATP 250 kosaru.
+      2. Susret je "turnir" od 2-5 meceva, pa bi `_fit_ladder` njegove `roundId`
+         13/14 mapirao u "SF"/"F" — a K11 (rupa u R16/QF) reze korpus PO RUNDI.
+         Dva lazna finala dnevno unistila bi to mjerenje.
+      3. Davis Cup nema nista od onoga sto kod nas radi: 0 redaka u
+         `tournament_history` (od 799), a The Odds API ga uopce ne nosi, pa nema ni
+         konsenzusnog bonusa. Mora se moci odvojeno pratiti.
+
+    ── ITF FUTURES, USPUT NADJENO 19.09.2026 ───────────────────────────────────
+    `tier="Future"` (M15/M25) takodjer je padao na `"ATP 250"`, pa ga `_is_main_tour`
+    NIJE hvatao (ono trazi rijec "future" u RAZINI, a razina je bila "ATP 250").
+    U praksi nas je stitio screenshot gate — korisnik nikad ne screenshota M15 Belem —
+    ali pogresna oznaka je bila ondje. Od danas je vlastita razina s limitom 0.
+    """
+    cat = (category or "").lower()
+    n   = (name or "").lower()
+
+    # Davis Cup / ekipna natjecanja PRVO — ime je jedini pouzdan trag jer je tier None.
+    if any(x in n for x in ["davis cup", "billie jean king cup", "united cup",
+                            "atp cup", "laver cup"]):
+        return "Davis Cup"
     if any(x in cat for x in ["qual", "quali"]) or any(x in n for x in ["qualif", "quali"]):
         return "ATP Qualifying"
     if "grand slam" in cat or any(x in n for x in ["roland garros", "french open", "wimbledon",
@@ -2066,6 +2209,8 @@ def _get_tournament_level(name: str, category: str = "") -> str:
         return "ATP 500"
     if "challenger" in cat:
         return "ATP Challenger"
+    if "future" in cat or "itf" in cat:
+        return "ITF Futures"
     if "250" in cat or "atp 250" in cat:
         return "ATP 250"
     return "ATP 250"

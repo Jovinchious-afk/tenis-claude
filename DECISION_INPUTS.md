@@ -128,7 +128,7 @@ kazna za najslabiji pick išla je s faktorom 1,5 i sidrom 68 (gurala je izbor pr
 65-68, koji ide −35,4%) — sada faktor 0,6 i sidro 63; kazna za dodatne parove bila je
 usidrena na fiksnu četvorku pa bi trojac dobio skriveni bonus od +3 boda.
 
-## 3. Bilježi se, ali NE utječe na odluku — `context_snapshot` v19
+## 3. Bilježi se, ali NE utječe na odluku — `context_snapshot` v20
 
 Vremenski uvjeti u punom obliku (temperatura, vlaga, vjetar, tlak na razini mora i na tlu,
 uvjet, koliko je prognoza udaljena od sata meča); je li teren natkriven; je li meč u prvom
@@ -647,6 +647,32 @@ obrnuta → prompt-pravilo se skracuje na puko biljezenje.
 rijecju "favorite" ili "odds" prodje u prompt, model prestaje biti neovisan o trzistu i
 ruse se i konsenzusni bonus i ovo mjerenje. Vidi mjerenje od 08.09.2026 (+11,3% → −2,2%
 → −7,7%).
+
+### K14 — Davis Cup: analizira se, ne igra se (19.09.2026 11:50)
+
+Uveden kao vlastita razina na korisnikov zahtjev. **Nije kandidat za signal nego za
+MJERENJE cijele klase mecheva o kojoj nemamo nijedan redak.**
+
+Sto mu nedostaje, sve odjednom:
+
+    povijest na turniru   nas najjaci prediktor (r=+0,167 P=0,0036)  -> 0 od 799 redaka
+    konsenzus kladionica  jedini nalaz koji je prosao kapiju         -> Odds API ga nema
+    prosjek s turnira     K12                                        -> <=2 singla, N/A
+    korpus                                                           -> 0 od 627
+
+Ostaje ELO (28/28 pokriveno), sezonske serve/return brojke, forma, H2H, gradja, podloga.
+
+**PRAG ZA UKLJUCIVANJE NA TIKET (zapisano prije podataka):** kad skupimo **n>=20**
+razrijesenih Davis Cup redaka, usporediti stopu pogodaka s nasom baznom (64,8% na n=455).
+Ako je unutar 5pp od bazne i CI ne prelazi nulu prema dolje -> `DAVIS_CUP_ON_TICKETS=True`.
+Ako je 10pp+ ispod -> ostaje trajno izvan tiketa i zapisuje se kao zatvoreno.
+
+Mrtve rubbere mjeriti ZASEBNO (`dc_tie_decided` u snapshotu v20): to je jedina situacija
+u kojoj ELO i forma po teoriji ne vrijede, pa ako se i to ne vidi u brojkama, znaci da je
+uzorak premali za bilo kakav zakljucak.
+
+**OGRADA:** ovo NIJE test "je li nas model dobar na Davis Cupu" nego "koliko kostaju tri
+odsutna ulaza". Ne brkati to dvoje pri citanju rezultata.
 
 ### IZMJERENO I ZATVORENO 13.09.2026 10:44 — tri hipoteze, sve tri nula
 

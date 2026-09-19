@@ -872,6 +872,23 @@ def main():
                 _p2_m7d >= 2 and _p1_rest >= 0 and _p2_rest >= 0 and _p2_rest <= _p1_rest - 2
             )
 
+            # STANJE DAVIS CUP SUSRETA (19.09.2026 11:45) — mrtvi rubberi.
+            # Racuna se, ne pretpostavlja: 19.09. su dva od sedam susreta bila 2-0, pa
+            # bi opce upozorenje bilo jednako primijenjeno i na susrete koji su 1-1.
+            # Puno obrazlozenje uz `data_fetcher.davis_cup_tie_state`.
+            if (match.get("level") or "") == "Davis Cup":
+                try:
+                    _tie = df.davis_cup_tie_state(match.get("tournament_id"),
+                                                  match.get("tournament"))
+                except Exception as e:
+                    print(f"  Stanje Davis Cup susreta nedostupno ({str(e)[:50]}).")
+                    _tie = {}
+                match["davis_cup_tie"] = _tie
+                if _tie.get("text"):
+                    _tag = "MRTAV RUBBER" if _tie.get("decided") else (
+                        "RIZIK od mrtvog rubbera" if _tie.get("at_risk") else "susret ziv")
+                    print(f"    Davis Cup [{_tag}]: {_tie['text'][:90]}")
+
             # PROSJEK STATISTIKE NA OVOM TURNIRU (13.09.2026 12:20, korisnikov zahtjev).
             # Ide u prompt, u odjeljak forme. Puno obrazlozenje — ukljucujuci to da je
             # signal IZMJEREN KAO NULA na plitkom uzorku i zasto svejedno ulazi — stoji uz
@@ -1690,7 +1707,22 @@ def _apply_draw_rounds(matches: list) -> list:
     Mecevi kojima je runda ovako utvrdjena nose `round_source="draw"` i te dvije
     heuristike ih od danas NE DIRAJU — inace bi ispravnu oznaku "popravile" natrag."""
     resolved = 0
+    davis = 0
     for m in matches:
+        # ── DAVIS CUP NEMA ZDRIJEB (19.09.2026 11:20) ───────────────────────────
+        # Susret je "turnir" od 2-5 meceva, pa bi `_fit_ladder` njegove roundId 13/14
+        # uredno mapirao u "SF" i "F" — provjereno na CAN-FRA i CZE-USA, oba su dala
+        # tocno to. Dva lazna finala DNEVNO usla bi u korpus i unistila K11 (rupa u
+        # R16/QF), koji reze korpus PO RUNDI.
+        # Zato Davis Cup dobiva vlastitu oznaku "DC" koja se ni s cim ne mijesa, i
+        # `round_source="davis_cup"` da ga ni `_infer_rounds` ni `_verify_late_rounds`
+        # ne diraju.
+        if (m.get("level") or "") == "Davis Cup":
+            m["round"] = "DC"
+            m["round_id"] = 0
+            m["round_source"] = "davis_cup"
+            davis += 1
+            continue
         tid = m.get("tournament_id")
         rid = m.get("round_id")
         if not tid or not rid:
@@ -1710,6 +1742,8 @@ def _apply_draw_rounds(matches: list) -> list:
         m["round_id"] = _ROUND_ORDER.index(label) + 1
         m["round_source"] = "draw"
         resolved += 1
+    if davis:
+        print(f"  Runda: {davis} Davis Cup meceva oznaceno s 'DC' (susret nema zdrijeb).")
     if resolved:
         print(f"  Runda: {resolved} od {len(matches)} oznaka utvrdjeno iz stvarnog zdrijeba "
               f"(pouzdan izvor); ostalo ide na heuristiku.")
@@ -1773,7 +1807,9 @@ def _infer_rounds(matches: list, screenshot_odds: dict = None,
     _MAX_MATCHES = {"F": 1, "SF": 2, "QF": 4, "R16": 8, "R32": 16, "R64": 32, "R128": 64}
     # Round-robin uvijek ima nepravilne brojeve — nikad ne diraj.
     # Q1/Q2 se ne diraju OSIM kad grupa ima screenshot (vidi Q-tag iznimku gore).
-    _TRUST_ALWAYS = {"RR", "Q1", "Q2"}
+    # "DC" dodan 19.09.2026: Davis Cup susret nema ljestvicu rundi, oznaka je
+    # namjerno izvan `_ROUND_ORDER` i ne smije se "popravljati".
+    _TRUST_ALWAYS = {"RR", "Q1", "Q2", "DC"}
 
     # Grupiranje po (turnir, datum, RUNDA) — vidi (a) u docstringu.
     counts: dict = defaultdict(list)
@@ -2046,7 +2082,9 @@ def _warn_impossible_rounds(matches: list) -> None:
                 seen[key][p] += 1
     for (tournament, rnd), players in seen.items():
         rep = {p: n for p, n in players.items() if n > 1}
-        if rep and rnd not in ("RR", ""):
+        # "DC" izuzet 19.09.2026: u Davis Cup susretu isti igrac LEGITIMNO igra dva
+        # singla (rubber 1 i rubber 4), pa bi upozorenje bilo lazno svaki put.
+        if rep and rnd not in ("RR", "DC", ""):
             print(f"  UPOZORENJE runda: {tournament} '{rnd}' — isti igrač igra više puta "
                   f"({', '.join(f'{p} x{n}' for p, n in list(rep.items())[:4])}). "
                   f"Oznaka runde je vjerojatno kriva.")

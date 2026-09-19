@@ -493,8 +493,8 @@ for f in ("p1_serve_pts_won", "p1_hold_pct", "p1_hold_pct_from_bp", "p1_return_w
           "p1_return_won_weighted", "p1_bp_saved", "p1_bp_converted", "p1_first_serve_pct",
           "bp_in_prompt"):
     check(f"snapshot biljezi {f}", f'"{f}"' in _all)
-check("context_version podignut na 19 (v17 27.08., v18 13.09. 10:44, v19 13.09. 12:20)",
-      '"context_version": 19' in _all)
+check("context_version podignut na 20 (v17 27.08., v18 13.09. 10:44, v19 13.09. 12:20)",
+      '"context_version": 20' in _all)
 
 # (e) nove vrijednosti ne smiju procuriti u prompt template
 check("prompt template nema novih polja",
@@ -530,14 +530,14 @@ check("krivi nazivi API polja dokumentirani", "breakPointOf" in _dfsrc)
 #             (JSON primjer je nosio oznake od prije 22.08., specifikacija nove).
 #             Napravljeno ODMAH jer era 61999517 nije imala nijednu analizu, pa rez
 #             korpusa nije nastao; odgadjanje bi znacilo drugu promjenu hasha kasnije.
-_ERA_RULES_HASH = "adb358d0"
+_ERA_RULES_HASH = "d4f7a350"
 
 # Verzija oblika `context_snapshot`. Do 13.09.2026 je bila doslovno upisana na 8
 # mjesta u dva testna paketa, pa je svako podizanje znacilo lov po datotekama.
 # Povijest: v15 22.08. | v16 26.08. | v17 27.08. | v18 13.09. 10:44 | v19 13.09. 12:20
 # (v18 = izvor runde, izvor gradje, vijesti po igracu — sve tri su do tada bile
 #  pokvarene, pa se biljezi ODAKLE vrijednost dolazi.)
-_CTX_VERSION = 19
+_CTX_VERSION = 20
 
 
 # NAJVAZNIJE: ograda o late-round pravilu NE SMIJE biti unutar prompt templatea —
@@ -589,7 +589,7 @@ _wf2 = open(".github/workflows/daily_ticket.yml", encoding="utf-8").read()
 
 # A — bez utjecaja na pickove
 check("ELO se biljezi u snapshot", '"p1_elo_overall"' in _prsrc and '"elo_gap_surface"' in _prsrc)
-check("context_version podignut na 19", '"context_version": 19' in _prsrc)
+check("context_version podignut na 20", '"context_version": 20' in _prsrc)
 check("broj protivnika u avg_opp_elo se biljezi", "_avg_opponent_elo_n" in _rd2)
 check("PYTHONUNBUFFERED aktiviran", 'PYTHONUNBUFFERED: "1"' in _wf2)
 check("hard okidac vise ne vristi na 30", "_HARD_NEXT_TRIGGER = 180" in _rd2)
@@ -735,7 +735,7 @@ check("stara zabrana oslanjanja na kvotu i dalje stoji",
 check("nova polja u JSON shemi",
       '"above_64_basis"' in _FULL_PROMPT
       and '"market_check"' in _FULL_PROMPT)
-check("context_version podignut na 19", '"context_version": 19' in _all2)
+check("context_version podignut na 20", '"context_version": 20' in _all2)
 
 print("\n=== 22. Runde na razini TURNIRA (13.08.2026) ===")
 from agent.run_daily import _verify_late_rounds, _LATE_ROUND_TOTAL
@@ -1297,8 +1297,8 @@ _ph = _ph_by_tpl["ANALYSIS_PROMPT_TEMPLATE"]
 _kw = _kw_by_tpl["ANALYSIS_PROMPT_TEMPLATE"]
 for _name in _kw_by_tpl:
     check("poziv .format() na %s je pronadjen" % _name, _kw_by_tpl[_name] is not None)
-check("korisnicki predlozak ima ocekivani broj polja (99)",
-      len(_ph) == 99, "nadjeno %d" % len(_ph))
+check("korisnicki predlozak ima ocekivani broj polja (100)",
+      len(_ph) == 100, "nadjeno %d" % len(_ph))
 check("sistemski predlozak ima tocno jedno polje (pravila podloge)",
       _ph_by_tpl["_ANALYSIS_SYSTEM_TEMPLATE"] == {"surface_specific_rules"},
       "nadjeno %s" % sorted(_ph_by_tpl["_ANALYSIS_SYSTEM_TEMPLATE"]))
@@ -1918,7 +1918,7 @@ check("rules_hash je i dalje era 6ca9a0ab (mijenjaju se VRIJEDNOSTI, ne predloza
       _h39 == _ERA_RULES_HASH, _h39)
 
 # --- (i) context_snapshot v18 biljezi ODAKLE svaka vrijednost dolazi ---
-check("context_version podignut na 19", '"context_version": 19' in _prsrc39)
+check("context_version podignut na 20", '"context_version": 20' in _prsrc39)
 check("biljezi se round_source", '"round_source"' in _prsrc39)
 check("biljezi se izvor gradje za oba igraca",
       '"p1_build_source"' in _prsrc39 and '"p2_build_source"' in _prsrc39)
@@ -2129,6 +2129,131 @@ check("skripta ne pogadja poravnanje",
       "NIKAD NE POGADJA" in _hv41 and "get_match_stats_aligned" in _hv41)
 check("skripta je nastavljiva (ne pocinje iznova)",
       "nastavlja gdje je stala" in _hv41 or "if key in have" in _hv41)
+
+
+# ==========================================================================
+print("\n=== 42. Pad na tier=None + Davis Cup kao zasebna razina (19.09.2026) ===")
+
+import agent.data_fetcher as _df42
+import agent.run_daily as _rd42
+import agent.ticket_builder as _tb42
+from agent.predictor import _fmt_davis_cup as _dc42
+from config.model_config import TOURNAMENT_LEVELS as _TL42, DAILY_MATCH_LIMITS as _DL42
+
+# --- (a) PAD koji je rusio cijeli daily run ---
+# `tier=None` dolazi za SVAKI Davis Cup turnir. `_get_tournament_level` se zove iz
+# `get_matches_for_date`, prvog poziva runa — dakle run je umirao prije nego bi
+# dohvatio i Grand Slam mecheve. Ovaj test postoji da se to ne vrati.
+check("tier=None ne rusi razvrstavanje razine",
+      _df42._get_tournament_level("Davis Cup, World Group, Q2, CAN-FRA", None) == "Davis Cup")
+check("name=None takodjer ne rusi", _df42._get_tournament_level(None, None) == "ATP 250")
+check("oba prazna ne rusi", _df42._get_tournament_level("", "") == "ATP 250")
+
+# --- (b) razvrstavanje razina ---
+check("Davis Cup je vlastita razina, ne ATP 250",
+      _df42._get_tournament_level("Davis Cup, World Group, Q2, CZE-USA", None) == "Davis Cup")
+check("ostala ekipna natjecanja idu u isti kos",
+      _df42._get_tournament_level("United Cup", None) == "Davis Cup"
+      and _df42._get_tournament_level("Laver Cup", None) == "Davis Cup")
+check("ITF Futures vise ne pada na ATP 250",
+      _df42._get_tournament_level("M15 Belem", "Future") == "ITF Futures")
+check("pravi ATP 250 i dalje radi",
+      _df42._get_tournament_level("Generali Open - Kitzbuhel", "ATP 250") == "ATP 250")
+check("Grand Slam i dalje radi",
+      _df42._get_tournament_level("U.S. Open - New York", "Grand Slam") == "Grand Slam")
+check("Challenger i dalje radi",
+      _df42._get_tournament_level("Tiburon Challenger", "Challenger 125") == "ATP Challenger")
+
+# --- (c) razine u konfiguraciji i kapije ---
+check("Davis Cup ima prioritet izmedju 500 i 250",
+      _TL42["ATP 250"] < _TL42["Davis Cup"] < _TL42["ATP 500"])
+check("Davis Cup ima dnevni limit analize", _DL42["Davis Cup"]["today"] > 0)
+check("ITF Futures ima limit 0", _DL42["ITF Futures"]["today"] == 0)
+check("Davis Cup NE ide na tiket dok je prekidac ugasen",
+      "Davis Cup" in _tb42._NON_TICKET_LEVELS)
+check("ITF Futures ne ide na tiket", "ITF Futures" in _tb42._NON_TICKET_LEVELS)
+check("Davis Cup IPAK prolazi _is_main_tour (mora se vidjeti u analizi)",
+      _tb42._is_main_tour({"match": {"level": "Davis Cup"}}))
+check("ITF Futures ne prolazi _is_main_tour",
+      not _tb42._is_main_tour({"match": {"level": "ITF Futures"}}))
+
+# --- (d) runde: Davis Cup nema zdrijeb ---
+_m42 = [{"tournament": "Davis Cup, World Group, Q2, CAN-FRA", "level": "Davis Cup",
+         "tournament_id": "22116", "round_id": 16, "round": "F",
+         "player1": "A B", "player2": "C D", "date": "2026-09-19"}]
+_o42 = _rd42._apply_draw_rounds([dict(x) for x in _m42])
+check("Davis Cup dobiva oznaku 'DC', ne rundu iz ljestvice", _o42[0]["round"] == "DC",
+      _o42[0].get("round"))
+check("oznacen je izvor davis_cup", _o42[0].get("round_source") == "davis_cup")
+_a42 = _rd42._infer_rounds([dict(x) for x in _o42], {}, {})
+check("_infer_rounds NE dira 'DC'", _a42[0]["round"] == "DC")
+_v42 = _rd42._verify_late_rounds([dict(x) for x in _o42], [])
+check("_verify_late_rounds NE dira 'DC'", _v42[0]["round"] == "DC")
+check("'DC' je izvan ljestvice rundi (ne smije zagaditi K11)",
+      "DC" not in _rd42._ROUND_ORDER)
+
+# --- (e) stanje susreta: MORA raditi samo na ekipnim natjecanjima ---
+# Bez brane je ovo na U.S. Openu vratilo "TIE ALREADY DECIDED: USA has won 3 rubbers",
+# jer se brojanje pobjeda po zemlji uredno izvrti na 126 meceva. Test cuva branu.
+check("stanje susreta ne radi na obicnom turniru",
+      _df42.davis_cup_tie_state("21349", "U.S. Open - New York") == {})
+check("stanje susreta ne radi na Challengeru",
+      _df42.davis_cup_tie_state("22027", "Tiburon Challenger") == {})
+
+_orig42 = _df42._get
+def _fake_tie(singles, doubles=0):
+    rows = [{"player1": {"countryAcr": c}, "match_winner": 1} for c in singles]
+    dbl = [{"player1": {"countryAcr": "N/A"}, "match_winner": 1} for _ in range(doubles)]
+    return {"data": {"singles": rows, "doubles": dbl}}
+def _tie(singles, doubles=0, tid="TX"):
+    _df42._dc_tie_cache.clear()
+    _df42._get = lambda p, *a, **k: _fake_tie(singles, doubles)
+    try:
+        return _df42.davis_cup_tie_state(tid, "Davis Cup, World Group, Q2, CAN-FRA")
+    finally:
+        _df42._get = _orig42
+
+_t20 = _tie(["CAN", "CAN"])
+check("2-0 je oznaceno kao RIZIK od mrtvog rubbera",
+      _t20.get("at_risk") and not _t20.get("decided"), str(_t20))
+_t11 = _tie(["CAN", "FRA"])
+check("1-1 je ziv susret", not _t11.get("at_risk") and not _t11.get("decided"), str(_t11))
+_t30 = _tie(["CAN", "CAN", "CAN"])
+check("3-0 je ODLUCEN susret -> mrtav rubber", _t30.get("decided"), str(_t30))
+check("odluceni susret to izricito kaze u tekstu", "DEAD RUBBER" in (_t30.get("text") or ""))
+_td = _tie(["CAN", "FRA"], doubles=1)
+check("parovi se broje zasebno (zemlja se ne moze pripisati)",
+      _td.get("doubles_played") == 1 and "undetermined" in (_td.get("text") or ""), str(_td))
+_df42._dc_tie_cache.clear()
+
+# --- (f) prompt blok ---
+check("obican mec NEMA Davis Cup blok (prompt ostaje identican)",
+      _dc42({"level": "Grand Slam"}) == "" and _dc42({}) == "")
+_b42 = _dc42({"level": "Davis Cup", "davis_cup_tie": _t20})
+check("Davis Cup blok objasnjava da praznine NISU signal",
+      "not evidence" in _b42.lower() or "NOT that the player" in _b42)
+check("blok upozorava na domaci teren", "HOME TIE" in _b42)
+check("blok objasnjava mrtve rubbere", "DEAD RUBBERS" in _b42)
+check("blok nosi STVARNO stanje susreta, ne opce upozorenje",
+      "CAN 2 - 0 FRA" in _b42, _b42[:80])
+_b30 = _dc42({"level": "Davis Cup", "davis_cup_tie": _t30})
+check("odluceni susret trazi izricito nizu pouzdanost",
+      "Cap your confidence low" in _b30)
+
+# --- (g) snapshot ---
+_pr42 = io.open("agent/predictor.py", encoding="utf-8").read()
+check("snapshot biljezi is_davis_cup", '"is_davis_cup"' in _pr42)
+check("snapshot biljezi stanje susreta",
+      '"dc_tie_decided"' in _pr42 and '"dc_tie_at_risk"' in _pr42)
+check("zapisano zasto je rez korpusa NOMINALAN za ATP",
+      "bajt-identican" in _pr42)
+
+# --- (h) prekidac je na JEDNOM mjestu ---
+_cfg42 = io.open("config/model_config.py", encoding="utf-8").read()
+check("prekidac DAVIS_CUP_ON_TICKETS postoji", "DAVIS_CUP_ON_TICKETS" in _cfg42)
+check("uz prekidac stoji mjereno obrazlozenje",
+      "0 redaka od 799" in _cfg42 and "NEMA Davis Cup" in _cfg42)
+check("zapisano kako ga upaliti", "postavi na True" in _cfg42)
 
 print("\n" + "=" * 60)
 if _fails:

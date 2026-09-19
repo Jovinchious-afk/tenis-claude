@@ -13,6 +13,84 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-09-19 11:50 — PAD koji je rusio daily run; Davis Cup kao zasebna razina
+
+`rules_hash` **adb358d0 -> d4f7a350**, `context_snapshot` v19 -> **v20**.
+Rez korpusa je NOMINALAN za ATP: `davis_cup_block` se za sve osim ekipnih natjecanja
+renderira u prazan string, pa je tekst koji model vidi bajt-identican prethodnoj eri.
+Hash se mijenja jer hashiramo PREDLOZAK, ne renderirani prompt.
+
+### 1. Daily run bi se danas srusio — i to nema veze s Davis Cupom
+
+    >>> get_matches_for_date(2026-09-19)
+    AttributeError: 'NoneType' object has no attribute 'lower'
+
+`_get_tournament_level` radi `category.lower()`, a API vraca `tier = None` za **svaki**
+Davis Cup turnir (provjereno na svih 7 susreta tog dana). Ta funkcija se zove iz
+`get_matches_for_date`, PRVOG poziva dnevnog runa — dakle run nije "preskakao Davis Cup"
+nego je umirao prije nego bi dohvatio Grand Slam i ATP mecheve. Ponavljalo bi se svaki
+dan tjedna Davis Cupa.
+
+Deseti put isti obrazac (prazan/krivi kljuc iz API-ja), prvi put GLASAN umjesto tihog.
+Zasticena su oba ulaza, ne samo `category`.
+
+### 2. Davis Cup je od danas vlastita razina
+
+Prije bi pao na zadnji `return "ATP 250"` i tiho se pomijesao s pravim ATP 250 turnirima.
+Tri mjerljive stete koje to sprjecava:
+
+  1. Analize po RAZINI dobile bi 14 dnevnih meceva drukcijeg tipa u ATP 250 kosaru.
+  2. Susret je "turnir" od 2-5 meceva, pa bi `_fit_ladder` njegove `roundId` 13/14
+     mapirao u "SF"/"F" — provjereno, CAN-FRA i CZE-USA daju tocno to. Dva lazna finala
+     dnevno unistila bi **K11** (rupa u R16/QF), koji reze korpus PO RUNDI.
+  3. Davis Cup se mora moci odvojeno pratiti, jer mu nedostaje vecina onoga sto radi.
+
+Runda je `"DC"`, izvan `_ROUND_ORDER`; `_infer_rounds` i `_verify_late_rounds` ju ne
+diraju. `_warn_impossible_rounds` izuzima "DC" jer u susretu isti igrac LEGITIMNO igra
+dva singla.
+
+Usput popravljeno: `tier="Future"` (M15/M25) takodjer je padao na "ATP 250", pa ga
+`_is_main_tour` nije hvatao. Sada je razina "ITF Futures" s limitom 0.
+
+### 3. Sto Davis Cupu nedostaje — i zasto zato NE ide na tiket
+
+    povijest na turniru   nas NAJJACI prediktor (r=+0,167)  -> 0 redaka od 799
+    konsenzus kladionica  jedini nalaz koji je prosao kapiju -> The Odds API ga NEMA
+    prosjek s turnira     K12                                -> susret ima <=2 singla, N/A
+    korpus                                                   -> 0 redaka od 627
+
+Ostaje ELO (pokrivenost **28/28** igraca, provjereno), sezonske serve/return brojke,
+forma, H2H, gradja, podloga.
+
+Prekidac `DAVIS_CUP_ON_TICKETS = False` u `config/model_config.py` — JEDNO mjesto,
+`_NON_TICKET_LEVELS` se iz njega izvodi. Analiza i prikaz rade, tiket ne.
+
+### 4. Mrtvi rubberi se RACUNAJU, ne samo spominju
+
+`davis_cup_tie_state` broji odigrane rubbere po zemlji iz `tournament/results`.
+
+**Moja prva procjena bila je kriva i to je poucno:** rekao sam da se petkom igraju
+rubberi 1-2 pa mrtvih nema. Podaci kazu suprotno — rubberi 1-2 odigrani su u CETVRTAK,
+a u petak idu parovi i rubberi 4-5. Dakle bas dani koje gledamo su najizlozeniji.
+Stanje 19.09.2026 u 11:50:
+
+    CAN-FRA  CAN 2-0  RIZIK — ako Kanada uzme parove, danasnji singlovi su mrtvi
+    KOR-IND  KOR 2-0  RIZIK
+    CZE-USA  1-1      zivo
+    AUT-BEL  1-1 +1 par (strana neodredjena)  zivo
+    CHI-ESP, GER-CRO, GBR-ECU  susret jos nije poceo
+
+Bez racunanja bi opce upozorenje jednako pogodilo CZE-USA (posve ziv) i CAN-FRA.
+
+OGRADA: zapis meca parova nosi `countryAcr="N/A"`, pa se pobjeda u parovima NE MOZE
+pripisati zemlji. Broje se samo singlovi, parovi se prijavljuju zasebno.
+
+BRANA: funkcija radi ISKLJUCIVO na ekipnim natjecanjima. Bez nje je na U.S. Openu vratila
+"TIE ALREADY DECIDED: USA has won 3 rubbers" — brojanje po zemlji uredno se izvrti na 126
+meceva i besmislica bi usla u prompt. Uhvaceno pri testiranju, test cuva branu.
+
+---
+
 ## 2026-09-13 13:40 — K12 PROVJEREN na pobranom zdrijebu; hipoteza o dubini POTVRDJENA
 
 `rules_hash` **b2139075 -> adb358d0**. Izmjena je BESPLATNA: era `b2139075` imala je

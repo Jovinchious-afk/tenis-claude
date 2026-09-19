@@ -68,14 +68,55 @@ DEFAULT_WEIGHTS = {
     "tournament_trajectory": 4.0,  # In-tournament W/L momentum, current run quality, hot-hand signal
 }
 
+# Prioritet pri sortiranju i pri bodovanju kombinacija. NIJE mjera kvalitete picka.
+# "Davis Cup" dodan 19.09.2026 11:20 — vidi DAVIS_CUP_ON_TICKETS ispod za puno
+# obrazlozenje. Postavljen je IZMEDJU 500 i 250: igraju ga vrhunski igraci (Zverev,
+# Auger-Aliassime, Shelton, Mensik), ali o njemu nemamo nijedan razrijesen redak.
+# "ITF Futures" dodan istog dana — prije je tiho padao na "ATP 250".
 TOURNAMENT_LEVELS = {
     "Grand Slam": 100,
     "ATP Masters 1000": 85,
     "ATP 500": 65,
+    "Davis Cup": 60,
     "ATP 250": 45,
     "ATP Challenger": 25,
     "ATP Qualifying": 10,
+    "ITF Futures": 5,
 }
+
+# ── DAVIS CUP NA TIKETU: PREKIDAC (19.09.2026 11:20) ────────────────────────────
+#
+# False = Davis Cup se ANALIZIRA i prikazuje, ali NE ulazi u kombinaciju tiketa.
+# True  = ulazi kao i svaki drugi meč.
+#
+# ZASTO JE ZADANO False, a ne iz opreza nacelno:
+# Davis Cupu nedostaju TRI od cetiri stvari koje su se kod nas ikad pokazale korisnima,
+# i to sve odjednom (izmjereno 19.09.2026):
+#
+#   povijest na turniru   nas NAJJACI prediktor (r=+0,167 P=0,0036 n=275)
+#                         -> 0 redaka od 799 u `tournament_history`. Uvijek "no trace".
+#   konsenzus kladionica  jedini nalaz koji je PROSAO kapiju (edge +10,5pp)
+#                         -> The Odds API NEMA Davis Cup. Provjereno: jedini aktivni
+#                            tenis kljuc bio je `tennis_wta_guadalajara_open`.
+#                            Bonus u `_score_combo` se dakle nikad ne pali.
+#   prosjek s turnira     K12, uveden 13.09.2026
+#                         -> susret ima najvise 2 singla po igracu, prag je 2 -> N/A.
+#
+# Ostaje ELO (pokrivenost 28/28 igraca, provjereno), sezonske serve/return brojke,
+# forma, H2H, gradja i podloga. To je solidno, ali osjetno tanji citac nego inace.
+#
+# Uz to model NEMA POJMA o dvije stvari koje u Davis Cupu odlucuju:
+#   - domaci teren i zemlja (domacin bira podlogu da odgovara svojima);
+#   - MRTVI RUBBERI — susret ide na 5 meceva kroz dva dana, pa ako je vec 3:0,
+#     zadnja dva cesto igraju zamjene i nikome nista ne znace.
+#
+# Korpus: 0 Davis Cup redaka od 627. Nulta kalibracija.
+#
+# KAKO OVO PROMIJENITI: postavi na True. Nista drugo ne treba dirati — `_NON_TICKET_LEVELS`
+# u `ticket_builder` se izvodi iz ove zastavice. Razuman trenutak za to je kad skupimo
+# dvadesetak razrijesenih Davis Cup redaka, pa se stopa pogodaka moze usporediti s
+# nasom baznom (64,8%).
+DAVIS_CUP_ON_TICKETS = False
 
 SURFACE_MAP = {
     "clay": "Clay",
@@ -167,9 +208,14 @@ DAILY_MATCH_LIMITS = {
     "Grand Slam":       {"today": 7, "tomorrow": 6},
     "ATP Masters 1000": {"today": 6, "tomorrow": 6},
     "ATP 500":          {"today": 6, "tomorrow": 6},
+    # Davis Cup (19.09.2026): 6 kao i ostali. Ovo je limit ANALIZE, ne tiketa — na tiket
+    # ga pusta tek `DAVIS_CUP_ON_TICKETS`. Jedan dan Davis Cupa zna dati 14 singlova
+    # (7 susreta x 2), pa bez limita bi sam progutao cijeli run.
+    "Davis Cup":        {"today": 6, "tomorrow": 6},
     "ATP 250":          {"today": 6, "tomorrow": 6},
     "ATP Challenger":   {"today": 0, "tomorrow": 0},
     "ATP Qualifying":   {"today": 0, "tomorrow": 0},
+    "ITF Futures":      {"today": 0, "tomorrow": 0},
 }
 
 WEIGHT_ADJUSTMENT = {

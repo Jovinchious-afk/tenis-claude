@@ -725,7 +725,7 @@ Surface: {surface} | Round: {round}
 Date: {date} | Format: {format}
 Round context: {round_context}
 
-=== {player1} ===
+{davis_cup_block}=== {player1} ===
 Age: {p1_age} | Playing hand: {p1_hand} | Country: {p1_country}
 ATP Ranking: #{p1_ranking}
 ELO (overall): {p1_elo_overall} | ELO ({surface}): {p1_elo_surface}
@@ -1703,6 +1703,7 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         p1_days_rest=p1_days_rest,
         p1_tourn_path=p1.get("tournament_path", "N/A"),
         p1_form_trend=p1.get("form_trend", "N/A"),
+        davis_cup_block=_fmt_davis_cup(match),
         p1_tourn_form=_fmt_tourn_form(p1.get("tournament_form")),
         p1_news=p1.get("news", "No news") or "No news",
 
@@ -1914,7 +1915,12 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             #   `p*_news` vec postoji od v18, ali OD DANAS UTJECE NA ODLUKU (prompt joj daje
             #       izricitu tezinu). Rez korpusa je zato ovdje, ne na v18.
             # Granica ere: rules_hash 6ca9a0ab -> b2139075 (hard).
-            "context_version": 19,
+            # v20 (19.09.2026 11:45): Davis Cup je vlastita razina i nosi stanje
+            # susreta. Rez korpusa je NOMINALAN za ATP: `davis_cup_block` se za sve
+            # osim ekipnih natjecanja renderira u prazan string, pa je tekst koji
+            # model vidi bajt-identican eri `adb358d0`. Hash se mijenja jer hashiramo
+            # PREDLOZAK, ne renderirani prompt — to je namjerno i ne treba "popravljati".
+            "context_version": 20,
             "p1_tourn_form_matches": (p1.get("tournament_form") or {}).get("matches"),
             "p2_tourn_form_matches": (p2.get("tournament_form") or {}).get("matches"),
             "p1_tourn_form_serve_won": (p1.get("tournament_form") or {}).get("serve_won"),
@@ -1926,6 +1932,13 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             "p1_tourn_form_bp_conv": (p1.get("tournament_form") or {}).get("bp_conv"),
             "p2_tourn_form_bp_conv": (p2.get("tournament_form") or {}).get("bp_conv"),
             "news_influences_decision": True,
+            # Davis Cup (19.09.2026 11:45): biljezi se RAZINA i stanje susreta, da se
+            # ekipna natjecanja mogu rezati iz svake analize po razini i po rundi, i da
+            # se poslije moze izmjeriti prolaze li mrtvi rubberi drukcije.
+            "is_davis_cup": (match.get("level") or "") == "Davis Cup",
+            "dc_tie_decided": (match.get("davis_cup_tie") or {}).get("decided"),
+            "dc_tie_at_risk": (match.get("davis_cup_tie") or {}).get("at_risk"),
+            "dc_tie_score": ((match.get("davis_cup_tie") or {}).get("text") or None),
             "round_source": match.get("round_source") or "heuristic",
             "p1_build_source": ("scouting" if (p1.get("scouting") or {}).get("height_cm")
                                 else ("api" if p1.get("height_cm") else "none")),
@@ -2614,6 +2627,53 @@ def _format_tourn_hist(best) -> str:
     slab dokaz, ne dokaz odsutnosti."""
     b = safe_int(best)
     return _TOURN_ROUND_LABEL.get(b, _TOURN_ROUND_LABEL[0])
+
+
+def _fmt_davis_cup(match: dict) -> str:
+    """Davis Cup blok za prompt — prazan string za sve ostalo (19.09.2026 11:45).
+
+    Namjerno se ubacuje kao CIJELI ODLOMAK, a ne kao jos jedno polje po igracu: Davis
+    Cup mijenja nacin citanja cijelog meca, ne jednu brojku. Za sve ostale turnire
+    vraca "" pa prompt izgleda tocno kao i prije — era se lomi jednom, ne po turniru."""
+    if (match.get("level") or "") != "Davis Cup":
+        return ""
+    tie = match.get("davis_cup_tie") or {}
+    lines = [
+        "=== TEAM COMPETITION — DAVIS CUP ===",
+        "This is a Davis Cup rubber, not a regular tour match. Read it differently:",
+        "",
+        "WHAT IS MISSING HERE, AND WHY IT IS NOT EVIDENCE OF ANYTHING:",
+        "- 'Best at THIS tournament' will say no trace. We hold ZERO Davis Cup history,",
+        "  so absence here means we have no records, NOT that the player has no pedigree.",
+        "- 'THIS TOURNAMENT so far' will normally say N/A. A tie is at most 2 singles per",
+        "  player, below the 2-match threshold. Again: missing, not bad.",
+        "- No bookmaker consensus is available for this competition at all.",
+        "Do not read any of these blanks as a negative signal. Lean on ELO, surface record,",
+        "season serve/return numbers, form and H2H, which are all present and reliable.",
+        "",
+        "WHAT IS DIFFERENT ABOUT DAVIS CUP, AND MATTERS:",
+        "- HOME TIE. The host nation chooses the surface and the balls to suit its own",
+        "  players, and plays in front of a partisan crowd. A home player can perform",
+        "  meaningfully above his tour level; a visitor can underperform his.",
+        "- DEAD RUBBERS. A tie is first to 3 wins out of 5 rubbers. Once decided, the",
+        "  remaining rubbers change nothing, captains often field substitutes, and the",
+        "  players who do appear have no incentive. A dead rubber is the one situation",
+        "  where ELO and form can be almost worthless.",
+        "- Format is best of 3 sets here, not best of 5.",
+    ]
+    if tie.get("text"):
+        lines += ["", "TIE STATE RIGHT NOW: " + tie["text"]]
+        if tie.get("decided"):
+            lines += ["-> Treat this as a dead rubber. Cap your confidence low and say so "
+                      "explicitly in your reasoning."]
+        elif tie.get("at_risk"):
+            lines += ["-> There is a real chance this becomes a dead rubber before it is "
+                      "played. Be more cautious than the numbers alone suggest."]
+    else:
+        lines += ["", "TIE STATE: no rubbers recorded yet, so this is an opening rubber "
+                      "and the tie is live."]
+    lines += ["", "=" * 36, ""]
+    return "\n".join(lines) + "\n"
 
 
 def _fmt_tourn_form(tf: dict) -> str:

@@ -27,7 +27,22 @@ def _get_client() -> anthropic.Anthropic:
 
 
 # Razine turnira koje se NE stavljaju na tiket (samo analiziramo radi modela)
-_NON_TICKET_LEVELS = {"ATP Challenger", "ATP Qualifying"}
+# ── RAZINE KOJE NE IDU NA TIKET ────────────────────────────────────────────────
+# Challenger i Qualifying su POLITICKA iskljucenost — korisnik ih nikad nije igrao
+# niti ih namjerava igrati. ITF Futures dodan 19.09.2026 iz istog razloga; do tada je
+# tiho padao na razinu "ATP 250" pa ga `_is_main_tour` nije hvatao.
+#
+# Davis Cup je druga vrsta iskljucenosti: NIJE politicka nego MJERNA. Analizira se i
+# prikazuje, ali ne ulazi u kombinaciju dok se ne skupi uzorak. Puno obrazlozenje uz
+# `DAVIS_CUP_ON_TICKETS` u `config/model_config.py`; ukratko, nedostaju mu odjednom
+# povijest turnira (nas najjaci prediktor), konsenzus kladionica (jedini nalaz koji je
+# prosao kapiju) i prosjek s turnira. Prekidac je JEDNO mjesto — ne diraj ovaj skup
+# rucno, nego zastavicu u configu.
+from config.model_config import DAVIS_CUP_ON_TICKETS as _DC_ON
+
+_NON_TICKET_LEVELS = {"ATP Challenger", "ATP Qualifying", "ITF Futures"}
+if not _DC_ON:
+    _NON_TICKET_LEVELS.add("Davis Cup")
 
 
 def _is_main_tour(p) -> bool:
@@ -37,6 +52,9 @@ def _is_main_tour(p) -> bool:
     low = level.lower()
     if any(kw in low for kw in ["challenger", "qualifying", "itf", "future"]):
         return False
+    # Davis Cup NAMJERNO prolazi ovdje (19.09.2026): zelimo ga vidjeti u analysis-only
+    # prikazu i pratiti kroz vrijeme. Na sam tiket ga pusta `_NON_TICKET_LEVELS` gore,
+    # koji ovisi o `DAVIS_CUP_ON_TICKETS`. Dvije razlicite kapije, namjerno odvojene.
     # Screenshot override (2026-07-16): ako je korisnik ručno unio kvotu za ovaj meč,
     # to je potvrda glavnog ždrijeba (kvalifikacije nikad ne screenshota) → propusti
     # ga bez obzira na API-jev round-tag. Namjerno IZA level-provjere: screenshot ne
