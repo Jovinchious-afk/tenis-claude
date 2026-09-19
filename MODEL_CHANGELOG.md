@@ -13,6 +13,95 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-09-19 14:07 — DRUGA kapija razina: run bez ijedne predikcije
+
+`rules_hash` **nepromijenjen (d4f7a350)**, snapshot v20. Ovo je popravak ULAZA, ne modela —
+prompt se ne dira.
+
+### Sto se dogodilo
+
+Run u 11:57 zavrsio je u 20 sekundi, bez ijedne predikcije:
+
+    Filtered out 27 non-main-tour matches (Challenger/ITF/Qualifying).
+    Found 25 today + 2 tomorrow -> 0 main-tour scheduled
+    Screenshot-iskljucivost: zadrzano 0 od 23 screenshot parova.
+    Nema nijednog meca sa screenshota — zaustavljam prije analize.
+
+Jutarnji popravak (`tier=None`) je radio: 14 Davis Cup meceva uredno je dohvaceno i
+razvrstano u razinu "Davis Cup". Ali `run_daily` je odmah iza toga imao **vlastiti,
+rucno prepisan popis razina**:
+
+    _MAIN_TOUR_LEVELS = {"Grand Slam", "ATP Masters 1000", "ATP 500", "ATP 250"}
+
+Taj popis nitko nije dopunio. Svih 14 meceva ispalo je TU — prije dohvata podataka,
+prije screenshot gatea, prije rundi. Sav ostatak jutarnjeg rada (stanje susreta, "DC"
+oznaka, Davis Cup blok u promptu) bio je ispravan i **nije se ni izvrsio**.
+
+### Zasto testovi to nisu uhvatili
+
+Odjeljak 42 je provjeravao `ticket_builder._is_main_tour({"level": "Davis Cup"})` — i to
+je prolazilo, jer je TA kapija bila ispravna. Ista politika bila je prepisana na dva
+mjesta, a test je provjeravao svako mjesto ZASEBNO. Proturjecnost je bila u ODNOSU:
+jedna kapija je obecavala analizu koju druga nije mogla ispuniti.
+
+### Popravak
+
+Politika sada zivi na JEDNOM mjestu u `config/model_config.py`, a oba popisa se iz nje
+izvode:
+
+    NEVER_ANALYZED_LEVELS = {"ATP Challenger", "ATP Qualifying", "ITF Futures"}
+    ANALYSIS_LEVELS       = set(TOURNAMENT_LEVELS) - NEVER_ANALYZED_LEVELS
+
+Izvodi se **oduzimanjem, ne nabrajanjem**, namjerno: nova razina tako sama od sebe udje
+u analizu umjesto da tiho ispadne. Isto nacelo kao kod `tier=None` — kvar koji se vidi
+bolji je od kvara koji se ne vidi. `ticket_builder._NON_TICKET_LEVELS` izvodi se iz
+istog skupa.
+
+Ispis pri izbacivanju sada imenuje RAZINE koje su pale, a ispis broja mecheva razvrstava
+ih po razini. Da je to postojalo jutros, redak bi glasio `Filtered out 27 ... (ATP
+Challenger, Davis Cup)` i kvar bi se vidio iz prvog reda loga.
+
+### Novi test: odnos medju kapijama (odjeljak 43)
+
+Kljucna tvrdnja, ona koja bi kvar uhvatila:
+
+    sve sto `ticket_builder._is_main_tour` propusta, `run_daily` mora i dohvacati
+
+Negativna kontrola provjerena: naspram starog skupa test pada, uz razliku tocno
+`['Davis Cup']`. Uz to: svaka razina iz `TOURNAMENT_LEVELS` mora biti razvrstana
+(nema tihih rupa), skupovi se ne preklapaju, i `_MAIN_TOUR_LEVELS` vise ne smije
+postojati u kodu.
+
+### Ispravak ranijeg komentara
+
+Uz `DAILY_MATCH_LIMITS["Davis Cup"]` je jutros pisalo *"ovo je limit ANALIZE, ne
+tiketa"*. Netocno. `DAILY_MATCH_LIMITS` cita se na jednom mjestu — `_apply_daily_limits`
+u `ticket_builder`, koji reze KANDIDATE ZA TIKET, dakle vec nakon analize. Broj analiza
+ogranicava iskljucivo screenshot gate. Komentar ispravljen.
+
+### Stanje nakon popravka (provjereno na zivim podacima, 19.09. u 14:20)
+
+    dohvaceno 27 -> kapija razina 14 (izbaceno 13 Challengera) -> screenshot gate 5
+
+Tih 5 analizira se i prikazuje; nijedan ne ide na tiket (`DAVIS_CUP_ON_TICKETS=False`),
+pa je ishod **analysis-only**, po planu. CAN-FRA je na 2-0 pa oba njegova meca nose
+oznaku RIZIK od mrtvog rubbera; CZE-USA je 1-1 i ziv; CHI-ESP tek pocinje.
+
+### Zasto samo 5 od 23 screenshot para (nije nas kvar)
+
+Za 18 preostalih parova **nijedan igrac ne postoji u izvoru** ni na jednom od cetiri
+provjerena dana (18.-21.09.). Izvor `/atp/` poznaje tocno 7 susreta, sve iz skupine
+*World Group Q2*. Parovi poput Cerundolo-Erel (ARG-TUR), Fonseca-Wawrinka (BRA-SUI),
+Griekspoor-Rodriguez (NED-COL) pripadaju World Group I/II, koje feed ne nosi. Provjereno
+i da nije rijec o promasaju u usporedjivanju imena — trazeno je po prezimenu kroz sve
+razine i sve dane.
+
+**Otvoreno, nije popravljano:** nedjeljni rubberi jos nisu u feedu (20.09. daje samo 2
+Challenger meca), pa parovi oznaceni s "ned" na screenshotu danas nemaju sto uhvatiti.
+Ako feed te mecheve objavi sutra ujutro, uhvatit ce ih sutrasnji run.
+
+---
+
 ## 2026-09-19 11:50 — PAD koji je rusio daily run; Davis Cup kao zasebna razina
 
 `rules_hash` **adb358d0 -> d4f7a350**, `context_snapshot` v19 -> **v20**.

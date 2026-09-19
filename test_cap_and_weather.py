@@ -2255,6 +2255,65 @@ check("uz prekidac stoji mjereno obrazlozenje",
       "0 redaka od 799" in _cfg42 and "NEMA Davis Cup" in _cfg42)
 check("zapisano kako ga upaliti", "postavi na True" in _cfg42)
 
+# ==========================================================================
+print("\n=== 43. Kapije razina se ne smiju razici (19.09.2026 14:07) ===")
+
+import agent.ticket_builder as _tb43
+from config.model_config import (TOURNAMENT_LEVELS as _TL43, ANALYSIS_LEVELS as _AL43,
+                                 NEVER_ANALYZED_LEVELS as _NA43)
+
+# POVOD: run u 11:57 zavrsio je bez ijedne predikcije. `run_daily` je imao vlastiti,
+# rucno prepisan popis razina koji nije sadrzavao "Davis Cup", pa je svih 14 meceva
+# ispalo prije dohvata podataka. Odjeljak 42 to NIJE uhvatio jer je provjeravao samo
+# `ticket_builder._is_main_tour` — drugu kapiju, koja je bila ispravna.
+# Ovaj odjeljak zato provjerava ODNOS medju kapijama, ne svaku zasebno.
+
+# --- (a) sredisnja proturjecnost koja je izazvala kvar ---
+# Ako `_is_main_tour` neku razinu PROPUSTA, to je obecanje da ce ona biti analizirana.
+# Kapija u `run_daily` mora to obecanje moci ispuniti, inace meceve nikad ni ne vidi.
+_visible = {lv for lv in _TL43 if _tb43._is_main_tour({"match": {"level": lv}})}
+check("sve sto ticket_builder propusta, run_daily i dohvaca",
+      _visible <= _AL43, f"razlika: {sorted(_visible - _AL43)}")
+check("Davis Cup je u ANALYSIS_LEVELS (tocan kvar od 19.09. 11:57)",
+      "Davis Cup" in _AL43)
+
+# --- (b) svaka razina mora biti razvrstana, bez tihih rupa ---
+check("ANALYSIS_LEVELS i NEVER_ANALYZED_LEVELS pokrivaju sve razine",
+      _AL43 | _NA43 == set(_TL43), f"nerazvrstano: {sorted(set(_TL43) - _AL43 - _NA43)}")
+check("skupovi se ne preklapaju", not (_AL43 & _NA43))
+check("Challenger/Qualifying/ITF se ne analiziraju",
+      {"ATP Challenger", "ATP Qualifying", "ITF Futures"} <= _NA43)
+check("glavni tur se analizira",
+      {"Grand Slam", "ATP Masters 1000", "ATP 500", "ATP 250"} <= _AL43)
+
+# --- (c) popis vise ne smije biti prepisan na dva mjesta ---
+_rd43 = io.open("agent/run_daily.py", encoding="utf-8").read()
+check("run_daily nema vlastiti rucni popis razina", "_MAIN_TOUR_LEVELS" not in _rd43)
+check("run_daily cita popis iz konfiguracije",
+      "from config.model_config import ANALYSIS_LEVELS" in _rd43)
+_tbs43 = io.open("agent/ticket_builder.py", encoding="utf-8").read()
+check("ticket_builder izvodi svoj popis iz iste politike",
+      "NEVER_ANALYZED_LEVELS as _NEVER" in _tbs43)
+check("_NON_TICKET_LEVELS sadrzi sve sto se nikad ne analizira",
+      _NA43 <= _tb43._NON_TICKET_LEVELS)
+
+# --- (d) izvodi se ODUZIMANJEM: nova razina ulazi sama od sebe ---
+# Namjerno nacelo — nepoznata razina mora upasti u analizu (glasno) umjesto da tiho
+# ispadne. Isti razlog kao kod `tier=None`: kvar koji se vidi bolji je od tihog.
+_cfg43 = io.open("config/model_config.py", encoding="utf-8").read()
+check("ANALYSIS_LEVELS se izvodi oduzimanjem, ne nabrajanjem",
+      "set(TOURNAMENT_LEVELS) - NEVER_ANALYZED_LEVELS" in _cfg43)
+check("zabiljezen je kvar koji je ovo iznudio",
+      "11:57" in _cfg43 and "0 main-tour scheduled" in _cfg43)
+
+# --- (e) ispravljen krivi komentar uz DAILY_MATCH_LIMITS ---
+# Pisalo je "ovo je limit ANALIZE" — netocno, cita ga samo `_apply_daily_limits` koji
+# reze kandidate za tiket. Broj analiza ogranicava iskljucivo screenshot gate.
+check("komentar uz DAILY_MATCH_LIMITS vise ne tvrdi da je limit analize",
+      "Ovo je limit ANALIZE, ne tiketa" not in _cfg43)
+check("umjesto toga stoji sto ga stvarno cita",
+      "_apply_daily_limits" in _cfg43)
+
 print("\n" + "=" * 60)
 if _fails:
     print(f"PALO: {len(_fails)}")

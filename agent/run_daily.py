@@ -125,21 +125,35 @@ def main():
     if live_removed:
         print(f"Filtered out {len(live_removed)} live/finished matches.")
 
-    # 2. Filter to main tour only — GS, Masters 1000, ATP 500, ATP 250
-    # Challengers, ITF, Qualifying are excluded BEFORE any data fetching (saves API calls)
-    _MAIN_TOUR_LEVELS = {"Grand Slam", "ATP Masters 1000", "ATP 500", "ATP 250"}
-    main_tour = [m for m in all_matches if m.get("level") in _MAIN_TOUR_LEVELS]
+    # 2. Prva kapija: koje se razine uopce dohvacaju i analiziraju.
+    # Challenger, Qualifying i ITF ispadaju PRIJE dohvata podataka (stedi API pozive).
+    #
+    # POPRAVLJENO 19.09.2026 14:07. Ovdje je stajao rucno prepisan skup
+    #     {"Grand Slam", "ATP Masters 1000", "ATP 500", "ATP 250"}
+    # koji nitko nije dopunio kad je Davis Cup istoga jutra postao vlastita razina. U
+    # 11:57 je zato run zavrsio u 20 sekundi bez ijedne predikcije: svih 14 Davis Cup
+    # meceva ispalo je TU, pa se screenshot gate, runde, stanje susreta i Davis Cup
+    # blok u promptu nisu ni izvrsili. Popis sada dolazi iz konfiguracije i izvodi se
+    # ODUZIMANJEM, pa nova razina ulazi u analizu sama od sebe. Vidi obrazlozenje uz
+    # `NEVER_ANALYZED_LEVELS` u `config/model_config.py`.
+    from config.model_config import ANALYSIS_LEVELS
+    main_tour = [m for m in all_matches if m.get("level") in ANALYSIS_LEVELS]
     excluded = len(all_matches) - len(main_tour)
     if excluded:
-        print(f"Filtered out {excluded} non-main-tour matches (Challenger/ITF/Qualifying).")
+        _drop = sorted({m.get("level") or "?" for m in all_matches
+                        if m.get("level") not in ANALYSIS_LEVELS})
+        print(f"Filtered out {excluded} non-main-tour matches ({', '.join(_drop)}).")
     all_matches = main_tour
 
     # NAPOMENA: duplikat pravilo (isti meč na 2 uzastopna tiketa) je UKINUTO na
     # korisnikov zahtjev 2026-07-18 — tiket pokriva danas+sutra, i legitimno je isti
     # dobar meč ponoviti sutra; ne želimo izbacivati kvalitetne mečeve zbog ponavljanja.
     _extra = f" + {len(matches_day_after)} day-after" if fetch_day_after else ""
+    from collections import Counter
+    _by_level = Counter(m.get("level") or "?" for m in all_matches)
+    _lv = ", ".join(f"{k} {v}" for k, v in sorted(_by_level.items(), key=lambda x: -x[1]))
     print(f"Found {len(matches_today)} today + {len(matches_tomorrow)} tomorrow{_extra} "
-          f"→ {len(all_matches)} main-tour scheduled")
+          f"→ {len(all_matches)} za analizu" + (f" ({_lv})" if _lv else ""))
 
     # Screenshot kvote (učitane gore, prije dohvata mečeva) drže se ODVOJENO od Odds API
     # podataka kako bi find_match_odds uvijek provjerio screenshot PRVI (prioritet), a tek

@@ -38,9 +38,14 @@ def _get_client() -> anthropic.Anthropic:
 # povijest turnira (nas najjaci prediktor), konsenzus kladionica (jedini nalaz koji je
 # prosao kapiju) i prosjek s turnira. Prekidac je JEDNO mjesto — ne diraj ovaj skup
 # rucno, nego zastavicu u configu.
-from config.model_config import DAVIS_CUP_ON_TICKETS as _DC_ON
+# IZVEDENO, NE PREPISANO (19.09.2026 14:07). Ovaj skup je do danas bio rucno nabrojan
+# i identican popisu u `run_daily`. Kad je Davis Cup ujutro postao vlastita razina,
+# dopunjen je ovaj a onaj nije — i dnevni run je ostao bez ijedne predikcije. Od sada
+# obje kapije citaju `NEVER_ANALYZED_LEVELS` iz konfiguracije.
+from config.model_config import (DAVIS_CUP_ON_TICKETS as _DC_ON,
+                                 NEVER_ANALYZED_LEVELS as _NEVER)
 
-_NON_TICKET_LEVELS = {"ATP Challenger", "ATP Qualifying", "ITF Futures"}
+_NON_TICKET_LEVELS = set(_NEVER)
 if not _DC_ON:
     _NON_TICKET_LEVELS.add("Davis Cup")
 

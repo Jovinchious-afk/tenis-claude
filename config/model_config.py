@@ -84,6 +84,34 @@ TOURNAMENT_LEVELS = {
     "ITF Futures": 5,
 }
 
+# ── KOJE SE RAZINE UOPCE DOHVACAJU I ANALIZIRAJU (19.09.2026 14:07) ─────────────
+#
+# POVOD — KVAR: 19.09.2026 u 11:57 dnevni run je zavrsio u 20 sekundi bez ijedne
+# predikcije. `run_daily` je imao VLASTITI, rucno prepisan popis razina:
+#
+#     _MAIN_TOUR_LEVELS = {"Grand Slam", "ATP Masters 1000", "ATP 500", "ATP 250"}
+#
+# Davis Cup je istoga jutra postao vlastita razina, ali taj popis nitko nije dopunio,
+# pa je svih 14 Davis Cup meceva ispalo PRIJE dohvata podataka ("Filtered out 27
+# non-main-tour matches" -> "0 main-tour scheduled"). Sve nizvodno — screenshot gate,
+# runde, Davis Cup blok u promptu, stanje susreta — bilo je ispravno i nije se ni
+# izvrsilo. Testovi su promasili jer su provjeravali `ticket_builder._is_main_tour`,
+# DRUGU kapiju, koja Davis Cup uredno propusta.
+#
+# POUKA I ZASTO JE SADA OVAKO: ista politika bila je prepisana na dva mjesta, pa se
+# jedno azuriralo a drugo ne. Zato postoji SAMO `NEVER_ANALYZED_LEVELS`, a oba popisa
+# se iz njega izvode. Izvodi se ODUZIMANJEM, ne nabrajanjem, namjerno: nova razina
+# tako sama od sebe UDJE u analizu umjesto da tiho ispadne. Isto nacelo kao kod
+# `tier=None` — kvar koji se vidi bolji je od kvara koji se ne vidi.
+#
+# Tri kapije, namjerno razlicite, ali sve iz ovog jednog popisa:
+#   ANALYSIS_LEVELS         `run_daily`      dohvacamo li podatke i zovemo li Claude
+#   _NON_TICKET_LEVELS      `ticket_builder` smije li pick u kombinaciju
+#   DAILY_MATCH_LIMITS      `ticket_builder` koliko kandidata po turniru i danu
+NEVER_ANALYZED_LEVELS = {"ATP Challenger", "ATP Qualifying", "ITF Futures"}
+
+ANALYSIS_LEVELS = set(TOURNAMENT_LEVELS) - NEVER_ANALYZED_LEVELS
+
 # ── DAVIS CUP NA TIKETU: PREKIDAC (19.09.2026 11:20) ────────────────────────────
 #
 # False = Davis Cup se ANALIZIRA i prikazuje, ali NE ulazi u kombinaciju tiketa.
@@ -208,9 +236,12 @@ DAILY_MATCH_LIMITS = {
     "Grand Slam":       {"today": 7, "tomorrow": 6},
     "ATP Masters 1000": {"today": 6, "tomorrow": 6},
     "ATP 500":          {"today": 6, "tomorrow": 6},
-    # Davis Cup (19.09.2026): 6 kao i ostali. Ovo je limit ANALIZE, ne tiketa — na tiket
-    # ga pusta tek `DAVIS_CUP_ON_TICKETS`. Jedan dan Davis Cupa zna dati 14 singlova
-    # (7 susreta x 2), pa bez limita bi sam progutao cijeli run.
+    # Davis Cup (19.09.2026): 6 kao i ostali.
+    # ISPRAVAK 19.09.2026 14:07: ovdje je pisalo "ovo je limit ANALIZE, ne tiketa".
+    # Netocno. `DAILY_MATCH_LIMITS` se cita na JEDNOM mjestu — `_apply_daily_limits` u
+    # `ticket_builder`, koji reze KANDIDATE ZA TIKET, dakle vec nakon analize. Broj
+    # analiza ogranicava iskljucivo screenshot gate. Dok je `DAVIS_CUP_ON_TICKETS=False`
+    # ovaj redak nema nikakav ucinak i stoji spreman za dan kad se prekidac upali.
     "Davis Cup":        {"today": 6, "tomorrow": 6},
     "ATP 250":          {"today": 6, "tomorrow": 6},
     "ATP Challenger":   {"today": 0, "tomorrow": 0},
