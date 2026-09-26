@@ -479,7 +479,9 @@ check("krivi nazivi API polja dokumentirani", "breakPointOf" in _dfsrc)
 #             najjaca varijabla", hard pravila 4/13/16, blokovi o kasnim rundama i o
 #             autsajderima, recenice o pragu 63; odjeljci 4+5 spojeni u "4. Context".
 #             Era bce5693b nije imala nijednu analizu, pa rez korpusa nije nastao.
-_ERA_RULES_HASH = "d7e45052"
+#   9696c4ee  26.09.2026 21:40 — JSON primjer za applied_caps vise ne navodi "rule 16"
+#             (pravilo maknuto u d7e45052); d7e45052 nije imala nijednu analizu.
+_ERA_RULES_HASH = "9696c4ee"
 
 # Verzija oblika `context_snapshot`. Do 13.09.2026 je bila doslovno upisana na 8
 # mjesta u dva testna paketa, pa je svako podizanje znacilo lov po datotekama.

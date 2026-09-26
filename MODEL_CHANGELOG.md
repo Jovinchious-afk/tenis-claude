@@ -64,7 +64,8 @@ znakova). Živi poziv na zapisu Damm–Hurkacz: 5 odjeljaka, ispravan JSON, keš
 odgovor 798 tokena; isti meč jutros je u prozi tvrdio "pravilo 4 veže na 62" i izbacio 68.
 
 **Tajming:** era `bce5693b` imala je 0 analiza, pa rez korpusa nije nastao.
-`rules_hash` hard **bce5693b → d7e45052**.
+`rules_hash` hard **bce5693b → d7e45052 → 9696c4ee** (21:40: JSON primjer za `applied_caps` još je
+navodio "rule 16" — zamijenjen s pravilom 12; d7e45052 nije imala nijednu analizu).
 
 **Što premjeriti:** raspodjela pouzdanosti će se pomaknuti (cap-ovi su gurali dobre pickove
 u 60-62). Nakon prvog dovršenog turnira u eri d7e45052 ponovno izmjeriti K1 (prag 60) i

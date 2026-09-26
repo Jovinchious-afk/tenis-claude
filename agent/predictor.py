@@ -393,7 +393,8 @@ _AGE_TO_PROMPT = False
 # ZASTO SYSTEM A NE SAMO PRVI BLOK KORISNICKE PORUKE: system je prirodan prefiks i ne
 # moze se slucajno "razbiti" ubacivanjem podatka ispred njega. Minimalna duljina za
 # kesiranje je 1024 tokena; ovaj blok ima ~11.500 na hardu, dakle s velikom rezervom.
-# ── CISCENJE PROMPTA (26.09.2026 21:27, korisnik odobrio) — era d7e45052 ───────────
+# ── CISCENJE PROMPTA (26.09.2026 21:27, korisnik odobrio) — era d7e45052 -> 9696c4ee ─
+# (21:40: JSON primjer applied_caps je jos navodio "rule 16"; zamijenjen s pravilom 12.)
 # Povod: audit svih 55 analiza od 06.09. do 26.09. Odjeljci key_factors nisu bili sest
 # varijabli nego mjesto gdje model provodi pravila i zbraja kazne, a najcesce je koristio
 # upravo ono sto je izmjereno kao krivo:
@@ -567,7 +568,7 @@ Respond ONLY in the following JSON format (no additional text):
   "risk_level": "low|medium|high",
   "risk_notes": "brief explanation of main risks (max 80 chars)",
   "handicap_option": "handicap option description or null",
-  "applied_caps": [{{"rule": "16", "cap": 62}}],
+  "applied_caps": [{{"rule": "12", "cap": 60}}],
   "above_64_basis": null,
   "market_check": null,
   "key_factors": ["1. Rating: ...", "2. Serve/return: ...", "3. Form vs opponent quality: ...", "4. Context: ...", "5. Own read: ..."],
