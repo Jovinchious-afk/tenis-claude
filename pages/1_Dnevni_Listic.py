@@ -17,14 +17,56 @@ from database import supabase_client as db
 # samo stara imena. `utils.helpers` je modul cistih funkcija bez stanja, pa je reload
 # siguran; guard se pali samo u kvaru i sam se gasi cim modul postane svjez.
 try:
-    from utils.helpers import today_zagreb, format_date, format_date_hr, pick_ledger, is_no_selection, MIN_PICK_CONFIDENCE
+    from utils.helpers import (today_zagreb, format_date, format_date_hr, pick_ledger, is_no_selection,
+                               MIN_PICK_CONFIDENCE, band_edge_context, player_dossier, price_band_label)
 except ImportError:
     import importlib
     import utils.helpers as _stale_helpers
     importlib.reload(_stale_helpers)
-    from utils.helpers import today_zagreb, format_date, format_date_hr, pick_ledger, is_no_selection, MIN_PICK_CONFIDENCE
+    from utils.helpers import (today_zagreb, format_date, format_date_hr, pick_ledger, is_no_selection,
+                               MIN_PICK_CONFIDENCE, band_edge_context, player_dossier, price_band_label)
 
 st.set_page_config(page_title="Daily Ticket | Tennis Agent", page_icon="🎾", layout="wide")
+
+
+# ── KONTEKST SAMO ZA KORISNIKA (26.09.2026 20:28, revizija L2/L3) ────────────────
+# Dva retka po picku, izricito IZVAN odluke — model ih ne vidi, tiket ih ne koristi:
+#  (1) nas povijesni edge u pojasu kvote ovog picka (jedina struktura koju je revizija
+#      nasla u "slicnim slucajevima": pojas cijene; HMC je cetiri puta dao r~0);
+#  (2) nas dosje s igracem (korisnikova ideja 2) — izmjereno da NE predvidja sljedeci
+#      mec, ali korisnik zeli vidjeti povijest.
+# Racuna se iz `analyzed_matches` (razrijesene analize s obje kvote), kesirano 1 h.
+@st.cache_data(ttl=3600, show_spinner=False)
+def _context_rows():
+    fn = getattr(db, "get_resolved_for_context", None)
+    if fn is None:   # zastarjeli modul u memoriji Streamlit Clouda — isti obrazac kao gore
+        import importlib
+        importlib.reload(db)
+        fn = getattr(db, "get_resolved_for_context", None)
+    try:
+        return fn() if fn else []
+    except Exception:
+        return []
+
+
+def _context_line(m: dict) -> str:
+    rows = _context_rows()
+    if not rows:
+        return ""
+    parts = []
+    be = band_edge_context(rows, m.get("odds"))
+    if be and be.get("n"):
+        parts.append(f"kvota {price_band_label(be['band'])}: naš edge {be['edge']:+.1f}pp (n={be['n']})")
+    pick = m.get("pick") or ""
+    d = player_dossier(rows, pick) if pick else {}
+    if d.get("as_pick_n"):
+        parts.append(f"{pick} kao naš pick {d['as_pick_w']}-{d['as_pick_n'] - d['as_pick_w']}"
+                     f" ({d.get('as_pick_edge', 0):+.0f}pp)")
+    if d.get("as_opp_n"):
+        parts.append(f"kao protivnik srušio nas {d['beat_us']}/{d['as_opp_n']}")
+    if not parts:
+        return ""
+    return "📊 Samo za tebe (model ovo NE vidi): " + " · ".join(parts)
 st.title("🎾 Daily Ticket")
 
 
@@ -192,6 +234,9 @@ for i, m in enumerate(matches):
                 st.caption(f"📊 Handicap: {m['handicap_option']}")
             if m.get("actual_winner") and m_result != "pending":
                 st.caption(f"🏁 Winner: {m['actual_winner']}")
+            _cl = _context_line(m)
+            if _cl:
+                st.caption(_cl)
 
         st.markdown("</div>", unsafe_allow_html=True)
 

@@ -53,7 +53,11 @@ Težine su hard v18; žive u Supabase `model_weights`, ne u kodu.
 - **Scouting profili** (`player_scouting`, 150 igrača iz korisnikova Excela) — SEKUNDARNI
   izvor koji nikad ne nadjačava mjerene brojke. Dopušteni utjecaj skalira s pouzdanošću
   profila: High/Med-High ±3pp, Med ±2pp, **Med-Low samo kao sumnja** (nikad kao potpora
-  picku), Low i Insufficient se uopće ne prikazuju
+  picku), Low i Insufficient se uopće ne prikazuju. **Od 26.09.2026 20:46 bez polja
+  "favours / struggles against"** — izmjereno na 101 tvrdnji (1.783 meča s kvotom) da ne nose
+  ništa povrh cijene; ostaju u Excelu i Supabaseu samo za čitanje. Era `bce5693b`.
+- **Asovi** se u promptu zovu "Aces per 100 serve pts" (od 26.09.2026; prije "Aces/match" za
+  istu brojku — vrijednost je oduvijek bila asovi na 100 servisnih poena)
 - **`odds_alert`** — upozorenje na moguću ozljedu/povlačenje pri omjeru kvota ≥6:1
 - **`market_check`** *(novo 13.08.2026 12:47)* — tržišna cijena kao **PROVJERA, ne ulaz**.
   Model svoj broj i dalje formira bez nje; tek nakon toga uspoređuje i, ako se razilazi za
@@ -102,6 +106,11 @@ vrijednosti i time ubija razlučivanje — to je glavna lekcija revizije od 17.0
   (25,0% n=12 naspram 70,0% n=100, razlika 45pp, P=0,002). **Nije pravilo protiv velikih
   kvota:** kažnjava se neslaganje s cijelim tržištem, ne veličina kvote — pick s kvotom 2,40
   kojemu tržište daje 55% nije pogođen.
+  **POPRAVAK 26.09.2026 20:46:** kad konsenzusa NEMA (Odds API ne pokriva ATP 250 — od 13.09.
+  to je bilo 100% mečeva), kazna koristi **devigiranu screenshot cijenu** (strogo < 50%; jednake
+  kvote nisu autsajder). Do tada je na svim ATP 250 turnirima tiho bila isključena. Izvor se
+  bilježi (`measured_penalties.applied[].source`, `market_source`). Izmjereno: autsajderi bez
+  konsenzusa −4,0pp (n=28), s konsenzusom −10,7pp (n=20).
 
 **Bira kombinaciju** (`_score_combo`): umnožak pouzdanosti kao glavni kriterij, plus bonus za
 value (edge 3-20pp za favorite, 3-28pp za pickove ≥2,00), plus bonus za pouzdanost ≥72,
@@ -198,6 +207,16 @@ svih 664 dosadašnjih analiza (`scripts/backfill_player_context.py`, vrijednosti
 
 Mjerenje: K15, K16 i zapis o ruci u registru niže. Nijedno od toga još NE ulazi u odluku.
 
+Od **26.09.2026 20:46** (`context_snapshot` v22):
+
+| polje | što je |
+|---|---|
+| `market_source` | odakle je cijena za provjeru autsajdera: `consensus` / `screenshot` / `none` |
+| `p*_aces_per100` | asovi na 100 servisnih poena — zamjenjuje `p*_aces`, koji je bio **0 u 410/410** redaka (krivi ključ) |
+| `p*_height_cm`, `p*_weight_kg` | sada **None** kad je nepoznato (prije 0 u 50/410 redaka — "signal visine" bio je artefakt tih nula) |
+
+Za **K19** (pauza) koristi se postojeći `p*_days_rest` — ne treba novo polje.
+
 Svrha: svaka buduća hipoteza mora se moći provjeriti retroaktivno umjesto pogađati.
 
 ---
@@ -221,9 +240,30 @@ ponovno otvaranje i predloženom arhitekturom: MODEL_CHANGELOG 28.08.2026 20:21.
 **Preduvjet za ponovno otvaranje:** ~900 riješenih analiza, `age_gap` / `avg_opp_elo_5` /
 `form_quality` riješeni na većini njih (bilježe se tek od 26.08.), pool unutar jedne `rules_hash` ere.
 
+**ČETVRTI BACKTEST 26.09.2026 20:46 — po korisnikovoj točnoj specifikaciji, ODBAČENO kao ulaz.**
+Walk-forward (samo analize ≥3 dana starije), tvrdi uvjet isti pojas tržišne vjerojatnosti ±5pp,
+sličnost po ELO jazu, ELO zadnjih 5 protivnika oba igrača, rangu, dobi, opterećenju, ruci,
+servisu, povratu, formi, visini i rundi (n=451):
+
+    k=5  r=-0,074 | k=10 r=-0,042 | k=15 r=+0,054 | k=30 r=-0,025 | oracle k=10/30 r=-0,064/-0,009
+
+"Negativan signal" (≤−10pp) je za k=10 stvarno išao **+12,1pp**. Na 5.143 ATP meča s kvotama
+(berba 26.09.) kNN daje r=+0,13-0,15, ali **sam pojas cijene bez ikakve sličnosti daje +0,16**;
+prirast sličnosti povrh pojasa r=+0,04. Snaga: za učinak od 10pp treba ~180 sličnih slučajeva;
+"12 slučajeva: −17,2pp" ima 95% interval od −44 do +10pp. Jedini iskreni ostatak ideje je
+redak "naš edge u ovom pojasu kvote" — prikazuje se korisniku na Dnevnom listiću
+(`utils.helpers.band_edge_context`), ne modelu.
+
 ---
 
-## 4e. HIPOTEZA, NE ulazi u odluku — obrnuti Fery veto (30.08.2026 12:37)
+## 4e. ZATVORENO 26.09.2026 20:46 — obrnuti Fery veto (30.08.2026 12:37)
+
+**ISHOD:** izvan uzorka (mečevi od 31.08.) "srušio nas točno jednom" daje **−1,9 / +3,2 /
+−8,7 / −0,2pp** u četiri definicije (n=23-40) — predznak nedosljedan, prag (−8pp uz n≥80)
+nije ni blizu. Druga strana ("2+ poraza") i dalje ide za nas (+18,2pp, n=26). Zatvoreno.
+Mjerenje: `revizije/2026-09-26/`.
+
+*(izvorni zapis ispod ostaje radi traga)*
 
 Mjerenje koje je ukinulo Fery veto pokazalo je i suprotan signal: pickovi protiv igrača koji
 nas je srušio **točno jednom** prolaze ispod tržišta u sve četiri testirane definicije
@@ -740,6 +780,68 @@ Ali korisnik govori o ZAVRSNICAMA, i ondje:
 novim mecevima (od 27.09.2026), rub strane s iskustvom mora biti >= +5pp. Tada se razmatra
 bonus u zavrsnicama. Uzorak raste ~4-5 meceva mjesecno, pa je ovo pitanje od nekoliko
 mjeseci — NE ubrzavati spustanjem praga.
+
+### STANJE KANDIDATA 26.09.2026 20:46 — mjeri ih `scripts/measure_candidates.py`
+
+Svi pragovi ostaju kakvi su zapisani; skripta ih drži na jednom mjestu. Stanje danas:
+
+    K5   kvota 1,35-1,43 od 07.09.     n=6   +14,7pp   CEKA (treba n>=20)
+    K10  pojas 1,35-1,65 od 14.09.     n=10  -24,1pp   CEKA (treba n>=25 po pojasu)
+    K11  R16+QF od 14.09.              n=0             CEKA — od 26.09. runde su RUCNE, pa se
+                                                       K11 prvi put mjeri bez sumnje u oznake
+    KONS konsenzus >=+1 od 08.09.      n=2             CEKA — Odds API ne pokriva ATP 250;
+                                                       prag "60 do 31.10." vjerojatno nedostizan
+
+### K17 — High scouting profil našeg picka (26.09.2026 20:46) — KANDIDAT
+
+    High      n= 52 | 63,5% | tržište 75,9% | edge -12,4pp | ROI -22,3%
+    razdoblja: do 26.08. -14,0pp (n=28) | poslije -10,6pp (n=24)   <- isti predznak
+    naspram konsenzusa (ne SuperSporta) i dalje -8,6pp -> nije "SuperSport skraćuje imena"
+    usporedba: Med-High +6,5pp (n=101) | Med +2,4pp (n=116) | bez profila -0,3pp (n=101)
+
+Medvedev 3-4, De Minaur 3-4, Rublev 2-3. Mehanizam neutvrđen (plaćamo ime?).
+**PRAG (zapisan prije podataka):** sljedećih 30 pickova s High profilom (od 27.09.2026):
+edge ≤ −5pp → kazna −3pp u `_apply_measured_penalties`; edge > 0 → odbaciti.
+
+### K18 — hard ATP 250 (26.09.2026 20:46) — KANDIDAT, jedno razdoblje
+
+    hard ATP 250 + Davis Cup   n=63 | 50,8% | tržište 62,0% | edge -11,2pp | ROI -23,6%
+    isto bez R16/QF            n=53 | edge -11,3pp       <- nije samo rupa u R16/QF
+    clay ATP 250               n=56 | edge  +3,7pp
+    GS/1000/500 na hardu       n=294 | edge +1,2pp
+    po turnirima: Winston-Salem -12,7 (35) | Hangzhou -11,3 (10) | Chengdu -8,8 (9)
+
+Ograda: sve u drugom razdoblju (hard 250-ice su od kraja kolovoza); ATP 250 je i tamo gdje
+Odds API ne pokriva, pa je dio učinka možda nedostatak tržišne kočnice (popravljen danas).
+**PRAG:** sljedećih 30 hard ATP 250 pickova (od 27.09.2026): edge ≤ −5pp → najviše jedna
+takva noga po tiketu; edge > 0 → odbaciti.
+
+### K19 — povratak nakon pauze (26.09.2026 20:46) — KANDIDAT s tržišnim dokazom
+
+Na berbi s kvotama (19.168 nastupa, simetrično uzorkovanje — oba igrača u berbi):
+
+    pauza <= 7 dana   +0,2pp | 8-20  -0,2pp | 21-41  -1,9pp (n=656) | >= 42  -3,3pp (n=473)
+    >= 42 dana po godinama: -2,4 / -0,9 / -9,6 / -2,9pp   <- negativno sve 4 godine
+
+Tržište povratak nakon pauze sustavno blago precjenjuje. Nedavna PREDAJA to ne radi
+(+3,5 naspram +2,4pp — tržište ozljede već cijeni).
+**PRAG:** 40 naših mečeva (od 27.09.2026) u kojima pick ILI protivnik ima `days_rest` ≥ 21:
+pick s pauzom < 0 i protivnik s pauzom > 0 → ±2pp; obrnuto → odbaciti.
+
+### IZMJERENO I ODBAČENO 26.09.2026 20:46 — tri korisnikove ideje i sekvenca
+
+- **Tablica promašaja po igraču** (ideja 2): doslovno pravilo (−2pp iznad prosjeka promašaja,
+  +2pp ispod) → kažnjeni −1,0pp (n=155), nagrađeni −0,4pp (n=296); višak promašaja naspram
+  cijene r=−0,004 (n=417); ostatak igrača na tržištu nije postojan (r=+0,06 / +0,14 na
+  11.512 nastupa). Rublev kao tržišni favorit +3,8pp (n=113). Prikazuje se samo korisniku.
+- **Protiv koga je gubio na ovom turniru** (ideja 3): ostatak na turniru r=+0,04 (P=0,40);
+  "izgubio ovdje kao favorit 1+" −2,8pp, ako je danas opet favorit −0,6pp. Ćelija "2+" −18,7pp
+  ima n=20 — ne koristi se.
+- **Sekvenca protivnika** (211 mečeva s cijenom iz pobranih ždrijebova): 1 od 8 varijanti
+  P=0,022 ("uvjerljivo pobijedio protivnika s jednako jakim 2. servisom") — unutar slučajnosti.
+- **Ocjenjivačka tablica od 26.08.** (n=148 izvan uzorka): forma×kvaliteta +3,2pp (tražilo se
+  ≤−8), ELO protivnika <1700 +2,6pp, dob 4+ −0,7pp — sve tri PALE; R16/QF −17,5pp (n=15) drži.
+- **Stopa replikacije sada 3 od 12** (K1, konsenzus, R16/QF).
 
 ### IZMJERENO 26.09.2026 17:04 — omjer protiv ljevaka/desnjaka NE predvidja
 

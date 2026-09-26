@@ -356,6 +356,23 @@ def main():
         _n_mkt += 1
     if _n_mkt:
         print(f"  Upareno s tržištem: {_n_mkt}/{len(all_matches)} mečeva.")
+    # GLASNO, NE TIHO (26.09.2026 20:28, revizija). The Odds API nema kljuceve za ATP 250
+    # (Chengdu, Hangzhou, Tokyo, Almaty, Stockholm, Antwerpen, Basel, Bec, Metz...), pa od
+    # 13.09. nijedan mec nije imao konsenzus — a da to nitko nije znao, jer je izostanak bio
+    # tih. O konsenzusu ovise jedini potvrdjeni trzisni signal (bonus u `_score_combo`) i,
+    # do danas, kazna za trzisnog autsajdera. Kazna od danas ima fallback na screenshot
+    # cijenu (`predictor._apply_measured_penalties`); bonus nema zamjenu. Zato ispis po turniru.
+    _by_t = {}
+    for _m in all_matches:
+        _t = _m.get("tournament") or "?"
+        _by_t.setdefault(_t, [0, 0])
+        _by_t[_t][0] += 1
+        if _m.get("market_p") is not None:
+            _by_t[_t][1] += 1
+    for _t, (_n_all, _n_ok) in sorted(_by_t.items()):
+        if _n_all and not _n_ok:
+            print(f"  KONSENZUS NEDOSTUPAN: {_t} (0/{_n_all} parova) — The Odds API ne pokriva "
+                  f"turnir. Bonus za konsenzus ne radi; provjera autsajdera koristi screenshot cijenu.")
 
     # NEOBJAVLJEN RASPORED ZA SUTRA (14.08.2026 11:02, korisnikov zahtjev).
     #
@@ -1051,7 +1068,10 @@ def main():
             if ticket_id:
                 for m in ticket["matches"]:
                     m["ticket_id"] = ticket_id
-                db.save_ticket_matches(ticket["matches"])
+                # 26.09.2026 20:50: neuspjeh je od danas GLASAN (vidi `save_ticket_matches`)
+                if db.save_ticket_matches(ticket["matches"]) is False:
+                    print("!!! Tiket je spremljen BEZ NOGU — vecernji update ga nece moci "
+                          "razrijesiti. Provjeri log iznad.")
             label = "Analiza" if is_analysis_only else "Tiket"
             print(f"{label} spremljen u Supabase (ID: {ticket_id})")
 

@@ -644,7 +644,8 @@ a de-vigged consensus at or below 50% — our record is 25.0% (n=12) where the m
 expected 43.0%. Picking the market's favourite: 70.0% (n=100) against 64.2% expected. The
 gap between the two situations is 45pp (P=0.002) and it holds in both halves of the sample.
 Code now subtracts 5pp from such a pick automatically, so you do not need to; state your
-honest number. What you SHOULD do is treat this as a prompt to re-read your own reasoning:
+honest number. When no consensus exists for the match (most ATP 250 events are not covered),
+the same check uses the de-vigged SuperSport price instead (strictly below 50%). What you SHOULD do is treat this as a prompt to re-read your own reasoning:
 if the entire market disagrees with you, the burden is on the specific measured fact you can
 name, not on the general feeling that the price looks generous.
 This is NOT a rule against big odds. A pick at 2.40 whom the market rates 55% is untouched;
@@ -738,7 +739,7 @@ THIS TOURNAMENT so far: {p1_tourn_form}
 --- Serve dominance ---
 Total serve points won: {p1_serve_pts_won}% | Hold % (DERIVED from the number to its left, not measured): {p1_hold_pct}%
 1st serve %: {p1_first_serve_pct} | 1st serve pts won: {p1_first_serve_won}
-2nd serve pts won: {p1_second_serve_won} | Aces/match: {p1_aces}
+2nd serve pts won: {p1_second_serve_won} | Aces per 100 serve pts: {p1_aces}
 BP saved: {p1_bp_saved} | BP converted: {p1_break_conv}
 Return pts won: {p1_return_won}% (break proxy)
 Tiebreaks (own record): {p1_tb_record} | Deciding sets (Bo3 2-1): {p1_decider_record}
@@ -763,7 +764,7 @@ THIS TOURNAMENT so far: {p2_tourn_form}
 --- Serve dominance ---
 Total serve points won: {p2_serve_pts_won}% | Hold % (DERIVED from the number to its left, not measured): {p2_hold_pct}%
 1st serve %: {p2_first_serve_pct} | 1st serve pts won: {p2_first_serve_won}
-2nd serve pts won: {p2_second_serve_won} | Aces/match: {p2_aces}
+2nd serve pts won: {p2_second_serve_won} | Aces per 100 serve pts: {p2_aces}
 BP saved: {p2_bp_saved} | BP converted: {p2_break_conv}
 Return pts won: {p2_return_won}% (break proxy)
 Tiebreaks (own record): {p2_tb_record} | Deciding sets (Bo3 2-1): {p2_decider_record}
@@ -854,7 +855,11 @@ Curated analyst scouting notes (qualitative priors, snapshot-dated). Usage rules
 - Style-vs-style matchups ARE a legitimate factor (research shows style matchups can swing
   win probability by several points at equal rating, and the surface amplifies this):
   e.g. big server vs counter-puncher tilts server on grass/indoor, counter-puncher on clay.
-  Use the styles + favourable/tough matchup fields together with the CURRENT surface.
+  Use the style fields together with the CURRENT surface. The profiles no longer carry
+  "favours / struggles against" lists: measured on 101 such claims over 1,783 priced
+  matches, they carried no information beyond the market price (a player's record against
+  the named type was no worse than against anyone else), so do not reconstruct them from
+  memory either.
 - Where a profile says "No reliable scouting profile", do NOT substitute your own memory
   of the player — treat scouting as absent and rely purely on the measured data above.
 - Profiles are a snapshot (see date) — recent form/results above always outrank them.
@@ -1927,7 +1932,12 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             # retke sa `source: "backfill"`, pa se mogu mjeriti unatrag. Uz to se prvi
             # put biljeze karijerna finala (`p*_titles`): u promptu su od 26.07.2026, a
             # nikad nisu spremljena — i do danas su tiho izostavljala GS finala.
-            "context_version": 21,
+            # v22 (26.09.2026 20:28, revizija): `market_source` (odakle je cijena za
+            # provjeru autsajdera), `p*_aces_per100` umjesto uvijek-nultog `p*_aces`,
+            # visina/tezina None umjesto 0. Uz to nova era prompta: scouting vise ne salje
+            # "favourable/tough matchups", a asovi su ispravno oznaceni "per 100 serve pts".
+            # Granica ere — rezati po `context_version` >= 22 ili po novom `rules_hash`.
+            "context_version": 22,
             "p1_ctx": p1.get("ctx") or None,
             "p2_ctx": p2.get("ctx") or None,
             "player_ctx_version": 1,
@@ -2093,8 +2103,14 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             "p2_tournament_path": p2.get("tournament_path"),
             "p1_ranking": safe_int(p1.get("ranking")) or None,
             "p2_ranking": safe_int(p2.get("ranking")) or None,
-            "p1_aces": safe_float(p1.get("aces_per_match") or p1.get("aces")),
-            "p2_aces": safe_float(p2.get("aces_per_match") or p2.get("aces")),
+            # ISPRAVLJENO 26.09.2026 20:28 (v22) — trinaesti tihi kljuc: `p*_aces` je od
+            # uvodjenja citao `aces_per_match`/`aces`, a `get_player_stats` vraca
+            # `aces_per_game`, pa je zapis bio 0 u 410 od 410 redaka i asovi se nikad nisu
+            # mogli izmjeriti. Vrijednost je zapravo ASOVI NA 100 SERVISNIH POENA (vidi
+            # `data_fetcher.get_player_stats`), zato novo ime; stari kljuc se vise ne pise
+            # da se 0 iz starih redaka nikad ne pomijesa sa stvarnim brojem.
+            "p1_aces_per100": (safe_float(p1.get("aces_per_game")) or None),
+            "p2_aces_per100": (safe_float(p2.get("aces_per_game")) or None),
             "p1_first_serve_won": safe_float(p1.get("first_serve_points_won")),
             "p2_first_serve_won": safe_float(p2.get("first_serve_points_won")),
             "p1_second_serve_won": safe_float(p1.get("second_serve_points_won")),
@@ -2106,10 +2122,14 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             # 13.09.2026 10:44: biljezi se STVARNO koristena vrijednost (scouting, pa
             # ziva API vrijednost kao fallback) — do danas se biljezio samo scouting, pa
             # je snapshot tvrdio da Alcaraz nema visinu iako ju je API imao.
-            "p1_height_cm": safe_float((p1.get("scouting") or {}).get("height_cm") or p1.get("height_cm")),
-            "p2_height_cm": safe_float((p2.get("scouting") or {}).get("height_cm") or p2.get("height_cm")),
-            "p1_weight_kg": safe_float((p1.get("scouting") or {}).get("weight_kg") or p1.get("weight_kg")),
-            "p2_weight_kg": safe_float((p2.get("scouting") or {}).get("weight_kg") or p2.get("weight_kg")),
+            # 26.09.2026 20:28 (v22) — cetrnaesti tihi kljuc: nepoznata visina/tezina
+            # zapisivala se kao 0 (`safe_float(None)` vraca 0.0), u 50 od 410 redaka.
+            # Revizija je na tome izmjerila "signal visine" r=+0,16 koji je bio cisti
+            # artefakt nula (bez njih r=+0,004). Od sada None — prazno ostaje prazno.
+            "p1_height_cm": (safe_float((p1.get("scouting") or {}).get("height_cm") or p1.get("height_cm")) or None),
+            "p2_height_cm": (safe_float((p2.get("scouting") or {}).get("height_cm") or p2.get("height_cm")) or None),
+            "p1_weight_kg": (safe_float((p1.get("scouting") or {}).get("weight_kg") or p1.get("weight_kg")) or None),
+            "p2_weight_kg": (safe_float((p2.get("scouting") or {}).get("weight_kg") or p2.get("weight_kg")) or None),
             "p1_plays": (p1.get("scouting") or {}).get("plays"),
             "p2_plays": (p2.get("scouting") or {}).get("plays"),
             # PRIJEDLOG 3: QF se samo OZNACAVA, ne kaznjava. Izmjereno 22.08.2026:
@@ -2215,6 +2235,10 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         result["context_snapshot"]["cap_prose_mismatch"] = result.get("cap_prose_mismatch")
         result["context_snapshot"]["ceiling_enforced"] = result.get("ceiling_enforced")
         result["context_snapshot"]["measured_penalties"] = result.get("measured_penalties")
+        # 26.09.2026 20:28 (v22): odakle je dosla cijena za provjeru autsajdera —
+        # "consensus" (The Odds API), "screenshot" (fallback, ATP 250 bez konsenzusa)
+        # ili "none". Bez ovoga se mjerenja pravila ne mogu razdvojiti po izvoru.
+        result["context_snapshot"]["market_source"] = result.get("market_source")
         result["context_snapshot"]["market_check"] = result.get("market_check")
         result["context_snapshot"]["above_64_basis"] = result.get("above_64_basis")
         _normalize_fair_odds(result, match)
@@ -2505,6 +2529,8 @@ def _apply_measured_penalties(result: dict, match: dict, p1: dict, p2: dict) -> 
        ne kaznjava se kvota nego NESLAGANJE S CIJELIM TRZISTEM. Pick s kvotom 2,40 kojemu
        trziste daje 55% nije pogodjen; pick s kvotom 1,95 kojemu trziste daje 46% jest.
        Korisnik je 17.08.2026 izricito odobrio ulazak tudjih kvota u predikciju.
+       OD 26.09.2026 20:28 radi i BEZ konsenzusa (devigirana screenshot cijena) — do tada
+       je na svim ATP 250 turnirima tiho bila iskljucena. Vidi komentar u kodu ispod.
 
     NIJE UVEDENO, IAKO JE IZMJERENO: kazna za hold jaz >= +7pp (47,8% n=23 naspram 71,4%
     n=56, P=0,046). Mehanizam je pokriven ponovnim bazdarenjem pragova u pravilu 2(b), a
@@ -2534,12 +2560,41 @@ def _apply_measured_penalties(result: dict, match: dict, p1: dict, p2: dict) -> 
         applied.append({"rule": "scouting_med_low", "penalty": _SCOUTING_MEDLOW_PENALTY})
 
     # --- 2. trzisni autsajder ---
+    # POPRAVAK 26.09.2026 20:28 (revizija, H1) — pravilo je TIHO NE RADILO na ATP 250.
+    # Do danas je kazna citala SAMO konsenzus The Odds API-ja (`market_p`). Taj izvor
+    # nema kljuceve za ATP 250 (ni Chengdu, Hangzhou, Tokyo, Almaty, Stockholm, Antwerpen,
+    # Basel, Bec, Metz — provjereno besplatnim `/sports` pozivom 26.09.), pa je od 13.09.
+    # `market_p` bio prazan u 100% analiza i kazna nije okinula nijednom. Oba prava tiketa
+    # 23. i 24.09. imala su upravo takvu nogu (Shimabukuro @2,00, Sonego @2,10); obje pale.
+    #
+    # Sada: konsenzus kad postoji (potvrdjeno pravilo, isti predznak u obje ere,
+    # -10,7pp n=20), INACE devigirana screenshot cijena (-4,0pp n=28, ROI -10,5%;
+    # od 06.09. autsajderi 0-5). Isti prag, ista kazna — ovo je popravak dosega
+    # postojeceg pravila, ne novi nalaz, pa ne ide kroz kapiju.
+    #
+    # Prag za screenshot je STROGO manje od 50%, za konsenzus ostaje <= 50%: screenshot
+    # kvote su diskretne pa su izjednacene kvote (1,85 / 1,85) ceste — takav pick NIJE
+    # autsajder i ne smije se kazniti samo zato sto je kladionica postavila istu kvotu.
+    # Konsenzus je medijan desetaka kuca i tocno 0,5 prakticki se ne dogadja.
+    # Izvor se biljezi (`source`, i `market_source` u snapshotu) da se mjerenja mogu
+    # razdvojiti po izvoru cijene.
     mp = safe_float(match.get("market_p"))          # vjerojatnost za NASEG player1
+    p_pick, source = None, "none"
     if mp:
         p_pick = mp if pick_is_p1 else (1.0 - mp)
-        if p_pick <= 0.50:
-            applied.append({"rule": "market_underdog", "penalty": _MARKET_UNDERDOG_PENALTY,
-                            "market_p_pick": round(p_pick, 4)})
+        source = "consensus"
+        is_dog = p_pick <= 0.50
+    else:
+        _o1, _o2 = safe_float(match.get("odds_p1")), safe_float(match.get("odds_p2"))
+        if _o1 > 1.0 and _o2 > 1.0:
+            _q1 = (1.0 / _o1) / (1.0 / _o1 + 1.0 / _o2)
+            p_pick = _q1 if pick_is_p1 else (1.0 - _q1)
+            source = "screenshot"
+            is_dog = p_pick < 0.50
+    result["market_source"] = source
+    if p_pick is not None and is_dog:
+        applied.append({"rule": "market_underdog", "penalty": _MARKET_UNDERDOG_PENALTY,
+                        "market_p_pick": round(p_pick, 4), "source": source})
 
     # --- 3. nas pick vodi u tie-break zapisu (30.08.2026) ---
     # Rezervni izracun iz {'won': x, 'lost': y}; oba igraca moraju imati 3+ tie-breaka,
@@ -3003,8 +3058,19 @@ def _format_scouting(s: dict) -> str:
         f"Best surfaces: {s.get('best_surfaces') or 'N/A'}",
         f"Strengths: {s.get('strengths') or 'N/A'}",
         f"Weaknesses: {s.get('weaknesses') or 'N/A'}",
-        f"Favours playing against: {s.get('favourable_matchups') or 'N/A'}",
-        f"Struggles against: {s.get('tough_matchups') or 'N/A'}",
+        # "Favours playing against" / "Struggles against" UKLONJENI 26.09.2026 20:28.
+        # Izmjereno na berbi s kvotama (315 igraca, 2023-2026): tip protivnika MJEREN iz
+        # podataka (gornja cetvrt servisa / povrata, ruka iz profila), ostatak naspram
+        # devigirane cijene protiv tog tipa naspram svih ostalih:
+        #     "muku muci s velikim serverima"   44 tvrdnje, 1.049 meceva  -2,8pp +-3,1
+        #     "muku muci s returnerima"         56 tvrdnji,   734 meca    -1,2pp +-3,9 (30/56)
+        #     "voli velike servere"             12 tvrdnji,   130 meceva  -3,6pp (naopako)
+        #     "voli returnere"                  16 tvrdnji,   191 mec     -1,0pp (naopako)
+        # Tekst ne nosi nista povrh cijene, a model ga koristi za obrazlozenje (26.09.
+        # je Rublevu spustio pouzdanost protiv Gastona zbog "struggles against
+        # counter-punchers" — upravo tvrdnja iz skupine 30/56). Uz to K8: kad slot
+        # "matchup" nema podatka, prolazimo +5 do +12pp bolje. Polja OSTAJU u Excelu i
+        # Supabaseu za covjeka; samo se ne salju u prompt.
     ]
     return " | ".join(parts)
 

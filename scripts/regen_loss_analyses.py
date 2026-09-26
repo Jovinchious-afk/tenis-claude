@@ -21,6 +21,15 @@ se fixture ID-evi, ne player ID-evi.)
 Pokretanje:
     python scripts/regen_loss_analyses.py --dry-run   # samo popis, bez Claude poziva
     python scripts/regen_loss_analyses.py             # stvarna regeneracija
+
+DOPUNA 26.09.2026 20:28 (revizija, H2): analiza gubitka od danas dobiva CINJENICE O MECU
+(kvota, devig cijena, pojas, runda, status tiketa, predaja — `_loss_match_facts`), jer je
+15 od 20 rujanskih analiza te cinjenice izmisljalo. Za regeneraciju tih analiza:
+    python scripts/regen_loss_analyses.py --since 2026-08-29 --include-no-stats         --backup revizije/2026-09-26/stare_analize_gubitaka.json
+  --since             samo noge s match_date >= datum (format analiza s verdiktima je od 29.08.)
+  --include-no-stats  i noge BEZ post-match statistike — cinjenice vrijede i bez nje
+  --backup            PRIJE prepisivanja spremi stare tekstove (JSON) — prepisivanje je
+                      nepovratno, a stare analize su dokaz zasto je popravak bio potreban
 """
 import sys
 import os
@@ -37,20 +46,33 @@ from database import supabase_client as db
 from agent.feedback_analyzer import _format_match_stats, _analyze_lost_match
 
 
-def main(dry_run: bool) -> None:
+def main(dry_run: bool, since: str = None, include_no_stats: bool = False,
+         backup: str = None) -> None:
     rows = db._select("ticket_matches", select="*", limit=1000)
     lost = [r for r in rows if r.get("result") == "lost"]
-    print(f"Izgubljenih pickova ukupno: {len(lost)}")
+    if since:
+        lost = [r for r in lost if str(r.get("match_date") or "") >= since]
+    print(f"Izgubljenih pickova ukupno: {len(lost)}" + (f" (od {since})" if since else ""))
 
-    # Kandidat = onaj kojem se blok sa statistikom stvarno moze sastaviti.
+    # Kandidat = onaj kojem se blok sa statistikom stvarno moze sastaviti — ili, uz
+    # --include-no-stats, svaki (cinjenice o mecu vrijede i bez statistike).
     cands = []
     for r in lost:
         block = _format_match_stats(r.get("player1", ""), r.get("player2", ""),
                                     r.get("match_stats") or {},
                                     r.get("player1_id"), r.get("player2_id"))
-        if block:
-            cands.append((r, block))
-    print(f"Kandidata za regeneraciju (imaju statistiku + ID-eve): {len(cands)}")
+        if block or include_no_stats:
+            cands.append((r, block or "(bez statistike)"))
+
+    if backup and not dry_run:
+        import json as _json
+        os.makedirs(os.path.dirname(os.path.abspath(backup)), exist_ok=True)
+        with open(backup, "w", encoding="utf-8") as f:
+            _json.dump([{k: r.get(k) for k in ("id", "match_date", "player1", "player2", "pick",
+                                                "odds", "round", "ticket_id", "loss_analysis")}
+                        for r, _ in cands], f, ensure_ascii=False, indent=1)
+        print(f"Sigurnosna kopija starih analiza: {backup} ({len(cands)} zapisa)")
+    print(f"Kandidata za regeneraciju: {len(cands)}" + (" (i oni bez statistike)" if include_no_stats else " (imaju statistiku + ID-eve)"))
     print(f"Preskace se: {len(lost) - len(cands)} (bez statistike ili bez ID-eva — "
           f"regeneracija im ne bi promijenila nista)\n")
 
@@ -88,5 +110,8 @@ def main(dry_run: bool) -> None:
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--since", default=None, help="samo noge s match_date >= YYYY-MM-DD")
+    ap.add_argument("--include-no-stats", action="store_true")
+    ap.add_argument("--backup", default=None, help="JSON za stare tekstove prije prepisivanja")
     a = ap.parse_args()
-    main(a.dry_run)
+    main(a.dry_run, since=a.since, include_no_stats=a.include_no_stats, backup=a.backup)

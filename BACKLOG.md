@@ -6,7 +6,10 @@ danima, jednostavnim jezikom). Brojke, obrazloženja i tehnički detalji su u
 (dalje: DI).
 
 **Pravilo:** na kraju svake radne sesije ovdje se dopiše što smo napravili i ažurira se
-popis otvorenog. Otvoreno 26.09.2026 19:21.
+popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 26.09.2026 20:46.
+
+**Jedna naredba za sve zakazane provjere kandidata:** `python scripts/measure_candidates.py`
+(čita bazu, ništa ne mijenja; kaže za svakog kandidata ČEKA / POTVRĐEN / PAO).
 
 ---
 
@@ -21,16 +24,22 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 | **K16 — GS iskustvo u završnicama** | 40 mečeva QF/SF/F u kojima samo jedan igrač ima GS polufinale (više mjeseci) | +5pp ili više → razmotriti bonus u završnicama | DI K16 |
 | **Omjer protiv ljevaka** | 300 mečeva s ljevakom (danas 120) | ponovno izmjeriti; do tada samo bilježenje | DI "IZMJERENO 26.09.2026" |
 | **K1 — prag 60** | sljedeći dovršeni turnir | skupina 60-63 ispod nule uz n≥25 → prag natrag na 63 | DI K1 |
-| **K5, K8, K9, K10, K11** | sljedeći dovršeni turnir (Chengdu/Hangzhou, pa Tokyo/Beijing) | svaki ima svoj prag | DI K5-K11 |
-| **Konsenzus kladionica** | do kraja listopada 2026: 60+ pickova uz razliku ≥1pp | iznad +5pp → tvrdi uvjet; ispod nule → maknuti bonus | `agent/ticket_builder.py`, blok uz `_CONSENSUS_GAP_MIN` |
+| **K17 — pick s "High" scouting profilom** | 30 takvih pickova od 27.09.2026 | ≤ −5pp → kazna −3pp; iznad nule → odbacuje se | DI K17; `measure_candidates.py` |
+| **K18 — hard ATP 250 turniri** | 30 takvih pickova od 27.09.2026 (jesen je puna 250-ica) | ≤ −5pp → najviše jedna takva noga po tiketu; iznad nule → odbacuje se | DI K18 |
+| **K19 — povratak nakon pauze od 21+ dan** | 40 mečeva od 27.09.2026 | isti smjer kao na tržištu → ±2pp; obrnuto → odbacuje se | DI K19 |
+| **K5, K8, K9, K10, K11** | sljedeći dovršeni turnir (Chengdu/Hangzhou, pa Tokyo/Beijing) | svaki ima svoj prag; **K11 (R16/QF) se od 26.09. prvi put mjeri na ručnim rundama** | DI K5-K11; `measure_candidates.py` |
+| **Konsenzus kladionica** | do kraja listopada 2026: 60+ pickova uz razliku ≥1pp — **vjerojatno nedostižno**: Odds API ne pokriva ATP 250, od 13.09. bilo je 0 takvih mečeva | iznad +5pp → tvrdi uvjet; ispod nule → maknuti bonus | `agent/ticket_builder.py`, blok uz `_CONSENSUS_GAP_MIN` |
 | **K12 — prosjek statistike s turnira** | dubina 3+ uz kvotu dosegne n≥100 | interval i dalje prelazi nulu → samo bilježenje | DI K12 |
 | **K14 — Davis Cup** | 20 riješenih Davis Cup mečeva (finalni turnir u studenom) | unutar 5pp od prosjeka → smije na tiket | DI K14 |
 | **K2 — domaći teren** | još 20 mečeva s domaćim igračem | protivnik-domaći ostane iznad +3pp → kazna se briše iz prompta | DI K2 |
 | **K3 — Bo5, kvote 1,30-1,50** | Australian Open, siječanj 2027 | n≥50 i ispod -8pp | DI K3 |
-| **4e — obrnuti Fery veto** | **ZAKAŠNJELO**: trebalo je premjeriti nakon US Opena | ispod -8pp uz n≥80 → kazna (ne veto) | DI 4e |
-| **4a — slični povijesni slučajevi** | ~900 riješenih analiza; korisnikov rok kraj 2026. | ponovni backtest | DI 4a |
+| **Clay težine** | prije prve zemlje 2027. (siječanj 2027.) | aktivna v17 nastala je iz auto-feedbacka na analizama gubitaka (ELO spušten na 11%) — vratiti na v13 ili izjednačiti s hardom | Supabase `model_weights`; MODEL_CHANGELOG 26.09.2026 20:46 |
 
 ## ČEKA — ideje i popravci bez roka
+
+- **Drugi izvor tržišnog konsenzusa za ATP 250.** The Odds API pokriva samo GS, Masters i
+  nekoliko 500-ica; na ostalim turnirima jedini potvrđeni tržišni signal ne postoji. Treba
+  odabrati izvor (i možda platiti) — korisnikova odluka.
 
 - **Vijesti po igraču.** ESPN i BBC od 13.09. nisu dali nijednu vijest o igračima koje
   analiziramo (0 od 43 analize) — pišu o vrhu tablice. Treba izvor koji traži po imenu
@@ -55,6 +64,41 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 ---
 
 ## NAPRAVLJENO — dnevnik
+
+### 26.09.2026 navečer — velika revizija + popravci (commit uz ovaj zapis)
+
+1. **Revizija svega** (izvještaj `revizije/2026-09-26/REVIZIJA_2026-09-26.md`, prilog s
+   klasifikacijom svakog gubitka i dobitka). Glavno: naši pickovi su jednaki tržištu; tiketi
+   gube na marži. Dvije trećine gubitaka su tijesni mečevi ili mečevi u kojima je i tržište
+   vjerovalo našem igraču — to nije greška modela.
+2. **Kazna za tržišnog autsajdera sada radi i na ATP 250.** Do danas je tiho bila isključena
+   na svim turnirima koje The Odds API ne pokriva (od 13.09. na svima). Sada koristi cijenu
+   sa screenshota. *Služi:* tiket više ne može slučajno uzeti igrača kojeg kladionica drži
+   slabijim (Shimabukuro @2,00 i Sonego @2,10 bili su baš to).
+3. **Analize gubitaka više ne izmišljaju činjenice.** Dobivaju stvarnu kvotu, pojas kvote,
+   rundu, je li meč bio na pravom tiketu i je li netko predao. 15 od 20 rujanskih analiza bilo
+   je netočno upravo u tome. Sve analize gubitaka od 29.08. napisane su ponovno (stare su
+   sačuvane u `revizije/2026-09-26/stare_analize_gubitaka.json`).
+4. **Hitni popravak: noge tiketa su se gubile.** API je jutros počeo slati puni datum-sat u
+   polje za vrijeme, koje prima najviše 20 znakova, pa jutrošnji tiket (Hurkacz, Vacherot,
+   Marozsan) nije imao nijednu nogu i ne bi se nikad razriješio. Popravljeno i vraćeno.
+   Ako se upis ikad opet pokvari, log to sada viče.
+5. **Scouting:** iz modela je maknut tekst "voli igrati protiv / muči se protiv" (izmjereno da
+   ne predviđa ništa), ispravljena 4 profila koja su proturječila brojkama (Nakashima, Norrie,
+   Giron, Wong). U Excelu je sve ostalo.
+6. **Ispravci podataka:** jedan krivo upisan ishod (Båstad 17.07.), asovi i visina u zapisu.
+7. **Na Dnevnom listiću, samo za tebe:** uz svaki pick "naš edge na ovoj kvoti" i "naš dosje
+   s ovim igračem". Model to ne vidi.
+8. **Nova skripta `scripts/measure_candidates.py`** — sve zakazane provjere jednom naredbom.
+9. **Izmjereno i odbačeno:** tablica promašaja po igraču, "s kim je gubio na turniru",
+   slični povijesni slučajevi (četvrti put), sekvenca protivnika, vrijeme, kretanje kvota,
+   276 kombinacija varijabli. Obrnuti Fery veto (4e) zatvoren.
+
+*Gdje u kodu:* autsajder — `agent/predictor.py` (`_apply_measured_penalties`); analiza gubitka —
+`agent/feedback_analyzer.py` (`_loss_match_facts`, `_LOSS_BASE_RATES`); noge tiketa —
+`agent/ticket_builder.py` (`_leg_time`), `database/supabase_client.py` (`save_ticket_matches`);
+pojas i dosje — `utils/helpers.py`; prikaz — `pages/1_Dnevni_Listic.py`; glasni ispis —
+`agent/run_daily.py`. Testovi: `test_cap_and_weather.py`, odjeljak 48.
 
 ### 26.09.2026 (commit `eb366ce`)
 

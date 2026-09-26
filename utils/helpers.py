@@ -223,3 +223,112 @@ def normalize_round_code(code) -> str:
     """Valjan interni kod runde ili '' — nikad ne pogadja iz necega drugoga."""
     c = str(code or "").upper().strip()
     return c if c in ROUND_LABEL_HR else ""
+
+
+# ---------------------------------------------------------------------------
+# POJAS CIJENE I "NAS DOSJE" — jedno mjesto za dvije namjene (26.09.2026 20:28)
+#
+# Revizija 26.09.2026 (revizije/2026-09-26/REVIZIJA_2026-09-26.md) nasla je da analize
+# gubitaka iz rujna u 15 od 20 slucajeva tvrde nesto netocno o samom mecu — najcesce
+# "pick je bio u rupi 1,43-1,60" za pick koji je bio @1,24 ili @2,35. Uzrok: prompt
+# analize nije dobivao kvotu, pa ju je model izvodio iz NASE POUZDANOSTI. Od danas se
+# pojas racuna u kodu, ovdje, i daje modelu kao cinjenica.
+#
+# Iste granice koristi i Dnevni listic za redak "nas povijesni edge u ovom pojasu" —
+# namjerno JEDNA definicija (lekcija "dvije kapije, jedna politika" od 19.09.2026: ista
+# politika prepisana na dva mjesta rasprsi se cim se jedno mjesto promijeni).
+#
+# Izmjereno 26.09.2026 upravo ovom funkcijom (`band_edge_context`) na svim razrijesenim
+# analizama s obje kvote, naspram devigirane SuperSport cijene:
+#     1,00-1,20  -1,6pp (n=56)    1,60-1,75  +4,8pp (n=72)
+#     1,20-1,35  +8,8pp (n=80)    1,75-2,00  -0,5pp (n=56)
+#     1,35-1,43  -5,6pp (n=59)    2,00+      -2,1pp (n=39)
+#     1,43-1,60  -9,0pp (n=89)
+# Rupa 1,35-1,60 ima isti predznak u obje polovice korpusa (K5/K10 u DECISION_INPUTS).
+# ---------------------------------------------------------------------------
+
+PRICE_BANDS = [(1.00, 1.20), (1.20, 1.35), (1.35, 1.43), (1.43, 1.60),
+               (1.60, 1.75), (1.75, 2.00), (2.00, 99.0)]
+
+
+def price_band(odds) -> Optional[tuple]:
+    """Pojas kvote naseg picka kao (od, do) ili None ako kvote nema."""
+    o = safe_float(odds)
+    if o <= 1.0:
+        return None
+    for lo, hi in PRICE_BANDS:
+        if lo <= o < hi:
+            return (lo, hi)
+    return None
+
+
+def price_band_label(band) -> str:
+    if not band:
+        return "nepoznat"
+    lo, hi = band
+    return f"{lo:.2f}+" if hi >= 99 else f"{lo:.2f}-{hi:.2f}"
+
+
+def devig_pick_prob(pick_odds, opp_odds) -> Optional[float]:
+    """Devigirana vjerojatnost NASEG picka iz dvije kvote (multiplikativno micanje marze)."""
+    a, b = safe_float(pick_odds), safe_float(opp_odds)
+    if a <= 1.0 or b <= 1.0:
+        return None
+    return (1.0 / a) / (1.0 / a + 1.0 / b)
+
+
+def _resolved_pick_rows(rows: list) -> list:
+    """Iz redaka `analyzed_matches` (razrijesenih) izvuci (pick, protivnik, kvota picka,
+    devig cijena, pobjeda, datum). Retke bez obje kvote ili s pobjednikom izvan para
+    preskace — isto pravilo integriteta kao u reviziji."""
+    out = []
+    for r in rows or []:
+        pick = r.get("predicted_winner") or ""
+        p1, p2 = r.get("player1") or "", r.get("player2") or ""
+        if not pick or pick not in (p1, p2) or r.get("prediction_correct") is None:
+            continue
+        o1, o2 = safe_float(r.get("bookmaker_odds_p1")), safe_float(r.get("bookmaker_odds_p2"))
+        po, oo = (o1, o2) if pick == p1 else (o2, o1)
+        p = devig_pick_prob(po, oo)
+        if p is None:
+            continue
+        out.append({"pick": pick, "opp": p2 if pick == p1 else p1, "odds": po, "p": p,
+                    "win": 1.0 if r.get("prediction_correct") else 0.0,
+                    "date": str(r.get("match_date") or "")[:10]})
+    return out
+
+
+def band_edge_context(rows: list, odds) -> Optional[dict]:
+    """Nas povijesni edge u pojasu kvote kojem pripada `odds`: {band, n, wr, exp, edge}.
+    Edge je stvarni postotak pogodaka minus prosjek devigirane cijene, u postotnim bodovima.
+    SAMO ZA PRIKAZ / KONTEKST — ne ulazi u odluku (vidi K5/K10)."""
+    band = price_band(odds)
+    if not band:
+        return None
+    rs = [x for x in _resolved_pick_rows(rows) if band[0] <= x["odds"] < band[1]]
+    if not rs:
+        return {"band": band, "n": 0}
+    n = len(rs)
+    wr = sum(x["win"] for x in rs) / n
+    ex = sum(x["p"] for x in rs) / n
+    return {"band": band, "n": n, "wr": 100 * wr, "exp": 100 * ex, "edge": 100 * (wr - ex)}
+
+
+def player_dossier(rows: list, name: str) -> dict:
+    """Nas dosje s igracem (korisnikova ideja 2, 26.09.2026) — SAMO ZA PRIKAZ.
+
+    IZMJERENO ISTI DAN I NE ULAZI U ODLUKU: broj nasih promasaja s igracem ne predvidja
+    sljedeci mec — doslovno pravilo (-2pp iznad prosjeka / +2pp ispod) dalo je -1,0pp
+    naspram -0,4pp; visak promasaja naspram cijene r=-0,004 (n=417); ni na 11.512 trzisnih
+    nastupa igracev ostatak naspram cijene nije postojan (r=+0,06 / +0,14). Rublev, kojeg
+    smo 3-4 izgubili na 7 pickova, kao trzisni favorit pobjedjuje 3,8pp CESCE od kvote.
+    Prikazuje se jer korisnik zeli vidjeti povijest, ne jer nosi signal."""
+    key = " ".join(str(name or "").lower().split())
+    rs = _resolved_pick_rows(rows)
+    mine = [x for x in rs if " ".join(x["pick"].lower().split()) == key]
+    vs = [x for x in rs if " ".join(x["opp"].lower().split()) == key]
+    out = {"as_pick_n": len(mine), "as_pick_w": int(sum(x["win"] for x in mine)),
+           "as_opp_n": len(vs), "beat_us": int(sum(1 for x in vs if x["win"] == 0.0))}
+    if mine:
+        out["as_pick_edge"] = 100 * (sum(x["win"] for x in mine) - sum(x["p"] for x in mine)) / len(mine)
+    return out

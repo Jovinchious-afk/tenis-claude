@@ -174,18 +174,34 @@ def save_market_lines(rows: list) -> int:
         return 0
 
 
-def save_ticket_matches(matches: list) -> None:
+def save_ticket_matches(matches: list) -> bool:
+    """Upis nogu tiketa. Vraca True ako su noge spremljene.
+
+    GLASNO OD 26.09.2026 20:50 — do tada je neuspjeh bio TIH: `_rest` na HTTP gresci vraca
+    praznu listu, fallback isto, i funkcija bi se vratila bez traga. Tako je 26.09. pravi
+    tiket (Hurkacz, Vacherot, Marozsan @4,56) ostao bez ijedne noge jer je `match_time`
+    dobio 24 znaka u stupcu VARCHAR(20) (vidi `ticket_builder._leg_time`). Sada: obrambeno
+    rezanje tekstualnih polja na sirinu stupca, i ako upis ipak padne — vika u logu.
+    """
     if not matches:
-        return
+        return True
+    _widths = {"match_time": 20, "round": 80, "risk_level": 20, "result": 20,
+               "tournament_level": 50, "surface": 50}
+    matches = [{k: (v[:_widths[k]] if k in _widths and isinstance(v, str) else v)
+                for k, v in m.items()} for m in matches]
     result = _insert("ticket_matches", matches)
     if result:
-        return
+        return True
     # Fallback: možda tablica nema opcionalne stupce — probaj bez njih
     stripped = [{k: v for k, v in m.items() if k not in _OPTIONAL_TM_COLS} for m in matches]
     if stripped != matches:
         print("  Upis tiketa bez opcionalnih stupaca (player1_id/player2_id/market_snapshot "
               "ne postoje — pokreni ALTER TABLE iz database/schema.sql).")
-        _insert("ticket_matches", stripped)
+        if _insert("ticket_matches", stripped):
+            return True
+    print("!!! NOGE TIKETA NISU SPREMLJENE — tiket postoji, ali se bez nogu NE MOZE "
+          "razrijesiti. Pogledaj Supabase gresku iznad i popravi prije sljedeceg runa.")
+    return False
 
 
 def update_match_result(match_id: str, result: str, actual_winner: str,
@@ -388,7 +404,8 @@ def _norm_player_key(name: str) -> str:
 
 
 def find_existing_analysis(tournament: str, player1: str, player2: str,
-                           match_date, window_days: int = 3) -> dict:
+                           match_date, window_days: int = 3,
+                           select: str = "id,external_match_id,match_date,player1,player2,tournament") -> dict:
     """Traži VEĆ POSTOJEĆU analizu istog meča u rasponu ±window_days dana.
 
     ZAŠTO (07.08.2026, korisnikov nalaz): `stable_match_key` sadrži datum, a datum NIJE
@@ -421,8 +438,16 @@ def find_existing_analysis(tournament: str, player1: str, player2: str,
     # turnira sadrže razmake, crtice i apostrofe ("Libema Open - 's-Hertogenbosch"), pa bi
     # `eq.` filter ovisio o tome kako PostgREST tumači te znakove. Prozor je ionako 7 dana
     # (nekoliko desetaka redaka), pa je usporedba u Pythonu jeftinija od tog rizika.
+    # `select` je parametar od 26.09.2026 20:28: analiza gubitka (feedback_analyzer)
+    # istim pravilom identiteta meca trazi i OBJE kvote i `context_snapshot` (runda,
+    # konsenzus). Ista funkcija, isto pravilo — ne drugi, prepisani nacin uparivanja.
+    if "tournament" not in select:
+        select += ",tournament"
+    for _need in ("player1", "player2", "match_date"):
+        if _need not in select.split(","):
+            select += f",{_need}"
     rows = _select("analyzed_matches",
-                   select="id,external_match_id,match_date,player1,player2,tournament",
+                   select=select,
                    filters={"and": f"(match_date.gte.{lo},match_date.lte.{hi})"})
     want = tuple(sorted([_norm_player_key(player1), _norm_player_key(player2)]))
     tkey = " ".join(str(tournament).lower().split())
@@ -551,6 +576,32 @@ def get_resolved_analyzed_matches(limit: int = 2000) -> list:
                    filters={"prediction_correct": "not.is.null"},
                    order="match_date.desc",
                    limit=limit)
+
+
+def get_resolved_for_context(limit: int = 3000) -> list:
+    """Razrijesene analize s OBJE kvote i pickom — za redak konteksta na Dnevnom listicu
+    (pojas cijene, nas dosje s igracem) i za cinjenice u analizi gubitka (26.09.2026 20:28).
+    Racuna se u `utils.helpers` (`band_edge_context`, `player_dossier`); nista od toga NE
+    ulazi u predikciju."""
+    return _select("analyzed_matches",
+                   select="predicted_winner,player1,player2,bookmaker_odds_p1,bookmaker_odds_p2,"
+                          "prediction_correct,match_date,round,surface,tournament_level",
+                   filters={"prediction_correct": "not.is.null"},
+                   order="match_date.desc",
+                   limit=limit)
+
+
+def get_ticket_status(ticket_id: str) -> dict:
+    """Status i datum tiketa kojem noga pripada (26.09.2026 20:28).
+
+    Analiza gubitka mora znati je li noga bila na PRAVOM tiketu (ulog) ili samo na
+    analysis-only listi. Bez toga je 25.09. napisala da Sonego @2,10 "nije izdan na
+    tiket" — a bio je, na pravom tiketu od 24.09. s ulogom 50 EUR."""
+    if not ticket_id:
+        return {}
+    rows = _select("tickets", select="id,status,ticket_date,stake,total_odds",
+                   filters={"id": f"eq.{ticket_id}"}, limit=1)
+    return rows[0] if rows else {}
 
 
 # ── ELO Cache ─────────────────────────────────────────────────────────────────

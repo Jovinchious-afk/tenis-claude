@@ -270,6 +270,16 @@ def _opponent_beat_us(p) -> bool:
 
     Funkcija OSTAJE jer se zastavice i dalje računaju u run_daily i korisne su za
     mjerenje — samo se više ne koristi u `_selection_ok`.
+
+    PREMJERENO 26.09.2026 20:28 (revizija) — obje strane:
+      * "2+ poraza" i dalje ide ZA nas: isti turnir 14 dana +18,2pp (n=26), izvan uzorka
+        od 30.08. +28,3pp (n=5). Ukidanje veta je bilo ispravno.
+      * OBRNUTO pravilo ("srusio nas TOCNO jednom", stavka 4e u BACKLOG-u) SE NE
+        POTVRDJUJE: izvan uzorka od 30.08. -1,9 / +3,2 / -8,7 / -0,2pp u cetiri definicije
+        (n=23-40), predznak nedosljedan; prag je bio -8pp uz n>=80. ZATVORENO.
+      * Korisnikova ideja 2 ("tablica promasaja po igracu": -2pp za igraca koji nas je
+        cesto izdao kao pick) izmjerena na tri nacina i PALA — vidi
+        `utils.helpers.player_dossier`, koji tu povijest samo PRIKAZUJE na Dnevnom listicu.
     """
     m = p.get("match", {})
     pick = (p.get("pick") or "").lower()
@@ -382,6 +392,34 @@ def _scouting_ok_LEGACY(p) -> bool:
     """Stara logika, zadrzana samo kao zapis onoga sto je veto radio (06.09.2026)."""
     pen = (p.get("measured_penalties") or {}).get("applied") or []
     return not any(a.get("rule") == "scouting_med_low" for a in pen)
+
+
+def _leg_time(m: dict) -> str:
+    """Sat meca za `ticket_matches.match_time` — 'HH:MM' po zagrebackom vremenu, ili prazno.
+
+    HITNI POPRAVAK 26.09.2026 20:50. Stupac je VARCHAR(20). Do 25.09. API-jev `timeGame`
+    bio je UVIJEK prazan (0 od 570 nogu ikad je imalo sat), pa se ovdje upisivao prazan
+    string. Od 26.09. API u isto polje vraca puni ISO trenutak ("2026-09-26T08:30:00.000Z",
+    24 znaka). PostgREST takav upis odbije, `save_ticket_matches` padne i u fallbacku — i
+    jutrosnji PRAVI tiket (Hurkacz, Vacherot, Marozsan @4,56) spremljen je BEZ IJEDNE NOGE,
+    pa se nikad ne bi razrijesio. Bez popravka bi se to ponavljalo svaki dan.
+    Prednost ima sat sa screenshota (`start_utc`, izvor istine od 04.08.), pa API-jev.
+    Nikad ne vraca vise od 20 znakova."""
+    import datetime as _dt
+    from utils.helpers import ZAGREB_TZ
+    for key in ("start_utc", "time"):
+        v = str(m.get(key) or "").strip()
+        if not v:
+            continue
+        try:
+            d = _dt.datetime.fromisoformat(v.replace("Z", "+00:00"))
+            if d.tzinfo is None:
+                d = d.replace(tzinfo=_dt.timezone.utc)
+            return d.astimezone(ZAGREB_TZ).strftime("%H:%M")
+        except ValueError:
+            if len(v) <= 20:
+                return v
+    return ""
 
 
 def _selection_ok(p) -> bool:
@@ -592,7 +630,7 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
             "pick": pick,
             "odds": _pick_odds(pred),
             "match_date": m.get("date", ""),
-            "match_time": m.get("time", ""),
+            "match_time": _leg_time(m),
             "tournament": m.get("tournament", ""),
             "tournament_level": m.get("level", ""),
             "surface": m.get("surface", ""),
@@ -872,6 +910,29 @@ def _find_best_combination(candidates: list, cfg: dict) -> Optional[list]:
 # prolaze sva pravila, prednost imaju one koje trziste podupire. Ako se do kraja
 # listopada 2026 skupi 60+ pickova uz gap>=+1 i skupina ostane iznad +5pp edgea,
 # razmotriti podizanje u tvrdi uvjet. Ako padne ispod nule — maknuti bonus.
+# ── STANJE 26.09.2026 20:28 (revizija, revizije/2026-09-26/) ─────────────────────
+# POKRIVENOST: The Odds API nema kljuceve za ATP 250 (provjereno besplatnim `/sports`
+# pozivom: pokriveni su samo GS, Masters i odabrani 500-ci — Peking, Washington, Hamburg,
+# Halle, Queen's, Barcelona, Munchen, Dubai, Doha). Zato od 13.09.2026 NIJEDAN mec nije
+# imao konsenzus i ovaj bonus nije okinuo nijednom (od uvodjenja 08.09. samo 2 picka s
+# konsenzusom). Signal i dalje stoji: gap >= +1pp -> 82,5% naspram 73,3% (+9,2pp, n=63).
+# Prag za odluku (60+ pickova do kraja listopada) se ovim tempom NECE doseci — iducih
+# prilika ima samo na Pekingu, Shanghaiu i Parizu. `run_daily` od danas GLASNO ispisuje
+# svaki turnir bez konsenzusa. Drugi izvor konsenzusa za ATP 250 je u BACKLOG-u (L4).
+#
+# KANDIDATI IZ REVIZIJE 26.09. — U REGISTRU, NISU U KODU (kapija od 06.09.2026):
+#   K17  pick s High scouting profilom       -12,4pp (n=52), isti predznak u oba razdoblja
+#   K18  hard ATP 250 (+ Davis Cup)           -11,2pp (n=63), nije samo R16/QF (-11,3 bez njih)
+#   K19  povratak nakon pauze >= 21/42 dana   trziste -1,9 / -3,3pp, 4/4 godine negativno
+# Mjeri ih `scripts/measure_candidates.py` s pragovima iz DECISION_INPUTS.
+#
+# ODBACENO 26.09. (ne ugradjivati u bodovanje bez novih podataka):
+#   - "Historical Match-Up Context" (slicni povijesni slucajevi), CETVRTI backtest po
+#     korisnikovoj specifikaciji: walk-forward r izmedju -0,07 i +0,05; oracle r~0; na
+#     5.143 ATP meceva slicnost dodaje r=+0,04 povrh samog pojasa cijene. Uz 12 slicnih
+#     slucajeva 95% interval je +-27pp — prikaz bi izgledao kao signal, a bio bi sum.
+#   - tablica promasaja po igracu (ideja 2), povijest poraza na turniru (ideja 3),
+#     kretanje kvota (cetvrti put), vrijeme, 276 interakcija (0 prezivi korekciju).
 _CONSENSUS_GAP_MIN = 1.0     # postotnih bodova
 _CONSENSUS_GAP_BONUS = 4.0   # bodova po picku u _score_combo
 
@@ -1273,7 +1334,7 @@ def build_analysis_only_ticket(predictions: list) -> dict:
             "pick": pred.get("pick", ""),
             "odds": _pick_odds(pred),
             "match_date": m.get("date", ""),
-            "match_time": m.get("time", ""),
+            "match_time": _leg_time(m),
             "tournament": m.get("tournament", ""),
             "tournament_level": m.get("level", ""),
             "surface": m.get("surface", ""),

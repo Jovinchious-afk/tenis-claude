@@ -602,128 +602,261 @@ def _format_match_stats(p1: str, p2: str, stats: dict, p1_id=None, p2_id=None) -
 # dobio SF pa QF kad je run pokrenut dvaput (`run_daily._verify_late_rounds` dvostruko
 # broji danasnje meceve jer im vlastiti jutarnji redak dodje natrag kao "povijest").
 # Nalaz nije pao, ali brojku -13,3pp treba premjeriti kad oznake budu stabilne.
+# OSVJEZENO 26.09.2026 20:28 (revizija, H2) na 451 razrijesenoj analizi. Razlog: stare
+# stope (06.09., n=414) sadrzavale su nalaze koji su u medjuvremenu PALI izvan uzorka
+# (tie-break r=-0,186, forma x kvaliteta r=+0,284, dob 4+ -15,4pp), a analize gubitaka iz
+# rujna su ih "potvrdjivale". Pale su sada izricito oznacene kao pale.
+# VAZNIJE OD BROJKI: od danas analiza dobiva i CINJENICE O MECU izracunate u kodu
+# (`_loss_match_facts`) — kvotu, devig cijenu, pojas, rundu, status tiketa, predaju.
+# Revizija je pokazala da je 15 od 20 rujanskih analiza te cinjenice IZMISLJALO.
 _LOSS_BASE_RATES = """
-=== MEASURED BASE RATES FROM OUR OWN CORPUS (all surfaces, n=414, through 06.09.2026) ===
+=== MEASURED BASE RATES FROM OUR OWN CORPUS (all surfaces, n=451, through 26.09.2026) ===
 Read these BEFORE naming any cause. They tell you what a NORMAL match looks like, so you can
 tell a real signal apart from a number that merely looks extreme in this one match.
+The MATCH FACTS block tells you where THIS match sits (price band, round, ticket).
+Apply a base rate to this match ONLY if the facts say the match belongs to that group.
 
-*** THE CONTROL TABLE - READ THIS FIRST (measured 06.09.2026, 268 wins vs 146 losses) ***
-A factor can only be a cause of the loss if its value is DIFFERENT in our losses than in our
-wins. Here is every factor these analyses have historically blamed, with both averages:
+*** HOW OUR LOSSES ACTUALLY BREAK DOWN (171 losses, classified by fixed rules) ***
+  close match (our pick won >=48% of points, or lost a tight decider)   36%
+  outplayed, but the market ALSO backed our pick                         30%
+  lost after winning the first set (not separable from calibration)      13%
+  our pick was the market underdog (a loss was the likelier outcome)     12%
+  retirement / injury                                                     5%
+  outplayed while we were 8pp+ above the market (a real model error)      4%
+Most losses therefore need NO model change. "No model change justified by this match" is
+the correct answer far more often than not.
 
-  factor                        in our WINS   in our LOSSES    P
-  ELO gap (surface)                 145.1         107.2      0.011   <- differs, and ELO HELPS
-  ELO gap (overall)                 137.8          92.4      0.004   <- differs, and ELO HELPS
-  serve points won, gap               1.6           1.7      0.708   <- IDENTICAL
-  hold %, gap                         3.0           3.3      0.702   <- IDENTICAL
-  return points won, gap             -0.7          -0.9      0.682   <- IDENTICAL
-  form last 5, gap                    0.1           0.3      0.642   <- IDENTICAL
-  form last 10, gap                   0.6           0.5      0.814   <- IDENTICAL
-  avg opponent ELO, gap              85.1          76.8      0.662   <- IDENTICAL
-  days rest, gap                      0.1           2.7      0.480   <- IDENTICAL
-  tiebreak record, gap               -3.4          +6.6      0.019   <- differs (see caution)
+*** THE CONTROL TABLE - wins vs losses, and what survives the PRICE (26.09.2026) ***
+A factor can only explain a loss if it differs between our wins and our losses AFTER the
+price is taken into account (the price already knows ELO and ranking):
 
-WHAT THIS MEANS, STATED PLAINLY: serve, hold, return, form, opponent quality and fatigue are
-STATISTICALLY IDENTICAL in the matches we win and the matches we lose. They therefore CANNOT
-be the cause of this loss. If you name one of them, you must write [SIGNAL NOT CONFIRMED].
+  factor                        in WINS   in LOSSES   P raw     P after price
+  ELO gap (surface)               148        100      0.0002        0.67
+  ranking gap (log ratio)         1.20       0.58     0.0003        0.32
+  serve points won, gap           1.60       1.53     0.86          0.39
+  2nd-serve points won, gap       0.64       0.78     0.73          0.25
+  return points won, gap         -0.68      -0.58     0.79          0.84
+  break points saved, gap         1.40       1.34     0.90          0.57
+  form last 10, gap               0.07       0.05     0.48          0.54
+  opponents' ELO (last 5), gap      94         58     0.068         0.63
+  days rest, gap                  0.11       2.20     0.35          0.55
+  age gap                        -0.90       0.21     0.18          0.39
+  ATP wins this season, gap       9.1        4.4     <0.0001        0.042  <- the only one
 
-An audit of our 194 stored loss analyses found ELO blamed in 82%, form in 79%, serve in 78%,
-hold in 64% and fatigue in 47% of them. Per the table above, four of those five separate
-nothing - and ELO, the most-blamed of all, is the one factor that actually works IN OUR
-FAVOUR (the gap is 38 points LARGER in our wins). That pattern is hindsight, not analysis.
-Do not continue it.
+WHAT THIS MEANS, STATED PLAINLY: serve, return, break points, form, rest, age and opponent
+quality are statistically IDENTICAL in our wins and our losses once the price is known. If you name one
+of them, write [SIGNAL NOT CONFIRMED]. ELO separates wins from losses only because the
+price already contains it - it is not a cause the market missed.
 
-*** WHAT ACTUALLY EXPLAINS HOW A MATCH WENT (use these in section 2, n=104) ***
+*** WHAT ACTUALLY EXPLAINS HOW A MATCH WENT (post-match only, n=104) ***
   winners-to-unforced-errors ratio, gap   r = +0.705   <- strongest relationship we have
   unforced errors, gap                    r = -0.552
   net-approach success %, gap             r = +0.445
   winners, gap                            r = +0.368
-  average 1st-serve speed, gap            r = +0.141 (P=0.15, nothing)
-These describe who dictated and who scrambled, which is what a match report should say. They
-are POST-MATCH ONLY - we have no pre-match season equivalent - so they can never be a model
-fix. Lead section 2 with the winners/errors ratio instead of serve percentages.
+These describe who dictated and who scrambled. They are POST-MATCH ONLY - never a model fix.
 
-*** PRICE BAND STRUCTURE - the most common real explanation (n=414, 06.09.2026) ***
-Before blaming a player statistic, check where this match sat on price. Our edge versus the
-devigged market is NOT flat across the board:
+*** PRICE BAND STRUCTURE - by OUR PICK's odds, edge vs the devigged price (26.09.2026) ***
+  odds 1.00-1.20   n= 56 | edge -1.6pp   (short favourites: a loss here is usually VARIANCE)
+  odds 1.20-1.35   n= 80 | edge +8.8pp   <- our best band
+  odds 1.35-1.43   n= 59 | edge -5.6pp   <- hole
+  odds 1.43-1.60   n= 89 | edge -9.0pp   <- hole (coded caution zone)
+  odds 1.60-1.75   n= 72 | edge +4.8pp
+  odds 1.75-2.00   n= 56 | edge -0.5pp
+  odds 2.00+       n= 39 | edge -2.1pp
+THE BAND IS DECIDED BY OUR PICK'S OWN ODDS AS GIVEN IN THE MATCH FACTS - never by our
+confidence, never by the opponent's odds. (An audit on 26.09.2026 found analyses placing an
+@1.24 pick "in the 1.35-1.43 hole" by converting confidence into odds. That is an error.)
 
-  odds 1.00-1.20   n= 50 | edge  -3.7pp    (short favourites: roughly break-even, high variance)
-  odds 1.20-1.35   n= 74 | edge  +8.8pp    <- our best band
-  odds 1.35-1.43   n= 53 | edge  -7.9pp    <- HOLE, same sign in both eras
-  odds 1.43-1.60   n= 98 | edge  -9.4pp    <- HOLE (this is the coded caution zone)
-  odds 1.60-1.75   n= 63 | edge  +7.5pp
-  odds 1.75-2.00   n= 54 | edge  +1.4pp
-  odds 2.00+       n= 35 | edge  +2.6pp
+*** ROUND (only if the MATCH FACTS give a round) ***
+  R16 + QF: -10.7pp vs price (n=71); after 26.08: -17.5pp (n=15). Other rounds: about +1pp.
+  A Grand Slam second round is R64 and a third round is R32 - they are NOT "R16/QF".
+  If the round is UNKNOWN, round-based statements are not allowed.
 
-A loss on a pick priced 1.35-1.60 is our single most common failure mode and it is a PRICING
-pattern, not a player-statistic failure. If this match sat in that band, say so - that is a
-better and more honest explanation than any serve or form number, all of which are identical
-in our wins and our losses (see the control table above).
-Conversely, a loss at odds <= 1.20 is usually VARIANCE: we run 83.0% there against a market
-expectation of 85.3% (n=53, split-half +0.1pp / -4.6pp). Do not build a theory on one of them.
+*** MARKET ***
+  bookmaker consensus >= +1pp above SuperSport for our pick: +9.2pp (n=63) - our one validated
+  market signal. The Odds API does NOT cover ATP 250 events, so for most of them no
+  consensus exists; the MATCH FACTS say whether it existed for this match.
+  Our pick as market underdog: consensus version -10.7pp (n=20), screenshot version -4.0pp
+  (n=28). ODDS MOVEMENT CARRIES NOTHING - tested four times (06.09.: r=+0.007, P=0.927,
+  n=167; 26.09.: r=-0.06, n=158). Never explain a loss with "the market moved against us".
+  Hard ATP 250 + Davis Cup: -11.2pp (n=63) vs +1.2pp at big events - a CANDIDATE, unconfirmed.
 
-*** REPLICATION WARNING (measured 06.09.2026) ***
-Three rules were added on 30.08.2026 from findings with P = 0.008, 0.026 and 0.001. The US
-Open then served as the first independent sample (104 matches) and reversed all three:
-tiebreak lead -8.0pp expected vs +7.9pp actual, Med-Low scouting -38.7pp vs +10.7pp,
-tournament history r=+0.167 vs r=-0.151. Our replication rate on implemented findings is
-currently 0 of 3. Therefore: a factor that "looks strong in this match" is almost certainly
-noise. The correct output of a loss analysis is usually NO proposed change.
+*** FINDINGS THAT FAILED OUT OF SAMPLE - do not cite them as support ***
+  tiebreak record (the sign reversed between samples) | form x opponent quality (r=+0.284 ->
+  +0.02) | opponents' average ELO below 1700 | pick 4+ years older | best round at this
+  tournament (r=+0.167 -> -0.15) | "player who often lets us down" (r=-0.004, n=417) |
+  lost to a weaker player at this event before (r=+0.04) | similar past matches (four
+  backtests, r~0) | weather and its interactions | height (the old signal was missing
+  values stored as 0) | "collapse after winning the first set" (not separable from price).
+
+*** REPLICATION WARNING ***
+Only 3 of our last 12 tested findings held on new data. A factor that "looks strong in this
+one match" is almost certainly noise. The correct output is usually NO proposed change.
 
 OUR PICK'S POST-MATCH NUMBERS - average in matches we WON vs matches we LOST (n=138):
   double faults              won 2.93  |  lost 4.60   (opponent's DF: 3.36 vs 3.35 - flat)
   1st-serve points won, gap  won +10.5 |  lost -8.0
   2nd-serve points won, gap  won +10.7 |  lost -9.1   <- SAME size as 1st serve, not "hidden"
-  total serve points, gap    won +11.0 |  lost -8.8
-  break points converted,gap won +18.0 |  lost -9.7
   total points won, gap      won +13.4 |  lost -9.9
-  aces (our pick)            won 7.05  |  lost 7.07   <- no separation at all
 Nearly every post-match number separates wins from losses, because the winner wins more
 points. That is a DESCRIPTION of the result, not a cause, and never on its own a model fix.
-
-PRE-MATCH SEASON STATS - correlation with whether our pick won (n=139). ALL ARE ZERO:
-  serve points won +0.006 | 1st serve won -0.006 | 2nd serve won +0.024 | 1st-serve-in +0.019
-  aces/match +0.010 | double faults +0.002 | hold% +0.006 | return points won -0.059
-  BP saved +0.009 | BP converted -0.031 | break% -0.052    (every P-value above 0.49)
-So: if you want to blame a serve or return statistic, the season numbers do NOT support it.
-
-OTHER MEASURED FACTS:
-  - double faults are NOT a stable player trait in our corpus: split-half by player r=+0.131
-    (P=0.396), and variation WITHIN a player (SD 1.64) exceeds variation BETWEEN players (1.43)
-  - tiebreak record: r = -0.186 (P=0.014, n=174) on the older sample, i.e. picks whose TB
-    record was BETTER did WORSE. CAUTION (06.09.2026): this reversed on the US Open sample
-    (+7.9pp vs +3.3pp for the rest), so the penalty built on it was removed. Treat the
-    tiebreak record as carrying NO reliable signal in either direction until re-measured.
-    Deciding-set record: r=-0.045, nothing.
-  - ELO gap works, but weaker in the middle rounds: r(ELO, our pick winning) = +0.197 in
-    R128-R32 (P=0.018), +0.041 in R16/QF (P=0.735), +0.321 in SF/F (P=0.135), n=238 total
-  - round R16/QF is our weak spot: -4.8pp vs the devigged market price (n=72, P=0.398), vs
-    +2.3pp in early rounds and +8.5pp in SF/F. NOTE: round labels are known to be ~43% wrong
-    in our records, so treat any round-based claim as weak evidence
-  - quality of the pick's recent opposition IS predictive: form matters only when it was
-    earned against strong opponents (r=+0.284) and not at all against weak ones (r=-0.017)
-  - weather main effects are zero (temp -0.092, humidity +0.101, wind +0.076, pressure -0.077)
-  - ODDS MOVEMENT CARRIES NOTHING (measured 06.09.2026 on 167 matches with 2-8 price snapshots
-    from 50 bookmakers): r(price drift, our edge vs the closing price) = +0.007, P=0.927. The
-    raw correlation with winning (+0.077) exists only because drift correlates with price.
-    Median drift through the day is +0.22pp - the market barely moves. Never explain a loss
-    with "the market moved against us"; it is not evidence of anything.
-  - our pick being 4+ years older than the opponent: 42.9%, -15.4pp vs price
+Double faults are not a stable player trait (split-half r=+0.131).
 
 INPUTS THE PREDICTION MODEL ALREADY RECEIVES - do NOT recommend adding any of these:
-  ELO (overall + surface), ATP ranking and trend, 3-year surface record, form last 5 and 10,
-  average opponent ELO, surface form, total serve points won, hold%, 1st-serve %,
-  1st-serve points won, 2ND-SERVE POINTS WON, aces per match, BREAK POINTS SAVED,
-  BREAK POINTS CONVERTED, return points won, own tiebreak record, deciding-set record,
-  matches and sets in last 7 days, days rest, age, height/weight/hand, best round at this
-  tournament in 3 seasons, current tournament path, H2H, weather, altitude, venue type,
-  local start time and session, court pace, scouting profile, injury news.
+  ELO (overall + surface), ATP ranking, 3-year surface record, form last 5 and 10, average
+  opponent ELO, surface form, total serve points won, hold%, 1st-serve %, 1st-serve points
+  won, 2ND-SERVE POINTS WON, aces per 100 serve points, BREAK POINTS SAVED, BREAK POINTS
+  CONVERTED, return points won, own tiebreak record, deciding-set record, matches and sets
+  in last 7 days, days rest, age, height/weight/hand, best round at this tournament in 3
+  seasons, current tournament path, stats at this tournament so far, H2H, weather,
+  altitude, venue type, local start time and session, court pace, scouting style profile,
+  injury news, ATP titles and finals.
 A recommendation to "add" something from this list is a factual error, not a finding.
 === END BASE RATES ==="""
 
 
+_CTX_ROWS_CACHE: list = []
+
+
+def _loss_match_facts(match: dict) -> str:
+    """Cinjenice o mecu koje analiza gubitka NE SMIJE pogadjati (26.09.2026 20:28, H2).
+
+    ZASTO: revizija 26.09.2026 procitala je svih 20 rujanskih analiza gubitaka. 15 od 20
+    tvrdi nesto netocno o SAMOM mecu, jer prompt nije dobivao ni kvotu, ni rundu, ni status
+    tiketa — pa ih je model izvodio iz onoga sto je imao:
+      - kvotu iz NASE POUZDANOSTI ("72% -> kvota ~1,39 -> rupa 1,35-1,43" za Alcaraza @1,24,
+        koji je bio u nasem NAJBOLJEM pojasu), ili iz kvote PROTIVNIKA (Gea @2,25, Cerundolo
+        @2,30, Blockx @2,35, Tien @1,85, Shimabukuro @2,00 — svi "u rupi 1,43-1,60");
+      - rundu iz dojma ("trece kolo Grand Slama = R16/QF" za Zhenga, Lehecku, Fritza — sve R32);
+      - status ("sustav ga nije izdao" za Sonega @2,10 — bio je na pravom tiketu 24.09.).
+    I onda je bazne stope o pojasevima i rundama "potvrdio" na mecu na koji se ne odnose.
+    Popravak od 06.09. (bazne stope) zamijenio je jedan oblik naknadne pameti drugim:
+    "potvrda iz tablice". Lijek je dati cinjenice, ne jos pravila.
+
+    Sve se racuna ovdje, iz nasih zapisa; model ih samo cita. Neuspjeh bilo kojeg izvora
+    ostavlja stavku kao "unknown" — nikad je ne pogadja.
+    """
+    from utils.helpers import (price_band, price_band_label, devig_pick_prob,
+                               band_edge_context, normalize_round_code, safe_float as _sf)
+    from config.model_config import TICKET_CONFIG
+
+    pick = match.get("pick") or ""
+    p1, p2 = match.get("player1") or "", match.get("player2") or ""
+    pick_is_p1 = _names_match(pick, p1)
+    opp = p2 if pick_is_p1 else p1
+    pick_odds = _sf(match.get("odds"))
+
+    am = {}
+    try:
+        am = db.find_existing_analysis(
+            match.get("tournament"), p1, p2, match.get("match_date"),
+            select="id,player1,player2,match_date,tournament,round,predicted_confidence,"
+                   "bookmaker_odds_p1,bookmaker_odds_p2,context_snapshot") or {}
+    except Exception:
+        am = {}
+    cs = am.get("context_snapshot") or {}
+
+    opp_odds = None
+    if am:
+        o1, o2 = _sf(am.get("bookmaker_odds_p1")), _sf(am.get("bookmaker_odds_p2"))
+        if _names_match(pick, am.get("player1") or ""):
+            opp_odds = o2 if o2 > 1 else None
+        elif _names_match(pick, am.get("player2") or ""):
+            opp_odds = o1 if o1 > 1 else None
+    lines = []
+    if pick_odds > 1:
+        p_dev = devig_pick_prob(pick_odds, opp_odds) if opp_odds else None
+        if p_dev is not None:
+            lines.append(f"- Our pick {pick} at odds {pick_odds:.2f}; opponent {opp} at "
+                         f"{opp_odds:.2f} -> devigged market price for our pick "
+                         f"{100 * p_dev:.1f}%.")
+            lines.append(f"- Market underdog: {'YES' if p_dev < 0.5 else 'no'} "
+                         f"(by the screenshot price).")
+        else:
+            lines.append(f"- Our pick {pick} at odds {pick_odds:.2f}; opponent's odds unknown.")
+        band = price_band(pick_odds)
+        if band:
+            global _CTX_ROWS_CACHE
+            if not _CTX_ROWS_CACHE:
+                try:
+                    _CTX_ROWS_CACHE = db.get_resolved_for_context() or []
+                except Exception:
+                    _CTX_ROWS_CACHE = []
+            be = band_edge_context(_CTX_ROWS_CACHE, pick_odds) if _CTX_ROWS_CACHE else None
+            if be and be.get("n"):
+                lines.append(f"- Price band of OUR PICK's odds: {price_band_label(band)} -> our "
+                             f"measured edge in this band {be['edge']:+.1f}pp (n={be['n']}).")
+            else:
+                lines.append(f"- Price band of OUR PICK's odds: {price_band_label(band)}.")
+    else:
+        lines.append("- Our pick's odds: UNKNOWN - do not estimate them.")
+
+    # `market_p` u snapshotu je vjerojatnost za player1 ANALIZE; `market_snapshot.p` na
+    # tiketu je za player1 TIKETA — poravnava se prema izvoru, ne pretpostavlja.
+    mp, ref_p1 = cs.get("market_p"), (am.get("player1") or p1)
+    ms = match.get("market_snapshot") or {}
+    if mp is None and isinstance(ms, dict) and ms.get("p") is not None:
+        mp, ref_p1 = ms.get("p"), p1
+    if mp is not None:
+        try:
+            mpp = float(mp) if _names_match(pick, ref_p1) else 1.0 - float(mp)
+            lines.append(f"- Bookmaker consensus existed: {100 * mpp:.1f}% for our pick.")
+        except (TypeError, ValueError):
+            lines.append("- Bookmaker consensus existed (value unreadable).")
+    else:
+        lines.append("- Bookmaker consensus: NOT AVAILABLE for this match (The Odds API does "
+                     "not cover this event), so no consensus signal existed.")
+
+    # Runda: rucni unos (od 26.09.2026) ima prednost; oznake ociscene 26.09. kao krive
+    # (Chengdu/Hangzhou, `cleared_wrong_auto`) su NEPOZNATE, iako tiket jos nosi staru.
+    rsrc = cs.get("round_source") or ""
+    if rsrc == "cleared_wrong_auto":
+        rnd = ""
+    elif rsrc == "manual":
+        rnd = normalize_round_code(am.get("round")) or normalize_round_code(match.get("round"))
+    else:
+        rnd = normalize_round_code(match.get("round")) or normalize_round_code(am.get("round"))
+    if rnd:
+        trust = ("entered manually on the screenshot page" if rsrc == "manual"
+                 else "automatic label - labels before 26.09.2026 are known to be unreliable")
+        lines.append(f"- Round: {rnd} ({trust}). R16/QF: {'yes' if rnd in ('R16', 'QF') else 'no'}.")
+    else:
+        lines.append("- Round: UNKNOWN - do not guess it and do not apply round base rates.")
+
+    t = {}
+    try:
+        t = db.get_ticket_status(match.get("ticket_id")) or {}
+    except Exception:
+        t = {}
+    st_ = t.get("status")
+    if st_ == "analysis_only":
+        lines.append("- Ticket: ANALYSIS-ONLY list (no stake).")
+    elif st_ in ("won", "lost", "pending"):
+        lines.append(f"- Ticket: REAL ticket of {t.get('ticket_date')} with a stake "
+                     f"(ticket status: {st_}).")
+    else:
+        lines.append("- Ticket status: unknown.")
+
+    conf = _sf(match.get("confidence"))
+    lines.append(f"- Our stored confidence: {conf:.0f}%. Ticket floor since 08.09.2026: "
+                 f"{TICKET_CONFIG.get('min_confidence', 60):.0f}% (65% at hard/clay Grand "
+                 f"Slams). Deterministic penalties may already be inside this number.")
+    score = str(match.get("actual_score") or "")
+    if "ret" in score.lower() or "w/o" in score.lower() or "walkover" in score.lower():
+        lines.append(f"- The match ENDED BY RETIREMENT/WALKOVER (score: {score}). Classify it as "
+                     f"injury/fitness first; a tennis or model explanation needs extra proof.")
+    return ("=== MATCH FACTS (computed by code from our records - authoritative; never "
+            "re-derive them) ===\n" + "\n".join(lines))
+
+
 def _analyze_lost_match(match: dict, stats: dict = None) -> str:
     """Claude analizira zašto smo pogriješili na konkretnom paru.
+
+    POPRAVAK 26.09.2026 20:28 (revizija, H2): prompt sada dobiva CINJENICE O MECU izracunate
+    u kodu (kvota picka i protivnika, devig cijena, pojas kvote s nasim izmjerenim edgeom,
+    konsenzus ili "nije dostupan", runda i njezin izvor, pravi tiket ili analysis-only,
+    predaja) i osvjezene bazne stope s izricito oznacenim palim nalazima. Vidi
+    `_loss_match_facts` — 15 od 20 rujanskih analiza te je cinjenice izmisljalo.
 
     STRUKTURNA MANA — IZMJERENA 26.08.2026 14:01, POPRAVLJENA 06.09.2026 10:27.
 
@@ -809,6 +942,14 @@ def _analyze_lost_match(match: dict, stats: dict = None) -> str:
         print(f"  Draw povijest za analizu gubitka nedostupna: {e}")
 
     base_rates = _LOSS_BASE_RATES
+    # Cinjenice o mecu (26.09.2026 20:28, H2) — vidi `_loss_match_facts`. Neuspjeh ne
+    # smije srusiti analizu; tada model dobiva izricito "nepoznato", ne tisinu.
+    try:
+        facts_block = _loss_match_facts(match)
+    except Exception as e:
+        print(f"  Cinjenice za analizu gubitka nedostupne: {e}")
+        facts_block = ("=== MATCH FACTS === unavailable - do not guess odds, price band, "
+                       "round or ticket status; say they are unknown.")
 
     prompt = f"""A tennis prediction model made an incorrect prediction. Analyse the error.
 
@@ -817,6 +958,13 @@ OUR PREDICTION: {pick} to win (confidence: {confidence}%)
 ACTUAL RESULT: {actual} won | Score: {score}
 STATED RISKS: {risk_notes}
 KEY FACTORS THAT DROVE THE PICK: {', '.join(key_factors) if key_factors else 'N/A'}
+
+{facts_block}
+FACT DISCIPLINE (added 26.09.2026): every statement about odds, price band, market
+underdog status, consensus, round or ticket status MUST come from the MATCH FACTS above.
+Never convert our confidence into odds. The price band belongs to OUR PICK's odds, never the
+opponent's. If a fact is UNKNOWN, say it is unknown - an audit found 15 of 20 earlier
+analyses inventing these facts and then "confirming" base rates that did not apply.
 {stats_block}
 TOURNAMENT DRAW HISTORY (verified API data, last 3 seasons — the ONLY authoritative source
 for past results at this event):

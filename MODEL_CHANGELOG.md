@@ -16,6 +16,123 @@ dnevnik napravljenog jednostavnim jezikom. Dopunjava se na kraju svake radne ses
 
 ---
 
+## 2026-09-26 20:46 — DUBINSKA REVIZIJA + IMPLEMENTACIJA: kazna za autsajdera radi i bez
+## konsenzusa; analiza gubitka dobiva činjenice; noge tiketa se više ne gube; nova era bce5693b
+
+Korisnikov zahtjev: potpuna revizija Grass/Hard/Clay modela, sve analize gubitaka, tri nove
+ideje, Historical Match-Up Context, scouting — pa "sve implementiraj što si predložio i što
+misliš da će pomoći". Puni izvještaj s brojkama: `revizije/2026-09-26/REVIZIJA_2026-09-26.md`,
+prilog (svaki gubitak i dobitak klasificiran) `revizije/2026-09-26/Revizija_2026-09-26_prilog.xlsx`,
+skripte analize `revizije/2026-09-26/skripte/`.
+
+`rules_hash` (hard) **d4f7a350 → bce5693b** (clay 8abedafa, grass eae80474). Snapshot v21 → **v22**.
+
+### Polazna brojka
+
+Naši pickovi su i dalje jednaki tržištu: 64,1% naspram 64,7% devigirane cijene (−0,6pp, n=451);
+hard −1,0pp (n=357). Tiketi: 55 pravih, 4 dobitna, ROI −33,1% — marža pomnožena po nogama.
+Nijedna era modela (12 ih je) nije statistički različita od nule.
+
+### 1. H1 — provjera tržišnog autsajdera radi i BEZ konsenzusa (`predictor._apply_measured_penalties`)
+
+The Odds API nema ključeve za ATP 250 (provjereno besplatnim `/sports` pozivom). Zato od 13.09.
+nijedan meč nije imao `market_p`, i kazna −5pp za tržišnog autsajdera — jedino pravilo s istim
+predznakom u obje ere — **tiho nije okidala nijednom**. Oba prava tiketa 23. i 24.09. imala su
+upravo takvu nogu (Shimabukuro @2,00, Sonego @2,10); obje pale.
+Sada: konsenzus kad postoji, inače devigirana screenshot cijena (strogo < 50%, jer su jednake
+kvote 1,85/1,85 česte i takav pick nije autsajder). Izmjereno: autsajderi bez konsenzusa −4,0pp
+(n=28, ROI −10,5%), s konsenzusom −10,7pp (n=20); od 06.09. 0-5. Popravak dosega postojećeg
+pravila, ne novi nalaz — zato ne ide kroz kapiju. Bilježi se `source` i `market_source`.
+`run_daily` od danas GLASNO ispisuje svaki turnir bez konsenzusa. U promptu je pravilo o
+autsajderu dobilo jednu rečenicu: bez konsenzusa ista provjera koristi SuperSport cijenu.
+
+### 2. H2 — analiza gubitka dobiva ČINJENICE O MEČU (`feedback_analyzer._loss_match_facts`)
+
+Pročitano svih 23 rujanskih analiza gubitaka (20 mečeva). **15 od 20 tvrdi nešto netočno o
+samom meču**: rundu (Zheng, Lehecka, Fritz — sve R32 — opisani kao "R16/QF"), kvotu izvedenu iz
+NAŠE POUZDANOSTI (Alcaraz @1,24 "u pojasu 1,35-1,43") ili iz kvote protivnika (Gea @2,25,
+Cerundolo @2,30, Blockx @2,35 "u rupi 1,43-1,60"), status ("Sonego nije izdan na tiket" — bio je,
+na pravom tiketu od 24.09.). Uzrok u kodu: prompt nije dobivao kvotu, rundu ni status tiketa.
+Popravak od 06.09. (bazne stope) zamijenio je stari oblik naknadne pameti novim: "potvrda iz tablice".
+Sada kod računa i daje kao činjenice: kvotu picka i protivnika, devig cijenu, autsajder da/ne,
+pojas kvote s našim izmjerenim edgeom (`utils.helpers.band_edge_context`), konsenzus ili "nije
+dostupan", rundu i njezin izvor (očišćene krive oznake = NEPOZNATO), pravi tiket ili analysis-only,
+predaju. Uz to "FACT DISCIPLINE" u promptu i osvježene bazne stope (n=451) s izričito označenim
+PALIM nalazima. Regenerirane su sve analize gubitaka od 29.08. (stari tekstovi sačuvani u
+`revizije/2026-09-26/stare_analize_gubitaka.json`). Učinak na pickove: nula.
+
+### 3. HITNO — noge tiketa su se gubile (`ticket_builder._leg_time`, `save_ticket_matches`)
+
+Nađeno usput, pri provjeri Dnevnog listića: **jutrošnji pravi tiket 26.09. (Hurkacz @1,37,
+Vacherot @1,85, Marozsan @1,80 = 4,56) spremljen je BEZ IJEDNE NOGE.** API-jev `timeGame` bio je
+prazan u svih 570 dosadašnjih nogu; od 26.09. vraća puni ISO trenutak (24 znaka), a
+`ticket_matches.match_time` je VARCHAR(20). Upis je pao, fallback isto, i sve bez traga —
+tiket bi zauvijek ostao "pending", a to bi se ponavljalo svaki dan. Popravljeno: sat noge je
+"HH:MM" po Zagrebu (screenshot ima prednost), tekstualna polja režu se na širinu stupca, a
+neuspjeli upis sada VIČE u logu. Tri noge današnjeg tiketa vraćene su iz spremljenih analiza
+(umnožak kvota točno 4,5621).
+
+### 4. H3 — ispravci podataka i zapisa
+
+- Båstad QF 17.07. (Darderi–Borges): u bazi poraz, stvarno Darderi 7-6(9) 6-4 → ispravljeno.
+- **Trinaesti tihi ključ:** `p*_aces` u zapisu bio je 0 u 410/410 redaka (čitao
+  `aces_per_match`, a funkcija vraća `aces_per_game`). Sada `p*_aces_per100`.
+- **Četrnaesti:** visina/težina upisivane kao 0 umjesto praznog (50/410). "Signal visine"
+  r=+0,16 bio je artefakt tih nula (bez njih r=+0,004). Sada None.
+- Prompt je asove zvao "Aces/match", a brojka je asovi na 100 servisnih poena — preimenovano.
+
+### 5. Scouting (M3)
+
+- Iz prompta **uklonjena polja "favours / struggles against"**. Izmjereno na berbi s kvotama
+  (315 igrača, 2023-2026), tip protivnika mjeren iz podataka: "muku muči s velikim serverima"
+  −2,8pp ±3,1 (44 tvrdnje), "s returnerima" −1,2pp ±3,9 (30/56 u smjeru tvrdnje = novčić),
+  "voli" tvrdnje idu naopako. Polja ostaju u Excelu i Supabaseu za čitanje.
+- Ispravljena 4 stila koja proturječe mjerenjima (Excel + Supabase, `source_date` samo njima):
+  Nakashima (bio "counter-puncher", hold 95. / povrat 14. percentil), Norrie, Giron, Wong.
+- Low/Insufficient profili NAMJERNO se ne dižu (Jodar, Tien, Cobolli...) — izmjereno 17.08.
+  da prolazimo bolje kad se model ne oslanja na profil.
+
+### 6. Prikaz samo za korisnika (Dnevni listić) — ne ulazi u odluku
+
+Po picku: naš povijesni edge u pojasu kvote i "naš dosje s igračem" (korisnikova ideja 2),
+izričito označeno "model ovo NE vidi".
+
+### 7. Kapija jednom naredbom — `scripts/measure_candidates.py`
+
+K5, K10, K11, K17, K18, K19 i konsenzus s pragovima zapisanima PRIJE podataka. Novi kandidati:
+**K17** High scouting profil našeg picka (−12,4pp, n=52, isti predznak u oba razdoblja),
+**K18** hard ATP 250 (−11,2pp, n=63; bez R16/QF −11,3pp), **K19** povratak nakon pauze ≥21 dan
+(tržište −1,9 / −3,3pp za ≥42 dana, negativno sve 4 godine). Nijedan NIJE u kodu.
+
+### ODBAČENO (izmjereno danas — ne otvarati bez novih podataka)
+
+- **Tablica promašaja po igraču** (korisnikova ideja 2, "must have"): doslovno pravilo −1,0pp
+  naspram −0,4pp; višak promašaja naspram cijene r=−0,004 (n=417); postojanost igračeva ostatka
+  na 11.512 tržišnih nastupa r=+0,06 / +0,14. Rublev kao tržišni favorit +3,8pp (n=113).
+- **Protiv koga je gubio na turniru** (ideja 3): r=+0,04; jedina ćelija (2+ poraza kao favorit,
+  −18,7pp) ima n=20.
+- **Historical Match-Up Context, četvrti put** (korisnikova specifikacija): walk-forward r od
+  −0,074 do +0,054, oracle r≈0; na 5.143 ATP mečeva sličnost dodaje r=+0,04 povrh samog pojasa
+  cijene. 12 sličnih slučajeva = 95% interval ±27pp.
+- **Sekvenca protivnika** (211 mečeva s cijenom): 1 od 8 varijanti P=0,022 (drugi servis) —
+  unutar slučajnosti, samo hipoteza.
+- **Ocjenjivačka tablica od 26.08.** vanuzoračno (n=148): forma×kvaliteta, ELO protivnika <1700,
+  dob 4+ **PALI**; R16/QF drži (−17,5pp, n=15).
+- **4e (obrnuti Fery)**: −1,9 / +3,2 / −8,7 / −0,2pp u 4 definicije → ZATVORENO.
+- Statistike igrača, vrijeme (13 interakcija, 0 značajnih), kretanje kvota (četvrti put,
+  r=−0,06), 276 interakcija parova (13 "značajnih" uz 13,8 očekivanih, 0 prežive BH).
+
+### NAMJERNO NIJE NAPRAVLJENO
+
+K5/K10 (zona 1,35-1,60 i izričit bonus po pojasu), K11 (R16/QF kazna), K17-K19 — sve čeka
+kapiju; `edge_bonus` ostaje; težine netaknute (clay v17 iz auto-feedbacka → BACKLOG, prije
+sezone zemlje 2027.); drugi izvor konsenzusa za ATP 250 → BACKLOG.
+
+Testovi: odjeljak 48 u `test_cap_and_weather.py` (47 novih provjera), žig ere i verzija
+zapisa u oba paketa. Oba paketa prolaze.
+
+---
+
 ## 2026-09-26 17:04 — RUNDA JE RUČNI UNOS; GS finala vraćena u prompt; tri nove varijable;
 ## vremenske zone po trenutku meča; dohvat 2x brži
 

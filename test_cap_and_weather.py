@@ -432,8 +432,8 @@ for f in ("p1_serve_pts_won", "p1_hold_pct", "p1_hold_pct_from_bp", "p1_return_w
           "p1_return_won_weighted", "p1_bp_saved", "p1_bp_converted", "p1_first_serve_pct",
           "bp_in_prompt"):
     check(f"snapshot biljezi {f}", f'"{f}"' in _all)
-check("context_version podignut na 21 (v17 27.08., v18/v19 13.09., v20 19.09., v21 26.09.)",
-      '"context_version": 21' in _all)
+check("context_version podignut na 22 (v17 27.08., v18/v19 13.09., v20 19.09., v21/v22 26.09.)",
+      '"context_version": 22' in _all)
 
 # (e) nove vrijednosti ne smiju procuriti u prompt template
 check("prompt template nema novih polja",
@@ -469,14 +469,22 @@ check("krivi nazivi API polja dokumentirani", "breakPointOf" in _dfsrc)
 #             (JSON primjer je nosio oznake od prije 22.08., specifikacija nove).
 #             Napravljeno ODMAH jer era 61999517 nije imala nijednu analizu, pa rez
 #             korpusa nije nastao; odgadjanje bi znacilo drugu promjenu hasha kasnije.
-_ERA_RULES_HASH = "d4f7a350"
+#   b2139075 / adb358d0  13.09.2026 — statistika s turnira (K12) i vijesti u odluku
+#   d4f7a350  19.09.2026 11:50 — Davis Cup blok (za ATP nominalno isti tekst)
+#   bce5693b  26.09.2026 20:28 — revizija: scouting vise ne salje "favours / struggles
+#             against" (izmjereno: ne nosi nista povrh cijene) i asovi su ispravno
+#             oznaceni "Aces per 100 serve pts" (prije "Aces/match" za istu brojku);
+#             pravilo o trzisnom autsajderu kaze da bez konsenzusa vrijedi screenshot cijena.
+_ERA_RULES_HASH = "bce5693b"
 
 # Verzija oblika `context_snapshot`. Do 13.09.2026 je bila doslovno upisana na 8
 # mjesta u dva testna paketa, pa je svako podizanje znacilo lov po datotekama.
 # Povijest: v15 22.08. | v16 26.08. | v17 27.08. | v18 13.09. 10:44 | v19 13.09. 12:20
 # (v18 = izvor runde, izvor gradje, vijesti po igracu — sve tri su do tada bile
 #  pokvarene, pa se biljezi ODAKLE vrijednost dolazi.)
-_CTX_VERSION = 20
+# v20 19.09. (Davis Cup) | v21 26.09. 17:04 (ruka/sezona/GS) | v22 26.09. 20:28
+# (market_source, p*_aces_per100 umjesto uvijek-nultog p*_aces, visina/tezina None umjesto 0)
+_CTX_VERSION = 22
 
 
 # NAJVAZNIJE: ograda o late-round pravilu NE SMIJE biti unutar prompt templatea —
@@ -528,7 +536,7 @@ _wf2 = open(".github/workflows/daily_ticket.yml", encoding="utf-8").read()
 
 # A — bez utjecaja na pickove
 check("ELO se biljezi u snapshot", '"p1_elo_overall"' in _prsrc and '"elo_gap_surface"' in _prsrc)
-check("context_version podignut na 21", '"context_version": 21' in _prsrc)
+check("context_version podignut na 22", '"context_version": 22' in _prsrc)
 check("broj protivnika u avg_opp_elo se biljezi", "_avg_opponent_elo_n" in _rd2)
 check("PYTHONUNBUFFERED aktiviran", 'PYTHONUNBUFFERED: "1"' in _wf2)
 check("hard okidac vise ne vristi na 30", "_HARD_NEXT_TRIGGER = 180" in _rd2)
@@ -677,7 +685,7 @@ check("stara zabrana oslanjanja na kvotu i dalje stoji",
 check("nova polja u JSON shemi",
       '"above_64_basis"' in _FULL_PROMPT
       and '"market_check"' in _FULL_PROMPT)
-check("context_version podignut na 21", '"context_version": 21' in _all2)
+check("context_version podignut na 22", '"context_version": 22' in _all2)
 
 print("\n=== 22. Runde na razini TURNIRA (13.08.2026) ===")
 print("  (uklonjeno 26.09.2026 17:04 — runda je rucni unos, vidi odjeljak 44)")
@@ -1292,8 +1300,9 @@ _fa_src = inspect.getsource(_fa)
 check("bazne stope sadrze kontrolnu tablicu pobjeda/poraza",
       "THE CONTROL TABLE" in _fa_src)
 check("bazne stope imenuju varijable koje NE razdvajaju", "IDENTICAL" in _fa_src)
+# 26.09.2026 20:28: brojka je osvjezena (0 od 3 -> 3 od 12), smisao isti.
 check("bazne stope nose upozorenje o replikaciji",
-      "REPLICATION WARNING" in _fa_src and "0 of 3" in _fa_src)
+      "REPLICATION WARNING" in _fa_src and "3 of our last 12" in _fa_src)
 check("omjer winneri/greske je u statistici meca", "_wue(" in _fa_src)
 _st = {"player1Stats": {"winners": 55, "unforcedErrors": 59, "our_player_id": 1},
        "player2Stats": {"winners": 41, "unforcedErrors": 54, "our_player_id": 2},
@@ -1684,7 +1693,7 @@ check("rules_hash je i dalje era 6ca9a0ab (mijenjaju se VRIJEDNOSTI, ne predloza
       _h39 == _ERA_RULES_HASH, _h39)
 
 # --- (i) context_snapshot v18 biljezi ODAKLE svaka vrijednost dolazi ---
-check("context_version podignut na 21", '"context_version": 21' in _prsrc39)
+check("context_version podignut na 22", '"context_version": 22' in _prsrc39)
 check("biljezi se round_source", '"round_source"' in _prsrc39)
 check("biljezi se izvor gradje za oba igraca",
       '"p1_build_source"' in _prsrc39 and '"p2_build_source"' in _prsrc39)
@@ -2386,6 +2395,215 @@ finally:
     for _c in (_df47._player_info_cache, _df47._tournament_results_cache,
                _df47._past_matches_page_cache, _pc47._history_cache, _pc47._gs_cache):
         _c.clear()
+
+print("\n=== 48. Revizija 26.09.2026: autsajder bez konsenzusa, cinjenice u analizi gubitka, zapis, scouting ===")
+import inspect as _in48
+from agent import predictor as _pr48
+from agent import feedback_analyzer as _fa48
+from utils import helpers as _h48
+
+# --- H1: provjera trzisnog autsajdera radi i bez konsenzusa -------------------------
+def _pen48(match, pick="Ana Anic", conf=63.0):
+    r = {"pick": pick, "confidence": conf}
+    _pr48._apply_measured_penalties(r, match, {"scouting": {"confidence": "High"}},
+                                    {"scouting": {"confidence": "High"}})
+    return r
+
+_r = _pen48({"player1": "Ana Anic", "player2": "Bruno Bric", "odds_p1": 2.00, "odds_p2": 1.80})
+check("bez konsenzusa: screenshot autsajder (2,00 vs 1,80) dobiva -5pp",
+      _r["confidence"] == 58.0, str(_r))
+check("izvor kazne zapisan kao 'screenshot'",
+      (_r.get("measured_penalties") or {}).get("applied", [{}])[0].get("source") == "screenshot"
+      and _r.get("market_source") == "screenshot", str(_r))
+_r = _pen48({"player1": "Ana Anic", "player2": "Bruno Bric", "odds_p1": 1.85, "odds_p2": 1.85})
+check("izjednacene screenshot kvote (1,85/1,85) NISU autsajder (strogo < 50%)",
+      _r["confidence"] == 63.0 and _r.get("measured_penalties") is None, str(_r))
+_r = _pen48({"player1": "Ana Anic", "player2": "Bruno Bric", "odds_p1": 2.10, "odds_p2": 1.70,
+             "market_p": 0.60})
+check("konsenzus ima prednost: kaze favorit -> bez kazne iako screenshot kaze autsajder",
+      _r["confidence"] == 63.0 and _r.get("market_source") == "consensus", str(_r))
+_r = _pen48({"player1": "Ana Anic", "player2": "Bruno Bric", "odds_p1": 1.50, "odds_p2": 2.60,
+             "market_p": 0.40})
+check("konsenzus-autsajder i dalje kaznjen (izvor 'consensus')",
+      _r["confidence"] == 58.0
+      and _r["measured_penalties"]["applied"][0].get("source") == "consensus", str(_r))
+_r = _pen48({"player1": "Ana Anic", "player2": "Bruno Bric", "odds_p1": 1.80, "odds_p2": 2.00},
+            pick="Bruno Bric")
+check("strana picka je ispravna: pick = player2 @2,00 je autsajder",
+      _r["confidence"] == 58.0, str(_r))
+_r = _pen48({"player1": "Ana Anic", "player2": "Bruno Bric"})
+check("bez konsenzusa i bez kvota: nema kazne, izvor 'none'",
+      _r.get("measured_penalties") is None and _r.get("market_source") == "none", str(_r))
+check("snapshot biljezi market_source", '"market_source"' in _in48.getsource(_pr48))
+check("prompt zna da bez konsenzusa vrijedi screenshot cijena",
+      "the same check uses the de-vigged SuperSport price" in (_ANALYSIS_SYSTEM_TEMPLATE + ANALYSIS_PROMPT_TEMPLATE))
+
+# --- H3: zapis ----------------------------------------------------------------------
+_src48 = _in48.getsource(_pr48)
+check("asovi se biljeze iz aces_per_game pod novim imenom",
+      '"p1_aces_per100": (safe_float(p1.get("aces_per_game")) or None)' in _src48)
+check("stari uvijek-nulti kljuc p1_aces se vise ne pise", '"p1_aces":' not in _src48)
+check("visina/tezina: prazno ostaje prazno (None, ne 0)",
+      '"p1_height_cm": (safe_float(' in _src48 and _src48.count(") or None),") >= 4)
+check("context_version je 22", '"context_version": 22,' in _src48)
+
+# --- nova era prompta ----------------------------------------------------------------
+check("asovi u promptu oznaceni kao 'per 100 serve pts'",
+      "Aces per 100 serve pts: {p1_aces}" in ANALYSIS_PROMPT_TEMPLATE
+      and "Aces/match" not in ANALYSIS_PROMPT_TEMPLATE)
+_sc48 = _pr48._format_scouting({"confidence": "High", "style": "X", "best_surfaces": "Hard",
+                                "strengths": "s", "weaknesses": "w",
+                                "favourable_matchups": "FAVTXT", "tough_matchups": "TOUGHTXT"})
+check("scouting u promptu NEMA 'favours/struggles' polja",
+      "FAVTXT" not in _sc48 and "TOUGHTXT" not in _sc48 and "Style: X" in _sc48, _sc48)
+_tpl48 = _ANALYSIS_SYSTEM_TEMPLATE + ANALYSIS_PROMPT_TEMPLATE
+check("pravilo o stilovima vise ne upucuje na matchup polja",
+      "favourable/tough matchup fields" not in _tpl48 and "no longer carry" in _tpl48)
+
+# --- zajednicke funkcije (pojas cijene, dosje) -------------------------------------
+check("pojas: 1,35 pripada 1,35-1,43", _h48.price_band(1.35) == (1.35, 1.43))
+check("pojas: 1,20 pripada 1,20-1,35", _h48.price_band(1.20) == (1.20, 1.35))
+check("pojas: 2,00 je 2,00+", _h48.price_band_label(_h48.price_band(2.00)) == "2.00+")
+check("pojas: bez kvote -> None", _h48.price_band(None) is None and _h48.price_band(1.0) is None)
+check("devig: 2,00 / 1,80 -> 47,4%", abs(_h48.devig_pick_prob(2.0, 1.8) - 0.47368) < 1e-4)
+_rows48 = [
+    {"predicted_winner": "A", "player1": "A", "player2": "B", "bookmaker_odds_p1": 1.25,
+     "bookmaker_odds_p2": 4.0, "prediction_correct": True, "match_date": "2026-09-01"},
+    {"predicted_winner": "A", "player1": "C", "player2": "A", "bookmaker_odds_p1": 4.5,
+     "bookmaker_odds_p2": 1.22, "prediction_correct": False, "match_date": "2026-09-02"},
+    {"predicted_winner": "B", "player1": "A", "player2": "B", "bookmaker_odds_p1": 1.5,
+     "bookmaker_odds_p2": 2.6, "prediction_correct": False, "match_date": "2026-09-03"},
+    {"predicted_winner": "X", "player1": "A", "player2": "B", "bookmaker_odds_p1": 1.3,
+     "bookmaker_odds_p2": 3.0, "prediction_correct": True, "match_date": "2026-09-04"},  # pick izvan para
+]
+_be48 = _h48.band_edge_context(_rows48, 1.28)
+check("edge pojasa racuna samo pickove u pojasu i s valjanim pickom",
+      _be48["n"] == 2 and abs(_be48["wr"] - 50.0) < 1e-9, str(_be48))
+_d48 = _h48.player_dossier(_rows48, "A")
+check("dosje: A kao pick 1-1, kao protivnik nas srusio 1/1",
+      (_d48["as_pick_n"], _d48["as_pick_w"], _d48["as_opp_n"], _d48["beat_us"]) == (2, 1, 1, 1),
+      str(_d48))
+
+# --- H2: cinjenice o mecu u analizi gubitka ---------------------------------------
+_orig48 = (_fa48.db.find_existing_analysis, _fa48.db.get_ticket_status,
+           _fa48.db.get_resolved_for_context, _fa48._CTX_ROWS_CACHE[:])
+try:
+    _fa48._CTX_ROWS_CACHE.clear()
+    _fa48.db.get_resolved_for_context = lambda *a, **k: _rows48
+    _fa48.db.find_existing_analysis = lambda *a, **k: {
+        "player1": "Ben Shelton", "player2": "Carlos Alcaraz", "round": "SF",
+        "bookmaker_odds_p1": 4.10, "bookmaker_odds_p2": 1.24,
+        "context_snapshot": {"market_p": 0.221, "round_source": "manual"}}
+    _fa48.db.get_ticket_status = lambda *a, **k: {"status": "analysis_only", "ticket_date": "2026-09-08"}
+    _lm48 = {"pick": "Carlos Alcaraz", "player1": "Ben Shelton", "player2": "Carlos Alcaraz",
+             "odds": 1.24, "confidence": 72, "tournament": "U.S. Open - New York",
+             "match_date": "2026-09-08", "ticket_id": "t", "round": "QF",
+             "actual_score": "6-7(5) 6-1 6-3 1-6 7-6"}
+    _f48 = _fa48._loss_match_facts(_lm48)
+    check("cinjenice: kvota picka i protivnika + devig cijena",
+          "odds 1.24" in _f48 and "4.10" in _f48 and "76.8%" in _f48, _f48)
+    check("cinjenice: pojas iz KVOTE PICKA (1,20-1,35), ne iz pouzdanosti",
+          "1.20-1.35" in _f48 and "1.35-1.43" not in _f48, _f48)
+    check("cinjenice: konsenzus poravnat na nas pick (1-0,221 = 77,9%)", "77.9%" in _f48, _f48)
+    check("cinjenice: rucna runda ima prednost pred oznakom na tiketu (SF, ne QF)",
+          "Round: SF (entered manually" in _f48, _f48)
+    check("cinjenice: analysis-only lista je tako i oznacena", "ANALYSIS-ONLY" in _f48, _f48)
+    check("cinjenice: bez predaje nema retka o predaji", "RETIREMENT" not in _f48, _f48)
+
+    _fa48.db.find_existing_analysis = lambda *a, **k: {
+        "player1": "Jenson Brooksby", "player2": "Lorenzo Sonego", "round": None,
+        "bookmaker_odds_p1": 1.70, "bookmaker_odds_p2": 2.10,
+        "context_snapshot": {"round_source": "cleared_wrong_auto"}}
+    _fa48.db.get_ticket_status = lambda *a, **k: {"status": "lost", "ticket_date": "2026-09-24"}
+    _lm48b = {"pick": "Lorenzo Sonego", "player1": "Jenson Brooksby", "player2": "Lorenzo Sonego",
+              "odds": 2.10, "confidence": 60, "tournament": "Chengdu Open - Chengdu",
+              "match_date": "2026-09-25", "ticket_id": "t2", "round": "R64",
+              "actual_score": "5-7 7-5 6-2"}
+    _f48b = _fa48._loss_match_facts(_lm48b)
+    check("Sonego: pravi tiket je oznacen kao PRAVI tiket s ulogom", "REAL ticket" in _f48b, _f48b)
+    check("Sonego: trzisni autsajder = YES", "Market underdog: YES" in _f48b, _f48b)
+    check("Sonego: konsenzus NIJE bio dostupan", "NOT AVAILABLE" in _f48b, _f48b)
+    check("Sonego: ociscena kriva runda je NEPOZNATA (ne 'R64' s tiketa)",
+          "Round: UNKNOWN" in _f48b and "R64" not in _f48b, _f48b)
+    _lm48b["actual_score"] = "6-2 7-5 3-2 ret."
+    check("predaja se izricito navodi", "RETIREMENT" in _fa48._loss_match_facts(_lm48b))
+
+    # prompt analize gubitka zaista nosi cinjenice i disciplinu
+    class _Resp48:
+        content = [type("B", (), {"text": "ok"})()]
+    class _Msgs48:
+        def __init__(self): self.last = None
+        def create(self, **kw):
+            self.last = kw
+            return _Resp48()
+    class _Cli48:
+        def __init__(self): self.messages = _Msgs48()
+    _cli48 = _Cli48()
+    _orig_cli48 = _fa48._get_client
+    _fa48._get_client = lambda: _cli48
+    try:
+        _fa48._analyze_lost_match(_lm48b, {})
+        _p48 = _cli48.messages.last["messages"][0]["content"]
+        check("prompt analize gubitka sadrzi MATCH FACTS i FACT DISCIPLINE",
+              "MATCH FACTS" in _p48 and "FACT DISCIPLINE" in _p48)
+        check("bazne stope su osvjezene (26.09.2026, pale oznacene)",
+              "through 26.09.2026" in _p48 and "FAILED OUT OF SAMPLE" in _p48)
+    finally:
+        _fa48._get_client = _orig_cli48
+finally:
+    (_fa48.db.find_existing_analysis, _fa48.db.get_ticket_status,
+     _fa48.db.get_resolved_for_context) = _orig48[:3]
+    _fa48._CTX_ROWS_CACHE.clear()
+    _fa48._CTX_ROWS_CACHE.extend(_orig48[3])
+
+# --- glasno umjesto tiho, mjerenje, prikaz ---------------------------------------
+import agent.run_daily as _rd48
+check("run_daily glasno ispisuje turnire bez konsenzusa",
+      "KONSENZUS NEDOSTUPAN" in _in48.getsource(_rd48))
+import importlib.util as _iu48
+_spec48 = _iu48.spec_from_file_location("measure_candidates", "scripts/measure_candidates.py")
+_mc48 = _iu48.module_from_spec(_spec48)
+_spec48.loader.exec_module(_mc48)
+_syn48 = [{"date": "2026-10-01", "odds": 1.8, "p": 0.55, "win": 0.0, "round": "R32",
+           "round_source": "manual", "surface": "hard", "level": "ATP 250", "scout_pick": "High",
+           "rest_pick": 3, "rest_opp": 3, "gap": None} for _ in range(30)]
+check("K18 s 30 hard ATP 250 poraza -> POTVRDJEN", _mc48.k18(_syn48)[0][3] == "POTVRDJEN")
+check("K18 s 5 meceva -> CEKA", _mc48.k18(_syn48[:5])[0][3] == "CEKA")
+check("K17 s 30 High pickova koji pobjedjuju -> PAO",
+      _mc48.k17([dict(x, win=1.0) for x in _syn48])[0][3] == "PAO")
+_page48 = open("pages/1_Dnevni_Listic.py", encoding="utf-8").read()
+check("Dnevni listic: kontekst samo za korisnika, izricito izvan odluke",
+      "_context_line" in _page48 and "model ovo NE vidi" in _page48)
+_regen48 = open("scripts/regen_loss_analyses.py", encoding="utf-8").read()
+check("regeneracija analiza: --since, --include-no-stats i --backup",
+      all(x in _regen48 for x in ("--since", "--include-no-stats", "--backup")))
+
+# --- HITNO 26.09.2026 20:50: noge tiketa pale na match_time od 24 znaka -------------
+from agent import ticket_builder as _tb48
+check("sat noge: ISO sa screenshota -> 'HH:MM' po Zagrebu",
+      _tb48._leg_time({"start_utc": "2026-09-26T08:30:00.000Z", "time": "x"}) == "10:30")
+check("sat noge: API ISO kad nema screenshota", _tb48._leg_time({"time": "2026-09-27T05:30:00.000Z"}) == "07:30")
+check("sat noge: prazno ostaje prazno", _tb48._leg_time({}) == "")
+check("sat noge nikad dulji od 20 znakova",
+      len(_tb48._leg_time({"time": "neparsabilan tekst koji je predug za stupac"})) <= 20)
+_tbsrc48 = _in48.getsource(_tb48)
+check("obje konstrukcije nogu koriste _leg_time", _tbsrc48.count('"match_time": _leg_time(m)') == 2
+      and '"match_time": m.get("time"' not in _tbsrc48)
+_orig_ins48 = _fa48.db._insert
+_calls48 = []
+try:
+    _fa48.db._insert = lambda table, data: (_calls48.append(data) or [])
+    import io as _io48b, contextlib as _cl48b
+    _buf48 = _io48b.StringIO()
+    with _cl48b.redirect_stdout(_buf48):
+        _ok48 = _fa48.db.save_ticket_matches([{"match_time": "2026-09-26T08:30:00.000Z",
+                                               "player1_id": "1", "pick": "A"}])
+    check("neuspjeli upis nogu vraca False i VICE u logu",
+          _ok48 is False and "NOGE TIKETA NISU SPREMLJENE" in _buf48.getvalue())
+    check("prije upisa se tekst reze na sirinu stupca (match_time <= 20)",
+          all(len(x[0]["match_time"]) <= 20 for x in _calls48 if x))
+finally:
+    _fa48.db._insert = _orig_ins48
 
 print("\n" + "=" * 60)
 if _fails:
