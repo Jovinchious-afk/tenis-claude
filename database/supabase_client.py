@@ -540,30 +540,6 @@ def get_all_scouting() -> dict:
         return {}
 
 
-def get_tournament_rounds(tournaments) -> list:
-    """Sve dosad zabiljezene oznake runda za dane turnire (za provjeru na razini turnira).
-
-    Uvedeno 13.08.2026 12:47: `_verify_late_rounds` mora znati koliko je mecheva turnir vec
-    imao pod oznakom SF/QF/F, a jedan dnevni run vidi samo 2-3 dana. Bez toga je API mogao
-    cetiri dana zaredom slati po 2 "polufinala" i svaki bi dan prosao kao valjan.
-    Vraca lagane retke (bez analize) — jedan upit po runu.
-
-    PAZI (utvrdjeno 28.08.2026 19:58): ovo vraca i retke koje je raniji run ISTOG DANA vec
-    upisao, pa pozivatelj (`_verify_late_rounds`) danasnje meceve broji DVAPUT ako se run
-    pokrene dvaput. Posljedica je spustanje oznake runde za jednu stepenicu — izmjereno na
-    Winston-Salemu 28.08. (Buse-Bonzi SF->QF, Duckworth-Fery F->SF). Filtriranje NIJE
-    dodano ovdje nego je predvidjeno u pozivatelju, jer ovaj upit legitimno treba i danasnje
-    retke kad run ide prvi put u danu. Puni opis: `run_daily._verify_late_rounds`."""
-    if not tournaments:
-        return []
-    since = (datetime.date.today() - datetime.timedelta(days=30)).isoformat()
-    rows = _select("analyzed_matches", select="match_date,tournament,round,player1,player2",
-                   filters={"match_date": f"gte.{since}"})
-    want = {" ".join(str(t).lower().split()) for t in tournaments}
-    return [r for r in rows
-            if " ".join(str(r.get("tournament") or "").lower().split()) in want]
-
-
 def get_resolved_analyzed_matches(limit: int = 2000) -> list:
     """Sve razriješene analize (prediction_correct NIJE null) iz ŠIREG korpusa
     analyzed_matches — NE samo tiket pickovi (preporuka F, 18.07.2026: kalibracijska

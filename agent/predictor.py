@@ -1649,7 +1649,7 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         tournament=match.get("tournament", ""), level=match.get("level", "ATP 250"),
         surface=surface, round=match.get("round", ""), date=match.get("date", ""),
         format="Best of 3" if "Grand Slam" not in match.get("level", "") else "Best of 5",
-        round_context=_round_context(match.get("round", ""), match.get("level", ""), match.get("round_id", 0)),
+        round_context=_round_context(match.get("round", ""), match.get("level", "")),
 
         p1_age=(p1.get("age") or "N/A") if _AGE_TO_PROMPT else "N/A",
         p1_hand=_format_hand(p1.get("hand", "")),
@@ -1920,7 +1920,19 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             # osim ekipnih natjecanja renderira u prazan string, pa je tekst koji
             # model vidi bajt-identican eri `adb358d0`. Hash se mijenja jer hashiramo
             # PREDLOZAK, ne renderirani prompt — to je namjerno i ne treba "popravljati".
-            "context_version": 20,
+            # v21 (26.09.2026 17:04): runda je RUCNI UNOS (`round_source` "manual" /
+            # "missing"), i tri igraceve varijable koje je trazio korisnik — omjer protiv
+            # ljevaka/desnjaka, ATP sezona, GS polufinala/finala (`p*_ctx`, racuna ih
+            # `agent/player_context.py`). Iste vrijednosti su backfillane u SVE ranije
+            # retke sa `source: "backfill"`, pa se mogu mjeriti unatrag. Uz to se prvi
+            # put biljeze karijerna finala (`p*_titles`): u promptu su od 26.07.2026, a
+            # nikad nisu spremljena — i do danas su tiho izostavljala GS finala.
+            "context_version": 21,
+            "p1_ctx": p1.get("ctx") or None,
+            "p2_ctx": p2.get("ctx") or None,
+            "player_ctx_version": 1,
+            "p1_titles": p1.get("titles") or None,
+            "p2_titles": p2.get("titles") or None,
             "p1_tourn_form_matches": (p1.get("tournament_form") or {}).get("matches"),
             "p2_tourn_form_matches": (p2.get("tournament_form") or {}).get("matches"),
             "p1_tourn_form_serve_won": (p1.get("tournament_form") or {}).get("serve_won"),
@@ -1939,7 +1951,10 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             "dc_tie_decided": (match.get("davis_cup_tie") or {}).get("decided"),
             "dc_tie_at_risk": (match.get("davis_cup_tie") or {}).get("at_risk"),
             "dc_tie_score": ((match.get("davis_cup_tie") or {}).get("text") or None),
-            "round_source": match.get("round_source") or "heuristic",
+            # 26.09.2026 17:04: "manual" = korisnik upisao uz par na screenshotu,
+            # "missing" = nije upisao. Stare vrijednosti "draw"/"heuristic"/"davis_cup"
+            # postoje samo u retcima prije tog dana.
+            "round_source": match.get("round_source") or "missing",
             "p1_build_source": ("scouting" if (p1.get("scouting") or {}).get("height_cm")
                                 else ("api" if p1.get("height_cm") else "none")),
             "p2_build_source": ("scouting" if (p2.get("scouting") or {}).get("height_cm")
@@ -2767,42 +2782,45 @@ def _format_surface_record(surface_summary: dict, surface: str) -> str:
     return f"{data['wins']}W/{data['losses']}L ({data['win_pct']}%) — {data['matches']} matches"
 
 
-def _round_context(round_str: str, level: str, round_id: int = 0) -> str:
-    """Contextual description of the round using numeric round_id (eliminates F ambiguity)."""
-    is_gs = "Grand Slam" in level
+def _round_context(round_str: str, level: str) -> str:
+    """Opis runde za prompt, iz koda koji je korisnik RUCNO upisao uz par.
+
+    PREPISANO 26.09.2026 17:04 (runda je od danas rucni unos, vidi `ROUND_CHOICES` u
+    `utils/helpers.py`). Stara verzija opisivala je rundu kao "prvu/drugu/trecu" po
+    rednom broju na ljestvici R128..F. To je tocno samo za zdrijeb od 128: na ATP 250
+    zdrijebu od 28-32 prvo kolo JE R32, a model je za njega citao "Third round. Field
+    significantly reduced. Top players usually through." Zato se runda sada opisuje
+    po tome KOLIKO JE IGRACA JOS U ZDRIJEBU, uz napomenu koje je to kolo na kojoj razini
+    — bez tvrdnje koja ovisi o velicini zdrijeba koju ne znamo.
+
+    Prazan kod znaci da korisnik rundu nije upisao; model to dobiva izricito, da ne bi
+    rundu sam izvodio iz drugih podataka.
+    """
+    is_gs = "Grand Slam" in (level or "")
     fmt = "Best of 5" if is_gs else "Best of 3"
-
-    # Prefer numeric ID — avoids the "F" ambiguity (API uses F for both Final and sometimes other rounds)
-    if round_id:
-        _ctx = {
-            1: f"First round ({fmt}). Large skill gaps possible; qualifiers and lucky losers present. Higher upset potential.",
-            2: f"Second round ({fmt}). Qualifiers mostly gone. Some upsets still common.",
-            3: f"Third round ({fmt}). Field significantly reduced. Top players usually through.",
-            4: f"Round of 16 ({fmt}). Only proven performers remain. Upsets less frequent.",
-            5: f"Quarterfinal ({fmt}). Elite level — all 8 players proven over 4-5 matches. Physical fatigue starts to matter.",
-            6: f"Semifinal ({fmt}). Top 4 in the draw. Both battle-hardened. Fatigue and mental strength decisive.",
-            7: f"Final ({fmt}). Both finalists proven over 6+ matches. Psychological pressure and physical condition critical.",
-        }
-        if round_id in _ctx:
-            return _ctx[round_id]
-
-    # String fallback
-    r = round_str.upper().strip()
-    if r in ("R128", "R1"):
-        return f"First round ({fmt})."
-    if r in ("R64", "R2"):
-        return f"Second round ({fmt})."
-    if r in ("R32", "R3"):
-        return f"Third round ({fmt}). Field significantly reduced."
-    if r in ("R16", "R4"):
-        return f"Round of 16 ({fmt}). Only proven performers remain."
-    if r == "QF":
-        return f"Quarterfinal ({fmt}). Elite level — physical fatigue starts to matter."
-    if r == "SF":
-        return f"Semifinal ({fmt}). Both players battle-hardened. Fatigue decisive."
-    if r == "F":
-        return f"Final ({fmt}). Both finalists proven over 6+ matches."
-    return f"Round: {round_str} ({fmt})."
+    r = (round_str or "").upper().strip()
+    _ctx = {
+        "R128": "Round of 128 (1/64 final). The opening round at a Grand Slam; at a 96-draw "
+                "Masters it is the opening round too, with the seeds on a bye. Qualifiers and "
+                "lucky losers present; the widest skill gaps of the event.",
+        "R64": "Round of 64 (1/32 final). Second round at a Grand Slam or Masters; at a 48-draw "
+               "ATP 250/500 it is the opening round. Qualifiers still possible.",
+        "R32": "Round of 32 (1/16 final). The OPENING round at a 28/32-draw ATP 250/500; the "
+               "third round at a Grand Slam or Masters.",
+        "R16": "Round of 16 (1/8 final). Second round at a 28/32-draw ATP 250/500; fourth round "
+               "at a Grand Slam or Masters.",
+        "QF": "Quarterfinal (1/4 final). Eight players left; physical fatigue starts to matter.",
+        "SF": "Semifinal (1/2 final). Four players left; both battle-hardened, fatigue and "
+              "mental strength decisive.",
+        "F": "Final. Psychological pressure and physical condition critical.",
+        "RR": "Round-robin group stage (ATP Finals). A loss does not eliminate; group "
+              "standings and motivation can differ between the two players.",
+        "DC": "Davis Cup tie (team competition) — see the Davis Cup block for the state of the tie.",
+    }
+    if r in _ctx:
+        return f"{_ctx[r]} ({fmt})"
+    return (f"Round NOT ENTERED by the user for this match ({fmt}). Treat the round as "
+            f"unknown; do not infer it from the draw, dates or anything else.")
 
 
 def _market_line(odds_p1: float, odds_p2: float, name_p1: str, name_p2: str) -> str:
@@ -2950,16 +2968,24 @@ def _format_titles(t: dict) -> str:
     pa dobivamo i KOLIKO ih je igrao i KOLIKO ih je zatvorio. Relevantno za QF/SF/F."""
     if not t:
         return "N/A"
-    mw, ml = t.get("main_won", 0), t.get("main_lost", 0)
+    # 26.09.2026 17:04: tour-level zbroj sada ukljucuje Grand Slam, ATP Finals i
+    # Olimpijske, koji su do danas tiho ispadali (vidi `data_fetcher.get_player_titles`).
+    # Grand Slam se navodi i zasebno, jer je bas to bila rupa.
+    gw, gl = t.get("gs_won", 0), t.get("gs_lost", 0)
+    mw = t.get("main_won", 0) + gw + t.get("big_won", 0)
+    ml = t.get("main_lost", 0) + gl + t.get("big_lost", 0)
     cw, cl = t.get("ch_won", 0), t.get("ch_lost", 0)
-    main_tot, ch_tot = mw + ml, cw + cl
+    main_tot, ch_tot, gs_tot = mw + ml, cw + cl, gw + gl
     if main_tot == 0 and ch_tot == 0:
         return "No tour-level finals on record"
     parts = []
     if main_tot:
-        parts.append(f"ATP/Masters finals: {main_tot} played, {mw} won ({mw/main_tot*100:.0f}% converted)")
+        gs_part = (f"; of which Grand Slam finals: {gs_tot} played, {gw} won" if gs_tot
+                   else "; no Grand Slam final")
+        parts.append(f"Tour-level finals: {main_tot} played, {mw} won "
+                     f"({mw/main_tot*100:.0f}% converted){gs_part}")
     else:
-        parts.append("ATP/Masters finals: none")
+        parts.append("Tour-level finals: none")
     if ch_tot:
         parts.append(f"Challenger finals: {ch_tot} played, {cw} won ({cw/ch_tot*100:.0f}% converted)")
     return " | ".join(parts)

@@ -13,6 +13,150 @@ promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
 ---
 
+## 2026-09-26 17:04 — RUNDA JE RUČNI UNOS; GS finala vraćena u prompt; tri nove varijable;
+## vremenske zone po trenutku meča; dohvat 2x brži
+
+`rules_hash` **nepromijenjen (d4f7a350)** — predložak prompta nije diran. Snapshot v20 → **v21**.
+Mijenjaju se tri ULAZA (runda, opis runde, broj finala) i dodaje bilježenje.
+
+### 1. Runda: svi automatski načini OBRISANI, korisnik je upisuje uz screenshot
+
+**Korisnikova odluka:** "Nemremo rundu pogodit" — od danas rundu upisuje korisnik na
+stranici "Kvote sa Screenshota", u trenutku uploada: izbornik "runda za sve parove" + ispravak
+po paru (za dane kad se igraju dvije runde). Već spremljenim parovima runda se može upisati
+naknadno. Spremanje novih parova bez runde je odbijeno.
+
+**Zadnji kvar koji je presudio (izmjereno danas u bazi):** Chengdu i Hangzhou (ATP 250),
+24.09.2026 — **12 mečeva PRVOG dana zapisano kao "SF"** (6 + 6); 25. i 26.09. "R64" (ATP 250 nema
+R64), 27.09. drugo kolo kao "R32". Metoda "iz ždrijeba" (13.09.) prvog dana nema ždrijeba, a
+njene oznake nitko nije provjeravao jer su nosile `round_source="draw"` ("pouzdano"). Model je
+tih 12 mečeva analizirao s kontekstom "Semifinal. Top 4 in the draw".
+
+**Obrisano:** `data_fetcher`: `_ROUND_ID_MAP`, `_round_from_id`, `_fit_ladder`,
+`get_tournament_round_map`, `resolve_round`; fixtures više ne čitaju `roundId`.
+`run_daily`: `_infer_rounds`, `_verify_late_rounds`, `_apply_draw_rounds`,
+`_warn_impossible_rounds`, `_count_by_tournament_day` i konstante. `ticket_builder._is_main_tour`:
+zaštita koja je iz runde ("Q1"/"Q2", "R128" izvan GS-a) zaključivala da je meč kvalifikacija
+(bila je mrtva od 11.08. — svaki analizirani meč nosi screenshot i izlazio je prije nje) i
+`has_screenshot_odds`. `supabase_client.get_tournament_rounds`. Skripta
+`scripts/backfill_rounds_from_draw.py`. `scripts/harvest_draw_stats.py` sprema sirovi `roundId`.
+
+**Nije obrisano, namjerno:** `_label_draw_rounds` — označava runde PROŠLIH sezona (F/SF/QF/R16)
+po poziciji od kraja završenog ždrijeba i hrani "povijest na turniru", naš najjači prediktor.
+To nije određivanje runde meča koji analiziramo.
+
+**Novo:** `run_daily._apply_manual_rounds` čita rundu uz par (po imenima, obje rubrike, i za par
+pročitan bez sata). Par bez runde → `""`, `round_source="missing"`, glasno upozorenje u logu,
+a model dobiva "Round NOT ENTERED". Interni kodovi ostaju R128…F (+RR, DC), jer ih čitaju prompt,
+korpus i K11; hrvatske oznake (1/64 … Finale) su samo za prikaz (`utils/helpers.ROUND_CHOICES`).
+
+**Usput ispravljen opis runde u promptu.** `_round_context` je rundu opisivao rednim brojem na
+ljestvici R128..F, pa je PRVO kolo ATP 250 (R32) model čitao kao *"Third round. Field
+significantly reduced. Top players usually through."* Sada se opisuje po broju preostalih
+igrača, uz napomenu koje je to kolo na kojoj razini.
+
+**Posljedica za mjerenja po rundi (K11):** oznake Chengdua/Hangzhoua od 24.09. do 27.09.2026
+(31 redak) bile su krive — isti dan postavljene na NULL, vidi točku 9.
+
+### 2. Karijerna finala: Grand Slam, ATP Finals i Olimpijske su TIHO ISPADALI (od 26.07.2026) — jedanaesti tihi ključ
+
+Nađeno kad je korisnik pitao gledamo li broj GS finala. `get_player_titles` je zbrajao samo
+razine 2 i 3 (ATP 250/500 i Masters); API razine vraća kao DISJUNKTNE retke, pa su GS (4),
+ATP Finals (7) i OI (9) ispadali. Zverev: prompt je pokazivao **36 finala (22 osvojena)**,
+stvarno ih je **45 (27)**, od toga 6 GS finala. Sheltonu je finale US Opena bilo nevidljivo.
+Sada se zbrajaju sve tour-level razine, a GS finala navode se i zasebno. Uz to se finala prvi
+put **bilježe** u snapshot (`p*_titles`) — u promptu su od 26.07., a nikad nisu spremljena.
+
+### 3. Tri nove varijable — BILJEŽE SE, u prompt JOŠ NE ulaze
+
+Korisnikov zahtjev (vidi `agent/player_context.py`): (a) omjer protiv ljevaka/desnjaka
+("Zverev dominantan protiv ljevaka jer trenira s bratom"), (b) ATP pobjede u sezoni,
+(c) broj GS polufinala/finala. Računa ih `agent/player_context.py` istim kodom u dnevnom runu i
+u backfillu (`scripts/backfill_player_context.py`), NA DAN MEČA, sa zaštitom od curenja datuma.
+Snapshot: `p1_ctx`/`p2_ctx`, `player_ctx_version`. Ruka svih igrača i protivnika: trajni keš
+`player_hands.json` (2.954 igrača, od toga 1.727 s poznatom rukom, **12,7% ljevaka**; za ostale
+API ruku ne zna i upisani su kao nepoznati da se ne dohvaćaju svaki dan iznova).
+
+Provjera na stvarnom slučaju (finale US Opena 2026, stanje prije meča): Zverev protiv ljevaka
+zadnje 2 godine **21-1**, protiv desnjaka 100-41; GS: Zverev 12 polufinala / 5 finala,
+Shelton 2 / 0 — oba korisnikova primjera su u podacima.
+
+**Backfill izvršen:** 664 od 669 redaka `analyzed_matches` dobilo je `p1_ctx`/`p2_ctx`
+(`source: "backfill"`; 5 redaka nema nijednog igrača s ID-em). Dohvat: 287 igrača, 53.642
+prošla meča, 2.954 profila, 287×4 GS zapisa — oko 5.500 API poziva od mjesečnih 75.000.
+
+**Usput nađena greška u izvoru (dvanaesti tihi ključ):** `tournament-record` na Grand Slamu
+piše `bestRound = "Winner"` i kad igrač NIJE osvojio turnir, nego se povukao nakon pobjede
+(nema poraza) — 19 od 3.795 izdanja, npr. Gaston, RG 2025, prvo kolo. `bestRoundId` je
+dosljedan u svih 3.795 (4 prvo kolo … 10 SF, 12 finale), pa se broji po njemu, a naslov je
+ID 12 bez poraza. To je vjerojatno i porijeklo stare ograde u promptu da taj endpoint
+"labels a player Winner when they did not win the title".
+
+### 4. Mjerenje (prvi stupanj kapije) — `scripts/measure_player_context.py`
+
+451 razriješena analiza s kvotom, sve naspram devigirane SuperSport cijene (ostatak =
+pobjeda picka − tržišna vjerojatnost). Metrike zapisane prije pokretanja.
+
+| varijabla | r(ostatak) | 95% CI | polovice | presuda |
+|---|---|---|---|---|
+| S1 razlika u broju ATP pobjeda u sezoni | **+0,093** (P=0,049) | [−0,00, +0,18] | +0,06 / +0,13 | **K15 — kandidat** |
+| S2 razlika u postotku ATP pobjeda | +0,061 | [−0,03, +0,15] | +0,03 / +0,10 | slabije od S1 |
+| G1 razlika u broju GS polufinala | −0,050 | [−0,14, +0,05] | −0,04 / −0,06 | ne prolazi |
+| H1 rub po ruci protivnika (s ljevakom, n=120) | −0,103 | [−0,28, +0,07] | −0,37 / +0,15 | ne prolazi |
+
+S1 drži smjer u sva četiri pojasa kvote (+6,1 / +5,8 / +4,7 / +10,8pp, ponderirano +6,0pp) i
+uz kontrolu ELO razlike (djelomični r = +0,17); srpanj ide suprotno (−0,09, n=78). GS iskustvo
+u završnicama (samo naš pick ima GS polufinale, QF/SF/F) +8,1pp, ali n=16 (bez redaka s krivom
+rundom) → K16, promatranje.
+Pragovi za potvrdu: `DECISION_INPUTS.md`, K15 i K16. **Ništa od ovoga ne ulazi u odluku.**
+
+### 5. Vijesti (korisnikovo pitanje) — kanal radi, ali je prazan
+
+Od 13.09.2026 analizirane su 43 utakmice i **nijedna nije dobila vijest** o igraču. ESPN i
+BBC RSS pišu o vrhu tablice, ne o igračima ATP 250 turnira. K13 se ovim izvorom ne može
+izmjeriti nikad; treba izvor po igraču. Izjave komentatora (tip "Zverev dominantan protiv
+ljevaka") nikad nisu stizale do modela — i ne trebaju kao proza, ali mjerljivi dio (omjer
+protiv ljevaka) od danas se bilježi.
+
+### 6. Korisnikove odluke istog dana (odgovor na prijedloge)
+
+- **K15 čeka potvrdu** po kapiji (analize od 27.09.2026, n≥150) — ne ulazi u odluku danas.
+- **Vremenske zone popravljene** (bila znana greška od 04.08.2026 s rokom "listopad 2026").
+- **Brži dohvat** podataka.
+- **31 redak s krivom automatskom rundom očišćen.**
+
+### 7. Vremenske zone: pomak se računa za trenutak meča (`local_match_time`)
+
+`_CITY_UTC_OFFSET` (fiksni cijeli brojevi) zamijenjen je s `_CITY_TZ` (IANA zone) + pytz. Za
+ostatak sezone 2026 stara mapa bi bila kriva ili prazna: Almaty (19.10.) +6 umjesto +5;
+Basel, Beč (26.10.) i Pariz +2 umjesto +1 nakon promjene sata 25.10.; **Bruxelles, Lyon,
+Stockholm i Torino (ATP Finals) nisu bili u mapi** — bez lokalnog sata, sesije dan/noć i
+prognoze po satu meča. Usput nađene dvije tihe rupe: "monte carlo" i "rio" u mapi, a API piše
+"monte-carlo" i "rio de janeiro" — ta dva turnira nikad nisu dobila lokalno vrijeme. Svi
+gradovi glavnog toura iz kalendara 2026 sada su pokriveni. Adelaide daje +10,5. Utječe na
+`session` i izbor prognoze (ulazi u prompt), `rules_hash` netaknut.
+
+### 8. Brži dohvat: paralelno po igraču
+
+Sam razmak od 0,67 s run nije usporavao (poziv ionako traje ~1,1 s), nego to što se sve
+dohvaćalo jedno za drugim. Novo: `run_daily._prefetch_players` u 4 niti unaprijed puni keševe
+po igraču (profil, statistika, povijest, podloge, finala, rekord i prosjek na turniru, GS);
+glavna petlja je ista i čita iz keša. Razmak spušten na 0,1 s i zaštićen bravom (API dopušta
+3.000/min). Rezultati turnira za prosjek s turnira dohvaćaju se jednom po turniru, ne po
+igraču. **Izmjereno na istom probnom runu (10 mečeva, Claude zamijenjen): 291 s → 134 s.**
+
+Uz to, **neuspjeh više nije "prazno"**: neuspjela stranica povijesti vraća `None` i ne kešira
+se; `player_context` tada bilježi `error` umjesto sezone 0-0; neuspjeli GS zapis se ponavlja
+pa javlja grešku; neuspjeli kalendar Slamova ne pamti se za cijeli run.
+
+### 9. Očišćene krive runde (31 redak)
+
+Chengdu i Hangzhou, 24.-27.09.2026: `round` → NULL (12 "SF", 15 "R64", 4 "R32"), stara oznaka
+u `context_snapshot.round_auto_old`, `round_source = "cleared_wrong_auto"`. Time K11 i svako
+mjerenje po rundi više ne vide lažna polufinala. Ponovna analiza istog meča upisat će ručnu rundu.
+
+---
+
 ## 2026-09-19 14:07 — DRUGA kapija razina: run bez ijedne predikcije
 
 `rules_hash` **nepromijenjen (d4f7a350)**, snapshot v20. Ovo je popravak ULAZA, ne modela —

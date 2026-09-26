@@ -33,22 +33,33 @@ HEADERS = {
     "Content-Type":    "application/json",
 }
 
-# Round ID → name mapping (ATP standard: 1=R128 ... 7=F)
-_ROUND_ID_MAP = {
-    1: "R128", 2: "R64", 3: "R32", 4: "R16",
-    5: "QF",   6: "SF",  7: "F",   8: "RR",
-    9: "Q2",  10: "Q1",
-}
-
 # In-process cache: str(tournamentId) → {name, surface, category, city}
 _tournament_info_cache: dict = {}
 
 # Cache za tournament records: (player_id, tournament_id) → dict
 _tournament_record_cache: dict = {}
 
-# Rate limiter: max ~90 req/min (limit is 100/min)
+# Rate limiter. 26.09.2026 17:04: stari komentar je tvrdio "limit is 100/min" i razmak je
+# bio 0,67 s. Zaglavlja odgovora kazu drugo: `x-ratelimit-limit: 3000` (u minuti) i
+# `X-RateLimit-Requests-Limit: 75000` (mjesecno). Sam razmak od 0,67 s run nije usporavao,
+# jer jedan poziv traje ~1,1 s pa je razmak uvijek vec bio prosao — usporava ga to sto se
+# SVE dohvaca jedno za drugim. Zato `run_daily` od danas podatke po igracu dohvaca u vise
+# niti (vidi `_prefetch_players`), a razmak je spusten na 0,1 s i zasticen bravom, da niti
+# ne pokvare jedna drugoj mjerenje razmaka.
 _last_api_call_time: float = 0.0
-_MIN_CALL_INTERVAL: float = 0.67
+_MIN_CALL_INTERVAL: float = 0.1
+import threading as _threading
+_throttle_lock = _threading.Lock()
+
+
+def _wait_turn() -> None:
+    """Razmak medju pozivima, siguran za vise niti."""
+    global _last_api_call_time
+    with _throttle_lock:
+        elapsed = time.time() - _last_api_call_time
+        if elapsed < _MIN_CALL_INTERVAL:
+            time.sleep(_MIN_CALL_INTERVAL - elapsed)
+        _last_api_call_time = time.time()
 
 # Prolazne server-side greške na koje ima smisla ponoviti pokušaj (privremeni blip):
 #  405 = "Method Not Allowed" — u praksi kratkotrajni RapidAPI routing blip; endpoint
@@ -62,19 +73,14 @@ _MAX_ATTEMPTS = 3
 
 
 def _get(path: str, params: dict = None, timeout: int = 15) -> Optional[dict]:
-    global _last_api_call_time
     for attempt in range(_MAX_ATTEMPTS):
-        elapsed = time.time() - _last_api_call_time
-        if elapsed < _MIN_CALL_INTERVAL:
-            time.sleep(_MIN_CALL_INTERVAL - elapsed)
-        _last_api_call_time = time.time()
+        _wait_turn()
         try:
             r = requests.get(f"{API_BASE}{path}", params=params, headers=HEADERS, timeout=timeout)
             if r.status_code == 429:
                 wait = 62 if attempt == 0 else 120
                 print(f"Rate limit [{path}], čekam {wait}s...")
                 time.sleep(wait)
-                _last_api_call_time = time.time()
                 continue
             # Prolazna server-side greška (405/5xx): pauza pa ponovni pokušaj.
             if r.status_code in _RETRYABLE_STATUS and attempt < _MAX_ATTEMPTS - 1:
@@ -198,161 +204,17 @@ def get_tournament_tier(tournament_id: str) -> str:
     return _get_tournament_info(tournament_id).get("category", "")
 
 
-def _round_from_id(round_id) -> str:
-    """ZASTARJELO OD 13.09.2026 10:44 — koristi `resolve_round(tournament_id, round_id)`.
-
-    Ostaje samo kao POSLJEDNJI fallback za turnire za koje `tournament/results` jos nema
-    nijedan odigran mec (prvi dan turnira). Vidi `get_tournament_round_map`."""
-    if round_id is None:
-        return ""
-    return _ROUND_ID_MAP.get(int(round_id), f"R{round_id}")
-
-
-# ── RUNDE IZ STVARNOG ZDRIJEBA (13.09.2026 10:44) ────────────────────────────────
+# ── RUNDA SE VISE NE ODREDJUJE IZ API-JA (26.09.2026 17:04) ─────────────────────
+# Ovdje su stajali `_ROUND_ID_MAP`, `_round_from_id`, `_fit_ladder`,
+# `get_tournament_round_map` i `resolve_round`. Obrisani su na korisnikov zahtjev:
+# runda se od danas upisuje rucno uz svaki par na screenshotu i cita u
+# `run_daily._apply_manual_rounds`. Povijest pokusaja: blok uz `ROUND_CHOICES` u
+# `utils/helpers.py`.
 #
-# STO JE BILO KRIVO: `_ROUND_ID_MAP` gore pretpostavlja da je `roundId` GLOBALNA
-# konstanta (1=R128 ... 7=F). NIJE — relativan je po turniru. Izmjereno 13.09.2026:
-#
-#     U.S. Open (zdrijeb 128)   4=R128(64)  5=R64(32)  6=R32(16)  7=R16(8)  9=QF(4)  10=SF(2)
-#     Cassis Challenger (32)    4=R32(16)   5=R16(8)                        9=QF(4)  10=SF(2)  12=F(1)
-#
-# Isti `roundId=4` znaci R128 na jednom turniru i R32 na drugom. NIJEDNA fiksna mapa ne
-# moze biti tocna. Posljedica na nasem korpusu: 16 od zadnjih 40 analiziranih meceva
-# (40%) imalo je krivu rundu, i to sustavno — PRVI dan svake runde tocan, DRUGI dan
-# napuhan za jednu do dvije runde (Zverev-Darderi R16 zapisan kao "F", Shelton-Alcaraz
-# QF kao "SF", Zverev-Tabilo R32 kao "SF").
-#
-# ZASTO TO `_infer_rounds` NIJE UHVATIO: ono popravlja rundu samo kad broj meceva tog
-# dana PRELAZI fizicki maksimum te runde. Na velike dane (7 meceva oznacenih "SF")
-# uhvati; na tanke dane (2 meca oznacena "SF", maksimum za SF je 2) propusti smece.
-# Heuristika po broju meceva bila je zaobilaznica za krivu mapu, ne rjesenje.
-#
-# RJESENJE: `tournament/results` daje cijeli odigrani zdrijeb. Broj meceva po `roundId`
-# odredjuje rundu JEDNOZNACNO (64->R128, 32->R64, ... 2->SF, 1->F). Sidrimo se na
-# NAJNIZI `roundId` ciji je broj meceva cista potencija dvojke, pa hodamo ljestvicom.
-# Sidrenje na najnizi, a ne na svaki pojedini broj, cini postupak otpornim na nepotpune
-# runde: Seville Challenger ima R16 sa 7 umjesto 8 meceva (predaja) i svejedno se
-# ispravno razrijesi.
-#
-# PROVJERENO NA 9 TURNIRA (13.09.2026 10:44): U.S. Open (128) + 8 Challengera (32) —
-# 100% tocno, ukljucujuci turnire u tijeku.
-#
-# ZASTO NIJE SKUPO: jedan poziv po turniru po runu, kesiran u procesu. Daily run dira
-# 1-4 turnira.
-#
-# OGRADA: prvi dan turnira `results` je prazan (nema odigranih meceva) pa mape nema —
-# tada se pada na staru heuristiku. To je i najbezopasniji slucaj: prvi dan su svi
-# mecevi u prvom kolu, a `_infer_rounds` velike dane pogadja.
-
-_ROUND_LADDER = ["R128", "R64", "R32", "R16", "QF", "SF", "F"]
-# Koliko meceva runda ima u PUNOM zdrijebu bez bye-ova.
-_ROUND_FULL_COUNT = [64, 32, 16, 8, 4, 2, 1]
-
-# str(tournamentId) -> {roundId: oznaka}
-_tournament_round_map_cache: dict = {}
-
-
-def _fit_ladder(counts: dict) -> dict:
-    """Poravnaj rastuce `roundId`-eve na ljestvicu rundi po BROJU meceva.
-
-    ZASTO NIJE DOVOLJNO "prvi roundId s cistim brojem" (prvi pokusaj 13.09.2026 10:44,
-    pao na zdravorazumskoj provjeri prije nego sto je isao u bazu):
-    zdrijebovi s bye-ovima imaju DVIJE UZASTOPNE RUNDE S ISTIM BROJEM meceva.
-
-        Cincinnati (zdrijeb 96)     32, 32, 15, 8, 4, 2
-        Winston-Salem (zdrijeb 48)  16, 16, 8, 4, 2
-
-    Sidrenje na prvi cisti broj tu polomi cijelu ljestvicu za jedan korak i proglasi
-    polufinale finalom (Cincinnati je dobio "F" s dva meca, sto je nemoguce).
-
-    STO RADI UMJESTO TOGA: proba SVA moguca poravnanja i bira ono koje najbolje pristaje,
-    uz jedno tvrdo ogranicenje —
-
-        broj odigranih meceva NIKAD ne smije biti VECI od punog broja te runde
-
-    Runda moze imati MANJE meceva (bye-ovi, predaje, runda jos traje), ali nikad vise.
-    To ogranicenje samo odbacuje sva kriva poravnanja, a medju preostalima se bira ono s
-    najvise TOCNIH pogodaka.
-
-    Zasto je otporno i usred turnira: ako je polufinale odigrano dopola (1 od 2), broj 1
-    je i dalje <= 2, pa poravnanje ostaje isto i runda se ispravno zove SF, a ne F.
-    """
-    rids = sorted(counts)
-    n = len(rids)
-    if not n or n > len(_ROUND_LADDER):
-        return {}
-    best, best_score = None, -1
-    for offset in range(0, len(_ROUND_LADDER) - n + 1):
-        exact = 0
-        ok = True
-        for k, rid in enumerate(rids):
-            full = _ROUND_FULL_COUNT[offset + k]
-            got = counts[rid]
-            if got > full:          # nemoguce — ovo poravnanje otpada
-                ok = False
-                break
-            if got == full:
-                exact += 1
-        if ok and exact > best_score:
-            best_score, best = exact, offset
-    if best is None:
-        return {}
-    return {rid: _ROUND_LADDER[best + k] for k, rid in enumerate(rids)}
-
-
-def get_tournament_round_map(tournament_id) -> dict:
-    """{roundId: oznaka runde} izvedeno iz STVARNOG zdrijeba tog turnira.
-
-    Vraca {} ako turnir jos nema nijedan odigran mec (prvi dan) ili ako se ljestvica ne
-    moze poravnati. Kesirano po procesu — jedan poziv po turniru po runu."""
-    tid = str(tournament_id or "")
-    if not tid:
-        return {}
-    if tid in _tournament_round_map_cache:
-        return _tournament_round_map_cache[tid]
-
-    data = _get(f"/atp/tournament/results/{tid}")
-    singles = ((data or {}).get("data") or {}).get("singles") or []
-    counts: dict = {}
-    for m in singles:
-        rid = m.get("roundId")
-        if rid is None:
-            continue
-        try:
-            rid = int(rid)
-        except (TypeError, ValueError):
-            continue
-        counts[rid] = counts.get(rid, 0) + 1
-
-    out = _fit_ladder(counts) if counts else {}
-    _tournament_round_map_cache[tid] = out
-    return out
-
-
-def resolve_round(tournament_id, round_id) -> str:
-    """Oznaka runde za jedan mec, izvedena iz zdrijeba. "" ako se ne moze utvrditi.
-
-    Runda koja se TEK IGRA jos nije u `results`, pa njezin `roundId` nadmasuje sve
-    poznate — tada je to sljedeca runda na ljestvici (danasnje finale US Opena ima
-    roundId=12, najveci poznati je 10=SF, dakle F).
-
-    `roundId` MANJI od najnizeg poznatog je kvalifikacija (results ih drzi u zasebnoj
-    listi `qualifying` s vlastitim ID-evima 1/2/3) — namjerno vracamo "" da se ne dira
-    postojeca Q-logika u `_infer_rounds`."""
-    m = get_tournament_round_map(tournament_id)
-    if not m:
-        return ""
-    try:
-        rid = int(round_id)
-    except (TypeError, ValueError):
-        return ""
-    if rid in m:
-        return m[rid]
-    known = sorted(m)
-    if rid > known[-1]:
-        nxt = _ROUND_LADDER.index(m[known[-1]]) + 1
-        return _ROUND_LADDER[nxt] if nxt < len(_ROUND_LADDER) else ""
-    return ""
+# STO JE OSTALO I ZASTO: `_label_draw_rounds` nize oznacava runde PROSLIH SEZONA
+# (F/SF/QF/R16) po poziciji od kraja zdrijeba, za povijest na turniru. To nije
+# odredjivanje runde meca koji analiziramo, nego citanje zavrsenog zdrijeba, i
+# hrani nas najjaci izmjereni prediktor — zato nije diran.
 
 
 # ── Fixtures / Mečevi ─────────────────────────────────────────────────────────
@@ -428,8 +290,9 @@ def get_matches_for_date(date: datetime.date) -> list:
             "tournament":    tourn_name,
             "tournament_id": tournament_id,
             "surface":       surface,
-            "round":         _round_from_id(g.get("roundId")),
-            "round_id":      int(g.get("roundId") or 0),
+            # Runda NAMJERNO nije ovdje (26.09.2026) — postavlja je
+            # `run_daily._apply_manual_rounds` iz korisnikova unosa na screenshotu.
+            "round":         "",
             "date":          date_str,
             "time":          str(g.get("timeGame", "") or ""),
             # Puni UTC timestamp početka meča. `timeGame` je UVIJEK null (provjereno
@@ -448,6 +311,32 @@ def get_matches_for_date(date: datetime.date) -> list:
     return matches
 
 
+_past_matches_page_cache: dict = {}
+
+
+def get_past_matches_page(player_id: str, page: int = 1) -> tuple:
+    """Jedna stranica `/atp/player/past-matches/{id}` (100 meceva): (lista, ima_li_jos).
+
+    Kesirano po (igrac, stranica) u procesu (26.09.2026 17:04). Prvu stranicu vec vuce
+    `get_recent_form`; `agent/player_context` iz iste stranice racuna sezonski omjer i
+    omjer po ruci protivnika, pa bez keša isti poziv bi isao dvaput za svakog igraca."""
+    key = (str(player_id), int(page))
+    if key in _past_matches_page_cache:
+        return _past_matches_page_cache[key]
+    data = _get(f"/atp/player/past-matches/{player_id}",
+                params=({"pageNo": page} if page > 1 else None))
+    if data is None:
+        # NEUSPJEH != PRAZNO (26.09.2026): vraca se None i NE kesira, da se ne procita kao
+        # "igrac nema meceva" (sezona 0-0, nijedan mec protiv ljevaka). `get_recent_form`
+        # ga i dalje tretira kao prazno, kao i prije; `player_context` ga tretira kao gresku.
+        return None, False
+    raw = data.get("data", data.get("result", data))
+    games = raw if isinstance(raw, list) else []
+    out = (games, bool(data.get("hasNextPage")))
+    _past_matches_page_cache[key] = out
+    return out
+
+
 def get_recent_form(player_id: str, n: int = 10) -> dict:
     """
     Endpoint: GET /atp/player/past-matches/{player_id}
@@ -455,13 +344,9 @@ def get_recent_form(player_id: str, n: int = 10) -> dict:
     """
     if not player_id:
         return {"wins": 0, "losses": 0, "matches": []}
-    data = _get(f"/atp/player/past-matches/{player_id}")
-    if not data:
+    games, _ = get_past_matches_page(player_id, 1)
+    if not games:
         return {"wins": 0, "losses": 0, "matches": []}
-
-    # Response may use "data" key (same as fixtures) or nested formats
-    raw = data.get("data", data.get("result", data))
-    games = raw if isinstance(raw, list) else []
 
     wins, losses, result_matches = 0, 0, []
     pid_str = str(player_id)
@@ -629,12 +514,23 @@ def _get_age(p: dict) -> int:
     return None
 
 
+_player_info_cache: dict = {}
+_player_stats_cache: dict = {}
+_surface_summary_cache: dict = {}
+
+
 def get_player_info(player_id: str) -> dict:
     """
     Endpoint: GET /atp/player/profile/{player_id}
+
+    Kesirano po igracu u procesu (26.09.2026): `run_daily` podatke po igracu dohvaca
+    unaprijed u vise niti, pa ih glavna petlja cita iz keša. Kesiraju se samo uspjesni
+    odgovori — neuspjeh se u istom runu smije pokusati ponovno.
     """
     if not player_id:
         return {}
+    if str(player_id) in _player_info_cache:
+        return _player_info_cache[str(player_id)]
     data = _get(f"/atp/player/profile/{player_id}")
     if not data:
         return {}
@@ -665,7 +561,7 @@ def get_player_info(player_id: str) -> dict:
     # ispisi SIROVE kljuceve odgovora. Nikad ne zakljucuj da izvor nema podatak.
     info = p.get("information") if isinstance(p.get("information"), dict) else {}
 
-    return {
+    out = {
         "id":             player_id,
         "name":           p.get("name", "") or p.get("player_name", "") or p.get("fullName", ""),
         "nationality":    (p.get("country", {}).get("acronym", "") if isinstance(p.get("country"), dict)
@@ -685,6 +581,8 @@ def get_player_info(player_id: str) -> dict:
         "hand":           (str(info.get("plays", "")).split(",")[0].strip()
                            or p.get("hand", "") or p.get("plays", "") or p.get("playingHand", "")),
     }
+    _player_info_cache[str(player_id)] = out
+    return out
 
 
 def get_player_stats(player_id: str) -> dict:
@@ -693,6 +591,8 @@ def get_player_stats(player_id: str) -> dict:
     """
     if not player_id:
         return {}
+    if str(player_id) in _player_stats_cache:
+        return _player_stats_cache[str(player_id)]
     data = _get(f"/atp/player/match-stats/{player_id}")
     if not data:
         return {}
@@ -812,7 +712,7 @@ def get_player_stats(player_id: str) -> dict:
 
     games = total_serve_pts
 
-    return {
+    out = {
         "aces_per_game":           round(ace_tot / games * 100, 2) if ace_tot and games else None,
         "double_faults_per_game":  round(df_tot  / games * 100, 2) if df_tot  and games else None,
         "first_serve_pct":         _pct(fs_in, fs_of),
@@ -832,6 +732,8 @@ def get_player_stats(player_id: str) -> dict:
         "hold_pct_from_bp":        hold_pct_from_bp,
         "break_pct":               break_pct,
     }
+    _player_stats_cache[str(player_id)] = out
+    return out
 
 
 def get_atp_rankings(limit: int = 200) -> dict:
@@ -1127,7 +1029,8 @@ def screenshot_start_utc(date_str: str, hhmm: str, day_abbr: str = "") -> str:
         return ""
 
 
-def find_screenshot_entry(player1: str, player2: str, screenshot_by_date: dict) -> tuple:
+def find_screenshot_entry(player1: str, player2: str, screenshot_by_date: dict,
+                          require_time: bool = True) -> tuple:
     """Trazi par kroz screenshotove svih dana; vraca (datum_rubrike, zapis) ili ("", {}).
 
     `screenshot_by_date` je {datum: odds_dict} — datum je NUZAN jer sat sam po sebi ne
@@ -1137,11 +1040,14 @@ def find_screenshot_entry(player1: str, player2: str, screenshot_by_date: dict) 
     nije dovoljno znati SAT, nego i iz KOJE rubrike dolazi. Rubrika "sutra" nosi
     kladionicin placeholder sat dok raspored jos nije objavljen — vidi
     `_detect_provisional_schedule` u run_daily.
+
+    `require_time=False` (26.09.2026 17:04): za RUNDU sat nije bitan — par koji je
+    procitan bez sata i dalje nosi rundu koju je korisnik upisao.
     """
     for date_str, odds in (screenshot_by_date or {}).items():
         for val in (odds or {}).values():
             t = val.get("start_time")
-            if not t:
+            if require_time and not t:
                 continue
             if ((_name_match(player1, val.get("p1", "")) and _name_match(player2, val.get("p2", "")))
                     or (_name_match(player1, val.get("p2", "")) and _name_match(player2, val.get("p1", "")))):
@@ -1594,6 +1500,7 @@ def get_match_stats_aligned(tournament_id: str, our_p1_id, our_p2_id) -> tuple:
 # polufinalu kosta 3-4 poziva, i to jednom po runu.
 
 _tournament_form_cache: dict = {}
+_tournament_results_cache: dict = {}
 
 
 def _tf_ratio(num, den):
@@ -1613,8 +1520,14 @@ def tournament_form_stats(tournament_id, player_id, min_matches: int = 2) -> dic
     if key in _tournament_form_cache:
         return _tournament_form_cache[key]
 
-    data = _get(f"/atp/tournament/results/{tid}")
-    singles = ((data or {}).get("data") or {}).get("singles") or []
+    # Rezultati turnira dohvacaju se JEDNOM po turniru (26.09.2026): do danas je svaki
+    # igrac isti turnir povlacio iznova — 20 igraca istog turnira, 20 istih poziva.
+    if tid not in _tournament_results_cache:
+        data = _get(f"/atp/tournament/results/{tid}")
+        if data is None:
+            return {}                        # neuspjeh: ne kesira se, pokusaj ponovno
+        _tournament_results_cache[tid] = ((data.get("data") or {}).get("singles") or [])
+    singles = _tournament_results_cache[tid]
     mine = []
     for m in singles:
         a, b = str(m.get("player1Id") or ""), str(m.get("player2Id") or "")
@@ -1797,6 +1710,8 @@ def get_player_surface_summary(player_id: str) -> dict:
     """
     if not player_id:
         return {}
+    if str(player_id) in _surface_summary_cache:
+        return _surface_summary_cache[str(player_id)]
     data = _get(f"/atp/player/surface-summary/{player_id}")
     if not data:
         return {}
@@ -1837,6 +1752,7 @@ def get_player_surface_summary(player_id: str) -> dict:
             "matches": total,
             "win_pct": round(wins / total * 100, 1) if total > 0 else None,
         }
+    _surface_summary_cache[str(player_id)] = result
     return result
 
 
@@ -1850,8 +1766,20 @@ def get_player_titles(player_id: str) -> dict:
     iskustva u završnicama"). titlesWon = osvojeni turniri, titlesLost = izgubljena finala,
     pa je (won + lost) = ukupno odigranih finala na toj razini.
 
-    Vraća: {"main_won": int, "main_lost": int, "ch_won": int, "ch_lost": int}
-    (main = ATP main tour + Masters zbrojeno; ch = Challenger/ITF >$10K).
+    Vraća: {"main_won", "main_lost", "gs_won", "gs_lost", "big_won", "big_lost",
+            "ch_won", "ch_lost"}
+    main = ATP 250/500 + Masters; gs = Grand Slam; big = ATP Finals + Olimpijske;
+    ch = Challenger/ITF >$10K.
+
+    ── TIHA RUPA OD PRVOG DANA, ZATVORENA 26.09.2026 17:04 ──────────────────────
+    Brojale su se SAMO razine 2 i 3. Endpoint vraca razine kao DISJUNKTNE retke, pa su
+    Grand Slam (4), ATP Finals (7) i Olimpijske (9) ispadale iz "karijernih finala" —
+    dakle upravo najveca finala. Provjereno na Zverevu 26.09.2026:
+        Main tour 15-8 | Masters 7-6 | Grand Slam 2-4 | Tour finals 2-0 | Olympics 1-0
+    Prompt mu je pokazivao 36 finala (22 osvojena); stvarno ih je 45 (27). Za Sheltona je
+    finale US Opena 2026 bilo nevidljivo. Nadjeno kad je korisnik pitao gledamo li broj
+    GS finala ("Shelton je imao prvo GS finale i Zverev je bio mirniji").
+    Davis Cup (5) se NE broji: ondje "titlesWon/Lost" nisu finala turnira.
     """
     if not player_id:
         return {}
@@ -1859,16 +1787,15 @@ def get_player_titles(player_id: str) -> dict:
     if key in _titles_cache:
         return _titles_cache[key]
     data = _get(f"/atp/player/titles/{key}")
-    out = {"main_won": 0, "main_lost": 0, "ch_won": 0, "ch_lost": 0}
+    out = {"main_won": 0, "main_lost": 0, "gs_won": 0, "gs_lost": 0,
+           "big_won": 0, "big_lost": 0, "ch_won": 0, "ch_lost": 0}
+    bucket = {2: "main", 3: "main", 4: "gs", 7: "big", 9: "big", 1: "ch"}
     for row in (data or {}).get("data", []) or []:
-        rank_id = safe_int(row.get("tourRankId"))
-        won, lost = safe_int(row.get("titlesWon")), safe_int(row.get("titlesLost"))
-        if rank_id in (2, 3):      # Main tour + Masters series
-            out["main_won"] += won or 0
-            out["main_lost"] += lost or 0
-        elif rank_id == 1:          # Challengers / ITF > $10K
-            out["ch_won"] += won or 0
-            out["ch_lost"] += lost or 0
+        b = bucket.get(safe_int(row.get("tourRankId")))
+        if not b:
+            continue
+        out[f"{b}_won"] += safe_int(row.get("titlesWon")) or 0
+        out[f"{b}_lost"] += safe_int(row.get("titlesLost")) or 0
     _titles_cache[key] = out
     return out
 
@@ -2178,7 +2105,8 @@ def _get_tournament_level(name: str, category: str = "") -> str:
     turnirima. To je stetno iz tri razloga, svi mjerljivi:
       1. Sve analize po RAZINI (ROI, stopa pogodaka) dobile bi 14 dnevnih meceva
          drukcijeg tipa u ATP 250 kosaru.
-      2. Susret je "turnir" od 2-5 meceva, pa bi `_fit_ladder` njegove `roundId`
+      2. Susret je "turnir" od 2-5 meceva, pa bi `_fit_ladder` (obrisan 26.09.2026,
+         runda je od tada rucni unos) njegove `roundId`
          13/14 mapirao u "SF"/"F" — a K11 (rupa u R16/QF) reze korpus PO RUNDI.
          Dva lazna finala dnevno unistila bi to mjerenje.
       3. Davis Cup nema nista od onoga sto kod nas radi: 0 redaka u
@@ -2345,53 +2273,66 @@ def get_tournament_draw_history(tournament_id: str, tournament_name: str, years:
 
 _court_pace_cache: dict = {}
 
-# UTC pomak grada domaćina (ljetno vrijeme, srpanj-listopad). Koristi se SAMO za
-# pretvorbu vremena početka meča u LOKALNO vrijeme turnira (31.07.2026, korisnikov
-# zahtjev): korisnik je u Zagrebu, a meč koji njemu počinje u 4 ujutro se u Washingtonu
-# igra u 17h po suncu i vrućini — vremenska prognoza i sesija (dan/noć) moraju se vezati
-# na lokalni sat mjesta, ne na naš. Nepoznat grad -> None (nema nagađanja).
-# ZNANA GRESKA — ODGODJEN POPRAVAK (izmjereno 04.08.2026, korisnik odlucio ostaviti za
-# poslije jer za tekuce turnire nema ucinka).
+# VREMENSKA ZONA GRADA DOMACINA. Koristi se SAMO za pretvorbu vremena pocetka meca u
+# LOKALNO vrijeme turnira (31.07.2026, korisnikov zahtjev): mec koji korisniku u Zagrebu
+# pocinje u 4 ujutro u Washingtonu se igra u 17h po suncu i vrucini — prognoza i sesija
+# (dan/noc) moraju se vezati na lokalni sat mjesta. Nepoznat grad -> {} (nema nagadjanja).
 #
-# Ova mapa su FIKSNI CJELOBROJNI pomaci, pa ne moze pratiti tri stvari. Provjera protiv
-# pravih zona (zoneinfo, na tipicnom datumu svakog turnira) dala je 14 krivih od 37 gradova:
-#
-#   1. LJETNO/ZIMSKO VRIJEME — europski gradovi su upisani s LJETNIM pomakom (+2), a cijela
-#      dvoranska sezona (listopad-veljaca) igra se po zimskom (+1). Krivi su: paris (Masters,
-#      studeni), vienna, basel, metz, rotterdam, marseille, montpellier, sofia. Dakle SVAKI
-#      europski indoor turnir bio bi sat krivo. Isto vrijedi za dallas (veljaca, -6 ne -5).
-#   2. POLUSATNE ZONE — adelaide je UTC+10:30, sto cijeli broj ne moze zapisati (mi imamo 10).
-#   3. ZEMLJE KOJE SU MIJENJALE ZONU — Kazahstan se 2024. ujednacio na UTC+5 (astana/almaty
-#      imaju 6), Meksiko je 2022. ukinuo ljetno vrijeme (los cabos je -7, ne -6), santiago
-#      je ljeti -3 (imamo -4).
-#
-# POSLJEDICA KOJA SE VEC DOGODILA: analize iz Los Cabosa (27.07.-02.08.2026) imale su sat
-# pomaka — sve sesije oznacene sat kasnije nego sto jesu, sto je krivo hranilo `session`
-# (dan/noc) i, od 04.08., izbor vremenske prognoze po satu meca.
-#
-# TOCNO SU postavljeni gradovi koji su u igri u kolovozu 2026: montreal, washington,
-# cincinnati, new york, toronto, miami, indian wells, houston, doha, dubai, melbourne,
-# sydney, tokyo, beijing, shanghai, buenos aires, rio, tel aviv, bucharest, estoril, antwerp.
-#
-# POPRAVAK: zamijeniti brojeve IANA nazivima zona ("America/Toronto", "Australia/Adelaide",
-# "Asia/Dubai"...) i racunati pomak za DATUM TOG MECA preko pytz (vec je ovisnost projekta,
-# koristi se u utils/helpers.ZAGREB_TZ i u screenshot_start_utc). Time sve tri klase greske
-# nestaju trajno, ukljucujuci buduce zakonske promjene. Zahvat je zatvoren u `local_match_time`.
-# ROK: prije prvog europskog dvoranskog turnira (listopad 2026) — do tada nema ucinka.
-_CITY_UTC_OFFSET = {
-    "washington": -4, "los cabos": -6, "cincinnati": -4, "new york": -4,
-    "toronto": -4, "montreal": -4, "winston-salem": -4, "atlanta": -4,
-    "indian wells": -7, "miami": -4, "acapulco": -6, "delray beach": -5,
-    "san diego": -7, "dallas": -5, "houston": -5,
-    "london": 1, "paris": 2, "madrid": 2, "rome": 2, "monte carlo": 2,
-    "barcelona": 2, "hamburg": 2, "munich": 2, "stuttgart": 2, "halle": 2,
-    "vienna": 2, "basel": 2, "geneva": 2, "gstaad": 2, "kitzbuhel": 2,
-    "umag": 2, "bastad": 2, "estoril": 1, "lisbon": 1, "marrakech": 1,
-    "rotterdam": 2, "antwerp": 2, "metz": 2, "marseille": 2, "montpellier": 2,
-    "doha": 3, "dubai": 4, "melbourne": 11, "sydney": 11, "adelaide": 10,
-    "tokyo": 9, "beijing": 8, "shanghai": 8, "chengdu": 8, "hangzhou": 8,
-    "astana": 6, "almaty": 6, "tel aviv": 3, "buenos aires": -3, "rio": -3,
-    "santiago": -4, "cordoba": -3, "bucharest": 3, "sofia": 3, "belgrade": 2,
+# ── POPRAVLJENO 26.09.2026 17:04 (bila ZNANA GRESKA od 04.08.2026, rok listopad 2026) ──
+# Do danas je ovdje stajala mapa FIKSNIH CJELOBROJNIH pomaka (`_CITY_UTC_OFFSET`), koja ne
+# moze pratiti ljetno/zimsko vrijeme, polusatne zone ni zakonske promjene. Izmjereno
+# 04.08.: 14 od 37 gradova krivo. Za ostatak sezone 2026 (kalendar provjeren 26.09.):
+#     Almaty (19.10.)                 mapa +6, stvarno +5 (Kazahstan od 2024.)
+#     Basel, Bec (26.10.), Pariz      mapa +2, stvarno +1 (zimsko vrijeme od 25.10.)
+#     Bruxelles, Lyon, Stockholm,     NISU BILI U MAPI -> bez lokalnog sata, sesije i
+#     Torino (ATP Finals)             prognoze po satu meca
+#     Monte-Carlo, Rio de Janeiro     u mapi pod "monte carlo" i "rio", a API pise
+#                                     "monte-carlo" i "rio de janeiro" -> nikad pogodjeni
+# Sada: IANA zona po gradu, a pomak se racuna ZA TRENUTAK MECA preko pytz (vec ovisnost,
+# vidi `utils/helpers.ZAGREB_TZ`). Adelaide daje +10,5; Los Cabos -7; Basel 25.10. prije
+# 03:00 +2, poslije +1. Gradovi iz kalendara 2026 (glavni tour) su svi pokriveni; Davis
+# Cup nema grad u nazivu i ostaje bez lokalnog sata, kao i dosad.
+_CITY_TZ = {
+    # Sjeverna Amerika
+    "washington": "America/New_York", "cincinnati": "America/New_York",
+    "new york": "America/New_York", "winston-salem": "America/New_York",
+    "atlanta": "America/New_York", "miami": "America/New_York",
+    "delray beach": "America/New_York", "toronto": "America/Toronto",
+    "montreal": "America/Toronto", "indian wells": "America/Los_Angeles",
+    "san diego": "America/Los_Angeles", "dallas": "America/Chicago",
+    "houston": "America/Chicago", "los cabos": "America/Mazatlan",
+    "acapulco": "America/Mexico_City",
+    # Juzna Amerika
+    "buenos aires": "America/Argentina/Buenos_Aires", "cordoba": "America/Argentina/Cordoba",
+    "rio": "America/Sao_Paulo", "rio de janeiro": "America/Sao_Paulo",
+    "santiago": "America/Santiago",
+    # Europa
+    "london": "Europe/London", "eastbourne": "Europe/London",
+    "paris": "Europe/Paris", "lyon": "Europe/Paris", "metz": "Europe/Paris",
+    "marseille": "Europe/Paris", "montpellier": "Europe/Paris",
+    "madrid": "Europe/Madrid", "barcelona": "Europe/Madrid", "mallorca": "Europe/Madrid",
+    "rome": "Europe/Rome", "turin": "Europe/Rome",
+    "monte carlo": "Europe/Monaco", "monte-carlo": "Europe/Monaco",
+    "hamburg": "Europe/Berlin", "munich": "Europe/Berlin", "stuttgart": "Europe/Berlin",
+    "halle": "Europe/Berlin", "vienna": "Europe/Vienna", "kitzbuhel": "Europe/Vienna",
+    "basel": "Europe/Zurich", "geneva": "Europe/Zurich", "gstaad": "Europe/Zurich",
+    "umag": "Europe/Zagreb", "belgrade": "Europe/Belgrade",
+    "bastad": "Europe/Stockholm", "stockholm": "Europe/Stockholm",
+    "rotterdam": "Europe/Amsterdam", "'s-hertogenbosch": "Europe/Amsterdam",
+    "antwerp": "Europe/Brussels", "brussels": "Europe/Brussels",
+    "estoril": "Europe/Lisbon", "lisbon": "Europe/Lisbon",
+    "bucharest": "Europe/Bucharest", "sofia": "Europe/Sofia",
+    # Afrika i Bliski istok
+    "marrakech": "Africa/Casablanca", "doha": "Asia/Qatar", "dubai": "Asia/Dubai",
+    "tel aviv": "Asia/Jerusalem",
+    # Azija
+    "tokyo": "Asia/Tokyo", "beijing": "Asia/Shanghai", "shanghai": "Asia/Shanghai",
+    "chengdu": "Asia/Shanghai", "hangzhou": "Asia/Shanghai", "hong kong": "Asia/Hong_Kong",
+    "almaty": "Asia/Almaty", "astana": "Asia/Almaty",
+    # Oceanija
+    "melbourne": "Australia/Melbourne", "sydney": "Australia/Sydney",
+    "adelaide": "Australia/Adelaide", "brisbane": "Australia/Brisbane",
+    "auckland": "Pacific/Auckland",
 }
 
 
@@ -2403,18 +2344,25 @@ def local_match_time(iso_utc: str, city: str) -> dict:
     zapravo nikad nije postojala. Puni timestamp ipak stoji u polju `date`
     (npr. "2026-08-01T03:00:00.000Z"), pa ga ovdje pretvaramo u lokalni sat grada domaćina.
 
-    Vraća {"local_time": "HH:MM", "session": "day|night", "utc_offset": int} ili {} ako
-    grad nije poznat (nikad ne nagađamo — bolje bez podatka nego s krivim)."""
+    Vraća {"local_time": "HH:MM", "session": "day|night", "utc_offset": sati, "local_date"}
+    ili {} ako grad nije poznat (nikad ne nagađamo — bolje bez podatka nego s krivim).
+    `utc_offset` je cijeli broj osim za polusatne zone (Adelaide 10.5); od 26.09.2026
+    racuna se za trenutak meca, ne kao konstanta grada — vidi blok iznad `_CITY_TZ`."""
     if not iso_utc or not city:
         return {}
-    offset = _CITY_UTC_OFFSET.get(city.lower().strip())
-    if offset is None:
+    zone = _CITY_TZ.get(city.lower().strip())
+    if not zone:
         return {}
     try:
         base = datetime.datetime.fromisoformat(str(iso_utc).replace("Z", "+00:00"))
     except ValueError:
         return {}
-    local = base + datetime.timedelta(hours=offset)
+    if base.tzinfo is None:
+        base = base.replace(tzinfo=datetime.timezone.utc)
+    import pytz
+    local = base.astimezone(pytz.timezone(zone))
+    offset = local.utcoffset().total_seconds() / 3600.0
+    offset = int(offset) if offset == int(offset) else offset
     # Sesija: dnevna do 18h lokalno, inače noćna (US hard noćne sesije su hladnije i sporije)
     session = "day" if 6 <= local.hour < 18 else "night"
     # local_date (04.08.2026): LOKALNI datum turnira, koji NIJE uvijek isti kao datum meča u

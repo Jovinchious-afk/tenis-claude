@@ -168,3 +168,58 @@ def pick_ledger(matches: list) -> list:
             "no_selection": is_no_selection(m),
         })
     return out
+
+
+# ---------------------------------------------------------------------------
+# RUNDA SE UNOSI RUCNO — 26.09.2026 17:04 (korisnikova odluka)
+#
+# Od danas rundu svakog para upisuje korisnik na stranici "Kvote sa Screenshota",
+# u trenutku uploada. Svi automatski nacini odredjivanja runde su OBRISANI iz koda:
+# fiksna mapa `roundId` -> runda, brojanje meceva po danu (`_infer_rounds`),
+# provjera na razini turnira (`_verify_late_rounds`), ljestvica iz zdrijeba
+# (`get_tournament_round_map` / `_apply_draw_rounds`) i zastita u tiketu koja je iz
+# runde pogadjala kvalifikacije.
+#
+# ZASTO — tri mjeseca pokusaja, svaki je popravljao prethodni i nijedan nije drzao:
+#   07.08.  42,6% redaka u nemogucoj grupi (isti igrac vise puta u "R32")
+#   13.08.  Montreal: 10 "polufinala" (turnir smije 2)
+#   08.09.  US Open: 69 redaka "R64" (smije 32)
+#   13.09.  izmjereno 79,2% krivih oznaka na cijelom korpusu; uveden "zdrijeb"
+#   24.09.  Chengdu i Hangzhou PRVI DAN: 12 meceva zapisano kao "SF"; sljedeca dva
+#           dana "R64" na ATP 250 turnirima, koji R64 uopce nemaju. Zdrijeb na
+#           pocetku turnira jos ne postoji, a te je oznake nitko nije provjeravao
+#           jer su nosile `round_source="draw"` ("pouzdano").
+# Korisnik vidi rundu na kladionici u istom trenutku kad uploada kvote — to je
+# jedini izvor koji nikad nije pogrijesio.
+#
+# INTERNI KODOVI su namjerno isti kao dosad (R128 ... F), jer ih cita prompt
+# (pravila za QF/SF/F), korpus u `analyzed_matches.round` i sva mjerenja po rundi
+# (K11). Mijenja se samo tko ih upisuje. Hrvatske oznake su samo za prikaz.
+# ---------------------------------------------------------------------------
+
+ROUND_CHOICES = [
+    ("R128", "1/64 finala"),
+    ("R64", "1/32 finala"),
+    ("R32", "1/16 finala"),
+    ("R16", "1/8 finala"),
+    ("QF", "1/4 finala"),
+    ("SF", "1/2 finala"),
+    ("F", "Finale"),
+    # ATP Finals (Torino, studeni) i ekipna natjecanja nemaju eliminacijsku ljestvicu.
+    ("RR", "Grupna faza (ATP Finals)"),
+    ("DC", "Davis Cup susret"),
+]
+ROUND_CODES = [c for c, _ in ROUND_CHOICES]
+ROUND_LABEL_HR = dict(ROUND_CHOICES)
+ROUND_CODE_BY_LABEL = {label: code for code, label in ROUND_CHOICES}
+
+
+def round_label_hr(code: str) -> str:
+    """'R16' -> '1/8 finala'. Nepoznat ili prazan kod vraca se kakav jest ('' ostaje '')."""
+    return ROUND_LABEL_HR.get(str(code or "").upper().strip(), str(code or ""))
+
+
+def normalize_round_code(code) -> str:
+    """Valjan interni kod runde ili '' — nikad ne pogadja iz necega drugoga."""
+    c = str(code or "").upper().strip()
+    return c if c in ROUND_LABEL_HR else ""

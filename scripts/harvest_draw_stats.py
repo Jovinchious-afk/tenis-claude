@@ -121,14 +121,16 @@ def main() -> int:
             continue
         raw = df._get(f"/atp/tournament/results/{tid}")
         singles = ((raw or {}).get("data") or {}).get("singles") or []
-        rmap = df.get_tournament_round_map(tid)
+        # Oznaka runde se NE izvodi (26.09.2026): mapa rundi iz zdrijeba obrisana je iz
+        # koda kad je runda postala rucni unos. K12 mjeri DUBINU (broj ranijih meceva na
+        # turniru), ne oznaku; sprema se sirovi `roundId` bez tumacenja.
         for m in singles:
             if not m.get("match_winner"):
                 continue
             key = f"{tid}|{m.get('player1Id')}|{m.get('player2Id')}"
             if key in have:
                 continue
-            todo.append((key, tid, tname, m, rmap.get(m.get("roundId"))))
+            todo.append((key, tid, tname, m, m.get("roundId")))
 
     print(f"Za obraditi: {len(todo)} meceva "
           f"(~{len(todo) * 0.67 / 60:.0f} min uz nas rate limit)")
@@ -155,7 +157,7 @@ def main() -> int:
                 "tournament": tname,
                 "tournament_id": tid,
                 "date": (m.get("date") or "")[:10],
-                "round": rnd,
+                "round_id_raw": rnd,
                 "p1_id": p1, "p2_id": p2,
                 "p1_name": (m.get("player1") or {}).get("name", ""),
                 "p2_name": (m.get("player2") or {}).get("name", ""),

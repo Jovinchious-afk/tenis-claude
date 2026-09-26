@@ -28,15 +28,22 @@ Težine su hard v18; žive u Supabase `model_weights`, ne u kodu.
 | **Podloga + stil 18%** | omjer na podlozi (3 g.), forma na podlozi (6 mj.), ruka, brzina terena, nadmorska visina, dvorana/otvoreno |
 | **Forma 17%** | zadnjih 5 i 10 mečeva, trend forme, put kroz aktualni turnir |
 | **Umor + ozljede 12%** | mečevi i setovi u 7 dana, dani odmora, dob, vijesti o ozljedama |
-| **Trajektorija 7%** | karijerni omjer na tom turniru, odigrana finala i naslovi |
+| **Trajektorija 7%** | karijerni omjer na tom turniru, odigrana finala i naslovi *(od 26.09.2026 ukljucuju i Grand Slam, ATP Finals i OI finala, koja su do tada tiho ispadala; GS finala navedena zasebno)* |
 | **H2H 4%** | ukupno, na podlozi, zadnji susret, trend zadnja 3, pouzdanost uzorka |
 
 **Izvan težina, ali utječe na pick:**
 
-- **Runda i kontekst runde** — rane runde dopuštaju iznenađenja, završnice favoriziraju dokazane
+- **Runda i kontekst runde** — rane runde dopuštaju iznenađenja, završnice favoriziraju dokazane.
+  **Od 26.09.2026 17:04 rundu RUČNO upisuje korisnik** uz svaki par na stranici "Kvote sa
+  Screenshota" (izbornik za sve parove + ispravak po paru). Kod je više ne pogađa ni na koji
+  način; par bez upisane runde ide u analizu s porukom "Round NOT ENTERED". Opis runde u
+  promptu ide po broju preostalih igrača, ne po rednom broju kola (stari opis je prvo kolo
+  ATP 250 zvao "Third round").
 - **Vremenski uvjeti** — smiju **samo SPUŠTATI** pouzdanost, nikad je dizati (asimetrija namjerna)
 - **Lokalno vrijeme početka i sesija** (dan/noć) — za razliku od uvjeta, sesija po pravilu 14
-  smije djelovati **u oba smjera**
+  smije djelovati **u oba smjera**. *Od 26.09.2026 pomak se računa po pravoj vremenskoj zoni
+  za trenutak meča (ljetno/zimsko, Kazahstan +5, Adelaide +10,5); Bruxelles, Lyon,
+  Stockholm, Torino, Monte-Carlo i Rio prije nisu dobivali lokalni sat uopće.*
 - **Oboje otpada kad raspored za sutra nije objavljen** *(novo 14.08.2026 11:02)*. Kad 4+
   mečeva jednog turnira dijeli najraniji termin **sutrašnje** liste, kladionica je cijeli dan
   nabila na jedan placeholder sat: prognoza se tada ne dohvaća uopće, a `local_time`/`session`
@@ -68,17 +75,11 @@ Težine su hard v18; žive u Supabase `model_weights`, ne u kodu.
 - **NIJE na screenshotu** — od 11.08.2026 18:44 meč prolazi samo ako je njegov par na
   screenshotu (danas ∪ sutra), bez obzira na datum koji mu API dodijeli; bez ijednog
   screenshota run staje odmah. Vidi `_gate_by_screenshot`.
-- **runde na razini TURNIRA** *(novo 13.08.2026 12:47)* — turnir smije imati najviše 1 F,
-  2 SF i 4 QF kroz SVE dane; višak se spušta za rundu. Dnevna provjera je propuštala deset
-  "polufinala" jer je svaki dan imao točno dva. Vidi `_verify_late_rounds`.
-  **Prošireno 08.09.2026 12:07:** na Grand Slamu se provjeravaju i rane runde (8 R16,
-  16 R32, 32 R64), jer je ondje ždrijeb uvijek 128 pa su brojevi nedvosmisleni. Time se
-  ispravlja prvo kolo koje je API zvao "R64", a zapravo je R128 — na US Openu 2026 bilo
-  je 69 redaka pod "R64" (smije 32). Ostale razine se u ranim rundama i dalje NE diraju.
-  Isti dan popravljeno i dvostruko brojanje pri ponovnom pokretanju runa (isti meč se
-  brojao kao živi zapis i kao vlastita "povijest" od prije par sati).
-- **R128 izvan Grand Slama** — Masters ima ždrijeb od 96, ATP 250/500 od 28-32; R128 ondje ne
-  postoji pa je oznaka kvalifikacijska (Cincinnati 11.08.). Screenshot poništava tu provjeru.
+- ~~runde na razini TURNIRA~~ i ~~R128 izvan Grand Slama~~ — **OBRISANO 26.09.2026 17:04**.
+  Obje provjere su pogađale rundu (prva brojanjem oznaka kroz turnir, druga je iz oznake
+  "R128"/"Q1"/"Q2" zaključivala da je meč kvalifikacija). Runda je od tada ručni unos, a
+  kvalifikacije drži vani screenshot-gate (korisnik ih nikad ne screenshota) i razina
+  turnira. Povijest: MODEL_CHANGELOG 13.08., 08.09., 13.09. i 26.09.2026.
 
 **Ograničava listić:**
 
@@ -128,7 +129,7 @@ kazna za najslabiji pick išla je s faktorom 1,5 i sidrom 68 (gurala je izbor pr
 65-68, koji ide −35,4%) — sada faktor 0,6 i sidro 63; kazna za dodatne parove bila je
 usidrena na fiksnu četvorku pa bi trojac dobio skriveni bonus od +3 boda.
 
-## 3. Bilježi se, ali NE utječe na odluku — `context_snapshot` v20
+## 3. Bilježi se, ali NE utječe na odluku — `context_snapshot` v21
 
 Vremenski uvjeti u punom obliku (temperatura, vlaga, vjetar, tlak na razini mora i na tlu,
 uvjet, koliko je prognoza udaljena od sata meča); je li teren natkriven; je li meč u prvom
@@ -182,6 +183,20 @@ Od **27.08.2026 18:55** (`context_snapshot` v17) — dijagnostika samog poziva m
 završio bez ičega o tome *kakvi su bili uvjeti prije njega*. Od v17 se cijeli snapshot
 sprema i na grani greške. Tko broji analize po erama mora znati da se time promijenio
 sastav korpusa, ne samo skup polja.
+
+Od **26.09.2026 17:04** (`context_snapshot` v21) — na korisnikov zahtjev, i unatrag za
+svih 664 dosadašnjih analiza (`scripts/backfill_player_context.py`, vrijednosti na dan meča):
+
+| polje | što je |
+|---|---|
+| `p*_ctx.hand` / `opp_hand` | ruka igrača i današnjeg protivnika (`L`/`R`/prazno) |
+| `p*_ctx.vs_hand` | W-L protiv ljevaka i protiv desnjaka, zadnje 2 godine (+ broj protivnika nepoznate ruke) |
+| `p*_ctx.season` | ATP W-L u kalendarskoj godini (glavni ždrijeb, tour razine) + W-L na svim razinama |
+| `p*_ctx.gs` | broj GS polufinala, finala, naslova i nastupa u glavnom ždrijebu do dana meča |
+| `p*_titles` | karijerna finala po razini — u promptu od 26.07.2026, prvi put se bilježe |
+| `round_source` | `manual` (korisnik upisao) / `missing` (nije) |
+
+Mjerenje: K15, K16 i zapis o ruci u registru niže. Nijedno od toga još NE ulazi u odluku.
 
 Svrha: svaka buduća hipoteza mora se moći provjeriti retroaktivno umjesto pogađati.
 
@@ -673,6 +688,74 @@ uzorak premali za bilo kakav zakljucak.
 
 **OGRADA:** ovo NIJE test "je li nas model dobar na Davis Cupu" nego "koliko kostaju tri
 odsutna ulaza". Ne brkati to dvoje pri citanju rezultata.
+
+**STANJE K13 26.09.2026 17:04:** od 13.09. analizirane su 43 utakmice i **nijedna nije
+dobila nijednu vijest** (`p1_news`/`p2_news` prazni u 43 od 43). Kanal radi (ESPN + BBC
+vracaju stavke), ali ti izvori pisu o vrhu tablice, a ne o igracima ATP 250 turnira koje
+analiziramo. Prag od n>=15 ovim izvorom nece se dosegnuti nikad — za K13 treba izvor po
+IGRACU, ne opci feed.
+
+### K15 — ATP pobjede u sezoni (26.09.2026 17:04) — KANDIDAT, jedini od tri koji se drzi
+
+Korisnikov prijedlog ("broj ATP pobjeda u tekucoj sezoni je pokazatelj forme sezone").
+Mjereno na 451 razrijesenoj analizi, vrijednosti izracunate NA DAN MECA
+(`scripts/measure_player_context.py`, varijabla S1 = pick minus protivnik):
+
+    S1 razlika u broju ATP pobjeda   r(ostatak naspram cijene) = +0,093  P=0,049
+                                     bootstrap 95% CI [-0,00, +0,18]  (na samoj granici nule)
+                                     polovice korpusa +0,06 / +0,13  (isti predznak)
+    po pojasu kvote, gornja naspram donje polovice S1:
+        1,00-1,35 +6,1pp | 1,35-1,60 +5,8pp | 1,60-2,00 +4,7pp | 2,00+ +10,8pp  -> +6,0pp
+    uz kontrolu ELO razlike (n=275): djelomicni r = +0,17  (sam ELO naspram cijene: +0,025)
+    po mjesecima: srpanj -0,09 (n=78) | kolovoz +0,14 (n=250) | rujan +0,08 (n=103)
+    postotak pobjeda (S2) slabiji: +0,061, CI prelazi nulu; razredi ipak monotoni
+        -9,1 / -7,4 / -1,1 / -0,8 / +2,7pp
+
+Dakle BROJ pobjeda (korisnikova formulacija) nosi vise od POSTOTKA — vjerojatno aktivnost i
+razina na kojoj igrac igra, sto trziste djelomicno podcjenjuje. **Ograde:** jedan od sedam
+testova istog dana; srpanj ide suprotno; CI dodiruje nulu.
+
+**ODLUKA KORISNIKA 26.09.2026:** čeka se potvrda — K15 danas NE ulazi u odluku.
+
+**PRAG ZA POTVRDU (zapisano 26.09.2026 prije podataka):** na analizama s `match_date` od
+**27.09.2026** nadalje (nijedna nije bila u otkrivanju), kad ih se skupi **n>=150**
+razrijesenih: (a) r(S1, ostatak) >= +0,05 (isti predznak), (b) ponderirana razlika po
+pojasevima kvote >= +3pp, (c) na SPOJENOM uzorku (otkrivanje + potvrda) bootstrap CI ne
+prelazi nulu. Sve tri -> S1 ulazi kao BONUS u `_score_combo` (kao konsenzus), NE u prompt.
+Ako (a) padne ispod nule -> odbacuje se. Mjeriti istom skriptom, bez izmjene definicije.
+
+### K16 — GS iskustvo u zavrsnicama (26.09.2026 17:04) — PROMATRANJE, uzorak premalen
+
+Korisnikov primjer: finale US Opena 2026, Zverev (12 GS polufinala, 5 finala) protiv
+Sheltona (2 / 0) — "vidjelo se da je Zverev mirniji". Na CIJELOM korpusu hipoteza NE
+prolazi: razlika u broju GS polufinala r = -0,050 (obje polovice negativne), a asimetrija
+"samo jedan ima GS polufinale" daje +0,9 / -1,2 / +0,3pp — trziste GS pedigre vec placa.
+Ali korisnik govori o ZAVRSNICAMA, i ondje:
+
+    QF/SF/F, samo NAS pick ima GS polufinale   n=16   +8,1pp naspram cijene
+    QF/SF/F, samo protivnik ima                n=2    (ne moze se procijeniti)
+    (bez 31 retka Chengdu/Hangzhou s krivom rundom; s njima n=18, +10,7pp)
+
+**PRAG (zapisano prije podataka):** kad QF/SF/F s asimetrijom iskustva dosegne n>=40 na
+novim mecevima (od 27.09.2026), rub strane s iskustvom mora biti >= +5pp. Tada se razmatra
+bonus u zavrsnicama. Uzorak raste ~4-5 meceva mjesecno, pa je ovo pitanje od nekoliko
+mjeseci — NE ubrzavati spustanjem praga.
+
+### IZMJERENO 26.09.2026 17:04 — omjer protiv ljevaka/desnjaka NE predvidja
+
+Korisnikov prijedlog, povod komentar s finala US Opena: Zverev je dominantan protiv ljevaka
+jer trenira s bratom ljevakom. **Anegdota je tocna** — Zverev u 2 godine prije finala:
+protiv ljevaka **21-1**, protiv desnjaka 100-41. Ali kao prediktor naspram cijene nije
+prosao (mecevi s bar jednim ljevakom, n=120, "rub po ruci" pick minus protivnik):
+
+    r(ostatak) = -0,103, CI [-0,28, +0,07]; polovice -0,37 / +0,15  (predznak se okrece)
+    razredi: protivnik bolji +5,1pp | podjednako -8,0pp | pick bolji -4,9pp  (naopako)
+    kontrola desnjak-desnjak (n=331): -0,008
+
+Medijan broja meceva protiv te ruke je 15 po igracu — omjer je sum oko igraceve opce
+razine, a gdje je stvaran (Zverev), trziste ga vec zna. **Ostaje se biljeziti** (korisnikov
+zahtjev: `p*_ctx.vs_hand` u svakoj analizi i unatrag u svih 664 redaka) i premjerava se kad
+meceva s ljevakom bude n>=300. Ljevaka je u nasim podacima 12,7% (220 od 1.727 poznatih).
 
 ### IZMJERENO I ZATVORENO 13.09.2026 10:44 — tri hipoteze, sve tri nula
 

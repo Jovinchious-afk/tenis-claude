@@ -185,7 +185,7 @@ check("prompt dobiva eksplicitan razlog umjesto sata",
       "Unknown — tomorrow's schedule is not final" in _pr)
 check("snapshot bilježi schedule_provisional", '"schedule_provisional"' in _pr)
 check("snapshot bilježi iz koje rubrike je sat", '"scheduled_start_source_date"' in _pr)
-check("context_version 20 (snapshot i kod neuspjele analize; v19 13.09.2026)", '"context_version": 20' in _pr)
+check("context_version 21 (snapshot i kod neuspjele analize; v21 26.09.2026)", '"context_version": 21' in _pr)
 check("rules_hash odgovara zigu ere",
       pr._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
 check("nova polja ne cure u predložak prompta",
@@ -205,7 +205,7 @@ check("besmislena dob se odbacuje", df._get_age({"age": 99, "birthday": ""}) is 
 
 check("dob NE ide u prompt dok traje mjerenje", pr._AGE_TO_PROMPT is False)
 check("dob se ipak biljezi u snapshot", '"age_in_prompt"' in _pr)
-check("context_version 20 (snapshot i kod neuspjele analize; v19 13.09.2026)", '"context_version": 20' in _pr)
+check("context_version 21 (snapshot i kod neuspjele analize; v21 26.09.2026)", '"context_version": 21' in _pr)
 check("rules_hash odgovara zigu ere",
       pr._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
 
@@ -256,7 +256,7 @@ check("nepoznat par -> {}", mkt.find_for_pair(_idx, "Neki Igrac", "Drugi Igrac")
 check("market_p NIJE u predlošku prompta", "market_p" not in _FULL_PROMPT)
 check("snapshot bilježi market_p", '"market_p"' in _pr)
 check("snapshot bilježi EV picka", '"market_ev_pick"' in _pr)
-check("context_version 20 (snapshot i kod neuspjele analize; v19 13.09.2026)", '"context_version": 20' in _pr)
+check("context_version 21 (snapshot i kod neuspjele analize; v21 26.09.2026)", '"context_version": 21' in _pr)
 check("rules_hash odgovara zigu ere",
       pr._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
 # ticket_builder SMIJE zapisati tržište uz odigrani pick, ali NE SMIJE po njemu birati.
@@ -626,7 +626,7 @@ _prv = open("agent/predictor.py", encoding="utf-8").read()
 for _f in ("p1_avg_opp_elo_5", "p1_form_quality", "p1_matches_3_9d", "age_gap"):
     check(f"{_f} ide u context_snapshot", f'"{_f}"' in _prv)
     check(f"{_f} NIJE u predlosku prompta", "{" + _f + "}" not in _APT)
-check("context_version 20", '"context_version": 20' in _prv)
+check("context_version 21", '"context_version": 21' in _prv)
 
 # --- zastita od curenja u novom brojacu opterecenja ---
 _m = [{"date": "2026-08-19", "won": True}, {"date": "2026-08-17", "won": True},

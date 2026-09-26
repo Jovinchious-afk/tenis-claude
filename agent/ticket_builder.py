@@ -60,33 +60,14 @@ def _is_main_tour(p) -> bool:
     # Davis Cup NAMJERNO prolazi ovdje (19.09.2026): zelimo ga vidjeti u analysis-only
     # prikazu i pratiti kroz vrijeme. Na sam tiket ga pusta `_NON_TICKET_LEVELS` gore,
     # koji ovisi o `DAVIS_CUP_ON_TICKETS`. Dvije razlicite kapije, namjerno odvojene.
-    # Screenshot override (2026-07-16): ako je korisnik ručno unio kvotu za ovaj meč,
-    # to je potvrda glavnog ždrijeba (kvalifikacije nikad ne screenshota) → propusti
-    # ga bez obzira na API-jev round-tag. Namjerno IZA level-provjere: screenshot ne
-    # smije progurati Challenger/ITF (to je policy isključenje, ne API greška),
-    # nego samo zaobići round-based qualifying guard ispod. _infer_rounds obično već
-    # ispravi Q→prava runda uzvodno; ovo je pojas-i-tregeri za rubne slučajeve.
-    if m.get("has_screenshot_odds"):
-        return True
-    # Qualifying guard (clay revizija 2026-07-11): ATP 250/500 nemaju R128 u main drawu —
-    # "R128" na tim razinama su kvalifikacije koje API krivo označi kao main draw.
-    # 11.07. su tako 4 kvalifikacijska meča (igrači ranga 150-300) ušla na tiket i 2/4 pala.
-    # Fix 2026-07-16: kvalifikacije su "Q1"/"Q2" — raniji startswith("Q") hvatao je i "QF"
-    # (četvrtfinale!), pa je QF dan na ATP 250 (Båstad/Gstaad/Umag, četvrtak 16.07.)
-    # izbacio SVE mečeve i s tiketa i iz analysis-only prikaza → prazan email.
-    rnd = str(m.get("round", "")).upper().strip()
-    is_quali_round = rnd.startswith("Q") and rnd != "QF"
-    if is_quali_round:
-        return False
-    # R128 kao oznaka kvalifikacija: PROSIRENO s 250/500 na Masters 1000 (11.08.2026 18:44).
-    # Povod: 11.08. su tri Cincinnati kvalifikacijska meca zavrsila na tiketu s oznakom
-    # `ATP Masters 1000` + `R128`, pa ih ova zastita nije ni pogledala. Masters je od 2025.
-    # zdrijeb od 96 — R128 ondje NE POSTOJI, jednako kao ni na ATP 250/500 (zdrijeb 28-32).
-    # Grand Slam je jedini gdje je R128 stvarna prva runda glavnog zdrijeba, pa je izuzet.
-    # Ovo je pojas uz tregere: od 11.08. screenshot-gate ionako izbacuje sve sto korisnik
-    # nije uploadao, a kvalifikacije nikad ne screenshota.
-    if "Grand Slam" not in level and rnd == "R128":
-        return False
+    #
+    # OBRISANO 26.09.2026 17:04 — zastita koja je kvalifikacije prepoznavala iz RUNDE
+    # (oznaka "Q1"/"Q2", ili "R128" izvan Grand Slama). Runda je od danas rucni unos
+    # korisnika (vidi `ROUND_CHOICES` u `utils/helpers.py`), a kvalifikacije nikad ne
+    # ulaze u analizu: screenshot-gate (od 11.08.2026) propusta samo parove koje je
+    # korisnik uploadao, a on kvalifikacije nikad ne screenshota. Zastita je od tada
+    # ionako bila mrtva — svaki analizirani mec nosi `has_screenshot_odds` i izlazio je
+    # prije nje. Povijest (Bastad/Gstaad/Umag 16.07., Cincinnati 11.08.) u MODEL_CHANGELOG-u.
     return True
 
 

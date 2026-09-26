@@ -37,3 +37,6 @@ Moje Biljeske/
 
 # Lokalni VS Code workspace
 *.code-workspace
+
+# Lokalni kes skripti za backfill (26.09.2026) — sirovi API odgovori, ne ide u repozitorij
+.cache/

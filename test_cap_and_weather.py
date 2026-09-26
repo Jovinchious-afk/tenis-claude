@@ -371,68 +371,7 @@ check("clay namjerno NIJE diran (nema mjerenja)", "1/3 or worse" in c)
 check("grass namjerno NIJE diran (nema mjerenja)", "1/3 or worse" in g)
 
 print("\n=== 11. Runde: grupiranje, ljestvica, brojanje prije gatea (07.08.2026) ===")
-from agent.run_daily import _infer_rounds, _count_by_tournament_day
-
-def mk(t, d, rnd, p1, p2, level="ATP Masters 1000"):
-    return {"tournament": t, "date": d, "round": rnd, "player1": p1, "player2": p2,
-            "level": level}
-
-# (a) mjesoviti dan: dvije runde istog dana ne smiju se stopiti u jednu oznaku
-mixed = ([mk("T", "2026-08-06", "R32", f"A{i}", f"B{i}") for i in range(7)]
-         + [mk("T", "2026-08-06", "QF", f"C{i}", f"D{i}") for i in range(4)])
-_infer_rounds(mixed)
-check("mjesoviti dan: R32 grupa ostaje R32",
-      all(m["round"] == "R32" for m in mixed[:7]))
-check("mjesoviti dan: QF grupa ostaje QF (4 meca je legitimno)",
-      all(m["round"] == "QF" for m in mixed[7:]))
-
-# stara verzija bi cijeli dan prepisala oznakom prvog meca — provjeri da vise ne
-mixed2 = ([mk("T", "2026-08-06", "QF", f"C{i}", f"D{i}") for i in range(5)]
-          + [mk("T", "2026-08-06", "R32", f"A{i}", f"B{i}") for i in range(7)])
-_infer_rounds(mixed2)
-check("nemoguc QF (5 meceva) se ispravlja", mixed2[0]["round"] != "QF")
-check("...a susjedna R32 grupa ostaje netaknuta",
-      all(m["round"] == "R32" for m in mixed2[5:]))
-
-# (b) Masters ljestvica vise ne staje na R32
-big = [mk("M", "2026-08-03", "R32", f"P{i}", f"Q{i}") for i in range(28)]
-_infer_rounds(big)
-check("Masters, 28 meceva -> R64 (prije: uvijek R32)", big[0]["round"] == "R64")
-big32 = [mk("M", "2026-08-02", "R32", f"P{i}", f"Q{i}") for i in range(32)]
-_infer_rounds(big32)
-check("Masters, 32 meca -> R128", big32[0]["round"] == "R128")
-mid = [mk("M", "2026-08-05", "R16", f"P{i}", f"Q{i}") for i in range(12)]
-_infer_rounds(mid)
-check("Masters, 12 meceva -> R32", mid[0]["round"] == "R32")
-gs = [mk("G", "2026-07-01", "R64", f"P{i}", f"Q{i}", level="Grand Slam") for i in range(40)]
-_infer_rounds(gs)
-check("Grand Slam, 40 meceva -> R128", gs[0]["round"] == "R128")
-small = [mk("S", "2026-07-19", "R16", f"P{i}", f"Q{i}", level="ATP 250") for i in range(16)]
-_infer_rounds(small)
-check("ATP 250, 16 meceva -> R32", small[0]["round"] == "R32")
-
-# (c) broj mecheva dolazi iz pre-gate prebrojavanja, ne iz filtrirane liste
-full = [mk("W", "2026-08-05", "R32", f"P{i}", f"Q{i}") for i in range(24)]
-counts = _count_by_tournament_day(full)
-check("_count_by_tournament_day broji po (turnir, dan, runda)",
-      counts.get(("W", "2026-08-05", "R32")) == 24)
-# kao da je screenshotano samo 6 od 24 — kopije, da prvi poziv ne zagadi drugi
-gated = [dict(m) for m in full[:6]]
-_infer_rounds(gated, None, counts)
-check("gate ne smanjuje procjenu runde (6 vidljivih, 24 stvarnih -> R64)",
-      gated[0]["round"] == "R64")
-gated_naive = [dict(m) for m in full[:6]]
-_infer_rounds(gated_naive)          # bez pre-gate brojeva
-check("bez pre-gate brojeva ista lista daje drugu rundu (dokaz da (c) radi)",
-      gated_naive[0]["round"] != "R64")
-
-# RR i kvalifikacije se i dalje ne diraju
-rr = [mk("F", "2026-11-12", "RR", f"P{i}", f"Q{i}") for i in range(6)]
-_infer_rounds(rr)
-check("round-robin ostaje netaknut", all(m["round"] == "RR" for m in rr))
-q = [mk("Q", "2026-07-16", "Q2", f"P{i}", f"Q{i}", level="ATP 250") for i in range(9)]
-_infer_rounds(q)
-check("kvalifikacije bez screenshota ostaju Q2", all(m["round"] == "Q2" for m in q))
+print("  (uklonjeno 26.09.2026 17:04 — runda je rucni unos, vidi odjeljak 44)")
 
 print("\n=== 12. Spajanje duplikata analiza (±3 dana) ===")
 import inspect
@@ -493,8 +432,8 @@ for f in ("p1_serve_pts_won", "p1_hold_pct", "p1_hold_pct_from_bp", "p1_return_w
           "p1_return_won_weighted", "p1_bp_saved", "p1_bp_converted", "p1_first_serve_pct",
           "bp_in_prompt"):
     check(f"snapshot biljezi {f}", f'"{f}"' in _all)
-check("context_version podignut na 20 (v17 27.08., v18 13.09. 10:44, v19 13.09. 12:20)",
-      '"context_version": 20' in _all)
+check("context_version podignut na 21 (v17 27.08., v18/v19 13.09., v20 19.09., v21 26.09.)",
+      '"context_version": 21' in _all)
 
 # (e) nove vrijednosti ne smiju procuriti u prompt template
 check("prompt template nema novih polja",
@@ -589,7 +528,7 @@ _wf2 = open(".github/workflows/daily_ticket.yml", encoding="utf-8").read()
 
 # A — bez utjecaja na pickove
 check("ELO se biljezi u snapshot", '"p1_elo_overall"' in _prsrc and '"elo_gap_surface"' in _prsrc)
-check("context_version podignut na 20", '"context_version": 20' in _prsrc)
+check("context_version podignut na 21", '"context_version": 21' in _prsrc)
 check("broj protivnika u avg_opp_elo se biljezi", "_avg_opponent_elo_n" in _rd2)
 check("PYTHONUNBUFFERED aktiviran", 'PYTHONUNBUFFERED: "1"' in _wf2)
 check("hard okidac vise ne vristi na 30", "_HARD_NEXT_TRIGGER = 180" in _rd2)
@@ -669,18 +608,21 @@ check("potpis bez datumskih parametara",
 check("rani izlaz kad nema nijednog meca", "zaustavljam prije analize" in _rd2 if "_rd2" in dir()
       else "zaustavljam prije analize" in open("agent/run_daily.py", encoding="utf-8").read())
 
-print("\n=== 19. Kvalifikacije: R128 izvan Grand Slama ===")
-_mkp = lambda lvl, rnd, ss=False: {"match": {"level": lvl, "round": rnd, "has_screenshot_odds": ss}}
-check("Masters R128 pada (Cincinnati kvalifikacije 11.08.)",
-      _tbm._is_main_tour(_mkp("ATP Masters 1000", "R128")) is False)
-check("ATP 500 R128 i dalje pada", _tbm._is_main_tour(_mkp("ATP 500", "R128")) is False)
-check("Grand Slam R128 PROLAZI (ondje je to prava prva runda)",
-      _tbm._is_main_tour(_mkp("Grand Slam", "R128")) is True)
-check("Masters R64 prolazi", _tbm._is_main_tour(_mkp("ATP Masters 1000", "R64")) is True)
-check("QF nije kvalifikacija", _tbm._is_main_tour(_mkp("ATP 250", "QF")) is True)
-check("Q2 pada", _tbm._is_main_tour(_mkp("ATP 250", "Q2")) is False)
-check("screenshot override i dalje nadjacava round-tag",
-      _tbm._is_main_tour(_mkp("ATP Masters 1000", "R128", ss=True)) is True)
+print("\n=== 19. Kvalifikacije: runda vise ne odlucuje (26.09.2026) ===")
+# 26.09.2026 17:04: zastita koja je kvalifikacije prepoznavala iz RUNDE je OBRISANA
+# (runda je rucni unos korisnika). Kvalifikacije drzi vani screenshot-gate i razina
+# turnira ("ATP Qualifying"). Testovi ispod cuvaju NOVO ponasanje: runda vise nikad
+# ne odlucuje o tome je li mec glavni zdrijeb.
+_mkp = lambda lvl, rnd: {"match": {"level": lvl, "round": rnd}}
+check("runda vise ne odlucuje: Masters 'R128' prolazi (96-zdrijeb, prvo kolo)",
+      _tbm._is_main_tour(_mkp("ATP Masters 1000", "R128")) is True)
+check("Grand Slam R128 prolazi", _tbm._is_main_tour(_mkp("Grand Slam", "R128")) is True)
+check("QF prolazi", _tbm._is_main_tour(_mkp("ATP 250", "QF")) is True)
+check("prazna runda (nije upisana) prolazi — analiza ide dalje",
+      _tbm._is_main_tour(_mkp("ATP 250", "")) is True)
+check("kvalifikacije i dalje padaju — po RAZINI, ne po rundi",
+      _tbm._is_main_tour(_mkp("ATP Qualifying", "R32")) is False)
+check("Challenger i dalje pada", _tbm._is_main_tour(_mkp("ATP Challenger", "SF")) is False)
 
 print("\n=== 20. Strop pouzdanosti: 64% -> 70% (revizija 17.08.2026 11:46) ===")
 # Strop je 13.08. postavljen na 64 jer je razred 65-67% davao 50,0% (n=20, ROI -34,8%).
@@ -735,40 +677,10 @@ check("stara zabrana oslanjanja na kvotu i dalje stoji",
 check("nova polja u JSON shemi",
       '"above_64_basis"' in _FULL_PROMPT
       and '"market_check"' in _FULL_PROMPT)
-check("context_version podignut na 20", '"context_version": 20' in _all2)
+check("context_version podignut na 21", '"context_version": 21' in _all2)
 
 print("\n=== 22. Runde na razini TURNIRA (13.08.2026) ===")
-from agent.run_daily import _verify_late_rounds, _LATE_ROUND_TOTAL
-import io as _io3, contextlib as _cl3
-def _vr(today, hist):
-    _b = _io3.StringIO()
-    with _cl3.redirect_stdout(_b):
-        _verify_late_rounds(today, hist)
-    return today
-_mkr = lambda d, r, i: {"tournament": "T", "date": d, "round": r,
-                        "player1": f"A{i}", "player2": f"B{i}"}
-# Montreal obrazac: cetiri dana po dva "SF"
-_t = [_mkr("2026-08-13", "SF", 1), _mkr("2026-08-13", "SF", 2)]
-_h = [{"tournament": "T", "match_date": d, "round": "SF"}
-      for d in ("2026-08-10", "2026-08-10", "2026-08-11", "2026-08-11",
-                "2026-08-12", "2026-08-12")]
-_vr(_t, _h)
-check("dva SF od danas OSTAJU SF (najkasniji su pravi)",
-      all(m["round"] == "SF" for m in _t))
-_t2 = [_mkr("2026-08-12", "SF", 1), _mkr("2026-08-12", "SF", 2)]
-_vr(_t2, _h + [{"tournament": "T", "match_date": "2026-08-13", "round": "SF"}] * 2)
-check("raniji 'SF' se spusta u QF kad ih je previse",
-      all(m["round"] == "QF" for m in _t2))
-_t3 = [_mkr("2026-08-13", "SF", 1), _mkr("2026-08-13", "SF", 2)]
-_vr(_t3, [])
-check("bez povijesti se 2 SF ne diraju", all(m["round"] == "SF" for m in _t3))
-_t4 = [_mkr("2026-08-13", "R32", i) for i in range(20)]
-_vr(_t4, [])
-check("rane runde se NE diraju (bez punog zdrijeba ne znamo)",
-      all(m["round"] == "R32" for m in _t4))
-check("ukupni brojevi samo za zavrsnice",
-      set(_LATE_ROUND_TOTAL) == {"F", "SF", "QF"})
-check("get_tournament_rounds postoji", hasattr(_db, "get_tournament_rounds"))
+print("  (uklonjeno 26.09.2026 17:04 — runda je rucni unos, vidi odjeljak 44)")
 
 print("\n=== 25. Analysis-only write-up: sazetak ne smije okrenuti pick (29.08.2026) ===")
 import agent.ticket_builder as _tb
@@ -1502,69 +1414,10 @@ check("konsenzus podize bodovanje kombinacije",
 check("bodovanje radi i kad trzista nema",
       isinstance(_tbm._score_combo(_c_no), float))
 
-# --- C. Runde: dvostruko brojanje pri ponovnom pokretanju ---
-_today35 = [
-    {"tournament": "Winston-Salem Open", "level": "ATP 250",
-     "date": "2026-08-28", "player1": "Nicolas Buse",
-     "player2": "Benjamin Bonzi", "round": "SF"},
-    {"tournament": "Winston-Salem Open", "level": "ATP 250",
-     "date": "2026-08-28", "player1": "James Duckworth",
-     "player2": "Arthur Fery", "round": "F"}]
-_hist35 = [
-    {"tournament": "Winston-Salem Open", "match_date": "2026-08-28",
-     "player1": "N. Buse", "player2": "B. Bonzi", "round": "SF"},
-    {"tournament": "Winston-Salem Open", "match_date": "2026-08-28",
-     "player1": "J. Duckworth", "player2": "A. Fery", "round": "F"}]
-_out35 = _rd35._verify_late_rounds(_copy35.deepcopy(_today35), _hist35)
-check("ponovni run istog dana NE spusta rundu (Winston-Salem 28.08.)",
-      [m["round"] for m in _out35] == ["SF", "F"])
-
-# --- D. Runde: Grand Slam prvo kolo je R128, ne R64 ---
-_gs_today = [{"tournament": "U.S. Open", "level": "Grand Slam",
-              "date": "2026-08-25", "player1": "A%d" % i,
-              "player2": "B%d" % i, "round": "R64"} for i in range(8)]
-_gs_hist = [{"tournament": "U.S. Open", "match_date": "2026-08-26",
-             "player1": "C%d" % i, "player2": "D%d" % i,
-             "round": "R64"} for i in range(32)]
-check("GS: visak preko 32 R64 pada u R128",
-      all(m["round"] == "R128" for m in
-          _rd35._verify_late_rounds(_copy35.deepcopy(_gs_today), _gs_hist)))
-_atp_today = [{"tournament": "Umag", "level": "ATP 250",
-               "date": "2026-07-20", "player1": "A%d" % i,
-               "player2": "B%d" % i, "round": "R32"} for i in range(8)]
-_atp_hist = [{"tournament": "Umag", "match_date": "2026-07-21",
-              "player1": "C%d" % i, "player2": "D%d" % i,
-              "round": "R32"} for i in range(20)]
-check("ATP 250 rane runde se NE diraju (zdrijeb varira)",
-      all(m["round"] == "R32" for m in
-          _rd35._verify_late_rounds(_copy35.deepcopy(_atp_today), _atp_hist)))
-_mon_today = [{"tournament": "Montreal", "level": "ATP Masters 1000",
-               "date": "2026-08-13", "player1": "A%d" % i,
-               "player2": "B%d" % i, "round": "SF"} for i in range(2)]
-_mon_hist = [{"tournament": "Montreal", "match_date": "2026-08-%02d" % d,
-              "player1": "C%d%d" % (d, i), "player2": "D%d%d" % (d, i),
-              "round": "SF"} for d in (10, 11, 12) for i in range(2)]
-check("zavrsnice i dalje rade (Montreal: najkasniji SF ostaje SF)",
-      all(m["round"] == "SF" for m in
-          _rd35._verify_late_rounds(_copy35.deepcopy(_mon_today), _mon_hist)))
-
-# --- E. _infer_rounds vise ne vraca istu nemogucu oznaku ---
-_grp35 = [{"tournament": "Umag", "level": "ATP 250", "date": "2026-07-20",
-           "player1": "A%d" % i, "player2": "B%d" % i,
-           "round": "QF"} for i in range(6)]
-check("6 QF u danu vise ne ostaje QF (mora biti ranija runda)",
-      all(m["round"] == "R16" for m in _rd35._infer_rounds(
-          _copy35.deepcopy(_grp35), {}, {("Umag", "2026-07-20", "QF"): 6})))
+# --- C/D/E. Runde (dvostruko brojanje, GS R128, _infer_rounds) — uklonjeno
+# 26.09.2026 17:04: runda je rucni unos, vidi odjeljak 44.
 
 # --- F. Zapisi nose datum, vrijeme i mjerenje ---
-check("izmjene rundi nose datum i vrijeme",
-      _rd35src.count("08.09.2026 12:07") >= 3)
-check("popravak dvostrukog brojanja oznacen kao ucinjen",
-      ">>> POPRAVLJENO 08.09.2026 12:07" in _rd35src)
-check("stavka ZA REVIZIJU iz 07.08. je zatvorena",
-      "ZA REVIZIJU (uoceno 07.08.2026)" not in _rd35src)
-check("GS ljestvica nosi izmjereno stanje baze",
-      "_GS_ROUND_TOTAL" in _rd35src and "R64 69 redaka" in _rd35src)
 check("konsenzusni signal nosi ogradu o monotonosti",
       "MONOTONOST NIJE CISTA" in _tbsrc)
 check("konsenzusni signal nosi prag za ponovnu provjeru",
@@ -1785,95 +1638,8 @@ print("\n=== 39. Revizija 13.09.2026 10:44: runde iz zdrijeba, gradja, vijesti =
 import agent.data_fetcher as _df39
 import agent.run_daily as _rd39
 
-# --- (a) izvodjenje mape rundi iz BROJA meceva ---
-# Sinteticki zdrijeb: US Open oblik (128) i Challenger oblik (32). Poanta testa je da
-# ISTI roundId=4 mora dati R128 na jednom i R32 na drugom turniru — to je cijeli kvar
-# koji je 40% oznaka rundi cinio krivima (16 od 40 izmjereno 13.09.2026).
-def _fake_results39(counts):
-    rows = []
-    for rid, n in counts.items():
-        rows.extend([{"roundId": rid}] * n)
-    return {"data": {"singles": rows}}
-
-_orig_get39 = _df39._get
-
-def _mk_map39(counts, tid):
-    _df39._tournament_round_map_cache.pop(str(tid), None)
-    _df39._get = lambda path, *a, **k: _fake_results39(counts)
-    try:
-        return _df39.get_tournament_round_map(tid)
-    finally:
-        _df39._get = _orig_get39
-
-def _resolve39(counts, tid, rid):
-    _df39._tournament_round_map_cache.pop(str(tid), None)
-    _df39._get = lambda path, *a, **k: _fake_results39(counts)
-    try:
-        return _df39.resolve_round(tid, rid)
-    finally:
-        _df39._get = _orig_get39
-
-_gs39 = _mk_map39({4: 64, 5: 32, 6: 16, 7: 8, 9: 4, 10: 2}, "T_GS")
-_ch39 = _mk_map39({4: 16, 5: 8, 9: 4, 10: 2, 12: 1}, "T_CH")
-check("Grand Slam zdrijeb: roundId 4 -> R128", _gs39.get(4) == "R128", str(_gs39))
-check("Grand Slam zdrijeb: roundId 9 -> QF", _gs39.get(9) == "QF", str(_gs39))
-check("Grand Slam zdrijeb: roundId 10 -> SF", _gs39.get(10) == "SF", str(_gs39))
-check("Challenger zdrijeb: ISTI roundId 4 -> R32", _ch39.get(4) == "R32", str(_ch39))
-check("Challenger zdrijeb: roundId 12 -> F", _ch39.get(12) == "F", str(_ch39))
-check("mapa je RELATIVNA po turniru, ne globalna", _gs39.get(4) != _ch39.get(4))
-
-# --- (a2) ZDRIJEBOVI S BYE-OVIMA — greska uhvacena zdravorazumskom provjerom ---
-# Prvi pokusaj sidrenja ("uzmi prvi roundId s cistim brojem meceva") polomio se na
-# zdrijebovima gdje DVIJE UZASTOPNE runde imaju ISTI broj meceva, jer nositelji imaju
-# slobodan prolaz. Cincinnati (96) je tada dobio "F" s DVA meca, sto je nemoguce.
-# Ovi testovi postoje da se to ne vrati.
-_cin39 = _mk_map39({4: 32, 5: 32, 6: 15, 7: 8, 9: 4, 10: 2, 12: 1}, "T_CIN")
-check("zdrijeb 96 s bye-ovima (Cincinnati): dvije runde po 32 se ne lome",
-      [_cin39.get(k) for k in (4, 5, 6, 7, 9, 10, 12)]
-      == ["R128", "R64", "R32", "R16", "QF", "SF", "F"], str(_cin39))
-_ws39 = _mk_map39({4: 16, 5: 16, 6: 8, 9: 4, 10: 2, 12: 1}, "T_WS")
-check("zdrijeb 48 s bye-ovima (Winston-Salem): dvije runde po 16 se ne lome",
-      [_ws39.get(k) for k in (4, 5, 6, 9, 10, 12)]
-      == ["R64", "R32", "R16", "QF", "SF", "F"], str(_ws39))
-check("finale NIKAD ne moze imati dva meca",
-      not any(lbl == "F" and cnt == 2
-              for m, cnts in ((_cin39, {4: 32, 5: 32, 6: 15, 7: 8, 9: 4, 10: 2, 12: 1}),
-                              (_ws39, {4: 16, 5: 16, 6: 8, 9: 4, 10: 2, 12: 1}))
-              for rid, lbl in m.items() for cnt in [cnts[rid]]))
-
-# --- (a3) runda u TIJEKU ne smije se proglasiti sljedecom ---
-# Polufinale odigrano dopola (1 od 2 meca) mora ostati SF, ne postati F.
-_half39 = _mk_map39({4: 64, 5: 32, 6: 16, 7: 8, 9: 4, 10: 1}, "T_HALF")
-check("polufinale odigrano dopola ostaje SF, ne postaje F",
-      _half39.get(10) == "SF", str(_half39))
-
-# --- (b) nepotpuna runda ne smije razbiti sidro (stvarni slucaj Seville: R16 ima 7) ---
-_sev39 = _mk_map39({4: 16, 5: 7, 9: 4, 10: 2}, "T_SEV")
-check("nepotpuna runda: sidro drzi (R32/R16/QF/SF)",
-      [_sev39.get(k) for k in (4, 5, 9, 10)] == ["R32", "R16", "QF", "SF"], str(_sev39))
-
-# --- (c) runda koja se TEK IGRA nije u results i mora se ekstrapolirati ---
-check("finale koje jos nije odigrano (roundId iznad svih poznatih) -> F",
-      _resolve39({4: 64, 5: 32, 6: 16, 7: 8, 9: 4, 10: 2}, "T_LIVE", 12) == "F")
-check("kvalifikacije (roundId ispod najnizeg) vracaju prazno, ne pogadjaju",
-      _resolve39({4: 64, 5: 32}, "T_Q", 2) == "")
-check("prazan zdrijeb (prvi dan turnira) vraca prazno, pa se pada na heuristiku",
-      _resolve39({}, "T_EMPTY", 5) == "")
-
-# --- (d) _apply_draw_rounds oznaci izvor, a obje heuristike ga vise ne diraju ---
-_df39._tournament_round_map_cache["T_D"] = {6: "R32"}
-_m39 = [{"tournament": "X", "date": "2026-09-05", "tournament_id": "T_D",
-         "round_id": 6, "round": "SF", "player1": "A B", "player2": "C D"}]
-_out39 = _rd39._apply_draw_rounds([dict(x) for x in _m39])
-check("runda iz zdrijeba prepisuje krivu API oznaku (SF -> R32)",
-      _out39[0]["round"] == "R32", _out39[0].get("round"))
-check("mec nosi round_source=draw", _out39[0].get("round_source") == "draw")
-_after39 = _rd39._infer_rounds([dict(x) for x in _out39], {}, {})
-check("_infer_rounds NE dira ono sto je iz zdrijeba",
-      _after39[0]["round"] == "R32", _after39[0].get("round"))
-_ver39 = _rd39._verify_late_rounds([dict(x) for x in _out39], [])
-check("_verify_late_rounds NE dira ono sto je iz zdrijeba",
-      _ver39[0]["round"] == "R32", _ver39[0].get("round"))
+# --- (a)-(d) runde iz zdrijeba — uklonjeno 26.09.2026 17:04 (runda je rucni
+# unos, vidi odjeljak 44). Ostatak odjeljka (gradja, vijesti, snapshot) vrijedi.
 
 # --- (e) gradja: scouting pa ZIVI API kao fallback ---
 from agent.predictor import _format_build as _fb39
@@ -1918,7 +1684,7 @@ check("rules_hash je i dalje era 6ca9a0ab (mijenjaju se VRIJEDNOSTI, ne predloza
       _h39 == _ERA_RULES_HASH, _h39)
 
 # --- (i) context_snapshot v18 biljezi ODAKLE svaka vrijednost dolazi ---
-check("context_version podignut na 20", '"context_version": 20' in _prsrc39)
+check("context_version podignut na 21", '"context_version": 21' in _prsrc39)
 check("biljezi se round_source", '"round_source"' in _prsrc39)
 check("biljezi se izvor gradje za oba igraca",
       '"p1_build_source"' in _prsrc39 and '"p2_build_source"' in _prsrc39)
@@ -2018,6 +1784,9 @@ def _fake_results40(pid, n_matches):
     return {"data": {"singles": rows}}
 def _run40(n):
     _df40._tournament_form_cache.clear()
+    # 26.09.2026: rezultati turnira se od danas kesiraju po turniru (ne po igracu), pa
+    # svaki lazni scenarij mora ocistiti i taj kes.
+    _df40._tournament_results_cache.clear()
     _df40._get = lambda path, *a, **k: _fake_results40(77, n)
     _df40.get_match_stats_aligned = lambda t, a, b: (
         {"player1Stats": {"winningOnFirstServeOf": 40, "winningOnSecondServeOf": 20,
@@ -2039,6 +1808,7 @@ check("popis protivnika se cuva (kvaliteta se mora moci procitati)",
       len(_r40.get("opponents", [])) == 3, str(_r40.get("opponents")))
 _df40.get_match_stats_aligned = _orig_align40
 _df40._tournament_form_cache.clear()
+_df40._tournament_results_cache.clear()
 
 # --- (c) prompt: nova polja i pravila ---
 # Prompt prelama retke, pa se ove provjere rade na normaliziranim razmacima —
@@ -2177,20 +1947,8 @@ check("Davis Cup IPAK prolazi _is_main_tour (mora se vidjeti u analizi)",
 check("ITF Futures ne prolazi _is_main_tour",
       not _tb42._is_main_tour({"match": {"level": "ITF Futures"}}))
 
-# --- (d) runde: Davis Cup nema zdrijeb ---
-_m42 = [{"tournament": "Davis Cup, World Group, Q2, CAN-FRA", "level": "Davis Cup",
-         "tournament_id": "22116", "round_id": 16, "round": "F",
-         "player1": "A B", "player2": "C D", "date": "2026-09-19"}]
-_o42 = _rd42._apply_draw_rounds([dict(x) for x in _m42])
-check("Davis Cup dobiva oznaku 'DC', ne rundu iz ljestvice", _o42[0]["round"] == "DC",
-      _o42[0].get("round"))
-check("oznacen je izvor davis_cup", _o42[0].get("round_source") == "davis_cup")
-_a42 = _rd42._infer_rounds([dict(x) for x in _o42], {}, {})
-check("_infer_rounds NE dira 'DC'", _a42[0]["round"] == "DC")
-_v42 = _rd42._verify_late_rounds([dict(x) for x in _o42], [])
-check("_verify_late_rounds NE dira 'DC'", _v42[0]["round"] == "DC")
-check("'DC' je izvan ljestvice rundi (ne smije zagaditi K11)",
-      "DC" not in _rd42._ROUND_ORDER)
+# --- (d) runde za Davis Cup — uklonjeno 26.09.2026 17:04; 'DC' je sada
+# korisnikov izbor na screenshotu (vidi odjeljak 44).
 
 # --- (e) stanje susreta: MORA raditi samo na ekipnim natjecanjima ---
 # Bez brane je ovo na U.S. Openu vratilo "TIE ALREADY DECIDED: USA has won 3 rubbers",
@@ -2313,6 +2071,321 @@ check("komentar uz DAILY_MATCH_LIMITS vise ne tvrdi da je limit analize",
       "Ovo je limit ANALIZE, ne tiketa" not in _cfg43)
 check("umjesto toga stoji sto ga stvarno cita",
       "_apply_daily_limits" in _cfg43)
+
+
+# ==========================================================================
+print("\n=== 44. Runda je RUCNI UNOS sa screenshota (26.09.2026 17:04) ===")
+# Korisnikova odluka: rundu vise ne pogadjamo ni na koji nacin. Zadnji kvar koji je
+# presudio: Chengdu i Hangzhou 24.09.2026 — 12 meceva PRVOG dana zapisano kao "SF",
+# a sljedeca dva dana "R64" na ATP 250 turnirima koji R64 nemaju.
+
+import agent.run_daily as _rd44
+import agent.data_fetcher as _df44
+import agent.predictor as _pr44
+import agent.ticket_builder as _tb44
+from database import supabase_client as _db44
+from utils import helpers as _h44
+
+# --- (a) svi automatski nacini su OBRISANI, ne samo iskljuceni ---
+for _name in ("_infer_rounds", "_verify_late_rounds", "_apply_draw_rounds",
+              "_warn_impossible_rounds", "_count_by_tournament_day", "_ROUND_ORDER",
+              "_LATE_ROUND_TOTAL", "_GS_ROUND_TOTAL"):
+    check(f"run_daily vise nema `{_name}`", not hasattr(_rd44, _name))
+for _name in ("_ROUND_ID_MAP", "_round_from_id", "_fit_ladder", "get_tournament_round_map",
+              "resolve_round", "_ROUND_LADDER", "_tournament_round_map_cache"):
+    check(f"data_fetcher vise nema `{_name}`", not hasattr(_df44, _name))
+check("supabase_client vise nema get_tournament_rounds",
+      not hasattr(_db44, "get_tournament_rounds"))
+import os as _os44
+check("skripta backfill_rounds_from_draw.py je obrisana",
+      not _os44.path.exists("scripts/backfill_rounds_from_draw.py"))
+import inspect as _in44
+check("fixtures vise ne citaju roundId",
+      "roundId" not in _in44.getsource(_df44.get_matches_for_date))
+check("berba zdrijeba ne zove obrisanu mapu",
+      "get_tournament_round_map" not in io.open("scripts/harvest_draw_stats.py",
+                                                encoding="utf-8").read())
+
+# --- (b) popis rundi: jedan izvor, interni kodovi nepromijenjeni ---
+check("kodovi rundi su stari interni kodovi (korpus i prompt ih citaju)",
+      _h44.ROUND_CODES == ["R128", "R64", "R32", "R16", "QF", "SF", "F", "RR", "DC"])
+check("hrvatske oznake: R16 = 1/8 finala", _h44.round_label_hr("R16") == "1/8 finala")
+check("hrvatske oznake: R32 = 1/16 finala", _h44.round_label_hr("R32") == "1/16 finala")
+check("hrvatske oznake: R64 = 1/32 finala", _h44.round_label_hr("R64") == "1/32 finala")
+check("oznaka -> kod", _h44.ROUND_CODE_BY_LABEL["1/4 finala"] == "QF")
+check("normalizacija ne pogadja: 'R12' -> ''", _h44.normalize_round_code("R12") == "")
+check("normalizacija: 'qf' -> 'QF'", _h44.normalize_round_code("qf") == "QF")
+check("normalizacija: None -> ''", _h44.normalize_round_code(None) == "")
+
+# --- (c) run_daily cita rundu IZ SCREENSHOTA, po imenima, u oba smjera ---
+_ss44 = {
+    "2026-09-26": {
+        "Gaston Hugo|Rublev Andrey": {"p1": "Gaston Hugo", "p2": "Rublev Andrey",
+                                      "p1_odds": 4.1, "p2_odds": 1.24,
+                                      "start_time": "07:30", "round": "R16"},
+        # procitan BEZ sata — runda mora i dalje doci
+        "Medvedev Daniil|Royer Valentin": {"p1": "Medvedev Daniil", "p2": "Royer Valentin",
+                                           "p1_odds": 1.2, "p2_odds": 4.5, "round": "R32"},
+        # spremljen prije 26.09. — bez runde
+        "Halys Quentin|Safiullin Roman": {"p1": "Halys Quentin", "p2": "Safiullin Roman",
+                                          "p1_odds": 1.9, "p2_odds": 1.9, "start_time": "09:00"},
+        # neispravan kod ne smije proci
+        "Damm Martin|Hurkacz Hubert": {"p1": "Damm Martin", "p2": "Hurkacz Hubert",
+                                       "p1_odds": 3.0, "p2_odds": 1.4, "round": "R12"},
+    },
+    "2026-09-27": {
+        "Shapovalov Denis|Mannarino Adrian": {"p1": "Shapovalov Denis", "p2": "Mannarino Adrian",
+                                              "p1_odds": 1.5, "p2_odds": 2.6, "round": "QF"},
+    },
+}
+_api44 = [
+    {"player1": "Andrey Rublev", "player2": "Hugo Gaston", "tournament": "Hangzhou Open",
+     "round": "SF"},                                   # obrnut redoslijed + krivi API trag
+    {"player1": "Daniil Medvedev", "player2": "Valentin Royer", "tournament": "Hangzhou Open"},
+    {"player1": "Quentin Halys", "player2": "Roman Safiullin", "tournament": "Hangzhou Open"},
+    {"player1": "Martin Damm", "player2": "Hubert Hurkacz", "tournament": "Chengdu Open"},
+    {"player1": "Adrian Mannarino", "player2": "Denis Shapovalov", "tournament": "Chengdu Open"},
+]
+import io as _io44, contextlib as _cl44
+_buf44 = _io44.StringIO()
+with _cl44.redirect_stdout(_buf44):
+    _out44 = _rd44._apply_manual_rounds([dict(x) for x in _api44], _ss44)
+_log44 = _buf44.getvalue()
+check("runda sa screenshota, i kad API ima drugi redoslijed imena",
+      _out44[0]["round"] == "R16", _out44[0].get("round"))
+check("API-jev trag runde se prepisuje, ne koristi", _out44[0]["round"] != "SF")
+check("runda dolazi i za par procitan BEZ sata", _out44[1]["round"] == "R32")
+check("rubrika 'sutra' se takodjer cita", _out44[4]["round"] == "QF")
+check("izvor je oznacen kao 'manual'", _out44[0]["round_source"] == "manual")
+check("par bez upisane runde: prazno, NE pogadja", _out44[2]["round"] == "")
+check("par bez upisane runde: izvor 'missing'", _out44[2]["round_source"] == "missing")
+check("neispravan kod (R12) se odbacuje", _out44[3]["round"] == "")
+check("izostanak runde se ispisuje glasno", "NEMA upisanu rundu" in _log44
+      and "Quentin Halys" in _log44 and "Martin Damm" in _log44)
+
+# --- (d) prompt: opis runde vise ne ovisi o rednom broju na ljestvici ---
+_c32 = _pr44._round_context("R32", "ATP 250")
+check("R32 na ATP 250 vise NIJE 'Third round'", "Third round" not in _c32, _c32)
+check("R32 je opisan kao OPENING round na 250/500", "OPENING round" in _c32)
+check("Grand Slam je Best of 5", "Best of 5" in _pr44._round_context("SF", "Grand Slam"))
+check("neupisana runda se modelu kaze izricito",
+      "NOT ENTERED" in _pr44._round_context("", "ATP 250"))
+check("svaki kod ima vlastiti opis",
+      all("NOT ENTERED" not in _pr44._round_context(c, "ATP 500") for c in _h44.ROUND_CODES))
+check("_round_context vise ne prima round_id",
+      "round_id" not in str(_in44.signature(_pr44._round_context)))
+check("snapshot biljezi round_source s novim zadanim 'missing'",
+      '"round_source": match.get("round_source") or "missing"' in _in44.getsource(_pr44))
+
+# --- (e) predlozak prompta nije diran -> era ostaje ista ---
+check("rules_hash netaknut (mijenja se vrijednost runde, ne predlozak)",
+      _pr44._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
+
+# --- (f) Streamlit: padajuci izbornik za sve + po paru, spremanje trazi rundu ---
+_pg44 = io.open("pages/5_Kvote_Screenshot.py", encoding="utf-8").read()
+check("stranica ima izbornik za SVE parove", "Runda za **sve** parove" in _pg44)
+check("stranica ima izbornik PO PARU (SelectboxColumn)", "SelectboxColumn" in _pg44)
+check("spremanje odbija parove bez runde", "Runda nije upisana za" in _pg44)
+check("runda se sprema uz par", '"round": rounds[k]' in _pg44)
+check("vec spremljenim parovima runda se moze naknadno upisati", "Spremi runde" in _pg44)
+
+
+# ==========================================================================
+print("\n=== 45. Tri igraceve varijable: ruka protivnika, ATP sezona, GS (26.09.2026) ===")
+import agent.player_context as _pc45
+
+# --- (a) ruka ---
+check("ljevak iz API teksta", _pc45.hand_code("Left-Handed, Two-Handed Backhand") == "L")
+check("desnjak iz API teksta", _pc45.hand_code("Right-Handed, One-Handed Backhand") == "R")
+check("nepoznata ruka ostaje prazna, ne pogadja", _pc45.hand_code("") == ""
+      and _pc45.hand_code(None) == "")
+
+# --- (b) zastita od curenja: isti mec pod drugim datumom se NE broji ---
+_h45 = [
+    {"date": "2026-09-24", "p1": "1", "p2": "9", "w": "1", "rank": 2, "rid": 4},   # 2 dana prije
+    {"date": "2026-09-20", "p1": "1", "p2": "7", "w": "1", "rank": 2, "rid": 4},   # isti protivnik, 6 dana
+    {"date": "2026-09-22", "p1": "7", "p2": "1", "w": "7", "rank": 2, "rid": 5},   # isti protivnik, 4 dana
+    {"date": "2026-08-01", "p1": "1", "p2": "8", "w": "8", "rank": 1, "rid": 4},   # Challenger
+    {"date": "2026-07-01", "p1": "1", "p2": "6", "w": "1", "rank": 2, "rid": 2},   # kvalifikacije
+    {"date": "2025-10-01", "p1": "1", "p2": "5", "w": "1", "rank": 3, "rid": 6},   # prosla sezona
+    {"date": "2024-08-01", "p1": "1", "p2": "4", "w": "1", "rank": 3, "rid": 6},   # izvan 2 godine
+]
+_safe45 = _pc45.safe_matches(_h45, "2026-09-26", opponent_id="7")
+check("mec 2 dana prije se ne broji (moze biti isti mec)",
+      not any(m["date"] == "2026-09-24" for m in _safe45))
+check("mec protiv istog protivnika unutar 5 dana se ne broji",
+      not any(m["date"] == "2026-09-22" for m in _safe45))
+check("mec protiv istog protivnika 6 dana prije SE broji",
+      any(m["date"] == "2026-09-20" for m in _safe45))
+try:
+    _pc45.safe_matches(_h45, None)
+    check("bez as_of mora baciti gresku", False)
+except ValueError:
+    check("bez as_of mora baciti gresku", True)
+
+# --- (c) sezona: samo tekuca godina, glavni zdrijeb, ATP razine ---
+_s45 = _pc45.season_record(_h45, "1", "2026-09-26", opponent_id="7")
+check("ATP sezona: 1 pobjeda (20.09.), Challenger i kvalifikacije ne ulaze",
+      (_s45["tour_w"], _s45["tour_l"]) == (1, 0), str(_s45))
+check("sve razine: Challenger poraz ulazi, kvalifikacije ne",
+      (_s45["all_w"], _s45["all_l"]) == (1, 1), str(_s45))
+check("prosla sezona ne ulazi u tekucu", _s45["year"] == 2026)
+
+# --- (d) omjer po ruci protivnika ---
+_hands45 = {"7": "L", "8": "R", "6": "R", "5": "L", "4": "L"}
+_v45 = _pc45.vs_hand_record(_h45, "1", _hands45, "2026-09-26", opponent_id="7")
+check("protiv ljevaka: 20.09. (pobjeda) + 2025-10 (pobjeda) = 2-0", _v45["L"] == {"w": 2, "l": 0},
+      str(_v45))
+check("protiv desnjaka: Challenger poraz + kvalifikacijska pobjeda = 1-1",
+      _v45["R"] == {"w": 1, "l": 1}, str(_v45))
+check("mec stariji od 2 godine ne ulazi", _v45["L"]["w"] + _v45["L"]["l"] == 2)
+_v45b = _pc45.vs_hand_record(_h45, "1", {}, "2026-09-26")
+check("nepoznata ruka ide u 'unknown', ne u L/R",
+      _v45b["unknown"] > 0 and _v45b["L"] == {"w": 0, "l": 0})
+
+# --- (e) Grand Slam: izdanje koje jos traje NE broji se ---
+# Stvarni oblik zapisa (Zverev, US Open): broji se po `bestRoundId`, ne po oznaci.
+_gs45 = {"USO": [{"year": 2020, "bestRoundId": 12, "bestRound": "Final", "wins": 6, "losses": 1},
+                 {"year": 2021, "bestRoundId": 10, "bestRound": "1/2", "wins": 5, "losses": 1},
+                 {"year": 2026, "bestRoundId": 12, "bestRound": "Winner", "wins": 7, "losses": 0},
+                 {"year": 2014, "bestRoundId": 2, "bestRound": "Q2", "wins": 1, "losses": 1}],
+         "AO": [{"year": 2025, "bestRoundId": 12, "bestRound": "Final", "wins": 6, "losses": 1}],
+         "RG": [], "WIM": []}
+_st45 = {("USO", 2026): "2026-08-31"}
+_during = _pc45.gs_record(_gs45, "2026-09-12", _st45)      # usred US Opena 2026
+_after = _pc45.gs_record(_gs45, "2026-09-26", _st45)
+check("usred Slama tekuce izdanje se NE broji", _during["titles"] == 0 and _during["sf"] == 3,
+      str(_during))
+check("nakon Slama se broji", _after["titles"] == 1 and _after["sf"] == 4 and _after["f"] == 3,
+      str(_after))
+check("kvalifikacije nisu nastup u glavnom zdrijebu", _after["main_draws"] == 4, str(_after))
+# Lazni "Winner" (Gaston, Roland Garros 2025: prvo kolo, 1-0, pa povlacenje) — 19 takvih
+# izdanja u nasih 287 igraca. Ne smije postati ni polufinale ni naslov.
+_fake45 = {"RG": [{"year": 2025, "bestRoundId": 4, "bestRound": "Winner", "wins": 1, "losses": 0}],
+           "AO": [], "WIM": [], "USO": []}
+_g45 = _pc45.gs_record(_fake45, "2026-09-26")
+check("lazni 'Winner' u prvom kolu NIJE naslov ni polufinale",
+      (_g45["sf"], _g45["f"], _g45["titles"], _g45["main_draws"]) == (0, 0, 0, 1), str(_g45))
+
+# --- (f) finala: GS, ATP Finals i Olimpijske vise ne ispadaju ---
+import agent.data_fetcher as _df45
+_orig45 = _df45._get
+_df45._get = lambda *a, **k: {"data": [
+    {"tourRankId": 2, "titlesWon": "15", "titlesLost": "8"},
+    {"tourRankId": 3, "titlesWon": "7", "titlesLost": "6"},
+    {"tourRankId": 4, "titlesWon": "2", "titlesLost": "4"},
+    {"tourRankId": 5, "titlesWon": "4", "titlesLost": "3"},
+    {"tourRankId": 7, "titlesWon": "2", "titlesLost": "0"},
+    {"tourRankId": 9, "titlesWon": "1", "titlesLost": "0"}]}
+try:
+    _df45._titles_cache.pop("T45", None)
+    _t45 = _df45.get_player_titles("T45")
+finally:
+    _df45._get = _orig45
+check("GS finala se broje (Zverev: 2-4)", (_t45["gs_won"], _t45["gs_lost"]) == (2, 4), str(_t45))
+check("ATP Finals + Olimpijske se broje", (_t45["big_won"], _t45["big_lost"]) == (3, 0), str(_t45))
+check("Davis Cup NIJE finale turnira", _t45["main_won"] == 22, str(_t45))
+from agent.predictor import _format_titles as _ft45
+_txt45 = _ft45(_t45)
+check("prompt: 45 finala, 27 osvojenih (bilo 36/22)", "45 played, 27 won" in _txt45, _txt45)
+check("prompt: GS finala navedena zasebno", "Grand Slam finals: 6 played, 2 won" in _txt45, _txt45)
+
+# --- (g) snapshot biljezi sve tri varijable i finala ---
+_src45 = io.open("agent/predictor.py", encoding="utf-8").read()
+check("snapshot: p1_ctx/p2_ctx", '"p1_ctx"' in _src45 and '"p2_ctx"' in _src45)
+check("snapshot: karijerna finala se konacno biljeze",
+      '"p1_titles"' in _src45 and '"p2_titles"' in _src45)
+check("run_daily racuna varijable istim modulom kao backfill",
+      "pc.build(" in io.open("agent/run_daily.py", encoding="utf-8").read()
+      and "pc.vs_hand_record" in io.open("scripts/backfill_player_context.py",
+                                         encoding="utf-8").read())
+
+# --- (h) varijable JOS NE ulaze u prompt (kapija): era ostaje ista ---
+check("predlozak prompta ne spominje nove varijable",
+      "vs_hand" not in _pr44.ANALYSIS_PROMPT_TEMPLATE
+      and "season" not in _pr44.ANALYSIS_PROMPT_TEMPLATE.lower().replace("seasons", ""))
+check("rules_hash netaknut", _pr44._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
+
+
+# ==========================================================================
+print("\n=== 46. Vremenske zone po trenutku meca, ne fiksni pomak (26.09.2026) ===")
+# Bila ZNANA GRESKA od 04.08.2026 s rokom "listopad 2026". Slucajevi su stvarni turniri
+# iz kalendara 2026 koji su bili krivi ili ih uopce nije bilo u mapi.
+import agent.data_fetcher as _df46
+_L46 = _df46.local_match_time
+check("stara mapa fiksnih pomaka je uklonjena", not hasattr(_df46, "_CITY_UTC_OFFSET"))
+check("Almaty je +5 (Kazahstan od 2024.; stara mapa +6)",
+      _L46("2026-10-20T10:00:00.000Z", "Almaty").get("utc_offset") == 5)
+check("Basel prije promjene sata +2", _L46("2026-10-24T12:00:00.000Z", "Basel").get("utc_offset") == 2)
+check("Basel poslije 25.10. +1 (stara mapa +2)",
+      _L46("2026-10-26T12:00:00.000Z", "Basel").get("utc_offset") == 1)
+check("Pariz u studenom +1", _L46("2026-11-02T12:00:00.000Z", "Paris").get("utc_offset") == 1)
+check("Adelaide +10,5 (polusatna zona)",
+      _L46("2026-01-15T00:00:00.000Z", "Adelaide").get("local_time") == "10:30")
+check("Los Cabos -7 (Meksiko bez ljetnog od 2022.)",
+      _L46("2026-07-30T02:00:00.000Z", "Los Cabos").get("utc_offset") == -7)
+check("Torino (ATP Finals) sada ima lokalni sat",
+      _L46("2026-11-16T13:00:00.000Z", "Turin").get("local_time") == "14:00")
+for _c46 in ("Brussels", "Lyon", "Stockholm", "Monte-Carlo", "Rio de Janeiro", "Eastbourne",
+             "'s-Hertogenbosch", "Mallorca", "Brisbane", "Auckland", "Hong Kong"):
+    check(f"'{_c46}' je pokriven (prije nije bio)", bool(_L46("2026-06-01T12:00:00.000Z", _c46)))
+check("nepoznat grad i dalje vraca {} (nema nagadjanja)",
+      _L46("2026-09-28T05:00:00.000Z", "Davis Cup, World Group") == {})
+check("Montreal ljeti -4 (regresija)",
+      _L46("2026-08-05T18:30:00.000Z", "montreal").get("local_time") == "14:30")
+
+
+# ==========================================================================
+print("\n=== 47. Brzi dohvat: paralelno po igracu, kesevi, neuspjeh != prazno (26.09.2026) ===")
+import agent.run_daily as _rd47
+import agent.player_context as _pc47
+_df47 = _df46
+check("razmak medju pozivima spusten (API dopusta 3.000/min)", _df47._MIN_CALL_INTERVAL <= 0.2)
+check("razmak je zasticen bravom (vise niti)", hasattr(_df47, "_throttle_lock")
+      and hasattr(_df47, "_wait_turn"))
+check("run_daily dohvaca podatke po igracu paralelno", hasattr(_rd47, "_prefetch_players"))
+
+_calls47 = []
+_orig47 = _df47._get
+def _fake47(path, *a, **k):
+    _calls47.append(path)
+    if "profile" in path:
+        return {"data": {"name": "X", "information": {"plays": "Left-Handed"}}}
+    if "tournament/results" in path:
+        return {"data": {"singles": []}}
+    return None                      # sve ostalo "pukne"
+_df47._get = _fake47
+try:
+    for _c in (_df47._player_info_cache, _df47._tournament_results_cache,
+               _df47._past_matches_page_cache, _pc47._history_cache, _pc47._gs_cache):
+        _c.clear()
+    _df47.get_player_info("P47"); _df47.get_player_info("P47")
+    check("profil se kesira (drugi poziv ne ide na API)",
+          sum("profile/P47" in c for c in _calls47) == 1, str(_calls47))
+    _df47.tournament_form_stats("T47", "A"); _df47.tournament_form_stats("T47", "B")
+    check("rezultati turnira se dohvacaju JEDNOM za sve igrace",
+          sum("tournament/results/T47" in c for c in _calls47) == 1, str(_calls47))
+    _g47 = _df47.get_past_matches_page("P47", 1)
+    check("neuspjela stranica povijesti vraca None, ne praznu listu", _g47 == (None, False))
+    check("neuspjeh se NE kesira", ("P47", 1) not in _df47._past_matches_page_cache)
+    check("get_recent_form i dalje radi na neuspjehu (prazno, kao prije)",
+          _df47.get_recent_form("P47", 10)["matches"] == [])
+    _b47 = _pc47.build("P47", "Q47", "Right-Handed", "Left-Handed", "2026-09-26", _df47)
+    check("player_context na neuspjehu biljezi GRESKU, ne sezonu 0-0",
+          "error" in _b47 and "season" not in _b47, str(_b47))
+    import io as _io47, contextlib as _cl47
+    with _cl47.redirect_stdout(_io47.StringIO()):
+        _rd47._prefetch_players([{"player1_id": "P47", "player2_id": "Q47",
+                                  "tournament_id": "T47"}])
+    check("paralelni dohvat guta greske (petlja ih rjesava sama)", True)
+    check("neuspjeli kalendar Slamova se NE pamti (inace bi pao GS za cijeli run)",
+          not _pc47._gs_meta)
+finally:
+    _pc47._gs_meta.clear()
+    _df47._get = _orig47
+    for _c in (_df47._player_info_cache, _df47._tournament_results_cache,
+               _df47._past_matches_page_cache, _pc47._history_cache, _pc47._gs_cache):
+        _c.clear()
 
 print("\n" + "=" * 60)
 if _fails:
