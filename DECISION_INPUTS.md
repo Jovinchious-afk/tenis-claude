@@ -519,6 +519,21 @@ uklapa u 1-5. Ako predznak okrene → odbaciti.
 poraz). To nije kontrolirano. Prije uvođenja bilo kakvog pravila **obavezno** izmjeriti
 duljinu uz kontrolu cijene, kao što je učinjeno za K8.
 
+#### MEĐUSTANJE K8 i K9 (26.09.2026 21:27) i što je napravljeno
+
+Izvan uzorka (analize od 08.09. 12:07, n=27 riješenih s cijenom):
+
+    K8  odjeljak povijesti S podatkom  n=18  edge -8,0pp  | bez podatka n=9  -1,9pp
+        (prije 08.09. na jedinstvenim analizama: -7,3pp n=62  | +4,7pp n=88)
+    K9  own read u pobjedama DULJI za 144 znaka; r(duljina, ishod - cijena) = +0,36
+
+K8 drži smjer u oba uzorka, ali n je ispod praga. K9 je okrenuo predznak — ograničenje
+duljine se NE uvodi. Odjeljci 4 i 5 ipak su spojeni u "4. Context" u sklopu čišćenja
+prompta (korisnik odobrio), jer je povijest turnira — glavni sadržaj odjeljka 5 — kao
+varijabla pala dvaput izvan uzorka. To nije provedba K8 nego posljedica pada te
+varijable; K8 se od ere d7e45052 više ne može mjeriti u izvornom obliku. Vidi
+MODEL_CHANGELOG 2026-09-26 21:27.
+
 ### K10 — `edge_bonus` je prerušena sklonost duljoj kvoti; treba li nam IZRIČITA?
 
 Izmjereno 13.09.2026 10:44 na 427 razriješenih analiza s kvotom i ishodom.

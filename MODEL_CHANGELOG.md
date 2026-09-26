@@ -16,6 +16,62 @@ dnevnik napravljenog jednostavnim jezikom. Dopunjava se na kraju svake radne ses
 
 ---
 
+## 2026-09-26 21:27 — ČIŠĆENJE PROMPTA: izmjereno kriva pravila van, odjeljci 4+5 spojeni;
+## nova era d7e45052 (hard), korisnik odobrio
+
+**Povod:** korisnikovo pitanje trebaju li odjeljci analize (rating / serve / form / matchup /
+povijest / own read) ostati. Pročitano svih 55 analiza sa 6 odjeljaka od 06.09. do 26.09.
+
+**Što je nađeno:**
+- Odjeljci nisu šest varijabli nego mjesto gdje model provodi pravila i zbraja kazne u pp
+  (Cerundolo–Zhou: 66 −4 R15 −3 domaći −2 "kasna runda" za prvo kolo −2 scouting −1 povijest).
+- Udio teksta: own read 25,3%, matchup 20,6%, servis 17,2%, povijest 17,1%, forma 10,1%,
+  rating 9,7% (prosjek 3.458 znakova po analizi).
+- Model se poziva na: pravilo 16 u 65% analiza, 13 u 42%, 4 u 24%, 15 u 55%, domaći teren
+  27%; povijest turnira kao usmjeren argument 58% (5x "strongest single variable"); blok o
+  kasnim rundama 31%; vrijeme 85%.
+- Prompt je govorio o pragu 63%, a kod od 08.09. pušta od 60. U 18 analiza model je napisao
+  da pick ne ide na tiket; 12 ih je imalo 60+; od 9 nogu na tri prava tiketa (23./24./26.09.)
+  5 je model sam nazvao coin-flipom ili "ispod praga".
+- Međustanja kandidata izvan uzorka (od 08.09., n=27): K8 drži smjer (odjeljak povijesti s
+  podatkom −8,0pp n=18, bez podatka −1,9pp n=9; prije 08.09. −7,3 / +4,7pp); K9 okrenuo
+  predznak (dulji own read u pobjedama +144 znaka, r uz kontrolu cijene +0,36); K2
+  protivnik-domaćin n=9, +0,7pp.
+- Težine (hard v18) model ne koristi ni u jednoj od 55 analiza — ne diraju se.
+
+**Što je promijenjeno (samo tekst prompta, `agent/predictor.py`):**
+- maknut blok "TOURNAMENT HISTORY — THE STRONGEST SINGLE VARIABLE WE HAVE" → kratki blok
+  "DESCRIPTION ONLY" (pao dvaput izvan uzorka: US Open r=−0,15, rujan r=−0,06);
+- maknuta hard pravila 4 (tiebreak lottery), 13 (serve-dominant opponent cap) i 16
+  (converged serve) — mjereno 26.08. u krivom smjeru, nikad potvrđena;
+- maknut blok "LATE-ROUND PRICING DISCIPLINE" (brojke s 42,6% krivih oznaka rundi; SF/F
+  poslije izmjeren pozitivno) i blok "WHEN A BIG UNDERDOG IS A LEGITIMATE PICK" (poticao
+  ono što kod kažnjava); u blok o tržišnom autsajderu dodana rečenica da rezultat na podlozi,
+  tie-break zapis, odmor i stil NISU razlog za odmak od cijene;
+- sve rečenice o pragu/selekciji ("min 63%", "selection drops it", "Only 63%+ enters
+  tickets") zamijenjene uputom da selekcija nije posao modela; zastarjele ograde u
+  pravilima 1 (Fery veto) i 3 (zona 1,43-1,90) maknute;
+- `key_factors` s 6 na 5 odjeljaka: 4. Matchup & conditions + 5. Tournament history →
+  "4. Context"; own read je sada 5.; odjeljci 1-4 kratki. Odjeljak 2 kaže da tie-break i
+  odlučujući setovi nisu argumenti; pravilo 2 i njegovi pragovi servisa ostaju.
+
+**Namjerno nije dirano:** pravilo 11 (čeka K2), pravilo 2, težine, clay i grass pravila (van
+sezone; imaju svoje rečenice o 63 — pregledati prije 2027.), ništa novo nije dodano u prompt.
+
+**Provjera:** oba testna paketa prolaze (prilagođene provjere oznaka odjeljaka i bloka
+povijesti; prag "fiksni dio 3x veći" spušten na 2x jer je fiksni dio pao s 42.228 na 32.690
+znakova). Živi poziv na zapisu Damm–Hurkacz: 5 odjeljaka, ispravan JSON, keš 8.936 tokena,
+odgovor 798 tokena; isti meč jutros je u prozi tvrdio "pravilo 4 veže na 62" i izbacio 68.
+
+**Tajming:** era `bce5693b` imala je 0 analiza, pa rez korpusa nije nastao.
+`rules_hash` hard **bce5693b → d7e45052**.
+
+**Što premjeriti:** raspodjela pouzdanosti će se pomaknuti (cap-ovi su gurali dobre pickove
+u 60-62). Nakon prvog dovršenog turnira u eri d7e45052 ponovno izmjeriti K1 (prag 60) i
+kaznu za pojas 65-68.
+
+---
+
 ## 2026-09-26 20:46 — DUBINSKA REVIZIJA + IMPLEMENTACIJA: kazna za autsajdera radi i bez
 ## konsenzusa; analiza gubitka dobiva činjenice; noge tiketa se više ne gube; nova era bce5693b
 

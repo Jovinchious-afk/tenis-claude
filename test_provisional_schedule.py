@@ -177,7 +177,11 @@ check("placeholder ne definira početak vala ostalima",
 #             against" (izmjereno: ne nosi nista povrh cijene) i asovi su ispravno
 #             oznaceni "Aces per 100 serve pts" (prije "Aces/match" za istu brojku);
 #             pravilo o trzisnom autsajderu kaze da bez konsenzusa vrijedi screenshot cijena.
-_ERA_RULES_HASH = "bce5693b"
+#   d7e45052  26.09.2026 21:27 — ciscenje prompta: maknuti blok "povijest turnira je
+#             najjaca varijabla", hard pravila 4/13/16, blokovi o kasnim rundama i o
+#             autsajderima, recenice o pragu 63; odjeljci 4+5 spojeni u "4. Context".
+#             Era bce5693b nije imala nijednu analizu, pa rez korpusa nije nastao.
+_ERA_RULES_HASH = "d7e45052"
 
 # Verzija oblika `context_snapshot`. Do 13.09.2026 je bila doslovno upisana na 8
 # mjesta u dva testna paketa, pa je svako podizanje znacilo lov po datotekama.
@@ -423,10 +427,11 @@ _rdsrc = inspect.getsource(sys.modules["agent.run_daily"])
 check("prompt ima redak o povijesti na turniru",
       "Best at THIS tournament, last 3 seasons:" in _FULL_PROMPT)
 check("prompt ima pravilo o povijesti", "TOURNAMENT HISTORY" in _FULL_PROMPT)
-check("pravilo nosi izmjereni broj", "71.6% (n=102)" in _FULL_PROMPT)
-check("pravilo izricito kaze da NIJE osobni strop",
-      "not a personal ceiling" in _FULL_PROMPT)
-check("pravilo upozorava na QF", "In QUARTER-FINALS this signal breaks down" in _FULL_PROMPT)
+# Od 26.09.2026 21:27 povijest turnira je SAMO OPIS: pala je dvaput izvan uzorka
+# (US Open r=-0,15; rujan r=-0,06), pa stari blok s "71.6% (n=102)" vise ne smije stajati.
+check("povijest turnira je samo opis", "TOURNAMENT HISTORY — DESCRIPTION ONLY" in _FULL_PROMPT)
+check("stari broj 71.6% vise nije u promptu", "71.6% (n=102)" not in _FULL_PROMPT)
+check("prompt kaze da je izmjerena kao pala", "FAILED on two independent samples" in _FULL_PROMPT)
 check("run_daily racuna povijest", "_tourn_best_3y" in _rdsrc)
 check("povijest se racuna za 3 sezone", "datetime.date.today().year - 3" in _rdsrc)
 check("_format_tourn_hist postoji", hasattr(pr, "_format_tourn_hist"))
@@ -448,11 +453,10 @@ check("build spaja visinu/tezinu/ruku",
 check("build bez podataka -> N/A", pr._format_build({}) == "N/A")
 check("build s djelomicnim podatkom radi", pr._format_build({"height_cm": 185}) == "185 cm")
 
-# --- kategorije key_factors: 6 slotova, 4+5 spojeni ---
-check("kategorija 4 je spojena", "4. Matchup & conditions" in _FULL_PROMPT)
-check("kategorija 5 je nova", "5. Tournament history & context" in _FULL_PROMPT)
-check("i dalje 6 kategorija (own read ostaje 6.)",
-      "6. Own read" in _FULL_PROMPT)
+# --- kategorije key_factors: od 26.09.2026 21:27 pet slotova (4 i 5 spojeni u Context) ---
+check("kategorija 4 je Context", "4. Context" in _FULL_PROMPT)
+check("own read je 5.", "5. Own read" in _FULL_PROMPT)
+check("nema vise 6. slota", "6. Own read" not in _FULL_PROMPT)
 check("stara zasebna kategorija stila je maknuta",
       "4. Style matchup —" not in _FULL_PROMPT)
 

@@ -6,7 +6,7 @@ danima, jednostavnim jezikom). Brojke, obrazloženja i tehnički detalji su u
 (dalje: DI).
 
 **Pravilo:** na kraju svake radne sesije ovdje se dopiše što smo napravili i ažurira se
-popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 26.09.2026 21:18.
+popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 26.09.2026 21:27.
 
 **Jedna naredba za sve zakazane provjere kandidata:** `python scripts/measure_candidates.py`
 (čita bazu, ništa ne mijenja; kaže za svakog kandidata ČEKA / POTVRĐEN / PAO).
@@ -23,7 +23,7 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 | **K15 — ATP pobjede u sezoni** | 150 riješenih analiza od 27.09.2026 (procjena: druga polovica listopada) | potvrdi → bonus pri izboru tiketa; padne → odbacuje se | DI K15; `python scripts/measure_player_context.py` |
 | **K16 — GS iskustvo u završnicama** | 40 mečeva QF/SF/F u kojima samo jedan igrač ima GS polufinale (više mjeseci) | +5pp ili više → razmotriti bonus u završnicama | DI K16 |
 | **Omjer protiv ljevaka** | 300 mečeva s ljevakom (danas 120) | ponovno izmjeriti; do tada samo bilježenje | DI "IZMJERENO 26.09.2026" |
-| **K1 — prag 60** | sljedeći dovršeni turnir | skupina 60-63 ispod nule uz n≥25 → prag natrag na 63 | DI K1 |
+| **K1 — prag 60 + kazna 65-68** | prvi dovršeni turnir u eri d7e45052 (prompt očišćen 26.09. 21:27, raspodjela pouzdanosti će se pomaknuti) | skupina 60-63 ispod nule uz n≥25 → prag natrag na 63 | DI K1 |
 | **K17 — pick s "High" scouting profilom** | 30 takvih pickova od 27.09.2026 | ≤ −5pp → kazna −3pp; iznad nule → odbacuje se | DI K17; `measure_candidates.py` |
 | **K18 — hard ATP 250 turniri** | 30 takvih pickova od 27.09.2026 (jesen je puna 250-ica) | ≤ −5pp → najviše jedna takva noga po tiketu; iznad nule → odbacuje se | DI K18 |
 | **K19 — povratak nakon pauze od 21+ dan** | 40 mečeva od 27.09.2026 | isti smjer kao na tržištu → ±2pp; obrnuto → odbacuje se | DI K19 |
@@ -52,7 +52,8 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
   29.08.2026.
 - **Drugi AI model kao neovisni analitičar** (mjeri se predviđa li slaganje dvaju modela
   bolje od jednoga). Niski prioritet.
-- **Čišćenje prompta: odjeljci analize (predloženo 26.09.2026 21:18, čeka tvoju odluku).**
+- ~~**Čišćenje prompta: odjeljci analize**~~ — **NAPRAVLJENO 26.09.2026 21:27**, vidi dnevnik.
+  Stari opis prijedloga:
   Iz prompta maknuti ono što je izmjereno kao krivo, a model to i dalje koristi: blok
   "povijest turnira je najjača varijabla" (pala dvaput izvan uzorka), hard pravila 4/13/16
   (tie-break i "izjednačen servis" — mjereno u krivom smjeru), blok o "kasnim rundama"
@@ -74,6 +75,24 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 ---
 
 ## NAPRAVLJENO — dnevnik
+
+### 26.09.2026 21:27 — očišćen prompt analize (tvoje odobrenje)
+
+Iz uputa modelu maknuto sve što je izmjereno kao krivo, a model je to i dalje koristio za
+svoj broj: "povijest turnira je najjača varijabla", tri pravila o tie-breaku i servisu
+(4, 13, 16), blok o kasnim rundama, blok koji je poticao autsajdere i sve rečenice o
+"pragu 63%" (u kodu je 60). Analiza sada ima **pet odjeljaka** umjesto šest: Rating,
+Serve/return, Forma, **Kontekst** (spojeni matchup i povijest turnira) i Own read.
+Ništa novo nije dodano. Težine i pravilo o domaćem terenu nisu dirani.
+
+**Čemu služi:** tekst koji čitaš uz pick više ne tvrdi netočnosti i dosljedan je broju;
+manje razloga za odmak iznad tržišta; prompt kraći za četvrtinu. **Ne očekuj** da nas
+ovo samo po sebi učini boljima od tržišta. **Pazi:** brojevi pouzdanosti će se malo
+pomaknuti, pa prag 60 i kaznu 65-68 treba premjeriti nakon prvog turnira (stavka K1 gore).
+Provjereno: oba testna paketa prolaze, jedan živi poziv modela vratio je pet odjeljaka.
+
+Gdje: `agent/predictor.py` (komentar "CISCENJE PROMPTA" iznad predloška); nova era
+`d7e45052`.
 
 ### 26.09.2026 21:18 — tri pitanja (samo mjerenje, ništa u modelu nije mijenjano)
 

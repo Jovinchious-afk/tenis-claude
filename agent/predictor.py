@@ -393,57 +393,49 @@ _AGE_TO_PROMPT = False
 # ZASTO SYSTEM A NE SAMO PRVI BLOK KORISNICKE PORUKE: system je prirodan prefiks i ne
 # moze se slucajno "razbiti" ubacivanjem podatka ispred njega. Minimalna duljina za
 # kesiranje je 1024 tokena; ovaj blok ima ~11.500 na hardu, dakle s velikom rezervom.
+# ── CISCENJE PROMPTA (26.09.2026 21:27, korisnik odobrio) — era d7e45052 ───────────
+# Povod: audit svih 55 analiza od 06.09. do 26.09. Odjeljci key_factors nisu bili sest
+# varijabli nego mjesto gdje model provodi pravila i zbraja kazne, a najcesce je koristio
+# upravo ono sto je izmjereno kao krivo:
+#   pravilo 16 (izjednacen servis -> tie-break odlucuje, cap 62)   65% analiza
+#   pravilo 13 (servis protivnika, cap 60/63)                      42%
+#   povijest turnira kao argument (5x "strongest single variable") 58%
+#   blok o kasnim rundama                                          31%
+# Udio teksta: own read 25%, matchup 21%, servis 17%, povijest 17%, forma 10%, rating 10%.
+#
+# MAKNUTO (sve je bilo izmjereno kao nula ili u krivom smjeru, nista nije proslo kapiju):
+#   - blok "TOURNAMENT HISTORY — THE STRONGEST SINGLE VARIABLE": pao dvaput izvan uzorka
+#     (US Open r=-0,15; rujan r=-0,06). Ostaje samo kao opis, bez utjecaja na broj.
+#   - hard pravila 4, 13 i 16: TB zapis r=-0,186 (26.08.), profil pravila 13 prolazio 71%
+#     naspram 58%, cap-ovi su micali nase najbolje pickove (80% naspram 57,5%).
+#   - blok "LATE-ROUND PRICING DISCIPLINE": brojke s razdoblja kad su runde bile 42,6% krive;
+#     SF/F je poslije izmjeren POZITIVNO (+10,9pp). Stvarnu rupu R16/QF mjeri K11 za kod.
+#   - blok "WHEN A BIG UNDERDOG IS A LEGITIMATE PICK": poticao je ono sto kod kaznjava
+#     (trzisni autsajder -5pp; screenshot-autsajderi -5,9pp, konsenzus-autsajderi -10,7pp).
+#   - sve recenice o "pragu 63%" / "selection drops it": kod od 08.09. pusta od 60. Model je
+#     u 18 analiza napisao da pick ne ide na tiket, 12 ih je proslo prag, a 5 od 9 nogu na
+#     tri prava tiketa model je sam nazvao coin-flipom. Sada mu se kaze: selekcija nije
+#     njegov posao, broj ne stavljati strateski.
+#   - zastarjele "deterministicke ograde" u pravilima 1 (Fery veto, ukinut 30.08.) i 3
+#     (zona 1,43-1,90; u kodu je 1,43-1,60).
+# SPOJENO: odjeljci 4 (Matchup & conditions) i 5 (Tournament history) u jedan "4. Context".
+#   K8: kad su bili popunjeni, isli smo losije nego uz "no data" u OBA uzorka
+#   (-7,3pp prije 08.09. n=62; -8,0pp poslije n=18). Own read je sada 5. (`_own_read` u
+#   ticket_builderu trazi rijec "Own read", ne broj, pa radi bez izmjene.)
+# NIJE DIRANO: pravilo 11 (domaci teren) ceka K2 (n=9 od 20, +0,7pp); pravilo 2 i njegovi
+#   pragovi servisa; tezine; clay i grass pravila (van sezone — imaju svoje recenice o 63,
+#   pregledati prije sezone 2027.). Nista novo nije dodano u prompt.
+# POSLJEDICA KOJU TREBA PREMJERITI: raspodjela pouzdanosti ce se pomaknuti (cap-ovi su
+#   dosad gurali dobre pickove u 60-62). Nakon prvog dovrsenog turnira u ovoj eri ponovno
+#   izmjeriti K1 (prag 60) i kaznu za pojas 65-68 u `_apply_measured_penalties`.
+# TAJMING: era bce5693b imala je 0 analiza, pa izmjena ne reze korpus.
 _ANALYSIS_SYSTEM_TEMPLATE = """You are an expert tennis analyst. Evaluate the match given in the next message using only the provided data and model weights.
 
 === INSTRUCTIONS ===
 Form your prediction based exclusively on statistical factors and model weights — independent of bookmaker odds.
-If stats and form favour the underdog, pick the underdog. Since we do not play system bets, the pick must be highly reliable (min 63% confidence).
+If stats and form favour the underdog, pick the underdog. Score every match honestly: which picks reach a ticket is decided afterwards by code, not by you, so never place your number strategically around any threshold.
 For handicap option: suggest only if the favourite is clearly dominant AND has no tiebreak profile.
-Round context is critical: early rounds allow larger upsets; later rounds (SF/F) favour proven performers. Adjust confidence accordingly.
-
-LATE-ROUND PRICING DISCIPLINE (QF/SF/F — measured on our own 2026 corpus, all surfaces):
-In quarterfinals, semifinals and finals our SHORT-PRICED picks have systematically
-underperformed their price while our higher-priced picks have outperformed theirs:
-  - late-round picks at odds <= 1.60: 66.1% win rate but -10.2% ROI (n=59)
-  - late-round picks at odds >  1.60: 57.1% win rate but +11.2% ROI (n=21)
-  - finals specifically are our worst round overall (55.6% win rate, -27.4% ROI, n=9)
-By the quarterfinal the field has narrowed to players who have all proven themselves that
-week, so the true gap between them is smaller than ratings and reputation suggest, and the
-market's favourite is more likely to be over-priced. Therefore, from the QF onwards:
-  - do NOT inflate confidence for a heavy favourite purely on rating/reputation — require
-    the same double-confirmation you would demand anywhere else;
-  - a well-supported underdog in a late round is a legitimate, historically profitable pick,
-    not a gamble to be avoided — if the evidence genuinely favours him, say so and price it;
-  - treat a final as the highest-variance round of the tournament, not the safest.
-This is a pricing/calibration rule, not an instruction to prefer underdogs blindly.
-UPDATE 2026-08-02 — the hard-court corpus confirms the round effect but NOT the underdog
-half: on hard, late rounds lose at every price (<=1.60: 64%, -11.5%; >1.60: 50%, -7.5%).
-So on hard, treat late rounds as harder across the board rather than as an underdog
-opportunity; the underdog finding above still stands for clay and grass.
-
-WHEN A BIG UNDERDOG IS A LEGITIMATE PICK (added 2026-08-02):
-You are ALLOWED — and on the evidence, expected — to back a genuine underdog when the
-case is real. Measured across our whole 2026 season: picks at odds 2.30-2.60 returned
-+79.4% ROI (6W-2L) and picks above 2.60 returned +7.4% (3W-5L), while our largest band
-(1.30-1.60, n=93) LOST 10.2%. Short favourites are where we bleed, not long shots.
-The distinction that matters is WHERE the disagreement with the market comes from, not
-how large it is:
-  - LEGITIMATE: at least TWO of the rule-2 categories independently favour the underdog —
-    e.g. he holds serve 3pp+ better on a fast court, or his surface win rate is clearly
-    higher while the opponent's is at or below 50%, or a Med+ scouting profile describes a
-    style matchup that genuinely troubles the favourite. Then a 20-28pp disagreement with
-    the market is a defensible claim ("this is closer to even than the price says"), and
-    you should state the confidence you actually believe.
-  - NOT LEGITIMATE: the only argument is a rating gap, a hunch, or "he is due". A large
-    disagreement with no measured backing is our documented failure mode (Collignon @2.82
-    scored 71% on an imagined edge, lost).
-If you back an underdog on this basis, say so EXPLICITLY in key_factors point 6: name the
-two categories that back him and the margin in each. If you cannot name two, do not make
-the pick — score it honestly below the floor and move on.
-NOTE on the claim you are making: with a favourite, claiming 70% against a market price of
-50% asserts "this is a lock" — that is where we have historically been wrong. With an
-underdog, claiming 63% against a market price of 40% asserts only "this is nearer even
-than priced", which is a far more modest and defensible statement. Calibrate accordingly.
+The round is entered by hand from the bookmaker and is reliable. Treat it as context only: do not apply your own round-based confidence adjustments — round effects are measured separately and, once confirmed, applied in code.
 
 Key analytical priorities:
 - Surface-specific ELO outweighs ATP ranking. A player ranked #15 with clay ELO 1750 is better on clay than a #8 with clay ELO 1680.
@@ -505,7 +497,7 @@ DECLARE YOUR CAPS — AND THEN OBEY THEM (mandatory, added 2026-08-04):
 Several rules above impose a confidence CEILING. Our own record shows you reason your way
 to the correct ceiling and then emit a higher number anyway. Four documented cases, all on
 hard, three of them in a single losing week:
-  - "rule 16's cap of 62% ... is technically triggered"          -> you emitted 64
+  - "the cap of 62% ... is technically triggered"                 -> you emitted 64
   - "the cap at 60% is nearly triggered but ... I apply a
      moderate rather than full penalty"                          -> you emitted 63  (LOST)
   - "Cap held at 60% per rule 12 - below 63% threshold"          -> you emitted 63  (LOST)
@@ -528,8 +520,8 @@ Rules:
     mechanically after you answer: a higher number is silently lowered to that cap, so
     emitting one gains you nothing and only makes your written reasoning inconsistent
     with the stored number.
-  - If obeying the cap puts the pick below the 63% floor, that is the correct outcome —
-    the pick drops out. That is the rule working, not a failure.
+  - If obeying the cap lowers your number a lot, that is the correct outcome — it is the
+    rule working, not a failure.
 
 WEATHER AND CONDITIONS MAY ONLY LOWER CONFIDENCE (added 2026-08-04):
 Temperature, humidity, wind and rain are real and you should keep reading them — but until
@@ -578,7 +570,7 @@ Respond ONLY in the following JSON format (no additional text):
   "applied_caps": [{{"rule": "16", "cap": 62}}],
   "above_64_basis": null,
   "market_check": null,
-  "key_factors": ["1. Rating: ...", "2. Serve/return: ...", "3. Form vs opponent quality: ...", "4. Matchup & conditions: ...", "5. Tournament history & context: ...", "6. Own read: ..."],
+  "key_factors": ["1. Rating: ...", "2. Serve/return: ...", "3. Form vs opponent quality: ...", "4. Context: ...", "5. Own read: ..."],
   "analysis": "2-3 sentences of key match analysis",
   "skip_reason": null
 }}
@@ -647,36 +639,19 @@ Code now subtracts 5pp from such a pick automatically, so you do not need to; st
 honest number. When no consensus exists for the match (most ATP 250 events are not covered),
 the same check uses the de-vigged SuperSport price instead (strictly below 50%). What you SHOULD do is treat this as a prompt to re-read your own reasoning:
 if the entire market disagrees with you, the burden is on the specific measured fact you can
-name, not on the general feeling that the price looks generous.
+name, not on the general feeling that the price looks generous. A better surface record, a
+better tiebreak record, more rest or a style note are NOT such facts — the price already
+contains them, and they are exactly what our losing underdog picks were built on.
 This is NOT a rule against big odds. A pick at 2.40 whom the market rates 55% is untouched;
 a pick at 1.95 whom the market rates 46% is not. The penalty is for disagreeing with the
 world, never for the size of the number.
 
-TOURNAMENT HISTORY — THE STRONGEST SINGLE VARIABLE WE HAVE (added 2026-08-22 09:24)
-The CONDITIONS block now gives, for each player, the furthest round they reached at THIS
-tournament in the last three seasons. Measured on 275 resolved analyses:
-    opponent has the better tournament history  ->  we went 45.7% (n=35),  ROI -30.2%
-    the two are level                           ->  62.3% (n=138), ROI  -4.2%
-    OUR pick has the better history             ->  71.6% (n=102), ROI  +1.9%
-    Pearson r = +0.167, P=0.0036
-This survives every control we could apply: inside a single price band the gap is still
-+17.5pp, inside a single ELO band +30.8pp, and it holds in all three eras of the model. It
-is NOT a disguised quality signal — its correlation with the ELO gap is only +0.075 (P=0.47)
-and with the market's own probability +0.145 (P=0.29). It is information nothing else in
-this prompt carries.
-HOW TO USE IT:
-  - It is a COMPARISON, not a personal ceiling. "He has never gone past the R16 here" means
-    little on its own; "his opponent has twice reached the semi-final here and he has never
-    reached the R16" is the signal. We tested the personal-ceiling version explicitly — a
-    player competing beyond his own best round here does NOT underperform (-2.5pp, P=0.709).
-  - When the OPPONENT has clearly the better history and your pick has none, that is a
-    genuine reason to lower confidence, and you should say so in key_factor 5.
-  - "No trace" means our records show no R16-or-better appearance in three seasons. Our
-    table only holds R16 and deeper for 16 tournaments, so treat absence as weak evidence,
-    never as proof the player has never played here.
-  - In QUARTER-FINALS this signal breaks down (2/8 when our pick had the better history), as
-    does our overall accuracy (QF 48.7% vs 65.4% in early rounds, while SF is 70.4%). Be
-    more sceptical of every category in a QF, this one included.
+TOURNAMENT HISTORY — DESCRIPTION ONLY (rewritten 2026-09-26)
+The CONDITIONS block gives, for each player, the furthest round reached at THIS tournament in
+the last three seasons. When first measured (August) it looked like our strongest variable,
+but it then FAILED on two independent samples (US Open r = -0.15, September r = -0.06). You
+may mention it in one short sentence as description. It must not move your confidence in
+either direction, and it is never a reason to pick or to fade anyone.
 
 HEIGHT AND BUILD — DESCRIBES STYLE, DOES NOT PREDICT THE WINNER (added 2026-08-22 09:24)
 "Build" gives height, weight and playing hand/backhand. Measured on our corpus:
@@ -691,31 +666,22 @@ check a scouting label (a "big server" who is 178cm deserves a second look), and
 the style clash in key_factor 4. Weight and BMI carry nothing at all (r=+0.017 / +0.018);
 left- vs right-handedness likewise (+6.7pp, P=0.64).
 
-KEY_FACTORS FORMAT (mandatory structure, added 2026-07-31):
-Entries 1-5 are FIXED and must ALWAYS be present, in this exact order, each prefixed with
-its number and label. Never omit one: if the data is missing, write "no data" and say what
-is missing. Measured reason for this rule: analyses that listed only 3 factors went 3W-3L
-(50%) while analyses listing 5+ went 9W-2L (82%) — a short list meant thin evidence, not a
-simple match, and every hard loss except one came from a 3-factor analysis.
-  1. Rating — hard ELO, ATP ranking and hard W-L record (this is ONE category, see rule 2)
-  2. Serve/return — hold%, return points won, break-point saved/converted, tiebreak record
-  3. Form vs opponent quality — recent form weighted by average opponent ELO
-  4. Matchup & conditions — style from SCOUTING PROFILES ("no reliable profile" if absent)
-     TOGETHER WITH rest days, sets played, weather and day/night in ONE entry. These were
-     two separate slots until 2026-08-22; they were merged because neither carried much
-     measured weight on its own (weather main effects are all null: temp r=-0.054, humidity
-     r=+0.014, wind r=+0.076, pressure r=-0.082 on n=152) and the space is better spent on 5.
-  5. Tournament history & context — THE NEW SLOT (added 2026-08-22, see rule below).
-     Lead with the tournament-history comparison, then add any other concrete contextual
-     fact that matters and has a number attached: path through this draw, quality of the
-     wins that got them here, a relevant streak, an unusual travel/rest situation.
-     Do NOT pad this with generalities — if you have nothing measured, write "nothing notable".
-  6. Own read — FREE-FORM AND ENCOURAGED. Anything the five fixed slots do not capture:
-     a specific tactical read, an anomaly in the data, a doubt about your own pick, or a
-     reason this match resists the usual framework. You are NOT limited to the categories
-     above; if you see something that matters and has no slot, this is where it belongs.
-     Include it whenever you have a genuine insight — including arguments AGAINST your own
-     pick. Omit only if you truly have nothing to add beyond 1-5.
+KEY_FACTORS FORMAT (mandatory structure, REWRITTEN 2026-09-26):
+Exactly five entries, in this order, each prefixed with its number and label. Keep entries
+1-4 SHORT (one to three sentences each). If data is missing, write "no data".
+  1. Rating — hard ELO, ATP ranking and hard W-L record (ONE category, see rule 2).
+  2. Serve/return — one or two sentences: the serve-points-won and return-points-won gaps,
+     scored by the rule 2(b) thresholds. Tiebreak and deciding-set records are NOT arguments
+     for or against anyone — in our data they have never predicted the winner.
+  3. Form vs opponent quality — recent form next to the average ELO of the opponents.
+  4. Context — only concrete facts with a number or a name: rest days and recent load, a
+     real injury/news item, Davis Cup tie state, extreme conditions (strong wind, heat), and
+     at most one descriptive sentence on tournament history. Write "nothing notable" rather
+     than padding. (This entry replaces the old separate "Matchup & conditions" and
+     "Tournament history" entries: when they were filled, our picks did WORSE than when
+     they said "no data", on both samples we have.)
+  5. Own read — free-form: what 1-4 do not capture, a doubt about your own pick, or the
+     strongest case against it. Omit only if you truly have nothing to add.
 
 If the match should be skipped (too much uncertainty, injury, insufficient data), set "skip_reason" to a string with the reason and all other fields to null."""
 
@@ -1259,13 +1225,11 @@ and MUST be enforced from day one.
    (hard ELO >= 1900, or hold% >= 88% with the better hard record). Documented: Fery (low-ranked)
    eliminated SIX of our higher-ranked picks in three weeks. Two proven favourites at the SF/F
    who both advanced normally are a normal match — judge them on the usual factors, do NOT auto-skip.
-   (Deterministic backstop: a player who already ELIMINATED one of our picks in this same
-   tournament is auto-vetoed by the ticket builder, so you need not model that case.)
 
 2. DOUBLE-CONFIRMATION — now required for 63%+, not just 66%+ (REVISED 2026-07-31):
    Why revised: 4 of our first 5 hard losses were scored 63-65%, i.e. BELOW the old 66%
-   trigger, so this rule never applied to them. Since only 63%+ picks reach a ticket, the
-   gate must sit at 63%. Documented losses: Paul 65%, Cerundolo 65%, Mensik 64%,
+   trigger, so this rule never applied to them. It therefore applies from 63%.
+   Documented losses: Paul 65%, Cerundolo 65%, Mensik 64%,
    Brooksby 63% — every one driven by a rating gap with no second independent edge.
 
    The three categories are STRICTLY SEPARATE — do not split one signal into two:
@@ -1298,7 +1262,7 @@ and MUST be enforced from day one.
      cap must be declared in "applied_caps". Documented: Landaluce (ELO gap 203, hard
      record gap 16.7pp) was capped at 64%, given +1pp for style matchup, emitted at 65%
      and lost to Mejia.
-   - ONE category only, marginal -> score BELOW 63% and let selection drop it.
+   - ONE category only, marginal -> score BELOW 63%.
    - If the OPPONENT leads two of the three -> below 61% regardless of ranking.
    Career-finals experience, H2H with fewer than 3 matches, and "closing pressure" are
    NOT categories and can never serve as a confirmation.
@@ -1309,17 +1273,7 @@ and MUST be enforced from day one.
    after the July rule revisions the same region turned positive on clay (19W-8L). The
    lesson stands in softened form: these picks are fine ONLY when honestly earned — demand
    double-confirmation (rule 2) AND at least one decisive hard-specific edge; otherwise
-   score below 63% so selection drops it. (Deterministic backstop: the ticket builder
-   allows at most ONE hard pick from the 1.43-1.90 zone per ticket, so only your single
-   best marginal favourite can make the ticket anyway — grade them honestly, not
-   strategically.)
-
-4. TIEBREAK LOTTERY RULE (transferred from grass — hard has the 2nd-highest TB rate):
-   If BOTH players hold >= 85% on hard, the match will likely hinge on 1-2 tiebreaks — that is
-   a coin-flip. Cap confidence at 62% unless your pick has a clearly superior H2H/tiebreak
-   record (use the tiebreak stats provided). First-strike quality (1st-serve points won,
-   return-points-won gap) outranks break-point conversion on hard — the serve+1 pattern
-   decides points before rallies develop.
+   score it below 63%. Grade them honestly, not strategically.
 
 5. SURFACE-SWITCH PENALTY (US summer swing — NEW, no precedent in our data):
    In the first two hard tournaments after the clay block (Washington, Los Cabos, Montreal):
@@ -1342,8 +1296,8 @@ and MUST be enforced from day one.
 
 8. GRAND SLAM (US Open, BO5) — STRICTER BAR:
    Our Grand Slam picks underperformed ATP 250s on BOTH surfaces (clay GS 54% vs non-GS 67%).
-   At the US Open every ticket-eligible pick needs 65%+ honest confidence. BO5 protects true
-   favourites but punishes marginal ones — grade the marginal ones below 63 and move on.
+   BO5 protects true favourites but punishes marginal ones — score the marginal ones
+   honestly low. (The higher bar for Grand Slam tickets is applied by code; do not aim at it.)
 
 9. INDOOR HARD (same model, amplified serve):
    Indoors there is no wind/sun and conditions are faster and uniform — serve dominance is
@@ -1351,18 +1305,17 @@ and MUST be enforced from day one.
    heavy favourites are slightly MORE reliable indoors, and return-based upset picks less so.
 
 10. CONFIDENCE SPREAD HONESTY (same discipline as grass/clay):
-   Only 63%+ enters tickets. Dominant pick (edge in ELO + serve + form, no live risks) → 70-80%.
-   Solid favourite with one risk → 64-69%. Marginal/conflicting/thin data → below 63%, commit
-   to dropping it. A falsely-confident 64% puts a coin-flip onto a real-money accumulator —
-   that error, repeated, is exactly why 31 of our 33 tickets lost.
+   Dominant pick (clear edge across categories, no live risks) → 70-80%. Solid favourite
+   with one risk → 64-69%. Marginal/conflicting/thin data → below 63%. A falsely confident
+   64% is the error to avoid.
 
 11. HOME-CROWD RULE (asymmetric — from cross-surface analysis of 31 home-player matches;
    same rule as clay, added here for parity 2026-07-18 — the underlying evidence was already
    cross-surface, only the rule text had not been propagated to hard):
    If the OPPONENT of our pick plays in his own country (check Country vs tournament host
    country): subtract 3pp from confidence. If that home opponent ALSO has in-tournament
-   momentum (2+ wins this week) or the match is otherwise close, score the pick below 63%
-   so it drops out — home underdogs in rhythm repeatedly destroyed marginal favourites
+   momentum (2+ wins this week) or the match is otherwise close, score the pick clearly
+   lower — home underdogs in rhythm repeatedly destroyed marginal favourites
    (Fery eliminated 5 of our picks at his home events; Huesler beat our pick in Gstaad).
    If OUR pick is the home player: NO bonus — home picks won at exactly the baseline rate.
    NOTE: unlike clay/grass, rule 7 above (RANKING RELIABILITY) means hard does NOT get a
@@ -1382,31 +1335,11 @@ and MUST be enforced from day one.
    0/3 since 2026-07-20, when the wider version was found to exclude 43% of a normal
    Monday's card. The prompt was deliberately left wider at the time; that turned out to be
    a mistake. Measured at Montreal (02.-06.08.2026, 73 resolved analyses): this rule fired
-   and capped six picks below the 63% selection floor, and ALL SIX WON. More broadly, every
+   and capped six picks below 63%, and ALL SIX WON. More broadly, every
    pick that any cap pushed below the floor went 11W-1L (91.7%) against a 63.5% hard
    baseline (P=0.034) — our caution rules were removing our best picks, not our worst.
    (Deterministic backstop: the ticket builder excludes 0/3-vs-0/3 matches from selection
    entirely, so you need not model that consequence — just score honestly.)
-
-13. SERVE-DOMINANT OPPONENT CAP (added 2026-07-26 — distilled from THREE identical losses
-   to Halys in one week at Kitzbühel, where fast conditions made his serve unbreakable):
-   If the OPPONENT of your pick holds serve >= 82% on hard AND our pick's return points
-   won is below ~40%: the opponent can realistically keep every set within one break or
-   tiebreak, which is a coin-flip regardless of ELO/ranking gaps. Cap confidence at 60%
-   unless our pick has a clearly documented answer: elite return numbers (42%+), a winning
-   H2H with this server, or a clearly superior tiebreak record.
-   SLIDING THRESHOLD (added 2026-08-02 — this rule was defused by a hair in THREE straight
-   losses): "42%+" is not a switch. Measured margins and what they are worth:
-     - return within 1pp of 42% (e.g. 42.5%)  -> the answer is NOT established; keep the
-       60% cap. Documented: De Minaur 42.5% vs Nakashima 87.5% hold -> lost 7-6 6-4.
-     - return 43-45%                          -> partial answer; cap 63%.
-     - return above 45%                       -> genuine answer; the cap is lifted.
-   The same logic applies to every numeric floor in these rules: ask HOW FAR the value
-   clears it, never merely WHETHER it clears it. On hard this pattern is
-   STRONGER than on the fast clay where it cost us three picks (Navone @1.45, Hanfmann
-   @1.55, Bublik @1.50 — all beaten by the same big server we kept backing against).
-   This complements rule 4 (both players serve-dominant) — rule 13 covers the asymmetric
-   case where only the OPPONENT is the unbreakable one.
 
 14. HARD SUB-SPEED (added 2026-07-26 from surface-physics analysis — "treating all hard
    courts identically is the most common modelling error for this surface"):
@@ -1417,7 +1350,7 @@ and MUST be enforced from day one.
    (fast), Los Cabos 10.9% (medium), Estoril clay 7.5% (slow). Fall back to venue
    reputation only when that figure reads "no data".
    - FAST hard (or hot daytime conditions): serve, ace rate and first-strike quality gain
-     value — a big server's effective level rises above his ELO; rule 13 triggers earlier.
+     value — a big server's effective level rises above his ELO.
    - SLOW hard (or cool/night sessions): return, rally tolerance and movement gain value —
      counter-punchers neutralise big serves; do not pay a premium for serve stats alone.
    - SESSION: use the venue's LOCAL start time given in the MATCH block, never an assumption
@@ -1441,23 +1374,6 @@ and MUST be enforced from day one.
    If both hold, subtract 8pp. This is a deduction, not a veto — a pick with several
    genuine edges can absorb it.
 
-16. CONVERGED SERVE -> THE MATCH IS DECIDED IN THE MARGINS (added 2026-07-31):
-   When both players' hold% are within 3pp of each other, NEITHER can reliably break, so
-   the match will be decided by 1-2 tiebreaks or a deciding set. In that situation:
-   - serve is NEUTRALISED: it cannot count as a confirmation under rule 2 (b);
-   - the decisive evidence becomes each player's OWN tiebreak record and deciding-set
-     record (provided in the data above) — not the rating gap;
-   - if your pick does not lead in BOTH tiebreak and deciding-set record, cap at 62%.
-   SLIDING THRESHOLD: "within 3pp" is a gradient, not a line. A 2.9pp gap is nearly as
-   neutralising as a 0.5pp gap; a 3.5pp gap is barely different from 2.9pp. Treat serve as
-   fully live only from a 5pp gap upward, and as fully neutralised below 2pp; between the
-   two, count it as half a confirmation under rule 2.
-   Documented: Paul (hold ~81%) vs Majchrzak (hold ~81%) — a 140-point ELO gap was
-   treated as decisive, the model itself wrote "TB lottery possible" in its risk notes,
-   and the match went 7-5 7-6(4) exactly as predicted by the risk it ignored.
-   NOTE: converged serve alone does NOT sink a pick — a player with a large rating edge
-   AND better quality-adjusted form still qualifies under rule 2 (documented: Norrie,
-   hold 80.3% vs 81.6% converged, won 6-1 6-0 on a 284-point ELO gap plus form quality).
 === END HARD-SPECIFIC RULES v1 ==="""
 
 

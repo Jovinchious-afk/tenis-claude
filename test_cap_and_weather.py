@@ -475,7 +475,11 @@ check("krivi nazivi API polja dokumentirani", "breakPointOf" in _dfsrc)
 #             against" (izmjereno: ne nosi nista povrh cijene) i asovi su ispravno
 #             oznaceni "Aces per 100 serve pts" (prije "Aces/match" za istu brojku);
 #             pravilo o trzisnom autsajderu kaze da bez konsenzusa vrijedi screenshot cijena.
-_ERA_RULES_HASH = "bce5693b"
+#   d7e45052  26.09.2026 21:27 — ciscenje prompta: maknuti blok "povijest turnira je
+#             najjaca varijabla", hard pravila 4/13/16, blokovi o kasnim rundama i o
+#             autsajderima, recenice o pragu 63; odjeljci 4+5 spojeni u "4. Context".
+#             Era bce5693b nije imala nijednu analizu, pa rez korpusa nije nastao.
+_ERA_RULES_HASH = "d7e45052"
 
 # Verzija oblika `context_snapshot`. Do 13.09.2026 je bila doslovno upisana na 8
 # mjesta u dva testna paketa, pa je svako podizanje znacilo lov po datotekama.
@@ -1483,8 +1487,11 @@ _sys_hard36 = _pr._ANALYSIS_SYSTEM_TEMPLATE.format(
     surface_specific_rules=_pr._surface_specific_rules("hard"))
 check("fiksni dio je iznad minimuma za kesiranje",
       len(_sys_hard36) / 3.4 > 1024, "~%d tokena" % (len(_sys_hard36) / 3.4))
+# Prag 3x -> 2x (26.09.2026 21:27): ciscenje prompta skratilo je fiksni dio s 42.228 na
+# 32.690 znakova (omjer 3,84 -> 2,97). Namjera provjere — da se kesiranje isplati jer je
+# fiksni dio vecina poziva — i dalje vrijedi; prag je bio opis stanja, ne zahtjev.
 check("fiksni dio je vecina prompta",
-      len(_sys_hard36) > 3 * len(_pr.ANALYSIS_PROMPT_TEMPLATE))
+      len(_sys_hard36) > 2 * len(_pr.ANALYSIS_PROMPT_TEMPLATE))
 
 # --- E. ranking_trend je posve uklonjen ---
 check("ranking_trend nije ni u jednom predlosku",
@@ -1585,14 +1592,31 @@ check("citac nosi izmjerenu stetu",
 # "4. Matchup & conditions / 5. Tournament history", a JSON primjer koji model prepisuje
 # jos je nosio oznake od prije 22.08. ("4. Style matchup / 5. Fatigue & conditions").
 # Izmjereno: 2-3 analize po slotu od 146 slijedile su zastarjeli primjer.
-check("JSON primjer nosi NOVE oznake slotova",
-      chr(34) + "4. Matchup & conditions" in _pr._ANALYSIS_SYSTEM_TEMPLATE
-      and chr(34) + "5. Tournament history & context" in _pr._ANALYSIS_SYSTEM_TEMPLATE)
+# Od 26.09.2026 21:27 slotovi 4 i 5 su SPOJENI u "4. Context", own read je 5. (K8).
+check("JSON primjer nosi oznake slotova iz specifikacije",
+      chr(34) + "4. Context" in _pr._ANALYSIS_SYSTEM_TEMPLATE
+      and chr(34) + "5. Own read" in _pr._ANALYSIS_SYSTEM_TEMPLATE)
 check("stare oznake slotova vise ne postoje nigdje u promptu",
       "Style matchup" not in _FULL_PROMPT and "Fatigue & conditions" not in _FULL_PROMPT)
 check("specifikacija i primjer koriste ISTE oznake",
-      _pr._ANALYSIS_SYSTEM_TEMPLATE.count("Matchup & conditions") >= 2
-      and _pr._ANALYSIS_SYSTEM_TEMPLATE.count("Tournament history") >= 2)
+      _pr._ANALYSIS_SYSTEM_TEMPLATE.count("4. Context") >= 2
+      and _pr._ANALYSIS_SYSTEM_TEMPLATE.count("5. Own read") >= 2
+      and "6. Own read" not in _pr._ANALYSIS_SYSTEM_TEMPLATE)
+# --- Ciscenje prompta 26.09.2026 21:27: izmjereno kriva pravila vise nisu u promptu ---
+_hard_full = _pr._ANALYSIS_SYSTEM_TEMPLATE + _pr._HARD_RULES_V1
+check("povijest turnira vise nije 'najjaca varijabla'", "STRONGEST SINGLE" not in _hard_full)
+check("hard pravila 4, 13 i 16 maknuta",
+      "TIEBREAK LOTTERY RULE" not in _hard_full and "SERVE-DOMINANT OPPONENT CAP" not in _hard_full
+      and "CONVERGED SERVE" not in _hard_full)
+check("blokovi o kasnim rundama i autsajderima maknuti",
+      "LATE-ROUND PRICING DISCIPLINE" not in _hard_full
+      and "WHEN A BIG UNDERDOG IS A LEGITIMATE PICK" not in _hard_full)
+check("prompt vise ne govori o pragu za tiket",
+      "min 63% confidence" not in _hard_full and "selection drops it" not in _hard_full
+      and "Only 63%+ enters tickets" not in _hard_full)
+check("pravilo 11 (domaci teren) ostaje dok K2 ne odluci", "11. HOME-CROWD RULE" in _pr._HARD_RULES_V1)
+check("ciscenje nosi obrazlozenje s mjerenjem u kodu",
+      "CISCENJE PROMPTA (26.09.2026 21:27" in _src36)
 check("popravak nosi obrazlozenje s mjerenjem",
       "PROTURJECJE U OZNAKAMA SLOTOVA" in _src36 and "141/146" in _src36)
 
