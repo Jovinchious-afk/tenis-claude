@@ -11,6 +11,9 @@ Format: `datum — naslov` → što / zašto / ishod (ako je poznat).
 odluku o picku — prompt, deterministički kod i ono što se samo bilježi. Kad se nešto od toga
 promijeni, ažurirati ondje i zabilježiti izmjenu ovdje.
 
+**Čitljivi pregled:** `BACKLOG.md` (od 26.09.2026 19:21) — što čeka (s uvjetom i rokom) i
+dnevnik napravljenog jednostavnim jezikom. Dopunjava se na kraju svake radne sesije.
+
 ---
 
 ## 2026-09-26 17:04 — RUNDA JE RUČNI UNOS; GS finala vraćena u prompt; tri nove varijable;
