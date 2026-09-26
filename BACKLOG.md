@@ -6,7 +6,7 @@ danima, jednostavnim jezikom). Brojke, obrazloženja i tehnički detalji su u
 (dalje: DI).
 
 **Pravilo:** na kraju svake radne sesije ovdje se dopiše što smo napravili i ažurira se
-popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 26.09.2026 20:46.
+popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 26.09.2026 21:18.
 
 **Jedna naredba za sve zakazane provjere kandidata:** `python scripts/measure_candidates.py`
 (čita bazu, ništa ne mijenja; kaže za svakog kandidata ČEKA / POTVRĐEN / PAO).
@@ -31,7 +31,7 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 | **Konsenzus kladionica** | do kraja listopada 2026: 60+ pickova uz razliku ≥1pp — **vjerojatno nedostižno**: Odds API ne pokriva ATP 250, od 13.09. bilo je 0 takvih mečeva | iznad +5pp → tvrdi uvjet; ispod nule → maknuti bonus | `agent/ticket_builder.py`, blok uz `_CONSENSUS_GAP_MIN` |
 | **K12 — prosjek statistike s turnira** | dubina 3+ uz kvotu dosegne n≥100 | interval i dalje prelazi nulu → samo bilježenje | DI K12 |
 | **K14 — Davis Cup** | 20 riješenih Davis Cup mečeva (finalni turnir u studenom) | unutar 5pp od prosjeka → smije na tiket | DI K14 |
-| **K2 — domaći teren** | još 20 mečeva s domaćim igračem | protivnik-domaći ostane iznad +3pp → kazna se briše iz prompta | DI K2 |
+| **K2 — domaći teren** | još 20 mečeva s domaćim igračem (26.09.: 9, edge +0,7pp) | protivnik-domaći ostane iznad +3pp → kazna se briše iz prompta | DI K2 |
 | **K3 — Bo5, kvote 1,30-1,50** | Australian Open, siječanj 2027 | n≥50 i ispod -8pp | DI K3 |
 | **Clay težine** | prije prve zemlje 2027. (siječanj 2027.) | aktivna v17 nastala je iz auto-feedbacka na analizama gubitaka (ELO spušten na 11%) — vratiti na v13 ili izjednačiti s hardom | Supabase `model_weights`; MODEL_CHANGELOG 26.09.2026 20:46 |
 
@@ -52,6 +52,16 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
   29.08.2026.
 - **Drugi AI model kao neovisni analitičar** (mjeri se predviđa li slaganje dvaju modela
   bolje od jednoga). Niski prioritet.
+- **Čišćenje prompta: odjeljci analize (predloženo 26.09.2026 21:18, čeka tvoju odluku).**
+  Iz prompta maknuti ono što je izmjereno kao krivo, a model to i dalje koristi: blok
+  "povijest turnira je najjača varijabla" (pala dvaput izvan uzorka), hard pravila 4/13/16
+  (tie-break i "izjednačen servis" — mjereno u krivom smjeru), blok o "kasnim rundama"
+  (brojke s krivih oznaka rundi), blok koji potiče autsajdere (proturječi kazni za tržišnog
+  autsajdera) i rečenice o "pragu 63%" (u kodu je 60 od 08.09.). Odjeljke 4 i 5 spojiti u
+  jedan kratki "Kontekst", servis skratiti na opis. Ništa novo ne dodavati u prompt.
+  **Najbolji trenutak: prije sljedećeg dnevnog runa** — era `bce5693b` još nema nijednu
+  analizu, pa izmjena ne reže korpus. Posljedica: K1 (prag 60) i kazna za pojas 65-68
+  moraju se ponovno izmjeriti nakon jednog turnira. Pravilo 11 (domaći teren) čeka K2.
 
 ## Redovito održavanje
 
@@ -64,6 +74,32 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 ---
 
 ## NAPRAVLJENO — dnevnik
+
+### 26.09.2026 21:18 — tri pitanja (samo mjerenje, ništa u modelu nije mijenjano)
+
+1. **Azijski mečevi na screenshotu: "danas" ili "sutra"?** Stavljaj točno kako grupira
+   SuperSport. Kod sam pomakne datum po kratici dana uz sat ("ned 07:00" u subotnjoj listi =
+   nedjelja 07:00). Provjereno na današnjoj rubrici: 10 od 10 kratica pročitano, a 4 nedjeljna
+   meča spremljena pod subotu dobila su ispravan datum 27.09. i prognozu za taj dan.
+   Uvjet: kratica dana mora se vidjeti na slici. Ako pokrećeš tiket u 17h, samo jednom na
+   dan — drugi run istog dana stvara drugi tiket s istim datumom, a Dnevni listić prikaže
+   samo jedan.
+2. **Odjeljci analize (rating, servis, forma, matchup, povijest turnira, own read).**
+   Pročitano svih 55 analiza od 06.09. do danas. Odjeljci nisu šest neovisnih varijabli:
+   model u njima provodi pravila i zbraja kazne. 80% teksta ide na stvari koje ništa ne
+   nose povrh cijene. Pravilo 16 poziva se u 65% analiza, povijest turnira kao argument u
+   58%, a u 5 analiza s izrekom "najjača varijabla". U 18 analiza model je napisao da pick ne
+   ide na tiket (misli da je prag 63%), a 12 ih je prošlo stvarni prag 60 — od 9 nogu na tri
+   prava tiketa, 5 je model sam nazvao "coin-flip" ili "ispod praga". Prijedlog čišćenja je
+   gore u "ČEKA — ideje".
+   Međustanja kandidata: K8 drži smjer i izvan uzorka (odjeljak "povijest turnira" s
+   podatkom −8,0pp, bez podatka −1,9pp, n=27); K9 je okrenuo predznak (vjerojatno pada);
+   K2: protivnik-domaćin n=9, +0,7pp (prag je n=20).
+3. **Težine hard modela (servis 23%, ELO 19%...).** Ostaju. To je samo popis na dnu prompta;
+   model ih ni u jednoj od 55 analiza ne koristi u računu, a nijedna statistika igrača ne nosi
+   ništa povrh cijene. Pravi pomaci su u kodu i čekaju kapiju (K11, K5/K10, K18, K15).
+
+Gdje: skripte i izvoz baze samo lokalno u `.cache/pitanja2609/` (izvan gita).
 
 ### 26.09.2026 navečer — velika revizija + popravci (commit uz ovaj zapis)
 
