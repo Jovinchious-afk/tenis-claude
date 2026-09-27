@@ -53,6 +53,7 @@ izvještaj u `revizije/`.
 - Testovi (moraju proći prije commita): `python test_cap_and_weather.py` i
   `python test_provisional_schedule.py`
 - Kandidati iz registra: `python scripts/measure_candidates.py` (samo čita bazu)
+- Intuicija (što je naučila, stanje u sjeni): `python scripts/intuicija_report.py`
 - Povijesni laboratorij: vidi `revizije/2026-09-27/POVIJESNI_LAB_2026-09-27.md`
 - Aplikacija: `streamlit run streamlit_app.py`
 - Dnevni run: GitHub Actions `daily_ticket.yml` (ručno, jednom ujutro). Lokalni
@@ -68,6 +69,7 @@ izvještaj u `revizije/`.
 | `agent/run_daily.py` | jutarnji tijek: screenshot gate, ručne runde, dohvat, snapshot |
 | `agent/data_fetcher.py` | RapidAPI, ELO, vrijeme, vijesti |
 | `agent/player_news.py` | vijesti po igraču (Google News) — samo bilježenje, model ne vidi |
+| `agent/intuicija.py` | "Intuicija": naučeni signal u sjeni (K20); prior u `config/intuicija_prior.json` |
 | `agent/feedback_analyzer.py` | večernji rezultati i analize gubitaka |
 | `agent/market.py` | The Odds API konsenzus |
 | `agent/player_context.py`, `agent/history_features.py` | varijable igrača, zaštita od curenja |

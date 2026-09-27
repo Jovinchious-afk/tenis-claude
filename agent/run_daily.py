@@ -1056,6 +1056,33 @@ def main():
     for m in ticket["matches"]:
         print(f"  {m['pick']} ({m['tournament']}, {m['surface']}) — kvota: {m['odds']:.2f}, conf: {m['confidence']:.0f}%")
 
+    # INTUICIJA U SJENI (27.09.2026 12:30, korisnikova zelja): nauceni signal za obje strane
+    # svakog meca (agent/intuicija.py). Racuna se TEK OVDJE — kad je tiket vec slozen — pa
+    # fizicki ne moze utjecati na izbor; upisuje se samo u context_snapshot["intuicija"]
+    # (zapis ide uz v23, prvi put u istom runu kao vijesti). U odluku ulazi tek nakon kapije
+    # K20 (DECISION_INPUTS) i korisnikova odobrenja. Svaka greska ovdje je glasna, ali ne rusi run.
+    try:
+        from agent import intuicija as _int
+        _int_models = _int.build_models(db)
+        _own = _int_models.get("own") or {}
+        print(f"\nIntuicija (sjena): uci na {_int_models.get('n_matches')} rijesenih analiza; "
+              f"nas sloj {'SUTI — ' + str(_own.get('silent')) if _own.get('silent') else 'aktivan (λ=' + str(_own.get('lambda')) + ')'}")
+        _dogs = []
+        for pred in predictions:
+            if isinstance(pred.get("context_snapshot"), dict):
+                _s = _int.shadow_scores(pred, _int_models)
+                pred["context_snapshot"]["intuicija"] = _s
+                if _s.get("underdog_flag"):
+                    _o = _s.get("other") or {}
+                    _dogs.append(f"{_o.get('player')} (+{_o.get('edge_pp'):.1f}pp)")
+        if _dogs:
+            print(f"  Intuicija bi uzela autsajdera (samo biljezenje): {', '.join(_dogs)}")
+    except Exception as e:
+        print(f"!!! Intuicija (sjena) nije izracunata: {str(e)[:120]} — tiket nije pogodjen.")
+        for pred in predictions:
+            if isinstance(pred.get("context_snapshot"), dict):
+                pred["context_snapshot"]["intuicija"] = {"error": str(e)[:120]}
+
     # 9. Spremi u Supabase
     is_analysis_only = ticket.get("status") == "analysis_only"
     if not DRY_RUN:

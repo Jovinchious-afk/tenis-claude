@@ -6,7 +6,7 @@ danima, jednostavnim jezikom). Brojke, obrazloženja i tehnički detalji su u
 (dalje: DI).
 
 **Pravilo:** na kraju svake radne sesije ovdje se dopiše što smo napravili i ažurira se
-popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 27.09.2026 12:17.
+popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 27.09.2026 12:34.
 
 **Jedna naredba za sve zakazane provjere kandidata:** `python scripts/measure_candidates.py`
 (čita bazu, ništa ne mijenja; kaže za svakog kandidata ČEKA / POTVRĐEN / PAO).
@@ -27,6 +27,7 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 | **K19 — povratak nakon pauze od 21+ dan** | 40 mečeva od 27.09.2026 | isti smjer kao na tržištu → ±2pp; obrnuto → odbacuje se. Povijest 27.09.: −2,5pp, ali polovice različite (slab znak) | DI K19 |
 | **K5, K8, K9, K10, K11** | sljedeći dovršeni turnir (Chengdu/Hangzhou, pa Tokyo/Beijing) | svaki ima svoj prag; **K11 (R16/QF) se od 26.09. prvi put mjeri na ručnim rundama**. **K5 od 27.09. traži n ≥ 100** (tržište u 1,35–1,43 daje +3,7pp); u R16/QF tržište nema rupe | DI K5-K11; `measure_candidates.py` |
 | **Konsenzus kladionica** | do kraja listopada 2026: 60+ pickova uz razliku ≥1pp — **vjerojatno nedostižno**: Odds API ne pokriva ATP 250, od 13.09. bilo je 0 takvih mečeva | iznad +5pp → tvrdi uvjet; ispod nule → maknuti bonus. Povijest 27.09.: smjer točan, ali učinak ≈ veličina razlike (2–3pp), ne +10pp | `agent/ticket_builder.py`, blok uz `_CONSENSUS_GAP_MIN` |
+| **K20 — Intuicija (naučeni signal u sjeni)** | 300 riješenih pickova s procjenom (od 28.09.2026; procjena: nekoliko mjeseci) | r ≥ +0,12 uz interval iznad nule, gornja trećina ≥ +3pp → prijedlog bonusa pri izboru tiketa (i za autsajdere); inače uči dalje u sjeni | DI K20; `python scripts/intuicija_report.py` |
 | **K14 — Davis Cup** | 20 riješenih Davis Cup mečeva (finalni turnir u studenom) | unutar 5pp od prosjeka → smije na tiket | DI K14 |
 | **Clay težine** | prije prve zemlje 2027. (siječanj 2027.) | aktivna v17 nastala je iz auto-feedbacka na analizama gubitaka (ELO spušten na 11%) — vratiti na v13 ili izjednačiti s hardom | Supabase `model_weights`; MODEL_CHANGELOG 26.09.2026 20:46 |
 
@@ -58,17 +59,7 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
   samo micala izmjereno krivo. Hold% je u promptu već označen kao procjena i "nije drugi signal".
 - **Model može samo spustiti pouzdanost, nikad promijeniti stranu picka.** Otvoreno od
   29.08.2026.
-- **"Intuicija" — naučeni signal za rizične pickove (prijedlog 27.09.2026 12:17, tvoja želja).** Poseban
-  statistički model (ne Claude) koji iz svega što bilježimo uz svaku analizu (~100 polja: pojas
-  kvote, runda, razina, ELO razlike, forma, odmor, konsenzus, vijesti o ozljedi, pouzdanost
-  modela...) uči **kada pick nadmaši svoju cijenu** — posebno autsajder. Uči se svaki tjedan na
-  svemu do tada, uvijek se ocjenjuje na mečevima koje još nije vidio, a za tržišne obrasce
-  koristi i 12.324 povijesna meča. **Prvo samo bilježi** svoju procjenu (model i tiket je ne
-  vide); nakon ~300 riješenih procjena provjera: nadmašuju li pickovi za koje je rekao "+3pp"
-  cijenu barem toliko? Ako da → bonus pri izboru tiketa, uključujući autsajdere; ako ne → uči
-  dalje u sjeni. Iskreno očekivanje: u početku će uglavnom govoriti "nema prednosti" (to je
-  točno i štiti od loših rizika); stvarna vrijednost može doći samo od informacije koju tržište
-  sporo ugrađuje (ozljede, kašnjenje SuperSporta za konsenzusom). Čeka tvoje "kreni" (nova sesija).
+- ~~**"Intuicija" — naučeni signal**~~ — **NAPRAVLJENO 27.09.2026 12:34** (u sjeni), vidi dnevnik i K20 gore.
 - **Drugi AI model kao neovisni analitičar** (mjeri se predviđa li slaganje dvaju modela
   bolje od jednoga). Niski prioritet.
 - ~~**Čišćenje prompta: odjeljci analize**~~ — **NAPRAVLJENO 26.09.2026 21:27**, vidi dnevnik.
@@ -102,12 +93,35 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 - **Ruka novih igrača:** dnevni run nepoznate igrače dohvaća sam (najviše 150 po runu), ali
   ih ne sprema trajno. Povremeno pokrenuti
   `python scripts/backfill_player_context.py --collect --hands` i commitati `player_hands.json`.
-- **Provjera K15:** `python scripts/measure_player_context.py` (čita iz baze; gledati samo
-  analize od 27.09.2026 za potvrdu).
+- ~~**Provjera K15**~~ — K15 zatvoren 27.09.2026 (povijesno +0,0pp).
+- **Intuicija:** stanje u sjeni `python scripts/intuicija_report.py`. Kad osvježiš
+  `.cache/tennis-data/2026.xlsx`, ponovno nauči prior: `lab_data.py` → `lab_features.py` (u
+  `revizije/2026-09-27/skripte/`) → `python scripts/intuicija_prior.py`, pa commit.
 
 ---
 
 ## NAPRAVLJENO — dnevnik
+
+### 27.09.2026 12:34 — "Intuicija": naučeni signal koji prati svaki meč (u sjeni)
+
+Napravljen je poseban statistički model — tvoja "intuicijska varijabla". Za **obje strane
+svakog meča** procjenjuje koliko igrač prolazi bolje ili lošije od svoje kvote, i diže
+zastavicu kad bi uzeo **autsajdera kojeg Claude nije odabrao**.
+
+- **Kako uči:** polazi od kvote i uči samo odstupanja. Temelj su obrasci s 12.322 povijesna
+  meča (npr. Grand Slam favoriti 1,30–1,50 +3,2pp, igrač nakon pauze 21+ dana −2,3pp). Na to
+  dodaje ono što vidi na našim analizama, i **uči iznova svako jutro** na svemu dotad riješenom,
+  dakle raste s podacima.
+- **Kad šuti:** ako na mečevima koje nije vidio ne bi bio bolji od kvote, kaže 0 umjesto da
+  izmišlja.
+- **Iskreno stanje danas:** naučio je ono što znamo (npr. "High" scouting profil −2,9pp), ali
+  provjera "kako bi prošao da je postojao" još ne pokazuje vještinu (r = +0,01). Zato je **u
+  sjeni**: zapisuje procjenu, a tiket je ne vidi. Kad skupi 300 riješenih procjena, provjera
+  (K20) kaže smije li dobiti riječ pri slaganju tiketa, uključujući autsajdere.
+
+*Gdje:* `agent/intuicija.py`, `config/intuicija_prior.json`, `scripts/intuicija_prior.py`,
+`scripts/intuicija_report.py`, blok "INTUICIJA U SJENI" u `agent/run_daily.py`, K20 u
+`scripts/measure_candidates.py` i DI. Testovi: odjeljak 50 (14 provjera), oba paketa prolaze.
 
 ### 27.09.2026 12:17 — tvoje odluke provedene: nova era prompta, K15/K16/K3 zatvoreni, K5 strože
 

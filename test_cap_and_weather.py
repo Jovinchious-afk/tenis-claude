@@ -2681,6 +2681,61 @@ check("dnevni run puni gnews za oba igraca",
 check("prompt koristi samo 'news', nikad 'gnews'",
       'p1_news=p1.get("news"' in _prsrc49 and 'p1.get("gnews")' not in _prsrc49.split('"context_version": 23')[0])
 
+print("\n=== 50. Intuicija u sjeni (27.09.2026 12:30) — uci iz podataka, NE dira izbor ===")
+import numpy as _np50
+from agent import intuicija as _it50
+_r50 = {"player1": "A Igrac", "player2": "B Igrac", "predicted_winner": "A Igrac",
+        "predicted_confidence": 66, "bookmaker_odds_p1": 1.50, "bookmaker_odds_p2": 2.60,
+        "tournament_level": "ATP 250", "surface": "Hard", "winner": "B Igrac",
+        "context_snapshot": {"elo_gap_surface": 80.0, "p1_form_10": "7/10", "p2_form_10": "4/10",
+                             "p1_days_rest": 2, "p2_days_rest": 30, "market_p": 0.62,
+                             "p1_scouting_confidence": "High"}}
+_s50 = _it50.side_rows(_r50)
+check("svaka analiza daje dva retka (obje strane)", len(_s50) == 2)
+check("cijene dviju strana zbrajaju se u 1", abs(_s50[0][1] + _s50[1][1] - 1) < 1e-9)
+check("razlike su zrcalne (ELO, forma, konsenzus, Claudeovo razilazenje)",
+      all(abs(_s50[0][0][k] + _s50[1][0][k]) < 1e-9 for k in ("elo_gap", "form_gap", "cons_gap", "conf_minus_p")))
+check("pauza 21+ i ishod po strani", _s50[1][0]["rest21"] == 1.0 and _s50[0][0]["rest21_opp"] == 1.0
+      and _s50[0][2] == 0.0 and _s50[1][2] == 1.0)
+# Nauci poznati ucinak na sintetici: osobina "scout_high" dodaje +0,8 logit iznad cijene.
+_rng50 = _np50.random.default_rng(7)
+_rows50, _dates50 = [], []
+for _i in range(3000):
+    _p = float(_rng50.uniform(0.3, 0.8))
+    _x = float(_rng50.integers(0, 2))
+    _q = 1 / (1 + _np50.exp(-(_np50.log(_p / (1 - _p)) + 0.8 * _x)))
+    _rows50.append(({"scout_high": _x}, _p, float(_rng50.random() < _q)))
+    _dates50.append(f"2026-{1 + _i % 9:02d}-{1 + _i % 28:02d}")
+_m50 = _it50.train(_rows50, ("scout_high",), _dates50)
+_e_on = _it50.edge_pp({"scout_high": 1.0}, 0.5, None, _m50)["edge_pp"]
+check("nauci planirani ucinak na sintetici (oko +19pp uz cijenu 0,5)", 10 < _e_on < 25, f"{_e_on}")
+# Bez ucinka: ishod je tocno po cijeni -> model sutí ili daje sitnu procjenu.
+_rows50b = [({"scout_high": float(_rng50.integers(0, 2))}, p, float(_rng50.random() < p))
+            for p in _rng50.uniform(0.3, 0.8, 3000)]
+_m50b = _it50.train(_rows50b, ("scout_high",), _dates50)
+_e_b = abs(_it50.edge_pp({"scout_high": 1.0}, 0.5, None, _m50b)["edge_pp"])
+check("bez stvarnog ucinka procjena ostaje mala (< 3pp) ili model suti", _e_b < 3 or _m50b.get("silent"), f"{_e_b}")
+_pe50 = _it50.pair_edges(_s50[0][0], _s50[0][1], _s50[1][0], _s50[1][1], None, _m50)
+check("procjene para zbrajaju se u 0 (tocno jedan pobjedjuje)",
+      abs(_pe50[0]["edge_pp"] + _pe50[1]["edge_pp"]) < 0.05, str(_pe50))
+_pred50 = {"pick": "A Igrac", "confidence": 66, "context_snapshot": dict(_r50["context_snapshot"]),
+           "match": {"player1": "A Igrac", "player2": "B Igrac", "odds_p1": 1.50, "odds_p2": 2.60,
+                     "level": "ATP 250", "surface": "Hard"}}
+_sh50 = _it50.shadow_scores(_pred50, {"prior": {}, "own": _m50, "n_matches": 999})
+check("sjena ne mijenja pick ni pouzdanost", _pred50["pick"] == "A Igrac" and _pred50["confidence"] == 66)
+check("sjena biljezi obje strane, verziju i zastavicu za autsajdera",
+      "pick" in _sh50 and "other" in _sh50 and _sh50["version"] == "int-v1" and "underdog_flag" in _sh50)
+check("bez obje kvote: zapis greske, ne pad",
+      "error" in _it50.shadow_scores({"pick": "A", "match": {"player1": "A", "player2": "B"}}, {}))
+check("premalo analiza -> nas sloj suti", _it50.train(_rows50[:1], ("scout_high",), _dates50[:1]).get("silent"))
+_rdsrc50 = _in49.getsource(_rd49)
+_i_gen, _i_int, _i_save = (_rdsrc50.index("=== TIKET GENERIRAN ==="), _rdsrc50.index("INTUICIJA U SJENI"),
+                           _rdsrc50.index("# 9. Spremi u Supabase"))
+check("Intuicija se racuna TEK nakon sto je tiket slozen, a prije spremanja", _i_gen < _i_int < _i_save)
+check("Intuicija ne ulazi u prompt", "intuicija" not in _tmpl49.lower())
+check("prior datoteka postoji i ima koeficijente ili razlog sutnje",
+      bool(_it50.load_prior().get("beta")) or bool(_it50.load_prior().get("silent")))
+
 print("\n" + "=" * 60)
 if _fails:
     print(f"PALO: {len(_fails)}")

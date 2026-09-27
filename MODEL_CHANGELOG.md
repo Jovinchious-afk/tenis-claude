@@ -16,6 +16,33 @@ dnevnik napravljenog jednostavnim jezikom. Dopunjava se na kraju svake radne ses
 
 ---
 
+## 2026-09-27 12:34 — "INTUICIJA": naučeni signal u sjeni (K20); izbor tiketa i prompt NEPROMIJENJENI
+
+**Povod:** korisnikova želja za "intuicijskom varijablom" koja se kroz vrijeme razvija i
+prepoznaje dobar rizik (npr. autsajdera).
+
+**Što je:** `agent/intuicija.py` — logistička regresija s pomakom (polazi od devigirane SuperSport
+cijene, uči samo odstupanje), L2 kazna izabrana vremenskim rezom (novijih 30% provjerava); ako
+nijedna jačina nije bolja od čiste cijene, sloj šuti. Prior iz povijesnog laboratorija
+(`scripts/intuicija_prior.py` → `config/intuicija_prior.json`, samo koeficijenti; 12.322 meča,
+r na neviđenim +0,036) + naš sloj naučen iznova u svakom dnevnom runu na svim riješenim analizama.
+Ocjenjuje obje strane (normalizirano), zastavica kad bi uzela autsajdera kojeg Claude nije odabrao.
+
+**Gdje djeluje:** `agent/run_daily.py`, blok "INTUICIJA U SJENI" — NAKON slaganja tiketa, prije
+spremanja; upis u `context_snapshot["intuicija"]` (uz v23, isti prvi run kao vijesti). Greška je
+glasna i zapisuje se, run ide dalje. Kapija K20 (DECISION_INPUTS), mjerenje u
+`scripts/measure_candidates.py` (K20) i `scripts/intuicija_report.py`.
+
+**Ishod pri uvođenju:** naš sloj (480 analiza) aktivan; "kako bi prošla" mjesec po mjesec r = +0,013
+[−0,125, +0,151] — vještina nije dokazana; zato samo sjena.
+
+**Dva popravka nađena testom prije uvođenja:** (1) procjene dviju strana nisu se zbrajale u 1
+(Safiullin–Bu: obje negativne) → normalizacija para; (2) centriranje osobina bez presjecišta
+dijelilo je učinak na pola (sintetika: +0,8 logit naučeno kao +0,4) → samo skaliranje.
+Testovi: `test_cap_and_weather.py` odjeljak 50 (14 provjera). `rules_hash` nepromijenjen (bccf4742).
+
+---
+
 ## 2026-09-27 12:17 — NOVA ERA bccf4742 (hard; clay 84792fca, grass b22b1375): domaći teren i
 ## statistika s turnira van odlučivanja; K15/K16/K3 zatvoreni, K5 prag n≥100 — korisnik odobrio
 

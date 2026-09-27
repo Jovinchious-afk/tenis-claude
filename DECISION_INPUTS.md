@@ -142,6 +142,8 @@ usidrena na fiksnu četvorku pa bi trojac dobio skriveni bonus od +3 boda.
 
 ## 3. Bilježi se, ali NE utječe na odluku — `context_snapshot` v21 (v23 od 27.09.2026)
 
+**Od 27.09.2026 12:34 u istom zapisu (v23):** `intuicija` — procjena naučenog signala za obje strane meča (K20), upisana nakon slaganja tiketa; model i tiket je ne vide.
+
 **v23 (27.09.2026 11:58):** vijesti po igraču s Google Newsa (`p1_gnews` / `p2_gnews`, naslovi
 iz zadnjih 14 dana, `injury_n`, oznaka `bet` za kladioničarske naslove) — samo za mjerenje K13;
 model ih ne vidi.
@@ -878,6 +880,39 @@ Tržište povratak nakon pauze sustavno blago precjenjuje. Nedavna PREDAJA to ne
 (+3,5 naspram +2,4pp — tržište ozljede već cijeni).
 **PRAG:** 40 naših mečeva (od 27.09.2026) u kojima pick ILI protivnik ima `days_rest` ≥ 21:
 pick s pauzom < 0 i protivnik s pauzom > 0 → ±2pp; obrnuto → odbaciti.
+
+### K20 — "Intuicija": naučeni signal u sjeni (27.09.2026 12:34) — KANDIDAT, samo bilježenje
+
+Korisnikova želja: varijabla koja se kroz vrijeme razvija i sama prepoznaje dobar rizik, npr.
+autsajdera. Kod: `agent/intuicija.py` (model), `scripts/intuicija_prior.py` (prior iz povijesti
+-> `config/intuicija_prior.json`), `scripts/intuicija_report.py` (izvještaj). U dnevnom runu se
+računa TEK nakon što je tiket složen i upisuje u `context_snapshot["intuicija"]` — ne može
+utjecati na izbor.
+
+**Kako radi:** logistička regresija s pomakom (polazi od devigirane SuperSport cijene i uči
+samo odstupanje), jaka L2 kazna, jačina izabrana vremenskim rezom; ako nijedna jačina nije
+bolja od čiste cijene na novijih 30% mečeva, sloj ŠUTI (0). Dva sloja: tržišni prior naučen
+na 12.322 povijesna meča (pojas kvote, Grand Slam, razina, podloga, pauza 21+) i naš sloj
+naučen iznova u svakom runu na svim riješenim analizama (+ ELO razlika, forma, konsenzus,
+scouting, vijesti o ozljedi, Claudeovo razilaženje s cijenom). Ocjenjuje obje strane meča
+(normalizirano da je zbroj 1) i diže zastavicu kad strana koju Claude NIJE odabrao, a
+autsajder je, dobije +3pp ili više.
+
+**Stanje pri uvođenju (27.09.2026 12:34):** prior r = +0,036 na 7.394 neviđene strane (mali, ali pozitivan
+— kratki favoriti i favoriti 1,35-1,43 oko +2,9pp, Grand Slam 1,30-1,50 +3,2pp, pauza 21+ −2,3pp).
+Naš sloj (480 analiza) aktivan, najjače: "High" scouting −2,9pp, razlika u formi −1,8pp,
+konsenzus +1,3pp. "Kako bi prošla da je postojala" (uči samo na ranijim mjesecima): r = +0,013
+[−0,125, +0,151], n=202 strane — **vještina NIJE dokazana**; autsajderi s +3pp: n=12, stvarno −4,7pp.
+
+**PRAG (zapisan 27.09.2026 12:34, prije ijedne zapisane procjene):** kad bude **300 riješenih pickova s
+procjenom** zapisanom prije meča: (a) r(procjena za naš pick, stvarni ostatak naspram devig
+cijene) ≥ **+0,12** s intervalom iznad nule; (b) gornja trećina procjena ima edge ≥ **+3pp** i
+barem 3pp više od donje trećine; (c) r > 0 u obje vremenske polovice. Sve tri → prijedlog
+korisniku: bonus u `_score_combo` razmjeran procjeni (tada i za autsajdere). Inače uči dalje u
+sjeni i ponovno se mjeri svakih +300. Posebno za autsajdere: kad zastavica ima **40 riješenih
+slučajeva**, stvarni edge tih autsajdera mora biti ≥ +3pp da bi se o njima uopće razgovaralo.
+Snaga: uz n=300 interval za r je ±0,11. Mjeri: `python scripts/measure_candidates.py --only K20`
+i `python scripts/intuicija_report.py`.
 
 ### POVIJESNA PREDPROVJERA 27.09.2026 11:58 — 12.324 ATP meča naspram tržišne cijene
 
