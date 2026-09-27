@@ -183,7 +183,11 @@ check("placeholder ne definira početak vala ostalima",
 #             Era bce5693b nije imala nijednu analizu, pa rez korpusa nije nastao.
 #   9696c4ee  26.09.2026 21:40 — JSON primjer za applied_caps vise ne navodi "rule 16"
 #             (pravilo maknuto u d7e45052); d7e45052 nije imala nijednu analizu.
-_ERA_RULES_HASH = "9696c4ee"
+#   bccf4742  27.09.2026 12:13 — povijesni laboratorij: pravilo o domacem terenu (hard 11)
+#             svedeno na "vec je u cijeni", uputa o statistici s turnira svedena na opis
+#             (K12, r=+0,004), datumi i vikacki naslovi maknuti iz teksta, hard pravilo 2
+#             bez relativne povijesti. Clay 84792fca, grass b22b1375.
+_ERA_RULES_HASH = "bccf4742"
 
 # Verzija oblika `context_snapshot`. Do 13.09.2026 je bila doslovno upisana na 8
 # mjesta u dva testna paketa, pa je svako podizanje znacilo lov po datotekama.

@@ -112,7 +112,8 @@ check("court pace/sesija izuzeti iz restrikcije", "keep their two-way use" in t)
 check("cap je strop, ne polazište (scouting)", "A CAP IS A CEILING, NOT A STARTING POINT" in t)
 
 print("\n=== 5b. Pravilo o vjetru (Tennis_Surface_Analysis.docx) ===")
-check("sekcija WIND postoji", "WIND (added 2026-08-04" in t)
+check("sekcija WIND postoji (od 27.09.2026 12:13 naslov bez datuma)", "WIND:" in t
+      and "WIND (added" not in t)
 check("smjer: spin kaznjen, flat nagradjen", "high-margin spin games" in t)
 check("prag 15-25 km/h", "15-25 km/h" in t)
 check("prag >25 km/h", "above ~25 km/h" in t)
@@ -481,7 +482,11 @@ check("krivi nazivi API polja dokumentirani", "breakPointOf" in _dfsrc)
 #             Era bce5693b nije imala nijednu analizu, pa rez korpusa nije nastao.
 #   9696c4ee  26.09.2026 21:40 — JSON primjer za applied_caps vise ne navodi "rule 16"
 #             (pravilo maknuto u d7e45052); d7e45052 nije imala nijednu analizu.
-_ERA_RULES_HASH = "9696c4ee"
+#   bccf4742  27.09.2026 12:13 — povijesni laboratorij: pravilo o domacem terenu (hard 11)
+#             svedeno na "vec je u cijeni", uputa o statistici s turnira svedena na opis
+#             (K12, r=+0,004), datumi i vikacki naslovi maknuti iz teksta, hard pravilo 2
+#             bez relativne povijesti. Clay 84792fca, grass b22b1375.
+_ERA_RULES_HASH = "bccf4742"
 
 # Verzija oblika `context_snapshot`. Do 13.09.2026 je bila doslovno upisana na 8
 # mjesta u dva testna paketa, pa je svako podizanje znacilo lov po datotekama.
@@ -1616,7 +1621,10 @@ check("blokovi o kasnim rundama i autsajderima maknuti",
 check("prompt vise ne govori o pragu za tiket",
       "min 63% confidence" not in _hard_full and "selection drops it" not in _hard_full
       and "Only 63%+ enters tickets" not in _hard_full)
-check("pravilo 11 (domaci teren) ostaje dok K2 ne odluci", "11. HOME-CROWD RULE" in _pr._HARD_RULES_V1)
+check("pravilo 11 (domaci teren) svedeno na 'vec je u cijeni' (27.09.2026 12:13, K2 + povijesni lab)",
+      "11. HOME PLAYERS" in _pr._HARD_RULES_V1 and "HOME-CROWD RULE" not in _pr._HARD_RULES_V1
+      and "7. HOME PLAYERS" in _pr._CLAY_RULES_V1 and "HOME-CROWD RULE" not in _pr._CLAY_RULES_V1
+      and "HOME-CROWD RULE" not in _pr._surface_specific_rules("grass"))
 check("ciscenje nosi obrazlozenje s mjerenjem u kodu",
       "CISCENJE PROMPTA (26.09.2026 21:27" in _src36)
 check("popravak nosi obrazlozenje s mjerenjem",
@@ -1851,26 +1859,19 @@ _df40._tournament_results_cache.clear()
 _FLAT40 = " ".join(_FULL_PROMPT.split())
 check("prompt ima redak o ovom turniru za oba igraca",
       _FULL_PROMPT.count("THIS TOURNAMENT so far:") == 2)
-# Pravilo je 13.09.2026 13:40 prebazdareno: umjesto pausalnog "izmjereno kao slabo"
-# nosi STVARNI gradijent po dubini (r=+0,10 / +0,12 / +0,27 / +0,44) izmjeren na 551
-# mecu iz 28 turnira, jer je korisnikova hipoteza o dubini POTVRDJENA.
-check("pravilo nosi izmjereni gradijent po dubini, ne pausalnu ogradu",
-      "r = +0.27" in _FLAT40 and "r = +0.44" in _FLAT40)
-check("pravilo kaze da trziste to vec ukalkulira",
-      "drops to r = +0.16" in _FLAT40 and "crosses zero" in _FLAT40)
-check("pravilo nosi izmjereni prag velicine (gornji kvartil +8pp -> 64%)",
-      "+8pp" in _FLAT40 and "64% of the time" in _FLAT40)
-check("pravilo upozorava da bp_saved ide u drugu stranu",
-      "pointed the wrong way" in _FLAT40)
-check("pravilo trazi da razlika bude VELIKA da bi se citala",
-      "under 4pp of serve points won" in _FLAT40 and "under 3 aces/100" in _FLAT40)
-check("pravilo upozorava da protivnici nisu isti",
-      "The opponents differ" in _FLAT40 and "Read the opponent list" in _FLAT40)
-check("pravilo ogranicava utjecaj i zabranjuje fadeanje cijene",
-      "never overrides ELO" in _FLAT40 and "not a reason to fade a price" in _FLAT40)
-check("pravilo skalira povjerenje s dubinom, ne pausalno",
-      "at 2 matches each it is a tiebreaker at most" in _FLAT40
-      and "at 3+ each it is real evidence" in _FLAT40)
+# 13.09.2026 13:40 pravilo je nosilo gradijent po dubini (r=+0,10 ... +0,44 na nasih 551 mecu).
+# 27.09.2026 12:13 SVEDENO NA OPIS: na 970 ATP meceva dubine 3+ (povijesni laboratorij)
+# razlika ne dodaje nista cijeni (r=+0,004) — po vlastitom pragu K12 (r < +0,05) izlazi iz
+# odlucivanja. Podaci se i dalje prikazuju i biljeze; model ih smije koristiti samo za opis.
+check("statistika s turnira: izricito da ne dodaje nista cijeni (povijesno mjerenje)",
+      "added nothing to the bookmaker price (r = +0.004)" in _FLAT40)
+check("statistika s turnira: ne mice pouzdanost, samo opis",
+      "not to move your confidence" in _FLAT40)
+check("statistika s turnira: stari poticaj 'several points of confidence' vise ne postoji",
+      "several points of confidence" not in _FLAT40 and "SIZE MATTERS MORE THAN DIRECTION" not in _FLAT40
+      and "r = +0.44" not in _FLAT40)
+check("statistika s turnira: i dalje upozorava da protivnici nisu isti i kad je N/A",
+      "The opponents differ" in _FLAT40 and 'It says "N/A" until a player has completed 2 matches here' in _FLAT40)
 
 check("vijesti su sada ULAZ U ODLUKU, ne pozadina",
       "Injury / news line" in _FULL_PROMPT and "let it move your confidence" in _FULL_PROMPT)

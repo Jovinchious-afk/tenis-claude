@@ -11,6 +11,8 @@ zabilježiti izmjenu u `MODEL_CHANGELOG.md`.
 
 ## 1. Ulazi u ODLUKU — analiza (prompt, ~13.800 tokena, od 08.09.2026 u DVA dijela)
 
+**Od 27.09.2026 12:16 (era bccf4742):** fiksni dio 8.207 tokena (izmjereno živim pozivom). Pravilo o domaćem terenu svedeno je na "već je u cijeni", a statistika s ovog turnira služi samo za opis (K2, K12).
+
 **Od 08.09.2026 12:07 prompt je podijeljen** radi kesiranja (`rules_hash` `61999517`):
 `_ANALYSIS_SYSTEM_TEMPLATE` nosi fiksne upute i pravila podloge (~10.974 tokena, šalje se
 kao `system` s `cache_control: ephemeral`), a `ANALYSIS_PROMPT_TEMPLATE` samo podatke o
@@ -333,6 +335,8 @@ Ništa odavde NIJE u kodu. Svaki red ima unaprijed zapisan prag.
 
 ### K1 — pickovi ispod praga 63% tuku tržište — **POTVRĐEN 08.09.2026 12:07, UŠAO U KOD**
 
+*(27.09.2026 12:16) Prompt je promijenjen (era 9696c4ee -> bccf4742): prag 60 i kaznu za pojas 65-68 premjeriti nakon prvog dovršenog turnira u eri bccf4742.*
+
     sve podloge   <63: n=121  67,8%  edge  +6,7pp  |  >=63: n=293  63,5%  edge  -2,7pp
     hard          <63: n=113  68,1%  edge  +7,1pp  |  >=63: n=209  62,7%  edge  -4,2pp
     staro         <63: n= 64  60,9%  edge  +2,5pp  |  >=63: n=246  61,8%  edge  -2,6pp
@@ -380,7 +384,9 @@ njegov jači i brojniji dio 60-63. Pojas 58-60 ostaje vani jer mu split-half okr
 **ŠTO PRATITI:** ako skupina conf 60-63 na sljedećem dovršenom turniru padne ispod nule uz
 n>=25, prag se vraća na 63. Zapisano prije podataka.
 
-### K2 — pravilo 11 (domaći teren) ide u krivom smjeru
+### K2 — pravilo 11 (domaći teren) ide u krivom smjeru — **PROVEDENO 27.09.2026 12:16**
+
+**Ishod:** korisnik odobrio nakon povijesnog laboratorija (domaći igrači −1,4pp naspram cijene na 2.775 meča, obje polovice −). Pravilo o domaćem terenu (grass 11, clay 7, hard 11) svedeno je na "već je u cijeni, ne prilagođavaj", a ista provjera maknuta je i iz AI-recenzenta tiketa (`ticket_builder._review_ticket`). Era bccf4742.
 
     protivnik domaći (danas -3pp)   n= 30 | 70,0% | edge +7,5pp
     naš pick domaći  (danas  0pp)   n= 35 | 77,1% | edge +7,4pp
@@ -390,7 +396,9 @@ Split-half drži u oba smjera, isto i samo na hardu. **PRAG:** još 20 mečeva s
 igračem; ako protivnik-domaći ostane iznad +3pp, penal se briše iz prompta (mijenja
 `rules_hash`, ide u paket s preslagivanjem prompta poslije US Opena).
 
-### K3 — Bo5 pojas kvota 1,30-1,50
+### K3 — Bo5 pojas kvota 1,30-1,50 — **ZATVOREN 27.09.2026 12:16**
+
+**Ishod:** povijesno suprotan smjer — Grand Slam favoriti 1,30-1,50 idu **+4,3pp** naspram cijene (n=563, obje polovice +). Kazna bi rezala dobre pickove. Korisnik odobrio zatvaranje.
 
     Bo5 1,30-1,50  n=26 | 57,7% | tržište 69,9% | edge -12,2pp
 
@@ -403,7 +411,9 @@ Post-match je najjača veza u projektu (r=+0,705). Sezonski ekvivalent ne postoj
 jednom endpointu koji koristimo. **PRAG:** ako se nađe izvor sezonskog winners/UE po igraču,
 testirati kao pre-match ulaz; do tada isključivo za objašnjenje u analizi gubitaka.
 
-### K5 — oprezna zona počinje prenisko: rupa je od 1,35, a kod pokriva od 1,43
+### K5 — oprezna zona počinje prenisko: rupa je od 1,35, a kod pokriva od 1,43 — **PRAG PODIGNUT 27.09.2026 12:16**
+
+**Novi prag (korisnik odobrio):** n ≥ 100 umjesto n ≥ 20, uz isti uvjet (−5pp ili gore). Razlog: na tržištu favoriti u 1,35-1,43 prolaze BOLJE od cijene (+3,7pp, n=1.364), pa je naš −7,9pp (n=53, interval ±13pp) vjerojatnije šum ili naš izbor nego rupa; uz n=20 interval je ±21pp. Stari prag ispod ostaje zapisan radi povijesti; `measure_candidates.py` mjeri novi.
 
     pojas kvote      staro (do 29.08.)   US Open      cijeli korpus
     1,20-1,30            +6,0pp           +23,2pp        +8,8pp
@@ -621,7 +631,9 @@ pitanje zauvijek, jer je onda i stara verzija bila artefakt.
 **NE DIRATI PROMPT.** Model ne smije doznati da je R16 "opasan" — to je ista zamka kao s
 konsenzusom: procjena bi postala odjek pravila i mehanizam bi se udvostručio.
 
-### K12 — prosjek statistike s turnira: UVEDEN unatoc nuli, mjeri se po DUBINI
+### K12 — prosjek statistike s turnira: UVEDEN unatoc nuli, mjeri se po DUBINI — **IZAŠAO IZ ODLUČIVANJA 27.09.2026 12:16**
+
+**Ishod:** po vlastitom pragu (ispod: r < +0,05 -> izlazi) — na 970 ATP meča gdje oba igrača imaju 3+ meča na turniru razlika ne dodaje ništa cijeni (r = +0,004). Uputa u promptu svedena je na opis ("use them to describe the matchup, not to move your confidence"); podaci se i dalje prikazuju i bilježe (`p*_tourn_form_*`). Korisnik odobrio. Era bccf4742.
 
 Uveden 13.09.2026 12:20 na korisnikov izricit zahtjev, nakon sto je isti dan izmjeren kao
 nula. Ovo je prvi put da nesto ulazi u kod BEZ prolaska kroz kapiju, pa je vrijedno
@@ -770,7 +782,9 @@ vracaju stavke), ali ti izvori pisu o vrhu tablice, a ne o igracima ATP 250 turn
 analiziramo. Prag od n>=15 ovim izvorom nece se dosegnuti nikad — za K13 treba izvor po
 IGRACU, ne opci feed.
 
-### K15 — ATP pobjede u sezoni (26.09.2026 17:04) — KANDIDAT, jedini od tri koji se drzi
+### K15 — ATP pobjede u sezoni (26.09.2026 17:04) — **ZATVOREN 27.09.2026 12:16**
+
+**Ishod:** povijesno +0,0pp na 11.139 meča (r veličine razlike = −0,005) — tržište to plaća. Korisnik odobrio zatvaranje. Varijabla se i dalje bilježi (`p*_ctx`), ne ulazi u odluku.
 
 Korisnikov prijedlog ("broj ATP pobjeda u tekucoj sezoni je pokazatelj forme sezone").
 Mjereno na 451 razrijesenoj analizi, vrijednosti izracunate NA DAN MECA
@@ -799,7 +813,9 @@ pojasevima kvote >= +3pp, (c) na SPOJENOM uzorku (otkrivanje + potvrda) bootstra
 prelazi nulu. Sve tri -> S1 ulazi kao BONUS u `_score_combo` (kao konsenzus), NE u prompt.
 Ako (a) padne ispod nule -> odbacuje se. Mjeriti istom skriptom, bez izmjene definicije.
 
-### K16 — GS iskustvo u zavrsnicama (26.09.2026 17:04) — PROMATRANJE, uzorak premalen
+### K16 — GS iskustvo u zavrsnicama (26.09.2026 17:04) — **ZATVOREN 27.09.2026 12:16**
+
+**Ishod:** povijesno +1,1pp u QF/SF/F (n=826, interval −2,0 do +4,1) — daleko od praga +5pp. Korisnik odobrio zatvaranje. Varijabla se i dalje bilježi.
 
 Korisnikov primjer: finale US Opena 2026, Zverev (12 GS polufinala, 5 finala) protiv
 Sheltona (2 / 0) — "vidjelo se da je Zverev mirniji". Na CIJELOM korpusu hipoteza NE
@@ -898,6 +914,8 @@ zatvoriti K15, K16, K3; K5 ne uvoditi na n=20 (tražiti n ≥ 100 ako se mjeri d
 (domaći) i prosjek statistike s turnira (K12) maknuti iz prompta uz sljedeću izmjenu prompta
 (`revizije/2026-09-27/PROMPT_AUDIT_2026-09-27.md`); K11, K18, K19 mjeriti dalje uživo;
 konsenzus zadržati, očekivanje spustiti na ≈ veličinu gapa.
+
+**ODLUKE KORISNIKA (27.09.2026 12:16):** preporuke 1-3 prihvaćene i provedene (K15, K16, K3 zatvoreni; K5 prag n ≥ 100; pravilo 11 i K12 van odlučivanja, era bccf4742). Preporuku 4 (manje nogu) korisnik je ODBIO: tiket ostaje **3-6 parova i ukupna kvota 4-50**.
 
 **Novo za promatranje (nije kandidat, nađeno naknadno):** Grand Slam favoriti 1,30–1,50
 +4,3pp (Holm P=0,23 — nije dokazano). Provjeriti na AO 2027; do tada ništa ne mijenjati.

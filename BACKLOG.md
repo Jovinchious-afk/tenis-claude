@@ -6,31 +6,12 @@ danima, jednostavnim jezikom). Brojke, obrazloženja i tehnički detalji su u
 (dalje: DI).
 
 **Pravilo:** na kraju svake radne sesije ovdje se dopiše što smo napravili i ažurira se
-popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 27.09.2026 12:00.
+popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 27.09.2026 12:17.
 
 **Jedna naredba za sve zakazane provjere kandidata:** `python scripts/measure_candidates.py`
 (čita bazu, ništa ne mijenja; kaže za svakog kandidata ČEKA / POTVRĐEN / PAO).
 
 ---
-
-## ČEKA — TVOJE ODLUKE (iz povijesnog laboratorija, 27.09.2026 12:00)
-
-Na 12.324 ATP meča nijedan naš kandidat nije pobijedio tržišnu cijenu (izvještaj
-`revizije/2026-09-27/POVIJESNI_LAB_2026-09-27.md`). Ništa od ovoga nije ugrađeno:
-
-1. **Zatvoriti K15, K16 i K3?** Tržište pobjede u sezoni i GS iskustvo već plaća (+0,0pp na
-   11.139 i +1,1pp na 826 mečeva); Bo5 favoriti 1,30–1,50 idu čak +4,3pp, suprotno od K3.
-2. **K5 (oprezna zona od 1,35):** na tržištu su favoriti u 1,35–1,43 BOLJI od cijene (+3,7pp).
-   Prijedlog: ne uvoditi na n=20; ako se mjeri dalje, tražiti n ≥ 100.
-3. **Jedna nova era prompta** (sve odjednom, da se ne troše dvije ere): maknuti pravilo o
-   domaćem terenu (K2 — domaći igrači −1,4pp naspram cijene), uputu o statistici s turnira svesti
-   na opis (K12 — r=+0,004), ispraviti "63%" na dva mjesta (kod je na 60), maknuti datume i
-   CAPS naglaske iz teksta, i uz to stavku "nesigurnost brojki". Gotov prijedlog izmjene:
-   `revizije/2026-09-27/PROMPT_AUDIT_2026-09-27.md`.
-4. **Struktura oklade — najveća poluga za ROI.** Noge pravih tiketa imaju prosječni EV −3,1%
-   po SuperSport kvoti; tiket od 4 noge je zato oko −12% očekivano. Manje nogu, ili samo noge s
-   jasnom prednošću u cijeni (konsenzus ≥ +3pp iznad SuperSporta), bilo bi bliže nuli —
-   ali daje puno manje tiketa.
 
 ## ČEKA — zakazane provjere
 
@@ -39,19 +20,14 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 
 | što | kada / uvjet | ishod | gdje |
 |---|---|---|---|
-| **K15 — ATP pobjede u sezoni** | 150 riješenih analiza od 27.09.2026 (procjena: druga polovica listopada) | potvrdi → bonus pri izboru tiketa; padne → odbacuje se. **Povijest 27.09.: +0,0pp na 11.139 mečeva — predlažem zatvoriti** | DI K15; `python scripts/measure_player_context.py` |
-| **K16 — GS iskustvo u završnicama** | 40 mečeva QF/SF/F u kojima samo jedan igrač ima GS polufinale (više mjeseci) | +5pp ili više → razmotriti bonus u završnicama. **Povijest 27.09.: +1,1pp, interval prelazi nulu — predlažem zatvoriti** | DI K16 |
 | **Omjer protiv ljevaka** | 300 mečeva s ljevakom (danas 120) | ponovno izmjeriti; do tada samo bilježenje | DI "IZMJERENO 26.09.2026" |
-| **K1 — prag 60 + kazna 65-68** | prvi dovršeni turnir u eri 9696c4ee (prompt očišćen 26.09. 21:27, raspodjela pouzdanosti će se pomaknuti) | skupina 60-63 ispod nule uz n≥25 → prag natrag na 63 | DI K1 |
+| **K1 — prag 60 + kazna 65-68** | prvi dovršeni turnir u eri **bccf4742** (prompt promijenjen 27.09. 12:13, raspodjela pouzdanosti će se pomaknuti) | skupina 60-63 ispod nule uz n≥25 → prag natrag na 63 | DI K1 |
 | **K17 — pick s "High" scouting profilom** | 30 takvih pickova od 27.09.2026 | ≤ −5pp → kazna −3pp; iznad nule → odbacuje se | DI K17; `measure_candidates.py` |
 | **K18 — hard ATP 250 turniri** | 30 takvih pickova od 27.09.2026 (jesen je puna 250-ica) | ≤ −5pp → najviše jedna takva noga po tiketu; iznad nule → odbacuje se. Povijest 27.09.: tržište ondje nema rupu (+0,1pp) — ako postoji, to je naš izbor | DI K18 |
 | **K19 — povratak nakon pauze od 21+ dan** | 40 mečeva od 27.09.2026 | isti smjer kao na tržištu → ±2pp; obrnuto → odbacuje se. Povijest 27.09.: −2,5pp, ali polovice različite (slab znak) | DI K19 |
-| **K5, K8, K9, K10, K11** | sljedeći dovršeni turnir (Chengdu/Hangzhou, pa Tokyo/Beijing) | svaki ima svoj prag; **K11 (R16/QF) se od 26.09. prvi put mjeri na ručnim rundama**. Povijest 27.09.: tržište u 1,35–1,43 daje +3,7pp (vidi odluku 2 gore), u R16/QF nema rupe | DI K5-K11; `measure_candidates.py` |
+| **K5, K8, K9, K10, K11** | sljedeći dovršeni turnir (Chengdu/Hangzhou, pa Tokyo/Beijing) | svaki ima svoj prag; **K11 (R16/QF) se od 26.09. prvi put mjeri na ručnim rundama**. **K5 od 27.09. traži n ≥ 100** (tržište u 1,35–1,43 daje +3,7pp); u R16/QF tržište nema rupe | DI K5-K11; `measure_candidates.py` |
 | **Konsenzus kladionica** | do kraja listopada 2026: 60+ pickova uz razliku ≥1pp — **vjerojatno nedostižno**: Odds API ne pokriva ATP 250, od 13.09. bilo je 0 takvih mečeva | iznad +5pp → tvrdi uvjet; ispod nule → maknuti bonus. Povijest 27.09.: smjer točan, ali učinak ≈ veličina razlike (2–3pp), ne +10pp | `agent/ticket_builder.py`, blok uz `_CONSENSUS_GAP_MIN` |
-| **K12 — prosjek statistike s turnira** | dubina 3+ uz kvotu dosegne n≥100 | interval i dalje prelazi nulu → samo bilježenje. **Povijest 27.09.: r=+0,004 na 970 mečeva dubine 3+ → po vlastitom pragu izlazi iz prompta (odluka 3 gore)** | DI K12 |
 | **K14 — Davis Cup** | 20 riješenih Davis Cup mečeva (finalni turnir u studenom) | unutar 5pp od prosjeka → smije na tiket | DI K14 |
-| **K2 — domaći teren** | još 20 mečeva s domaćim igračem (26.09.: 9, edge +0,7pp) | protivnik-domaći ostane iznad +3pp → kazna se briše iz prompta. **Povijest 27.09.: domaći igrači −1,4pp naspram cijene → podržava brisanje (odluka 3 gore)** | DI K2 |
-| **K3 — Bo5, kvote 1,30-1,50** | Australian Open, siječanj 2027 | n≥50 i ispod -8pp. **Povijest 27.09.: +4,3pp, suprotan smjer — predlažem zatvoriti** | DI K3 |
 | **Clay težine** | prije prve zemlje 2027. (siječanj 2027.) | aktivna v17 nastala je iz auto-feedbacka na analizama gubitaka (ELO spušten na 11%) — vratiti na v13 ili izjednačiti s hardom | Supabase `model_weights`; MODEL_CHANGELOG 26.09.2026 20:46 |
 
 ## ČEKA — ideje i popravci bez roka
@@ -73,13 +49,26 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 
 - ~~**Povijesni laboratorij**, **radni tijek u Claude Codeu** (CLAUDE.md, `/oblikuj`,
   `/mjerenje`, `/kraj-sesije`, skeptik) i **pregled prompta** (izvještaj)~~ — **NAPRAVLJENO
-  27.09.2026 12:00**, vidi dnevnik. Primjena pregleda prompta čeka tvoju odluku 3 na vrhu.
+  27.09.2026 12:00**, vidi dnevnik. Pregled prompta primijenjen 27.09.2026 12:17 (era bccf4742).
 - **Winston-Salem: traženje turnira odustaje nakon 5 pokušaja** pri razrješavanju rezultata,
   pa dio analiza ostane nerazriješen. Prijedlog od 31.08.2026, čeka odobrenje.
 - **Nesigurnost brojki u promptu** (npr. hold% je procjena ±8pp, a prikazuje se kao
   činjenica). Otvoreno od 08.08.2026; ide uz sljedeću veću izmjenu prompta (DI točka 4).
+  *27.09.2026 12:17:* namjerno NIJE ušlo u eru bccf4742 — to bi bio novi tekst u promptu, a ta era je
+  samo micala izmjereno krivo. Hold% je u promptu već označen kao procjena i "nije drugi signal".
 - **Model može samo spustiti pouzdanost, nikad promijeniti stranu picka.** Otvoreno od
   29.08.2026.
+- **"Intuicija" — naučeni signal za rizične pickove (prijedlog 27.09.2026 12:17, tvoja želja).** Poseban
+  statistički model (ne Claude) koji iz svega što bilježimo uz svaku analizu (~100 polja: pojas
+  kvote, runda, razina, ELO razlike, forma, odmor, konsenzus, vijesti o ozljedi, pouzdanost
+  modela...) uči **kada pick nadmaši svoju cijenu** — posebno autsajder. Uči se svaki tjedan na
+  svemu do tada, uvijek se ocjenjuje na mečevima koje još nije vidio, a za tržišne obrasce
+  koristi i 12.324 povijesna meča. **Prvo samo bilježi** svoju procjenu (model i tiket je ne
+  vide); nakon ~300 riješenih procjena provjera: nadmašuju li pickovi za koje je rekao "+3pp"
+  cijenu barem toliko? Ako da → bonus pri izboru tiketa, uključujući autsajdere; ako ne → uči
+  dalje u sjeni. Iskreno očekivanje: u početku će uglavnom govoriti "nema prednosti" (to je
+  točno i štiti od loših rizika); stvarna vrijednost može doći samo od informacije koju tržište
+  sporo ugrađuje (ozljede, kašnjenje SuperSporta za konsenzusom). Čeka tvoje "kreni" (nova sesija).
 - **Drugi AI model kao neovisni analitičar** (mjeri se predviđa li slaganje dvaju modela
   bolje od jednoga). Niski prioritet.
 - ~~**Čišćenje prompta: odjeljci analize**~~ — **NAPRAVLJENO 26.09.2026 21:27**, vidi dnevnik.
@@ -119,6 +108,29 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 ---
 
 ## NAPRAVLJENO — dnevnik
+
+### 27.09.2026 12:17 — tvoje odluke provedene: nova era prompta, K15/K16/K3 zatvoreni, K5 strože
+
+**Tvoja odluka:** tiket ostaje **3–6 parova i ukupna kvota 4–50** (provjereno u kodu da je tako;
+nije dirano). Prijedlog o manje nogu je time odbačen i neće se ponovno predlagati.
+
+1. **Pravilo o domaćem terenu je van.** Model više ne oduzima 3 boda kad je protivnik domaći —
+   na 2.775 mečeva domaći igrači nisu bili bolji od cijene. Ista provjera maknuta je i iz
+   AI-recenzenta tiketa, da ne živi dalje na drugom mjestu.
+2. **Statistika s ovog turnira** i dalje se prikazuje, ali model je smije koristiti samo za opis,
+   ne za pomicanje pouzdanosti (na 970 mečeva nije dodala ništa cijeni).
+3. **Tekst prompta je očišćen** od datuma i vikanja ("THE SINGLE MOST IMPORTANT", "CRITICAL");
+   sadržaj ostalih pravila nije diran. Prompt je kraći za četvrtinu stranice.
+4. **Zatvoreno:** K15 (pobjede u sezoni), K16 (GS iskustvo), K3 (Bo5 1,30–1,50). **K5** (oprezna
+   zona od 1,35) sada traži 100 mečeva umjesto 20 prije ikakve odluke.
+
+**Čemu služi:** model manje griješi na stvarima koje su izmjerene kao krive, a tiket ne kažnjava
+dobre pickove. **Ne očekuj** skok ROI-ja samo od ovoga. **Pazi:** nova era (hard `bccf4742`), pa se
+K1 (prag 60) premjerava nakon prvog dovršenog turnira. Provjereno: oba testna paketa prolaze,
+jedan živi poziv modela vratio je ispravan odgovor s pet odjeljaka (1.026 tokena, strop 4.000).
+
+*Gdje:* `agent/predictor.py` (komentar "IZMJENA PROMPTA (27.09.2026 12:13"), `agent/ticket_builder.py`
+(`_review_ticket`), `scripts/measure_candidates.py` (K5), DI (K1, K2, K3, K5, K12, K15, K16).
 
 ### 27.09.2026 12:00 — povijesni laboratorij, vijesti po igraču, radni tijek, Handy (tvoje odobrenje)
 

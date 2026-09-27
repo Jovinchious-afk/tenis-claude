@@ -16,6 +16,39 @@ dnevnik napravljenog jednostavnim jezikom. Dopunjava se na kraju svake radne ses
 
 ---
 
+## 2026-09-27 12:17 — NOVA ERA bccf4742 (hard; clay 84792fca, grass b22b1375): domaći teren i
+## statistika s turnira van odlučivanja; K15/K16/K3 zatvoreni, K5 prag n≥100 — korisnik odobrio
+
+**Povod:** povijesni laboratorij (unos ispod, 11:59). Korisnik je prihvatio preporuke 1-3 i
+odbio 4: **tiket ostaje 3-6 parova i ukupna kvota 4-50** (`TICKET_CONFIG` nije diran).
+
+**Prompt (`agent/predictor.py`, komentar "IZMJENA PROMPTA (27.09.2026 12:13"):**
+- pravilo o domaćem terenu (grass 11, clay 7, hard 11) → jedna rečenica "već je u cijeni, ne
+  prilagođavaj"; brojevi pravila ostaju. Mjereno: domaći igrači −1,4pp naspram cijene
+  (2.775 meča, obje polovice −); naši pickovi s protivnikom-domaćim +7,5pp (K2).
+- uputa o statistici s ovog turnira ("na dubini 3+ vrijedi nekoliko bodova") → samo opis;
+  r = +0,004 na 970 meča dubine 3+ → izlazi po vlastitom pragu K12. Podaci ostaju u promptu.
+- iz naslova maknuti datumi i povod ("added 2026-08-04", "user's explicit instruction"...),
+  "THE SINGLE MOST IMPORTANT INSTRUCTION" i "CRITICAL"; hard pravilo 2 bez relativne povijesti.
+- NIJE dirano: sadržaj ostalih pravila, kapice, stupnjevanje "ispod 63%" za slabe podatke,
+  težine, JSON primjer. Ništa novo nije dodano. Prompt kraći za 3.580 znakova.
+
+**Recenzent tiketa (`agent/ticket_builder._review_ticket`):** maknut "FLAG: ... OPPONENT plays in
+his own country (home crowd)" — ista politika, isti dan (inače bi živjela na drugom mjestu).
+
+**Registar:** K2 proveden; K12 izašao iz odlučivanja; K15, K16, K3 zatvoreni; K5 prag n ≥ 100
+(`scripts/measure_candidates.py`); K1 premjeriti nakon prvog turnira u eri bccf4742.
+
+**Provjera:** oba testna paketa prolaze (era u testovima bccf4742; testovi koji su zaključavali
+stari tekst K12 i naslov WIND prepisani na novo ponašanje). Jedan živi poziv (Damm–Hurkacz,
+spremljeni podaci): valjan JSON iz prvog pokušaja, pet odjeljaka, 1.026 izlaznih tokena
+(strop 4.000), fiksni dio prompta 8.207 tokena, domaći teren se ne spominje.
+
+**Posljedica:** nova era reže korpus za mjerenja koja ovise o tekstu prompta (K1, K5, K8-K11);
+`context_version` ostaje 23 (izmjena je u predlošku, ne u obliku snapshota).
+
+---
+
 ## 2026-09-27 11:59 — POVIJESNI LABORATORIJ (12.324 meča) + vijesti po igraču (snapshot v23);
 ## prompt, odabir tiketa i era NEPROMIJENJENI (rules_hash i dalje 9696c4ee)
 

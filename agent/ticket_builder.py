@@ -1106,6 +1106,11 @@ def _review_ticket(proposed: list, rejected: list, cfg: dict) -> list:
     Claude Sonnet reviews the mathematically selected ticket holistically.
     Can confirm, modify (max 2 swaps), reduce, or force a valid ticket.
     Falls back to proposed ticket if review fails or produces invalid result.
+
+    27.09.2026 12:13: iz clay provjera maknut "FLAG: ... OPPONENT plays in his own country
+    (home crowd)" — ista politika kao pravilo o domacem terenu u promptu analize, maknuto
+    istim danom (domaci igraci −1,4pp naspram cijene na 2.775 meceva). Ostavljena bi znacila
+    da ista kazna zivi dalje na drugom mjestu (memorija "dvije kapije, jedna politika").
     """
     def _pick_summary(p: dict) -> str:
         m = p.get("match", {})
@@ -1162,7 +1167,6 @@ CLAY-SPECIFIC CHECKS (apply when any pick is on Clay surface — derived from 15
 - FLAG and consider removing: any clay pick whose opponent has 3+ wins in this tournament or 2+ wins over seeded players, unless our pick is an elite clay player (clay ELO ≥1850 or hold ≥85%). Fading in-form players caused 8 of 15 clay losses (Mensik beat 3 of our picks, Arnaldi 2, Fonseca 2). NEVER keep a pick against a player who already eliminated one of our picks earlier in the same tournament.
 - FLAG: clay picks where the opponent has BOTH the better clay W-L record AND the better hold% — our pick's ranking/ELO edge lost all such documented matches (Khachanov, FAA, Brancaccio).
 - FLAG: clay picks at odds 1.50-1.90 (dead zone: 27% win rate this season) that lack edges in at least two of: clay record, serve-hold, quality-adjusted form.
-- FLAG: clay picks where the OPPONENT plays in his own country (home crowd) and is in rhythm — home underdogs destroyed marginal favourites repeatedly (Fery 5x, Huesler in Gstaad).
 - FLAG: clay picks where our player has 2+ matches in last 7 days and 2+ fewer rest days than the opponent — clay rallies punish tired legs hardest.
 - If 2+ clay picks share the same vulnerability, treat as overlapping risk and consider REDUCING.
 

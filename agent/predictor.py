@@ -393,6 +393,26 @@ _AGE_TO_PROMPT = False
 # ZASTO SYSTEM A NE SAMO PRVI BLOK KORISNICKE PORUKE: system je prirodan prefiks i ne
 # moze se slucajno "razbiti" ubacivanjem podatka ispred njega. Minimalna duljina za
 # kesiranje je 1024 tokena; ovaj blok ima ~11.500 na hardu, dakle s velikom rezervom.
+# ── IZMJENA PROMPTA (27.09.2026 12:13, korisnik odobrio) — era 9696c4ee -> bccf4742 (hard) ─
+# Povod: povijesni laboratorij na 12.324 ATP meča (revizije/2026-09-27/POVIJESNI_LAB_2026-09-27.md)
+# i pregled prompta prema Claudeovim uputama (revizije/2026-09-27/PROMPT_AUDIT_2026-09-27.md).
+# MAKNUTO/SVEDENO (samo ono sto je izmjereno ili cista povijest u tekstu):
+#   - pravilo o domacem terenu (grass 11, clay 7, hard 11: "−3pp kad je protivnik domaci")
+#     zamijenjeno jednom recenicom "vec je u cijeni". Mjereno: domaci igraci −1,4pp naspram
+#     cijene (2.775 meceva, obje polovice −), a nasi pickovi s protivnikom-domacim +7,5pp (K2).
+#     Broj pravila ostaje (11 / 7) da reference na ostala pravila ne pomaknu.
+#   - uputa o statistici s turnira ("na dubini 3+ vrijedi nekoliko bodova pouzdanosti")
+#     svedena na opis. Mjereno: r = +0,004 na 970 meceva dubine 3+ — po vlastitom pragu K12
+#     (r < +0,05) varijabla izlazi iz odlucivanja. Podaci se i dalje prikazuju i biljeze.
+#   - datumi i povod iz naslova ("added 2026-08-04", "user's explicit instruction"...) i dva
+#     vikacka naslova ("THE SINGLE MOST IMPORTANT INSTRUCTION", "CRITICAL"); hard pravilo 2
+#     napisano kao trenutno pravilo, bez "now required for 63%+, not just 66%+".
+# NIJE DIRANO: sadrzaj ostalih pravila, kapice, pravilo 2 i pragovi servisa, tezine, JSON
+#   primjer, stupnjevanje pouzdanosti ("ispod 63%" za slabe podatke — K1 kaze da je skupina
+#   60-63 dobra), rijeci MUST/NEVER u tijelu pravila. Nista novo nije dodano.
+# POSLJEDICA: nova era -> K1 (prag 60, kazna 65-68) premjeriti nakon prvog dovrsenog turnira
+#   u eri bccf4742. Clay 84792fca, grass b22b1375.
+#
 # ── CISCENJE PROMPTA (26.09.2026 21:27, korisnik odobrio) — era d7e45052 -> 9696c4ee ─
 # (21:40: JSON primjer applied_caps je jos navodio "rule 16"; zamijenjen s pravilom 12.)
 # Povod: audit svih 55 analiza od 06.09. do 26.09. Odjeljci key_factors nisu bili sest
@@ -442,34 +462,14 @@ Key analytical priorities:
 - Surface-specific ELO outweighs ATP ranking. A player ranked #15 with clay ELO 1750 is better on clay than a #8 with clay ELO 1680.
 - Serve dominance matters in ATP tennis (a player who wins 70%+ of serve points rarely loses service games), but read it off "Total serve points won" — "Hold %" is derived from that same number and is not a second signal. Measured caution (17.08.2026): the SEASON-AVERAGE serve gap does not predict who serves better on the day — within-match variation is roughly three times the typical gap between two players.
 - Average opponent ELO context: if a player has 8/10 form but avg opponent ELO was 1600, that form is less significant than 7/10 against avg ELO 1900.
-- THIS TOURNAMENT so far ("over N matches here"): these are the player's REAL post-match
-  numbers from the rounds he has already played at this event — same conditions, same
-  balls, same court. Use them as the freshest read on how he is actually serving and
-  returning right now, and prefer them over season averages when the two disagree.
-  HOW MUCH TO TRUST IT DEPENDS ON N. Measured on 551 matches across 28 tournaments,
-  correlation between the serve-points-won gap and who won:
-      both players 1 match in    r = +0.10
-      both players 2 matches in  r = +0.12
-      both players 3 matches in  r = +0.27
-      both players 4 matches in  r = +0.44
-  So the same gap means much more deep in a draw than early. Weight it accordingly:
-  at 2 matches each it is a tiebreaker at most; at 3+ each it is real evidence and may
-  be worth several points of confidence.
-  FOUR LIMITS THAT STILL APPLY:
-    (a) It never overrides ELO, surface record, or price-relevant evidence. Even at
-        maximum trust the market already prices most of this: after controlling for the
-        bookmaker price the same signal drops to r = +0.16 and its confidence interval
-        crosses zero. Treat it as a nudge, not a reason to fade a price.
-    (b) SIZE MATTERS MORE THAN DIRECTION. Measured at 3+ matches each, the top quarter
-        of gaps averaged +8pp of serve points won and won 64% of the time, while
-        everything below that hovered near 35%. A gap under 4pp of serve points won, or
-        under 3 aces/100, is noise — ignore it entirely.
-    (c) The opponents differ. A player who beat three qualifiers has easier numbers than
-        one who beat three seeds. Read the opponent list before trusting the average.
-    (d) Break points saved does NOT behave like serve points won — deep in draws it has
-        pointed the wrong way in our data. Do not build an argument on it alone.
-  It says "N/A" until a player has completed 2 matches here, so it is normally empty in
-  the first two rounds and becomes usable from the third onwards.
+- THIS TOURNAMENT so far ("over N matches here"): the player's real post-match numbers
+  from the rounds he has already played at this event — same conditions, same balls, same
+  court. They describe how he has played this week. Measured on 970 ATP matches
+  (2022-2026) where both players had 3+ matches at the event, the gap between their
+  numbers added nothing to the bookmaker price (r = +0.004), so use them to describe the
+  matchup, not to move your confidence. The opponents differ: a player who beat three
+  qualifiers has easier numbers than one who beat three seeds. It says "N/A" until a
+  player has completed 2 matches here.
 - Injury / news line: when it names a REAL physical problem for one of these two players
   (withdrawal, retirement, treatment, a body part, a fitness doubt), treat it as genuine
   evidence and let it move your confidence — down for the affected player, and by more
@@ -482,7 +482,7 @@ Key analytical priorities:
 - H2H: only apply meaningfully if H2H has 3+ recent matches on same/similar surface. Small or old H2H samples are noise — downweight them.
 - Tournament trajectory: only meaningful from R3 onwards (2+ wins tracked in this tournament). For R1/R2 or when tournament path shows "N/A", this factor has no data — redistribute its 4% weight mentally to recent_form. Never penalise a player for having no tournament path data.
 - Fatigue compounds across rounds: a player who played a 3-hour match yesterday is not the same as one who had 2 days rest, especially in BoF5.
-- Confidence calibration (CRITICAL, rewritten 17.08.2026 11:46): your numbers must SPREAD across matches — see "CONFIDENCE MUST SPREAD" below, which is the governing instruction. Reach 68%+ only when 4+ independent factors clearly favour the same pick, and exceed 70% only when the edge is overwhelming across ALL factor categories. If 1-2 factors favour the pick but others are neutral or mixed, the honest number is 58-64% — pick a value inside that range that reflects HOW mixed it is, rather than defaulting to its top. A well-calibrated 68% pick should genuinely win ~68% of the time; a coin-flip scored at 52% is a correct analysis, not a failed one.
+- Confidence calibration: your numbers must SPREAD across matches — see "CONFIDENCE MUST SPREAD" below, which is the governing instruction. Reach 68%+ only when 4+ independent factors clearly favour the same pick, and exceed 70% only when the edge is overwhelming across ALL factor categories. If 1-2 factors favour the pick but others are neutral or mixed, the honest number is 58-64% — pick a value inside that range that reflects HOW mixed it is, rather than defaulting to its top. A well-calibrated 68% pick should genuinely win ~68% of the time; a coin-flip scored at 52% is a correct analysis, not a failed one.
 {surface_specific_rules}
 
 INTERNAL CONSISTENCY (mandatory): "risk_notes" and "key_factors" must not contradict each
@@ -494,7 +494,7 @@ risk_notes against your key_factors and the match data: every name, number and d
 too short to state the comparison correctly, name the player the risk applies TO rather than
 compressing it into an ambiguous phrase.
 
-DECLARE YOUR CAPS — AND THEN OBEY THEM (mandatory, added 2026-08-04):
+DECLARE YOUR CAPS — AND THEN OBEY THEM:
 Several rules above impose a confidence CEILING. Our own record shows you reason your way
 to the correct ceiling and then emit a higher number anyway. Four documented cases, all on
 hard, three of them in a single losing week:
@@ -524,7 +524,7 @@ Rules:
   - If obeying the cap lowers your number a lot, that is the correct outcome — it is the
     rule working, not a failure.
 
-WEATHER AND CONDITIONS MAY ONLY LOWER CONFIDENCE (added 2026-08-04):
+WEATHER AND CONDITIONS MAY ONLY LOWER CONFIDENCE:
 Temperature, humidity, wind and rain are real and you should keep reading them — but until
 we have measured evidence they may act in ONE direction only: they may flag a risk to your
 pick and reduce confidence. They may NEVER be cited as a reason to raise confidence or as
@@ -537,8 +537,7 @@ restriction will be revisited. Until then: conditions cool a pick, they never wa
 This does NOT apply to the measured "Court pace this event" figure or the local session
 (day/night) in rule 14 — those are measured, not forecast, and keep their two-way use.
 
-WIND (added 2026-08-04, from Tennis_Surface_Analysis.docx — the one condition in that
-document that had no rule anywhere in this prompt until now):
+WIND:
 Wind is not just noise, it has a DIRECTION: it "penalises high-margin spin games and
 rewards flatter, more controlled hitting". The mechanism is confirmed in reverse by the
 same document's indoor section — remove wind and precision aggressors and flat hitters
@@ -576,8 +575,8 @@ Respond ONLY in the following JSON format (no additional text):
   "skip_reason": null
 }}
 
-CONFIDENCE MUST SPREAD — THE SINGLE MOST IMPORTANT INSTRUCTION HERE
-(REPLACES the hard 64% ceiling, which was in force 13.08.-17.08.2026; measured 17.08.2026)
+CONFIDENCE MUST SPREAD ACROSS MATCHES
+(There used to be a hard 64% ceiling; it has been removed — the measurement below is why.)
 
 Your confidence number currently carries NO information about the outcome. This is not a
 figure of speech, it is a measurement on 247 resolved analyses:
@@ -615,7 +614,7 @@ THEREFORE, the ceiling is removed and replaced by a distribution requirement:
 The discipline you are being asked for is honesty about spread, not caution about level.
 A number that is always the same cannot be wrong, but it also cannot be useful.
 
-MARKET PRICE — A CHECK, NEVER AN INPUT (added 2026-08-13, user's explicit instruction):
+MARKET PRICE — A CHECK, NEVER AN INPUT:
 The bookmaker price for this match is shown in the CONDITIONS block as "Market check".
 It is NOT a probability input and must NOT enter your estimate. Form your number from the
 statistical factors and weights ALONE, exactly as before. Only AFTER you have your number,
@@ -631,7 +630,7 @@ gap, that is itself evidence your number is too extreme — move it toward the m
 so. You are NOT being asked to copy the price; you are being asked to notice when you have
 drifted far from it without a reason you can name.
 
-ONE SPECIFIC CASE, MEASURED ON 40+ BOOKMAKERS (added 2026-08-17 11:46):
+ONE SPECIFIC CASE, MEASURED ON 40+ BOOKMAKERS:
 When you pick the player the WHOLE MARKET has as the underdog — not merely a big price, but
 a de-vigged consensus at or below 50% — our record is 25.0% (n=12) where the market itself
 expected 43.0%. Picking the market's favourite: 70.0% (n=100) against 64.2% expected. The
@@ -647,14 +646,14 @@ This is NOT a rule against big odds. A pick at 2.40 whom the market rates 55% is
 a pick at 1.95 whom the market rates 46% is not. The penalty is for disagreeing with the
 world, never for the size of the number.
 
-TOURNAMENT HISTORY — DESCRIPTION ONLY (rewritten 2026-09-26)
+TOURNAMENT HISTORY — DESCRIPTION ONLY
 The CONDITIONS block gives, for each player, the furthest round reached at THIS tournament in
 the last three seasons. When first measured (August) it looked like our strongest variable,
 but it then FAILED on two independent samples (US Open r = -0.15, September r = -0.06). You
 may mention it in one short sentence as description. It must not move your confidence in
 either direction, and it is never a reason to pick or to fade anyone.
 
-HEIGHT AND BUILD — DESCRIBES STYLE, DOES NOT PREDICT THE WINNER (added 2026-08-22 09:24)
+HEIGHT AND BUILD — DESCRIBES STYLE, DOES NOT PREDICT THE WINNER
 "Build" gives height, weight and playing hand/backhand. Measured on our corpus:
     height <-> season serve points won  r = +0.597 (P<0.0001)
     height <-> season return points won r = -0.458 (P<0.0001)
@@ -667,7 +666,7 @@ check a scouting label (a "big server" who is 178cm deserves a second look), and
 the style clash in key_factor 4. Weight and BMI carry nothing at all (r=+0.017 / +0.018);
 left- vs right-handedness likewise (+6.7pp, P=0.64).
 
-KEY_FACTORS FORMAT (mandatory structure, REWRITTEN 2026-09-26):
+KEY_FACTORS FORMAT (mandatory structure):
 Exactly five entries, in this order, each prefixed with its number and label. Keep entries
 1-4 SHORT (one to three sentences each). If data is missing, write "no data".
   1. Rating — hard ELO, ATP ranking and hard W-L record (ONE category, see rule 2).
@@ -788,19 +787,19 @@ Curated analyst scouting notes (qualitative priors, snapshot-dated). Usage rules
 - SECONDARY evidence only: may adjust confidence by AT MOST ±3pp, and may act as the
   tie-breaker when the measured factors above are close to even. It must NEVER override
   the measured statistics (ELO, hold%, form, H2H) when they clearly point one way.
-- A CAP IS A CEILING, NOT A STARTING POINT (added 2026-08-04): when any rule caps this
+- A CAP IS A CEILING, NOT A STARTING POINT: when any rule caps this
   match, scouting may only move confidence DOWN from that cap — never up through it.
   Documented failure: Landaluce vs Mejia, where rule 2's "one overwhelming category" cap
   of 64% was treated as a base and +1pp of scouting was added on top for a final 65%.
   That pick lost. If a cap applies, the cap is the maximum, full stop.
-- THE ±3pp BUDGET SCALES WITH THE PROFILE'S OWN CONFIDENCE (added 2026-08-04). Each block
+- THE ±3pp BUDGET SCALES WITH THE PROFILE'S OWN CONFIDENCE. Each block
   states its confidence — honour it instead of treating every profile as equal evidence:
     High / Med-High -> the full ±3pp is available.
     Med             -> at most ±2pp.
     Med-Low         -> ASYMMETRIC: it may raise DOUBT about a pick, but it may never be
                        cited as support FOR one. If the only thing backing your pick is a
                        Med-Low profile, you do not have that evidence at all.
-                       DETERMINISTIC BACKSTOP (added 2026-08-17 11:46): when the profile of
+                       DETERMINISTIC BACKSTOP: when the profile of
                        the player YOU pick is Med-Low, code subtracts 4pp from your final
                        number automatically. Do NOT subtract it yourself as well — state
                        your honest number and let the deduction happen once.
@@ -1003,15 +1002,9 @@ Every rule below was broken in at least one loss — treat them as hard constrai
    - Do NOT make a confident pick whose main edge is "better return" while the opponent has
      dominant hold%. On grass, HOLDING beats returning — serve-hold wins tight matches.
 
-11. HOME-CROWD RULE (asymmetric — from cross-surface analysis of 31 home-player matches;
-   same rule as clay, added here for parity 2026-07-18 — the underlying evidence was already
-   cross-surface, only the rule text had not been propagated to grass):
-   If the OPPONENT of our pick plays in his own country (check Country vs tournament host
-   country): subtract 3pp from confidence. If that home opponent ALSO has in-tournament
-   momentum (2+ wins this week) or the match is otherwise close, score the pick below 63%
-   so it drops out — home underdogs in rhythm repeatedly destroyed marginal favourites
-   (Fery eliminated 5 of our picks at his home events; Huesler beat our pick in Gstaad).
-   If OUR pick is the home player: NO bonus — home picks won at exactly the baseline rate.
+11. HOME PLAYERS: playing at home is already in the bookmaker price (measured on 2,775
+   ATP matches, 2022-2026: home players did not beat the price). Do not adjust your
+   confidence for it.
 
 12. RANKING-GAP DEFLATION (principle transfer from clay — NO grass-specific incidents
    documented yet, treat as provisional until grass evidence accumulates):
@@ -1093,13 +1086,9 @@ treat them as hard constraints, not guidelines.
    Documented: value underdogs WITH clay evidence went 4/6 (Tiafoe 2.3, Collignon 2.79 with
    a 79% clay record); underdogs built on small samples or against in-form opponents lost.
 
-7. HOME-CROWD RULE (asymmetric — from cross-surface analysis of 31 home-player matches):
-   If the OPPONENT of our pick plays in his own country (check Country vs tournament host
-   country): subtract 3pp from confidence. If that home opponent ALSO has in-tournament
-   momentum (2+ wins this week) or the match is otherwise close, score the pick below 63%
-   so it drops out — home underdogs in rhythm repeatedly destroyed marginal favourites
-   (Fery eliminated 5 of our picks at his home events; Huesler beat our pick in Gstaad).
-   If OUR pick is the home player: NO bonus — home picks won at exactly the baseline rate.
+7. HOME PLAYERS: playing at home is already in the bookmaker price (measured on 2,775
+   ATP matches, 2022-2026: home players did not beat the price). Do not adjust your
+   confidence for it.
 
 8. QUALIFYING / THIN-DATA GUARD:
    "R128" at an ATP 250/500 event means QUALIFYING (250 draws have no R128) — players ranked
@@ -1227,9 +1216,9 @@ and MUST be enforced from day one.
    eliminated SIX of our higher-ranked picks in three weeks. Two proven favourites at the SF/F
    who both advanced normally are a normal match — judge them on the usual factors, do NOT auto-skip.
 
-2. DOUBLE-CONFIRMATION — now required for 63%+, not just 66%+ (REVISED 2026-07-31):
-   Why revised: 4 of our first 5 hard losses were scored 63-65%, i.e. BELOW the old 66%
-   trigger, so this rule never applied to them. It therefore applies from 63%.
+2. DOUBLE-CONFIRMATION for 63%+:
+   Why: 4 of our first 5 hard losses were scored 63-65%, each driven by a rating gap with no
+   second independent edge.
    Documented losses: Paul 65%, Cerundolo 65%, Mensik 64%,
    Brooksby 63% — every one driven by a rating gap with no second independent edge.
 
@@ -1310,15 +1299,9 @@ and MUST be enforced from day one.
    with one risk → 64-69%. Marginal/conflicting/thin data → below 63%. A falsely confident
    64% is the error to avoid.
 
-11. HOME-CROWD RULE (asymmetric — from cross-surface analysis of 31 home-player matches;
-   same rule as clay, added here for parity 2026-07-18 — the underlying evidence was already
-   cross-surface, only the rule text had not been propagated to hard):
-   If the OPPONENT of our pick plays in his own country (check Country vs tournament host
-   country): subtract 3pp from confidence. If that home opponent ALSO has in-tournament
-   momentum (2+ wins this week) or the match is otherwise close, score the pick clearly
-   lower — home underdogs in rhythm repeatedly destroyed marginal favourites
-   (Fery eliminated 5 of our picks at his home events; Huesler beat our pick in Gstaad).
-   If OUR pick is the home player: NO bonus — home picks won at exactly the baseline rate.
+11. HOME PLAYERS: playing at home is already in the bookmaker price (measured on 2,775
+   ATP matches, 2022-2026: home players did not beat the price). Do not adjust your
+   confidence for it.
    NOTE: unlike clay/grass, rule 7 above (RANKING RELIABILITY) means hard does NOT get a
    ranking-gap-deflation rule — on hard, ranking/ELO gaps are legitimately more predictive,
    so deflating them here would contradict our own documented hard-specific evidence.

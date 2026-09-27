@@ -16,7 +16,8 @@ Svaka mjera je naspram DEVIGIRANE SuperSport cijene (obje kvote sa screenshota):
 edge = stvarni postotak pogodaka - prosjek devigirane cijene, u postotnim bodovima.
 
 PRAGOVI (zapisani PRIJE podataka; isti su u DECISION_INPUTS.md, sekcija 0a):
-  K5   kvota 1,35-1,43             od 07.09.   n>=20 i edge <= -5pp  -> zona (1,35, 1,60)
+  K5   kvota 1,35-1,43             od 07.09.   n>=100 i edge <= -5pp -> zona (1,35, 1,60)
+                                               (27.09.2026 12:16: bilo n>=20; trziste u pojasu +3,7pp)
   K10  oblik pojaseva              od 14.09.   1,35-1,65 < 0 i (1,20-1,35 > 0 ili 1,65-1,85 > 0),
                                                n>=25 po pojasu -> izricit bonus po pojasu umjesto edge_bonus
   K11  R16+QF                      od 14.09.   n>=20, ostatak <= -5pp i losije od ostalih rundi
@@ -106,8 +107,10 @@ def fmt(n, e) -> str:
 def k5(rows):
     s = [r for r in rows if r["date"] >= "2026-09-07" and 1.35 <= r["odds"] < 1.43]
     n, e = edge(s)
-    st = "POTVRDJEN" if n >= 20 and e <= -5 else ("PAO" if n >= 20 and e > 0 else "CEKA")
-    return [("K5  kvota 1,35-1,43 (od 07.09.)", n, e, st)]
+    # Prag n>=100 od 27.09.2026 12:16 (bio 20): povijesni laboratorij — favoriti u 1,35-1,43 na
+    # trzistu +3,7pp (n=1.364), pa uz n=20 (interval ±21pp) "potvrda" bi vjerojatno bila sum.
+    st = "POTVRDJEN" if n >= 100 and e <= -5 else ("PAO" if n >= 100 and e > 0 else "CEKA")
+    return [("K5  kvota 1,35-1,43 (od 07.09., n>=100)", n, e, st)]
 
 
 def k10(rows):
