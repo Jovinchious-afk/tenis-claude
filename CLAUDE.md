@@ -53,7 +53,8 @@ izvještaj u `revizije/`.
 - Testovi (moraju proći prije commita): `python test_cap_and_weather.py` i
   `python test_provisional_schedule.py`
 - Kandidati iz registra: `python scripts/measure_candidates.py` (samo čita bazu)
-- Intuicija (što je naučila, stanje u sjeni): `python scripts/intuicija_report.py`
+- Intuicija (što je naučila, stanje u sjeni): `python scripts/intuicija_report.py`; mail sa stanjem
+  šalje se sam 15.11.2026 i 15.01.2027 (`.github/workflows/intuicija_status.yml`)
 - Povijesni laboratorij: vidi `revizije/2026-09-27/POVIJESNI_LAB_2026-09-27.md`
 - Aplikacija: `streamlit run streamlit_app.py`
 - Dnevni run: GitHub Actions `daily_ticket.yml` (ručno, jednom ujutro). Lokalni

@@ -30,9 +30,10 @@ PRAGOVI (zapisani PRIJE podataka; isti su u DECISION_INPUTS.md, sekcija 0a):
   K13  protivnik s vijesti o ozljedi od 28.09.  (snapshot v23, Google News, dodano 27.09.2026 12:03)
                                                n>=40 i edge >= ostali + 5pp -> prijedlog korisniku;
                                                razlika <= 0 -> samo biljezenje
-  K20  Intuicija (sjena)           od 28.09.   n>=300 zapisanih procjena: r(procjena, ostatak) >= +0,12 uz
-                                               interval iznad 0, gornja tercila >= +3pp i >= 3pp iznad donje,
-                                               r > 0 u obje polovice -> prijedlog korisniku (27.09.2026 12:33)
+  K20  Intuicija (sjena)           od 28.09.   provjere na 150 i 300 zapisanih procjena (poslije svakih +300):
+                                               r >= +0,12 i interval iznad 0 (uz 150 -> r >= 0,16), gornja
+                                               tercila >= +3pp i >= 3pp iznad donje, r > 0 u obje polovice
+                                               -> prijedlog korisniku; inace uci dalje (27.09.2026 12:45)
   KONS konsenzus >= +1pp           od 08.09.   do 31.10.2026: n>=60 i edge > +5pp -> tvrdi uvjet;
                                                edge < 0 -> maknuti bonus
 """
@@ -195,29 +196,17 @@ def k13(rows):
 
 
 def k20(rows):
-    """Intuicija u sjeni (DI K20, prag zapisan 27.09.2026 12:33). Ostatak = pobjeda - devig cijena."""
-    s = [r for r in rows if isinstance(r["int_edge"], (int, float))]
-    n = len(s)
-    if n < 10:
-        return [("K20 Intuicija: zapisanih procjena", n, None, "CEKA")]
-    xs = [r["int_edge"] for r in s]
-    ys = [100 * (r["win"] - r["p"]) for r in s]
-    mx, my = sum(xs) / n, sum(ys) / n
-    cov = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
-    vx = sum((x - mx) ** 2 for x in xs)
-    vy = sum((y - my) ** 2 for y in ys)
-    r_ = cov / (vx * vy) ** 0.5 if vx > 0 and vy > 0 else 0.0
-    srt = sorted(s, key=lambda r: r["int_edge"])
-    lo, hi = srt[: n // 3], srt[-(n // 3):]
-    _, e_lo = edge(lo)
-    _, e_hi = edge(hi)
-    if n >= 300:
-        ok = r_ >= 0.12 and (r_ - 1.96 / n ** 0.5) > 0 and e_hi >= 3 and e_hi - e_lo >= 3
-        st = "POTVRDJEN" if ok else "PAO (uci dalje u sjeni)"
-    else:
-        st = "CEKA"
-    return [(f"K20 Intuicija: r={r_:+.3f}, gornja tercila", len(hi), e_hi, st),
-            ("    donja tercila procjene", len(lo), e_lo, "")]
+    """Intuicija u sjeni (DI K20). Pravilo zivi u agent.intuicija.gate_status (jedno mjesto);
+    dvije provjere: na 150 pa na 300 zapisanih procjena (27.09.2026 12:45)."""
+    from agent.intuicija import gate_status
+    pairs = [(r["int_edge"], 100 * (r["win"] - r["p"]), r["date"]) for r in rows
+             if isinstance(r["int_edge"], (int, float))]
+    g = gate_status(pairs)
+    if g["n"] < 150:
+        return [(f"K20 Intuicija: {g['verdict']}", g["n"], None, "CEKA")]
+    st = "POTVRDJEN" if g["passed"] else "UCI DALJE"
+    return [(f"K20 Intuicija {g['stage']}: r={g['r']:+.3f} (treba {g['need_r']:.2f})", g["n"], g["top"], st),
+            ("    donja trecina procjene", g["n"] // 3, g["bottom"], "")]
 
 
 def kons(rows):

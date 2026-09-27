@@ -347,3 +347,85 @@ def shadow_scores(pred: dict, models: dict) -> dict:
     # "Njuškalo za autsajdera": strana koju Claude NIJE odabrao, a Intuicija joj daje +3pp ili više.
     out["underdog_flag"] = bool(other and other.get("p", 1) < 0.5 and other.get("edge_pp", 0) >= 3.0)
     return out
+
+# ------------------------------------------------------------------------------------
+# Kapija K20 — JEDNO mjesto za pravilo (27.09.2026 12:45, korisnikova odluka: dvije provjere)
+# Koriste je scripts/measure_candidates.py, scripts/intuicija_report.py i
+# scripts/intuicija_status_email.py, da se pravilo nikad ne razide na dva mjesta.
+# ------------------------------------------------------------------------------------
+GATE_CHECKS = (150, 300)        # prva provjera na 150, druga na 300; poslije svakih +300
+
+
+def _corr(xs, ys):
+    n = len(xs)
+    if n < 3:
+        return 0.0
+    mx, my = sum(xs) / n, sum(ys) / n
+    vx = sum((x - mx) ** 2 for x in xs)
+    vy = sum((y - my) ** 2 for y in ys)
+    if vx <= 0 or vy <= 0:
+        return 0.0
+    return sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / math.sqrt(vx * vy)
+
+
+def next_check(n: int) -> int:
+    for c in GATE_CHECKS:
+        if n < c:
+            return c
+    last = GATE_CHECKS[-1]
+    return last + 300 * ((n - last) // 300 + 1)
+
+
+def gate_status(pairs: list) -> dict:
+    """pairs = [(procjena_pp za naš pick, stvarni ostatak_pp, datum)] -> stanje kapije K20.
+
+    Kriterij (isti na svakoj provjeri, zapisan unaprijed u DECISION_INPUTS K20):
+      r(procjena, ostatak) >= max(0,12 ; 1,96/sqrt(n)) — tj. >= +0,12 I interval iznad nule
+      (uz n=150 to znači r >= 0,16, uz n=300 r >= 0,12); gornja trećina procjena >= +3pp i
+      barem 3pp iznad donje; r > 0 u obje vremenske polovice.
+    """
+    pairs = sorted(pairs, key=lambda x: str(x[2]))
+    n = len(pairs)
+    out = {"n": n, "next_check": next_check(n)}
+    if n < GATE_CHECKS[0]:
+        out["verdict"] = f"ČEKA prvu provjeru ({n}/{GATE_CHECKS[0]})"
+        out["passed"] = False
+        if n >= 10:
+            out["r"] = _corr([p[0] for p in pairs], [p[1] for p in pairs])
+        return out
+    xs, ys = [p[0] for p in pairs], [p[1] for p in pairs]
+    r = _corr(xs, ys)
+    need = max(0.12, 1.96 / math.sqrt(n))
+    srt = sorted(pairs, key=lambda p: p[0])
+    k = n // 3
+    lo = sum(p[1] for p in srt[:k]) / k
+    hi = sum(p[1] for p in srt[-k:]) / k
+    h = n // 2
+    r1 = _corr(xs[:h], ys[:h])
+    r2 = _corr(xs[h:], ys[h:])
+    passed = r >= need and hi >= 3.0 and hi - lo >= 3.0 and r1 > 0 and r2 > 0
+    done = [c for c in GATE_CHECKS if n >= c]
+    stage = f"{len(done)}. provjera (n={n})" if n < GATE_CHECKS[-1] + 300 else f"redovna provjera (n={n})"
+    out.update({"r": r, "need_r": need, "r_lo": r - 1.96 / math.sqrt(n), "top": hi, "bottom": lo,
+                "halves": (r1, r2), "stage": stage, "passed": passed,
+                "verdict": ("PROŠLA — prijedlog korisniku da Intuicija dobije riječ pri izboru tiketa"
+                            if passed else "NIJE PROŠLA — uči dalje u sjeni")})
+    return out
+
+
+def live_pairs(raw: list) -> tuple:
+    """Prave procjene iz baze: [(procjena za naš pick, ostatak, datum)] i ostaci autsajdera sa zastavicom."""
+    live, dogs = [], []
+    for r in raw:
+        cs = r.get("context_snapshot") or {}
+        s_ = cs.get("intuicija") or {}
+        pk = s_.get("pick") or {}
+        w = r.get("actual_winner")
+        if not pk or w not in (r.get("player1"), r.get("player2")):
+            continue
+        won = 1.0 if w == pk.get("player") else 0.0
+        live.append((pk.get("edge_pp", 0.0), 100 * (won - pk.get("p", 0.5)), str(r.get("match_date"))[:10]))
+        ot = s_.get("other") or {}
+        if s_.get("underdog_flag") and ot:
+            dogs.append(100 * ((1.0 - won) - ot.get("p", 0.5)))
+    return live, dogs

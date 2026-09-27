@@ -104,29 +104,19 @@ def main():
             print("    autsajdera s procjenom +3pp ili više: 0 (intuicija ih nije 'nanjušila')")
 
     print("\n=== 3. U SJENI (prave procjene zapisane prije meča) — kapija K20 ===")
-    live = []
-    for r in raw:
-        cs = r.get("context_snapshot") or {}
-        s_ = cs.get("intuicija") or {}
-        pk = s_.get("pick") or {}
-        w = r.get("actual_winner")
-        if not pk or w not in (r.get("player1"), r.get("player2")):
-            continue
-        won = 1.0 if w == pk.get("player") else 0.0
-        live.append((pk.get("edge_pp", 0.0), 100 * (won - pk.get("p", 0.5)), str(r.get("match_date"))[:10]))
-    if len(live) < 10:
-        print(f"  zapisanih i riješenih procjena: {len(live)} — kapija traži 300 (prvi zapisi od 28.09.2026)")
-    else:
-        s = r_and_terciles([x[0] for x in live], [x[1] for x in live])
-        half = len(live) // 2
-        s1 = r_and_terciles([x[0] for x in live[:half]], [x[1] for x in live[:half]])
-        s2 = r_and_terciles([x[0] for x in live[half:]], [x[1] for x in live[half:]])
-        print(f"  n={s['n']}  r={s['r']:+.3f} [{s['r_lo']:+.3f}, {s['r_hi']:+.3f}]  terciles "
-              f"{s['terc'][0]:+.1f} / {s['terc'][1]:+.1f} / {s['terc'][2]:+.1f}pp  polovice r "
-              f"{(s1 or {}).get('r', 0):+.3f} / {(s2 or {}).get('r', 0):+.3f}")
-        ok = (s["n"] >= 300 and s["r"] >= 0.12 and s["r_lo"] > 0 and s["terc"][2] >= 3.0
-              and s["terc"][2] - s["terc"][0] >= 3.0 and s1 and s2 and s1["r"] > 0 and s2["r"] > 0)
-        print(f"  K20: {'PROŠLA — prijedlog korisniku' if ok else ('ČEKA (n < 300)' if s['n'] < 300 else 'NIJE PROŠLA — uči dalje u sjeni')}")
+    live, dogs = it.live_pairs(raw)
+    g = it.gate_status(live)
+    print(f"  {g['verdict']}")
+    if g.get("stage"):
+        print(f"  {g['stage']}: r={g['r']:+.3f} (treba ≥ {g['need_r']:.2f}, donja granica intervala {g['r_lo']:+.3f}); "
+              f"gornja trećina {g['top']:+.1f}pp, donja {g['bottom']:+.1f}pp; polovice r "
+              f"{g['halves'][0]:+.3f} / {g['halves'][1]:+.3f}")
+    elif "r" in g:
+        print(f"  zasad (bez presude): r={g['r']:+.3f}")
+    print(f"  sljedeća provjera kod {g['next_check']} riješenih procjena")
+    if dogs:
+        print(f"  zastavice za autsajdera: {len(dogs)} riješenih, stvarni ostatak {sum(dogs)/len(dogs):+.1f}pp "
+              f"(o autsajderima se razgovara tek uz 40 slučajeva i ≥ +3pp)")
 
 
 if __name__ == "__main__":

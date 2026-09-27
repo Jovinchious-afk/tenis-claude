@@ -6,7 +6,7 @@ danima, jednostavnim jezikom). Brojke, obrazloženja i tehnički detalji su u
 (dalje: DI).
 
 **Pravilo:** na kraju svake radne sesije ovdje se dopiše što smo napravili i ažurira se
-popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 27.09.2026 12:34.
+popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 27.09.2026 12:49.
 
 **Jedna naredba za sve zakazane provjere kandidata:** `python scripts/measure_candidates.py`
 (čita bazu, ništa ne mijenja; kaže za svakog kandidata ČEKA / POTVRĐEN / PAO).
@@ -27,7 +27,7 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 | **K19 — povratak nakon pauze od 21+ dan** | 40 mečeva od 27.09.2026 | isti smjer kao na tržištu → ±2pp; obrnuto → odbacuje se. Povijest 27.09.: −2,5pp, ali polovice različite (slab znak) | DI K19 |
 | **K5, K8, K9, K10, K11** | sljedeći dovršeni turnir (Chengdu/Hangzhou, pa Tokyo/Beijing) | svaki ima svoj prag; **K11 (R16/QF) se od 26.09. prvi put mjeri na ručnim rundama**. **K5 od 27.09. traži n ≥ 100** (tržište u 1,35–1,43 daje +3,7pp); u R16/QF tržište nema rupe | DI K5-K11; `measure_candidates.py` |
 | **Konsenzus kladionica** | do kraja listopada 2026: 60+ pickova uz razliku ≥1pp — **vjerojatno nedostižno**: Odds API ne pokriva ATP 250, od 13.09. bilo je 0 takvih mečeva | iznad +5pp → tvrdi uvjet; ispod nule → maknuti bonus. Povijest 27.09.: smjer točan, ali učinak ≈ veličina razlike (2–3pp), ne +10pp | `agent/ticket_builder.py`, blok uz `_CONSENSUS_GAP_MIN` |
-| **K20 — Intuicija (naučeni signal u sjeni)** | 300 riješenih pickova s procjenom (od 28.09.2026; procjena: nekoliko mjeseci) | r ≥ +0,12 uz interval iznad nule, gornja trećina ≥ +3pp → prijedlog bonusa pri izboru tiketa (i za autsajdere); inače uči dalje u sjeni | DI K20; `python scripts/intuicija_report.py` |
+| **K20 — Intuicija (naučeni signal u sjeni)** | **dvije provjere:** 150 riješenih procjena (≈ sredina studenog) pa 300 (≈ siječanj), poslije svakih +300. **Mail sa stanjem stiže sam 15.11.2026 i 15.01.2027** | uz 150 treba r ≥ 0,16, uz 300 r ≥ 0,12 (interval iznad nule) i gornja trećina ≥ +3pp → prijedlog bonusa pri izboru tiketa (i za autsajdere); inače uči dalje u sjeni | DI K20; `python scripts/intuicija_report.py` |
 | **K14 — Davis Cup** | 20 riješenih Davis Cup mečeva (finalni turnir u studenom) | unutar 5pp od prosjeka → smije na tiket | DI K14 |
 | **Clay težine** | prije prve zemlje 2027. (siječanj 2027.) | aktivna v17 nastala je iz auto-feedbacka na analizama gubitaka (ELO spušten na 11%) — vratiti na v13 ili izjednačiti s hardom | Supabase `model_weights`; MODEL_CHANGELOG 26.09.2026 20:46 |
 
@@ -101,6 +101,21 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 ---
 
 ## NAPRAVLJENO — dnevnik
+
+### 27.09.2026 12:49 — Intuicija: dvije provjere (150 pa 300) i mail u dva zakazana dana
+
+Po tvojoj odluci Intuicija se provjerava **dva puta**: prvi put kad skupi **150** riješenih
+procjena (otprilike sredinom studenog), drugi put na **300** (siječanj). Nakon svake provjere
+nastavlja učiti. Uz manji uzorak provjera traži jači dokaz, pa rizik da prođe bezvrijedna
+intuicija ostaje mali (oko 3–4% preko obje provjere).
+
+**Javljanje:** bez dnevnog maila. GitHub će se sam upaliti **15.11.2026 i 15.01.2027** i poslati
+ti jedan mail sa stanjem; ja ću ti to reći i u prvoj sesiji nakon tih datuma (zapisano u memoriju).
+Mail se može poslati i ručno: GitHub → Actions → "Intuicija - provjera kapije K20" → Run, uz
+kvačicu "force".
+
+*Gdje:* `agent/intuicija.py` (`gate_status`, jedno mjesto za pravilo), `scripts/intuicija_status_email.py`,
+`.github/workflows/intuicija_status.yml`, K20 u `scripts/measure_candidates.py` i DI.
 
 ### 27.09.2026 12:34 — "Intuicija": naučeni signal koji prati svaki meč (u sjeni)
 

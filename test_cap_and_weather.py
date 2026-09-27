@@ -2735,6 +2735,32 @@ check("Intuicija se racuna TEK nakon sto je tiket slozen, a prije spremanja", _i
 check("Intuicija ne ulazi u prompt", "intuicija" not in _tmpl49.lower())
 check("prior datoteka postoji i ima koeficijente ili razlog sutnje",
       bool(_it50.load_prior().get("beta")) or bool(_it50.load_prior().get("silent")))
+# Kapija K20 (27.09.2026 12:46): dvije provjere, 150 pa 300, pravilo na JEDNOM mjestu.
+check("K20: ispod 150 ceka prvu provjeru", _it50.gate_status([(1.0, 0.0, "2026-10-01")] * 100)["verdict"].startswith("ČEKA"))
+check("K20: provjere na 150 i 300, poslije svakih +300",
+      _it50.next_check(0) == 150 and _it50.next_check(150) == 300 and _it50.next_check(300) == 600
+      and _it50.next_check(650) == 900)
+_rng50c = _np50.random.default_rng(11)
+_strong = []
+for _i in range(160):                       # jak signal: procjena dobro prati ostatak
+    _e = float(_rng50c.normal(0, 5))
+    _strong.append((_e, _e * 3 + float(_rng50c.normal(0, 20)), f"2026-{10 + _i // 60:02d}-{1 + _i % 28:02d}"))
+_gs = _it50.gate_status(_strong)
+check("K20: uz 150+ i jak signal prolazi (treba r >= 0,16)", _gs["passed"] and abs(_gs["need_r"] - max(0.12, 1.96 / 160 ** 0.5)) < 1e-9, str({k: _gs[k] for k in ("r", "need_r", "top", "bottom")}))
+_noise = [(float(_rng50c.normal(0, 5)), float(_rng50c.normal(0, 45)), f"2026-11-{1 + _i % 28:02d}") for _i in range(160)]
+check("K20: bez signala ne prolazi i uci dalje", not _it50.gate_status(_noise)["passed"]
+      and "uči dalje" in _it50.gate_status(_noise)["verdict"])
+import importlib.util as _ilu50
+_spec50 = _ilu50.spec_from_file_location("intuicija_status_email", "scripts/intuicija_status_email.py")
+_mail50 = _ilu50.module_from_spec(_spec50)
+_spec50.loader.exec_module(_mail50)
+import datetime as _dt50
+check("mail samo na zakazani dan (15.11.2026, 15.01.2027) ili dan poslije",
+      _mail50.is_scheduled(_dt50.date(2026, 11, 15)) and _mail50.is_scheduled(_dt50.date(2027, 1, 16))
+      and not _mail50.is_scheduled(_dt50.date(2026, 9, 27)) and not _mail50.is_scheduled(_dt50.date(2027, 11, 15)))
+_mcsrc50 = open("scripts/measure_candidates.py", encoding="utf-8").read()
+check("measure_candidates koristi ISTO pravilo (gate_status), ne vlastitu kopiju",
+      "from agent.intuicija import gate_status" in _mcsrc50)
 
 print("\n" + "=" * 60)
 if _fails:

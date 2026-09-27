@@ -16,6 +16,16 @@ dnevnik napravljenog jednostavnim jezikom. Dopunjava se na kraju svake radne ses
 
 ---
 
+## 2026-09-27 12:49 — Intuicija: kapija K20 na DVIJE provjere (150 pa 300); mail 15.11. i 15.01.
+
+Korisnikova odluka prije ijedne zapisane procjene. Kriterij isti, uz manji uzorak jači dokaz
+(r ≥ max(0,12; 1,96/√n): 150 → 0,16, 300 → 0,12). Pravilo na jednom mjestu
+(`agent.intuicija.gate_status`); mail sa stanjem `scripts/intuicija_status_email.py` +
+`.github/workflows/intuicija_status.yml` (cron 15.11. i 15.01., skripta sama provjerava datum).
+Bez dnevnog maila (korisnik ne želi). Testovi: odjeljak 50 (+6). Model i tiket nepromijenjeni.
+
+---
+
 ## 2026-09-27 12:34 — "INTUICIJA": naučeni signal u sjeni (K20); izbor tiketa i prompt NEPROMIJENJENI
 
 **Povod:** korisnikova želja za "intuicijskom varijablom" koja se kroz vrijeme razvija i

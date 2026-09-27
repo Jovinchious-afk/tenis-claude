@@ -914,6 +914,15 @@ slučajeva**, stvarni edge tih autsajdera mora biti ≥ +3pp da bi se o njima uo
 Snaga: uz n=300 interval za r je ±0,11. Mjeri: `python scripts/measure_candidates.py --only K20`
 i `python scripts/intuicija_report.py`.
 
+**IZMJENA PRAGA 27.09.2026 12:49 (korisnikova odluka, PRIJE ijedne zapisane procjene): DVIJE PROVJERE.**
+Prva kod **150** riješenih procjena, druga kod **300**, poslije svakih +300; nakon svake provjere
+Intuicija nastavlja učiti. Isti kriterij na svakoj, samo uz manji uzorak traži jači dokaz:
+r ≥ max(0,12 ; 1,96/√n) — uz 150 to je **r ≥ 0,16**, uz 300 **r ≥ 0,12** — plus (b) i (c) gore.
+Izračunato: bezvrijedna intuicija prođe ~2% po provjeri (~3-4% preko obje); dobra (r=0,15) prođe
+uz 150 u 45%, uz 300 u 70% slučajeva. Pravilo živi na JEDNOM mjestu: `agent.intuicija.gate_status`
+(koriste ga measure_candidates, intuicija_report i intuicija_status_email). Mail sa stanjem stiže
+sam 15.11.2026 i 15.01.2027 (`.github/workflows/intuicija_status.yml`).
+
 ### POVIJESNA PREDPROVJERA 27.09.2026 11:58 — 12.324 ATP meča naspram tržišne cijene
 
 Izvještaj: `revizije/2026-09-27/POVIJESNI_LAB_2026-09-27.md`; pragovi zapisani prije računanja
