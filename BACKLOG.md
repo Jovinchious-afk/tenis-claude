@@ -6,7 +6,7 @@ danima, jednostavnim jezikom). Brojke, obrazloženja i tehnički detalji su u
 (dalje: DI).
 
 **Pravilo:** na kraju svake radne sesije ovdje se dopiše što smo napravili i ažurira se
-popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 27.09.2026 12:49.
+popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 27.09.2026 19:29.
 
 **Jedna naredba za sve zakazane provjere kandidata:** `python scripts/measure_candidates.py`
 (čita bazu, ništa ne mijenja; kaže za svakog kandidata ČEKA / POTVRĐEN / PAO).
@@ -27,6 +27,7 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 | **K19 — povratak nakon pauze od 21+ dan** | 40 mečeva od 27.09.2026 | isti smjer kao na tržištu → ±2pp; obrnuto → odbacuje se. Povijest 27.09.: −2,5pp, ali polovice različite (slab znak) | DI K19 |
 | **K5, K8, K9, K10, K11** | sljedeći dovršeni turnir (Chengdu/Hangzhou, pa Tokyo/Beijing) | svaki ima svoj prag; **K11 (R16/QF) se od 26.09. prvi put mjeri na ručnim rundama**. **K5 od 27.09. traži n ≥ 100** (tržište u 1,35–1,43 daje +3,7pp); u R16/QF tržište nema rupe | DI K5-K11; `measure_candidates.py` |
 | **Konsenzus kladionica** | do kraja listopada 2026: 60+ pickova uz razliku ≥1pp — **vjerojatno nedostižno**: Odds API ne pokriva ATP 250, od 13.09. bilo je 0 takvih mečeva | iznad +5pp → tvrdi uvjet; ispod nule → maknuti bonus. Povijest 27.09.: smjer točan, ali učinak ≈ veličina razlike (2–3pp), ne +10pp | `agent/ticket_builder.py`, blok uz `_CONSENSUS_GAP_MIN` |
+| **Odds API → besplatni plan** (tvoja odluka 27.09.2026 19:29) | u listopadu otkazuješ plaćeni plan prije naplate (kupljen 15.08., naplata vjerojatno ~15.10.); plaćeni vrijedi do kraja razdoblja | prva sesija nakon prelaska: besplatnim pozivom `/sports` (0 kredita) provjeriti radi li ključ i piše li limit 500 (`x-requests-remaining`); ako je ključ nov → GitHub Secrets `ODDS_API_KEY` i `.env`. Uz tvoj OK smanjiti večernje snimanje kvota s 3 na 1 dnevno (dan turnira sada troši ~14 kredita, najgori mjesec ~430 od 500; uz 1 snimanje ~240). RapidAPI ostaje Pro | `.github/workflows/market_close.yml`, `agent/market.py` |
 | **K20 — Intuicija (naučeni signal u sjeni)** | **dvije provjere:** 150 riješenih procjena (≈ sredina studenog) pa 300 (≈ siječanj), poslije svakih +300. **Mail sa stanjem stiže sam 15.11.2026 i 15.01.2027** | uz 150 treba r ≥ 0,16, uz 300 r ≥ 0,12 (interval iznad nule) i gornja trećina ≥ +3pp → prijedlog bonusa pri izboru tiketa (i za autsajdere); inače uči dalje u sjeni | DI K20; `python scripts/intuicija_report.py` |
 | **K14 — Davis Cup** | 20 riješenih Davis Cup mečeva (finalni turnir u studenom) | unutar 5pp od prosjeka → smije na tiket | DI K14 |
 | **Clay težine** | prije prve zemlje 2027. (siječanj 2027.) | aktivna v17 nastala je iz auto-feedbacka na analizama gubitaka (ELO spušten na 11%) — vratiti na v13 ili izjednačiti s hardom | Supabase `model_weights`; MODEL_CHANGELOG 26.09.2026 20:46 |
@@ -101,6 +102,30 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 ---
 
 ## NAPRAVLJENO — dnevnik
+
+### 27.09.2026 19:29 — Pretplate: Odds API ide na besplatni plan, RapidAPI ostaje Pro
+
+Izmjerili smo koliko stvarno trošimo na dva plaćena izvora podataka (tvoje pitanje može li
+se pretplata spustiti):
+
+- **RapidAPI (Pro, 29 $):** od 07.09. potrošeno 12.752 od 75.000 poziva, oko 625 dnevno
+  (~19.000 mjesečno, 25%). Besplatni plan daje 50 poziva dnevno, a samo jutarnji run troši
+  stotine — zato ostaje Pro. Na slici plana piše 150.000, ali API nama javlja 75.000.
+- **The Odds API (20K, 30 $):** u rujnu 187 od 20.000 kredita (1%), u tome 13 dana US Opena.
+  Tenis pokriva samo 22 ATP turnira (Grand Slamovi, Mastersi, dio 500-ica), od 13.09.
+  nijedan. Besplatni plan (500 kredita) ima oštre kladionice (Pinnacle, Betfair, Matchbook,
+  Smarkets); otpadaju povijesne kvote (ne koristimo ih) i 2 američke kuće od ~44 po meču.
+
+**Odluka:** u listopadu prelaziš na besplatni Odds API; RapidAPI ostaje kako jest. Ušteda
+~360 $ godišnje. U kodu ništa nije mijenjano.
+
+**Pazi:** dan pokrivenog turnira troši ~14 kredita, od toga 9 tri večernja snimanja kvota
+(samo mjerni alat). Najgori mjesec (npr. travanj) procijenjen je na ~430 od 500 — tijesno.
+Ako krediti nestanu, ništa ne puca: jutarnji run samo preskoči konsenzus do kraja mjeseca.
+Što napraviti nakon prelaska piše u "ČEKA".
+
+Gdje u kodu: `agent/market.py` (konsenzus), `scripts/capture_market_close.py` i
+`.github/workflows/market_close.yml` (tri snimanja dnevno), `agent/data_fetcher.py` (RapidAPI).
 
 ### 27.09.2026 12:49 — Intuicija: dvije provjere (150 pa 300) i mail u dva zakazana dana
 
