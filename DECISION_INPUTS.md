@@ -138,7 +138,11 @@ kazna za najslabiji pick išla je s faktorom 1,5 i sidrom 68 (gurala je izbor pr
 65-68, koji ide −35,4%) — sada faktor 0,6 i sidro 63; kazna za dodatne parove bila je
 usidrena na fiksnu četvorku pa bi trojac dobio skriveni bonus od +3 boda.
 
-## 3. Bilježi se, ali NE utječe na odluku — `context_snapshot` v21
+## 3. Bilježi se, ali NE utječe na odluku — `context_snapshot` v21 (v23 od 27.09.2026)
+
+**v23 (27.09.2026 11:58):** vijesti po igraču s Google Newsa (`p1_gnews` / `p2_gnews`, naslovi
+iz zadnjih 14 dana, `injury_n`, oznaka `bet` za kladioničarske naslove) — samo za mjerenje K13;
+model ih ne vidi.
 
 Vremenski uvjeti u punom obliku (temperatura, vlaga, vjetar, tlak na razini mora i na tlu,
 uvjet, koliko je prognoza udaljena od sata meča); je li teren natkriven; je li meč u prvom
@@ -718,6 +722,22 @@ rijecju "favorite" ili "odds" prodje u prompt, model prestaje biti neovisan o tr
 ruse se i konsenzusni bonus i ovo mjerenje. Vidi mjerenje od 08.09.2026 (+11,3% → −2,2%
 → −7,7%).
 
+#### K13 — NOVI IZVOR OD 27.09.2026 11:58: Google News po imenu igrača (samo bilježenje)
+
+Stari kanal (ESPN/BBC) od 13.09. nije dao nijednu vijest o našem igraču (0 od 43 analize).
+Od `context_version` 23 svaka analiza bilježi `p1_gnews` / `p2_gnews` (`agent/player_news.py`):
+naslovi iz zadnjih 14 dana, `injury_n` = broj naslova s riječju o ozljedi/odustajanju (cijele
+riječi; kladioničarski naslovi označeni `bet` istim `_NEWS_EXCLUDE` popisom i ne broje se).
+**Model ih ne vidi** (ključ `gnews`, prompt čita samo `news`), pa se era ne mijenja.
+
+**PRAG (zapisan 27.09.2026 11:58, prije ijednog podatka iz novog izvora):** kad se skupi
+**40 razriješenih analiza** (v >= 23) u kojima protivnik našeg picka ima `injury_n >= 1`:
+edge tih pickova naspram devig cijene mora biti **≥ +5pp veći** od ostalih pickova istog
+razdoblja. Ako da → prijedlog korisniku da vijest uđe u odluku (kao kod, ne kao prompt). Ako
+razlika ≤ 0 → ostaje samo bilježenje. Snaga: uz n=40 interval je ±15pp, pa je ovo probir, ne
+dokaz (`.claude/skills/mjerenje/scripts/snaga.py`). Stari prag (n≥15, kanal u promptu) vrijedi
+i dalje za `p*_news`, ali taj kanal je praktički prazan.
+
 ### K14 — Davis Cup: analizira se, ne igra se (19.09.2026 11:50)
 
 Uveden kao vlastita razina na korisnikov zahtjev. **Nije kandidat za signal nego za
@@ -842,6 +862,45 @@ Tržište povratak nakon pauze sustavno blago precjenjuje. Nedavna PREDAJA to ne
 (+3,5 naspram +2,4pp — tržište ozljede već cijeni).
 **PRAG:** 40 naših mečeva (od 27.09.2026) u kojima pick ILI protivnik ima `days_rest` ≥ 21:
 pick s pauzom < 0 i protivnik s pauzom > 0 → ±2pp; obrnuto → odbaciti.
+
+### POVIJESNA PREDPROVJERA 27.09.2026 11:58 — 12.324 ATP meča naspram tržišne cijene
+
+Izvještaj: `revizije/2026-09-27/POVIJESNI_LAB_2026-09-27.md`; pragovi zapisani prije računanja
+u `revizije/2026-09-27/PRAGOVI_POVIJESNI_LAB.md` (11:33). Podaci: tennis-data.co.uk 2022 –
+13.09.2026 (Pinnacle bez marže, inače prosjek kladionica) + TML (runde, statistika, povijest).
+Kriterij PROLAZI = |edge| ≥ 2pp, interval ne prelazi nulu, isti predznak u obje polovice
+(2022–23 / 2024–26) i isti smjer kao u registru. **Nijedan kandidat nije prošao.**
+
+    kandidat                               n       edge    95% interval    P1 / P2      presuda
+    K15 više ATP pobjeda u sezoni        11.139   +0,0pp  [−0,8, +0,9]   −0,5 / +0,5   PADA
+    K16 jedini s GS SF (QF/SF/F)            826   +1,1pp  [−2,0, +4,1]   +1,0 / +1,2   PADA
+    K18 favorit na hard ATP 250           2.311   +0,1pp  [−1,7, +2,0]   +0,0 / +0,2   PADA
+    K19 povratak nakon 21+ dan            1.018   −2,5pp  [−5,2, +0,3]   +0,5 / −4,7   PADA
+    K2  domaći igrač                      2.775   −1,4pp  [−3,1, +0,2]   −1,2 / −1,6   PADA (nije +)
+    K3  Bo5 favorit 1,30–1,50               563   +4,3pp  [+0,6, +7,9]   +4,7 / +4,0   PADA (suprotan smjer)
+    K11 favorit u R16/QF                  3.423   +0,6pp  [−0,9, +2,1]   +0,3 / +0,9   PADA
+    povijest na turniru (bolja)           6.198   +0,2pp  [−0,8, +1,3]   −0,4 / +0,6   PADA
+    K12 servis na turniru, dubina 3+        970   +0,4pp  [−2,4, +3,2]   −0,4 / +0,9   PADA  (r = +0,004)
+    zajednički protivnik (CO)            10.661   +0,2pp  [−0,7, +1,0]   −0,1 / +0,4   PADA
+
+Pojasevi favorita (K5/K10): 1,35–1,43 **+3,7pp** [+1,3, +6,1] (obje polovice +) — tržište u
+tom pojasu NEMA rupu, favoriti ondje prolaze bolje od cijene; <1,20 +1,9pp; 1,43–1,60 −0,4pp.
+Konsenzus (Bet365 naspram poštene cijene): edge ≈ gap; ROI po Bet365 tek u gap ≥ +2pp oko nule
+(+0,5% [−3,5, +4,5]). Naši pickovi naspram zatvorne cijene (n=417): edge +1,5pp [−2,9, +5,9],
+EV po SuperSport kvoti −5,3%, noge pravih tiketa EV −3,1% (n=211).
+
+**Kako čitati:** kandidati o OSOBINI igrača (K15, K16, K19, K2, povijest, K12, CO) ovime su
+izravno provjereni — tržište ih plaća. Kandidati o NAŠEM izboru (K5, K11, K18) ovdje se ne mogu
+potvrditi ni oboriti; test samo kaže da tržište ondje nema rupu.
+
+**Preporuke korisniku (NIŠTA nije ugrađeno, statusi gore u registru NISU mijenjani):**
+zatvoriti K15, K16, K3; K5 ne uvoditi na n=20 (tražiti n ≥ 100 ako se mjeri dalje); pravilo 11
+(domaći) i prosjek statistike s turnira (K12) maknuti iz prompta uz sljedeću izmjenu prompta
+(`revizije/2026-09-27/PROMPT_AUDIT_2026-09-27.md`); K11, K18, K19 mjeriti dalje uživo;
+konsenzus zadržati, očekivanje spustiti na ≈ veličinu gapa.
+
+**Novo za promatranje (nije kandidat, nađeno naknadno):** Grand Slam favoriti 1,30–1,50
++4,3pp (Holm P=0,23 — nije dokazano). Provjeriti na AO 2027; do tada ništa ne mijenjati.
 
 ### IZMJERENO I ODBAČENO 26.09.2026 20:46 — tri korisnikove ideje i sekvenca
 

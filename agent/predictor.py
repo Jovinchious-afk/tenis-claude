@@ -1854,7 +1854,13 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             # visina/tezina None umjesto 0. Uz to nova era prompta: scouting vise ne salje
             # "favourable/tough matchups", a asovi su ispravno oznaceni "per 100 serve pts".
             # Granica ere — rezati po `context_version` >= 22 ili po novom `rules_hash`.
-            "context_version": 22,
+            # v23 (27.09.2026 11:53): vijesti po igracu s Google Newsa (`p*_gnews`,
+            # agent/player_news.py) — SAMO ZA MJERENJE K13. Prompt i `rules_hash` se NE
+            # mijenjaju: model ove vijesti ne vidi (kljuc je `gnews`, prompt cita `news`).
+            # Neuspjeh dohvata je {"error": ...}, ne prazno. Mjerenje K13 rezati po v >= 23.
+            "context_version": 23,
+            "p1_gnews": p1.get("gnews") or None,
+            "p2_gnews": p2.get("gnews") or None,
             "p1_ctx": p1.get("ctx") or None,
             "p2_ctx": p2.get("ctx") or None,
             "player_ctx_version": 1,

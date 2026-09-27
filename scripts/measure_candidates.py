@@ -26,6 +26,9 @@ PRAGOVI (zapisani PRIJE podataka; isti su u DECISION_INPUTS.md, sekcija 0a):
                                                tiketu; > 0 -> odbaciti
   K19  pauza >= 21 dan             od 27.09.   n>=40 (pick ili protivnik); predznak kao na trzistu
                                                (pick s pauzom < 0, protivnik s pauzom > 0)
+  K13  protivnik s vijesti o ozljedi od 28.09.  (snapshot v23, Google News, dodano 27.09.2026 12:03)
+                                               n>=40 i edge >= ostali + 5pp -> prijedlog korisniku;
+                                               razlika <= 0 -> samo biljezenje
   KONS konsenzus >= +1pp           od 08.09.   do 31.10.2026: n>=60 i edge > +5pp -> tvrdi uvjet;
                                                edge < 0 -> maknuti bonus
 """
@@ -80,6 +83,11 @@ def load_rows() -> list:
             "scout_pick": cs.get(f"{a}_scouting_confidence"),
             "rest_pick": cs.get(f"{a}_days_rest"), "rest_opp": cs.get(f"{b}_days_rest"),
             "gap": (100 * (mp_pick - p)) if mp_pick is not None else None,
+            # K13 (27.09.2026 12:03): broj naslova o ozljedi iz Google Newsa (v23);
+            # None = nema zapisa ili dohvat nije uspio (tada se redak ne broji).
+            "ctxv": cs.get("context_version") or 0,
+            "inj_pick": (cs.get(f"{a}_gnews") or {}).get("injury_n"),
+            "inj_opp": (cs.get(f"{b}_gnews") or {}).get("injury_n"),
         })
     return out
 
@@ -163,6 +171,21 @@ def k19(rows):
             ("    PROTIVNIK s pauzom >= 21 dan", n2, e2, "")]
 
 
+def k13(rows):
+    """Pickovi protiv igraca s vijesti o ozljedi (DI K13, prag zapisan 27.09.2026 11:58)."""
+    s = [r for r in rows if r["ctxv"] >= 23 and r["inj_opp"] is not None]
+    inj = [r for r in s if r["inj_opp"] >= 1]
+    rest = [r for r in s if r["inj_opp"] == 0]
+    n1, e1 = edge(inj)
+    n2, e2 = edge(rest)
+    if n1 >= 40 and e1 is not None and e2 is not None:
+        st = "POTVRDJEN" if e1 - e2 >= 5 else ("PAO" if e1 - e2 <= 0 else "NEJASNO")
+    else:
+        st = "CEKA"
+    return [("K13 protivnik s vijesti o ozljedi (v23)", n1, e1, st),
+            ("    protivnik bez takve vijesti", n2, e2, "")]
+
+
 def kons(rows):
     s = [r for r in rows if r["date"] >= "2026-09-08" and r["gap"] is not None]
     pos = [r for r in s if r["gap"] >= 1]
@@ -172,7 +195,7 @@ def kons(rows):
             ("     mecevi s konsenzusom uopce", len(s), None, "")]
 
 
-ALL = {"K5": k5, "K10": k10, "K11": k11, "K17": k17, "K18": k18, "K19": k19, "KONS": kons}
+ALL = {"K5": k5, "K10": k10, "K11": k11, "K13": k13, "K17": k17, "K18": k18, "K19": k19, "KONS": kons}
 
 if __name__ == "__main__":
     # Preusmjerenje izlaza SAMO kad se skripta pokrece — test je uvozi kao modul, a zamjena

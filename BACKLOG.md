@@ -6,12 +6,31 @@ danima, jednostavnim jezikom). Brojke, obrazloženja i tehnički detalji su u
 (dalje: DI).
 
 **Pravilo:** na kraju svake radne sesije ovdje se dopiše što smo napravili i ažurira se
-popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 26.09.2026 21:27.
+popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 27.09.2026 12:00.
 
 **Jedna naredba za sve zakazane provjere kandidata:** `python scripts/measure_candidates.py`
 (čita bazu, ništa ne mijenja; kaže za svakog kandidata ČEKA / POTVRĐEN / PAO).
 
 ---
+
+## ČEKA — TVOJE ODLUKE (iz povijesnog laboratorija, 27.09.2026 12:00)
+
+Na 12.324 ATP meča nijedan naš kandidat nije pobijedio tržišnu cijenu (izvještaj
+`revizije/2026-09-27/POVIJESNI_LAB_2026-09-27.md`). Ništa od ovoga nije ugrađeno:
+
+1. **Zatvoriti K15, K16 i K3?** Tržište pobjede u sezoni i GS iskustvo već plaća (+0,0pp na
+   11.139 i +1,1pp na 826 mečeva); Bo5 favoriti 1,30–1,50 idu čak +4,3pp, suprotno od K3.
+2. **K5 (oprezna zona od 1,35):** na tržištu su favoriti u 1,35–1,43 BOLJI od cijene (+3,7pp).
+   Prijedlog: ne uvoditi na n=20; ako se mjeri dalje, tražiti n ≥ 100.
+3. **Jedna nova era prompta** (sve odjednom, da se ne troše dvije ere): maknuti pravilo o
+   domaćem terenu (K2 — domaći igrači −1,4pp naspram cijene), uputu o statistici s turnira svesti
+   na opis (K12 — r=+0,004), ispraviti "63%" na dva mjesta (kod je na 60), maknuti datume i
+   CAPS naglaske iz teksta, i uz to stavku "nesigurnost brojki". Gotov prijedlog izmjene:
+   `revizije/2026-09-27/PROMPT_AUDIT_2026-09-27.md`.
+4. **Struktura oklade — najveća poluga za ROI.** Noge pravih tiketa imaju prosječni EV −3,1%
+   po SuperSport kvoti; tiket od 4 noge je zato oko −12% očekivano. Manje nogu, ili samo noge s
+   jasnom prednošću u cijeni (konsenzus ≥ +3pp iznad SuperSporta), bilo bi bliže nuli —
+   ali daje puno manje tiketa.
 
 ## ČEKA — zakazane provjere
 
@@ -20,30 +39,41 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 
 | što | kada / uvjet | ishod | gdje |
 |---|---|---|---|
-| **K15 — ATP pobjede u sezoni** | 150 riješenih analiza od 27.09.2026 (procjena: druga polovica listopada) | potvrdi → bonus pri izboru tiketa; padne → odbacuje se | DI K15; `python scripts/measure_player_context.py` |
-| **K16 — GS iskustvo u završnicama** | 40 mečeva QF/SF/F u kojima samo jedan igrač ima GS polufinale (više mjeseci) | +5pp ili više → razmotriti bonus u završnicama | DI K16 |
+| **K15 — ATP pobjede u sezoni** | 150 riješenih analiza od 27.09.2026 (procjena: druga polovica listopada) | potvrdi → bonus pri izboru tiketa; padne → odbacuje se. **Povijest 27.09.: +0,0pp na 11.139 mečeva — predlažem zatvoriti** | DI K15; `python scripts/measure_player_context.py` |
+| **K16 — GS iskustvo u završnicama** | 40 mečeva QF/SF/F u kojima samo jedan igrač ima GS polufinale (više mjeseci) | +5pp ili više → razmotriti bonus u završnicama. **Povijest 27.09.: +1,1pp, interval prelazi nulu — predlažem zatvoriti** | DI K16 |
 | **Omjer protiv ljevaka** | 300 mečeva s ljevakom (danas 120) | ponovno izmjeriti; do tada samo bilježenje | DI "IZMJERENO 26.09.2026" |
 | **K1 — prag 60 + kazna 65-68** | prvi dovršeni turnir u eri 9696c4ee (prompt očišćen 26.09. 21:27, raspodjela pouzdanosti će se pomaknuti) | skupina 60-63 ispod nule uz n≥25 → prag natrag na 63 | DI K1 |
 | **K17 — pick s "High" scouting profilom** | 30 takvih pickova od 27.09.2026 | ≤ −5pp → kazna −3pp; iznad nule → odbacuje se | DI K17; `measure_candidates.py` |
-| **K18 — hard ATP 250 turniri** | 30 takvih pickova od 27.09.2026 (jesen je puna 250-ica) | ≤ −5pp → najviše jedna takva noga po tiketu; iznad nule → odbacuje se | DI K18 |
-| **K19 — povratak nakon pauze od 21+ dan** | 40 mečeva od 27.09.2026 | isti smjer kao na tržištu → ±2pp; obrnuto → odbacuje se | DI K19 |
-| **K5, K8, K9, K10, K11** | sljedeći dovršeni turnir (Chengdu/Hangzhou, pa Tokyo/Beijing) | svaki ima svoj prag; **K11 (R16/QF) se od 26.09. prvi put mjeri na ručnim rundama** | DI K5-K11; `measure_candidates.py` |
-| **Konsenzus kladionica** | do kraja listopada 2026: 60+ pickova uz razliku ≥1pp — **vjerojatno nedostižno**: Odds API ne pokriva ATP 250, od 13.09. bilo je 0 takvih mečeva | iznad +5pp → tvrdi uvjet; ispod nule → maknuti bonus | `agent/ticket_builder.py`, blok uz `_CONSENSUS_GAP_MIN` |
-| **K12 — prosjek statistike s turnira** | dubina 3+ uz kvotu dosegne n≥100 | interval i dalje prelazi nulu → samo bilježenje | DI K12 |
+| **K18 — hard ATP 250 turniri** | 30 takvih pickova od 27.09.2026 (jesen je puna 250-ica) | ≤ −5pp → najviše jedna takva noga po tiketu; iznad nule → odbacuje se. Povijest 27.09.: tržište ondje nema rupu (+0,1pp) — ako postoji, to je naš izbor | DI K18 |
+| **K19 — povratak nakon pauze od 21+ dan** | 40 mečeva od 27.09.2026 | isti smjer kao na tržištu → ±2pp; obrnuto → odbacuje se. Povijest 27.09.: −2,5pp, ali polovice različite (slab znak) | DI K19 |
+| **K5, K8, K9, K10, K11** | sljedeći dovršeni turnir (Chengdu/Hangzhou, pa Tokyo/Beijing) | svaki ima svoj prag; **K11 (R16/QF) se od 26.09. prvi put mjeri na ručnim rundama**. Povijest 27.09.: tržište u 1,35–1,43 daje +3,7pp (vidi odluku 2 gore), u R16/QF nema rupe | DI K5-K11; `measure_candidates.py` |
+| **Konsenzus kladionica** | do kraja listopada 2026: 60+ pickova uz razliku ≥1pp — **vjerojatno nedostižno**: Odds API ne pokriva ATP 250, od 13.09. bilo je 0 takvih mečeva | iznad +5pp → tvrdi uvjet; ispod nule → maknuti bonus. Povijest 27.09.: smjer točan, ali učinak ≈ veličina razlike (2–3pp), ne +10pp | `agent/ticket_builder.py`, blok uz `_CONSENSUS_GAP_MIN` |
+| **K12 — prosjek statistike s turnira** | dubina 3+ uz kvotu dosegne n≥100 | interval i dalje prelazi nulu → samo bilježenje. **Povijest 27.09.: r=+0,004 na 970 mečeva dubine 3+ → po vlastitom pragu izlazi iz prompta (odluka 3 gore)** | DI K12 |
 | **K14 — Davis Cup** | 20 riješenih Davis Cup mečeva (finalni turnir u studenom) | unutar 5pp od prosjeka → smije na tiket | DI K14 |
-| **K2 — domaći teren** | još 20 mečeva s domaćim igračem (26.09.: 9, edge +0,7pp) | protivnik-domaći ostane iznad +3pp → kazna se briše iz prompta | DI K2 |
-| **K3 — Bo5, kvote 1,30-1,50** | Australian Open, siječanj 2027 | n≥50 i ispod -8pp | DI K3 |
+| **K2 — domaći teren** | još 20 mečeva s domaćim igračem (26.09.: 9, edge +0,7pp) | protivnik-domaći ostane iznad +3pp → kazna se briše iz prompta. **Povijest 27.09.: domaći igrači −1,4pp naspram cijene → podržava brisanje (odluka 3 gore)** | DI K2 |
+| **K3 — Bo5, kvote 1,30-1,50** | Australian Open, siječanj 2027 | n≥50 i ispod -8pp. **Povijest 27.09.: +4,3pp, suprotan smjer — predlažem zatvoriti** | DI K3 |
 | **Clay težine** | prije prve zemlje 2027. (siječanj 2027.) | aktivna v17 nastala je iz auto-feedbacka na analizama gubitaka (ELO spušten na 11%) — vratiti na v13 ili izjednačiti s hardom | Supabase `model_weights`; MODEL_CHANGELOG 26.09.2026 20:46 |
 
 ## ČEKA — ideje i popravci bez roka
 
 - **Drugi izvor tržišnog konsenzusa za ATP 250.** The Odds API pokriva samo GS, Masters i
   nekoliko 500-ica; na ostalim turnirima jedini potvrđeni tržišni signal ne postoji. Treba
-  odabrati izvor (i možda platiti) — korisnikova odluka.
+  odabrati izvor (i možda platiti) — korisnikova odluka. *Dopuna 27.09.2026 11:09:* jedan
+  javni projekt (`gmalbert/tennis-predictions`) vuče kvote više kladionica za sve teniske
+  mečeve iz nedokumentiranih Flashscore adresa, bez ključa. Besplatno, ali može puknuti bilo
+  kad i vjerojatno krši uvjete stranice — samo kao opcija za tvoju odluku.
 
 - **Vijesti po igraču.** ESPN i BBC od 13.09. nisu dali nijednu vijest o igračima koje
   analiziramo (0 od 43 analize) — pišu o vrhu tablice. Treba izvor koji traži po imenu
   igrača. Bez toga se K13 (vijesti o ozljedama) ne može izmjeriti.
+  *Rješenje nađeno 27.09.2026 11:09:* Google News RSS pretraga po imenu (besplatno, bez
+  ključa) — probano na Machaču, vratio je 50+ članaka, među njima i vijest o njegovoj ozljedi
+  stopala s Roland-Garrosa. **NAPRAVLJENO 27.09.2026 12:00:** bilježi se uz svaku analizu
+  (model ne vidi); K13 se mjeri kad bude 40 pickova protiv igrača s vijesti o ozljedi (DI K13).
+
+- ~~**Povijesni laboratorij**, **radni tijek u Claude Codeu** (CLAUDE.md, `/oblikuj`,
+  `/mjerenje`, `/kraj-sesije`, skeptik) i **pregled prompta** (izvještaj)~~ — **NAPRAVLJENO
+  27.09.2026 12:00**, vidi dnevnik. Primjena pregleda prompta čeka tvoju odluku 3 na vrhu.
 - **Winston-Salem: traženje turnira odustaje nakon 5 pokušaja** pri razrješavanju rezultata,
   pa dio analiza ostane nerazriješen. Prijedlog od 31.08.2026, čeka odobrenje.
 - **Nesigurnost brojki u promptu** (npr. hold% je procjena ±8pp, a prikazuje se kao
@@ -64,6 +94,20 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
   analizu, pa izmjena ne reže korpus. Posljedica: K1 (prag 60) i kazna za pojas 65-68
   moraju se ponovno izmjeriti nakon jednog turnira. Pravilo 11 (domaći teren) čeka K2.
 
+## ČEKA — na tvoj znak (dogovoreno 27.09.2026 12:00, sada se NE radi)
+
+- **Supabase MCP, samo za čitanje** (`read_only=true`, `project_ref` samo ovog projekta) —
+  Claude bi u sesijama izravno čitao bazu umjesto da piše skripte. Treba tvoja jednokratna
+  prijava u pregledniku.
+- **Playwright MCP + `/run-skill-generator`** — Claude otvori Streamlit aplikaciju, klikne i
+  napravi screenshot, da vidi rezultat izmjene na stranicama ("Claude je slijep"). Isplati se
+  tek kad budemo mijenjali stranice.
+- **rtk** (`winget install rtk-ai.rtk`) — skraćuje ispis naredbi (git, testovi) koji Claude
+  čita. Mali dobitak; mjeri se s `rtk gain`, lako se makne.
+- **Sonnet 5 umjesto Sonnet 4.6** — jeftiniji po tokenu ($2/$10 naspram $3/$15), ali broji ~30%
+  više tokena i razmišljanje mu je uključeno po zadanom (treba veći `_ANALYSIS_MAX_TOKENS`).
+  Sonnet 4.6 nije zastario; raditi samo na prijelomu ere, najbolje zajedno s odlukom 3.
+
 ## Redovito održavanje
 
 - **Ruka novih igrača:** dnevni run nepoznate igrače dohvaća sam (najviše 150 po runu), ali
@@ -75,6 +119,50 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 ---
 
 ## NAPRAVLJENO — dnevnik
+
+### 27.09.2026 12:00 — povijesni laboratorij, vijesti po igraču, radni tijek, Handy (tvoje odobrenje)
+
+1. **Povijesni laboratorij.** Tvoje tablice (tennis-data 2022–2026) spojene su s TML-om
+   (runde, statistika, povijest igrača) — 12.324 meča, spojeno 99,7%. Pragovi su zapisani prije
+   računanja. **Glavno:** nijedan naš kandidat ne pobjeđuje tržište; naša "rupa" na 1,35–1,60
+   nije tržišna (favoriti na 1,35–1,43 su čak bolji od cijene); naši pickovi su točni koliko i
+   tržište, a po SuperSport kvoti prosječno gube maržu (EV −5,3% po picku, −3,1% po nozi tiketa).
+   SuperSport nije lošiji od prosjeka kladionica (marža 5,2% naspram 6,25%).
+   *Služi:* znamo što NE uvoditi (K3, K5, K15, K16) i što izbaciti iz prompta (domaći teren,
+   statistika s turnira). Odluke su na vrhu, pod "TVOJE ODLUKE". **Ništa u modelu nije mijenjano.**
+2. **Vijesti po igraču** s Google Newsa bilježe se uz svaku analizu od sljedećeg runa (naslovi
+   iz zadnjih 14 dana, oznaka ozljede). Model ih ne vidi, era se ne mijenja; ako Google ne
+   odgovori, run ide dalje. Za oko 20 mečeva run je dulji otprilike 50 sekundi.
+3. **Pregled prompta** prema Claudeovim uputama — samo izvještaj s gotovim prijedlogom izmjene.
+4. **Radni tijek u Claude Codeu:** `CLAUDE.md` (cilj projekta i pravila), naredbe `/oblikuj`,
+   `/mjerenje`, `/kraj-sesije` i pomoćnik `skeptik`. **Pazi:** skeptik postaje dostupan tek u
+   novoj sesiji (nova mapa se učitava pri pokretanju); ako se naredbe ne pojave, upiši
+   `/reload-skills`.
+5. **Handy** (diktiranje, v0.9.7) instaliran iz službenog izdanja, otisak datoteke provjeren.
+6. **Usput nađeno:** u TML podacima za 2026. "datum turnira" je zapravo datum meča — popravljeno
+   u učitavanju prije ijednog testa.
+
+*Gdje:* izvještaji `revizije/2026-09-27/` (POVIJESNI_LAB, PRAGOVI, PROMPT_AUDIT, skripte
+`lab_*.py`); vijesti `agent/player_news.py`, `agent/run_daily.py` (blok "VIJESTI PO IGRACU"),
+`agent/predictor.py` (`context_version` 23); radni tijek `CLAUDE.md`, `.claude/skills/`,
+`.claude/agents/skeptik.md`. Testovi: oba paketa prolaze, `test_cap_and_weather.py` odjeljak 49.
+
+### 27.09.2026 11:09 — pregled besplatnih alata s tvog popisa (samo istraživanje)
+
+Prošao sam sve linkove, skillove i repozitorije iz tvojih bilježaka (~70 stavki). U kodu i
+modelu **ništa nije mijenjano** i ništa nije instalirano. Prijedlozi su gore u "ČEKA — ideje"
+(povijesni laboratorij, vijesti po igraču, radni tijek u Claude Codeu, pregled prompta,
+Sonnet 5).
+
+Usput izmjereno u bazi (samo čitanje): od 28.08. **nijedna analiza nije pala** na JSON-u
+(21 od 171 spašena drugim pokušajem), a keširanje prompta radi (41 od 51 analize od 08.09.).
+Zato alati za "sigurni JSON" (Instructor, Outlines) ne trebaju. Analiza je malo (51 u 19
+dana), pa API trošak pipelinea iznosi nekoliko dolara mjesečno — alati za štednju tokena
+mogu uštedjeti samo na sesijama u Claude Codeu.
+
+Važno iz bilježaka koje ne stoji: Sackmannovi `tennis_atp`/`tennis_wta` su obrisani s GitHuba;
+`/voice` ne podržava hrvatski (za diktiranje: besplatni Handy); `/goal` služi za jednu sesiju,
+nije cilj projekta; hook ne može prepisati tvoj prompt, samo dodati kontekst.
 
 ### 26.09.2026 21:27 — očišćen prompt analize (tvoje odobrenje)
 

@@ -432,8 +432,8 @@ for f in ("p1_serve_pts_won", "p1_hold_pct", "p1_hold_pct_from_bp", "p1_return_w
           "p1_return_won_weighted", "p1_bp_saved", "p1_bp_converted", "p1_first_serve_pct",
           "bp_in_prompt"):
     check(f"snapshot biljezi {f}", f'"{f}"' in _all)
-check("context_version podignut na 22 (v17 27.08., v18/v19 13.09., v20 19.09., v21/v22 26.09.)",
-      '"context_version": 22' in _all)
+check("context_version podignut na 23 (v17 27.08., v18/v19 13.09., v20 19.09., v21/v22 26.09., v23 27.09.)",
+      '"context_version": 23' in _all)
 
 # (e) nove vrijednosti ne smiju procuriti u prompt template
 check("prompt template nema novih polja",
@@ -542,7 +542,7 @@ _wf2 = open(".github/workflows/daily_ticket.yml", encoding="utf-8").read()
 
 # A — bez utjecaja na pickove
 check("ELO se biljezi u snapshot", '"p1_elo_overall"' in _prsrc and '"elo_gap_surface"' in _prsrc)
-check("context_version podignut na 22", '"context_version": 22' in _prsrc)
+check("context_version podignut na 23", '"context_version": 23' in _prsrc)
 check("broj protivnika u avg_opp_elo se biljezi", "_avg_opponent_elo_n" in _rd2)
 check("PYTHONUNBUFFERED aktiviran", 'PYTHONUNBUFFERED: "1"' in _wf2)
 check("hard okidac vise ne vristi na 30", "_HARD_NEXT_TRIGGER = 180" in _rd2)
@@ -691,7 +691,7 @@ check("stara zabrana oslanjanja na kvotu i dalje stoji",
 check("nova polja u JSON shemi",
       '"above_64_basis"' in _FULL_PROMPT
       and '"market_check"' in _FULL_PROMPT)
-check("context_version podignut na 22", '"context_version": 22' in _all2)
+check("context_version podignut na 23", '"context_version": 23' in _all2)
 
 print("\n=== 22. Runde na razini TURNIRA (13.08.2026) ===")
 print("  (uklonjeno 26.09.2026 17:04 — runda je rucni unos, vidi odjeljak 44)")
@@ -1719,7 +1719,7 @@ check("rules_hash je i dalje era 6ca9a0ab (mijenjaju se VRIJEDNOSTI, ne predloza
       _h39 == _ERA_RULES_HASH, _h39)
 
 # --- (i) context_snapshot v18 biljezi ODAKLE svaka vrijednost dolazi ---
-check("context_version podignut na 22", '"context_version": 22' in _prsrc39)
+check("context_version podignut na 23", '"context_version": 23' in _prsrc39)
 check("biljezi se round_source", '"round_source"' in _prsrc39)
 check("biljezi se izvor gradje za oba igraca",
       '"p1_build_source"' in _prsrc39 and '"p2_build_source"' in _prsrc39)
@@ -2471,7 +2471,7 @@ check("asovi se biljeze iz aces_per_game pod novim imenom",
 check("stari uvijek-nulti kljuc p1_aces se vise ne pise", '"p1_aces":' not in _src48)
 check("visina/tezina: prazno ostaje prazno (None, ne 0)",
       '"p1_height_cm": (safe_float(' in _src48 and _src48.count(") or None),") >= 4)
-check("context_version je 22", '"context_version": 22,' in _src48)
+check("context_version je 23 (v23 27.09.2026 11:53)", '"context_version": 23,' in _src48)
 
 # --- nova era prompta ----------------------------------------------------------------
 check("asovi u promptu oznaceni kao 'per 100 serve pts'",
@@ -2630,6 +2630,55 @@ try:
           all(len(x[0]["match_time"]) <= 20 for x in _calls48 if x))
 finally:
     _fa48.db._insert = _orig_ins48
+
+print("\n=== 49. Vijesti po igracu (Google News) — SAMO biljezenje, model ne vidi (27.09.2026 11:53) ===")
+import inspect as _in49
+from agent import player_news as _pn49
+from agent import predictor as _pr49
+from agent import run_daily as _rd49
+_rss49 = b"""<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel>
+<item><title>Machac confirms foot tear at Roland-Garros - tennismajors.com</title>
+<pubDate>Tue, 02 Jun 2026 10:00:00 GMT</pubDate><source url="x">tennismajors.com</source></item>
+<item><title>Spain's Alcaraz will play Davis Cup - Reuters</title>
+<pubDate>Mon, 01 Jun 2026 10:00:00 GMT</pubDate><source url="x">Reuters</source></item>
+<item><title>Zverev vs Machac prediction: odds, picks and injury update - NY Post</title>
+<pubDate>Wed, 27 May 2026 10:00:00 GMT</pubDate><source url="x">NY Post</source></item>
+<item><title>Machac withdraws from Madrid with illness - ATP</title>
+<pubDate>Fri, 01 May 2026 10:00:00 GMT</pubDate><source url="x">ATP</source></item>
+</channel></rss>"""
+_r49 = _pn49.parse_feed(_rss49, "2026-06-02")
+check("RSS: broje se samo clanci iz zadnjih 14 dana (1. svibnja ispada)", _r49["n"] == 3, str(_r49))
+check("ozljeda prepoznata kao cijela rijec ('tear')",
+      _r49["items"][0]["inj"] == ["tear"], str(_r49["items"][0]))
+check("'Spain' NE pogadja 'pain', 'will' NE pogadja 'ill'",
+      [x for x in _r49["items"] if "Spain" in x["t"]][0]["inj"] == [])
+check("kladionicarski naslov oznacen bet=True istim popisom kao prompt (_NEWS_EXCLUDE)",
+      [x for x in _r49["items"] if "prediction" in x["t"]][0]["bet"] is True)
+check("injury_n ne broji kladionicarske naslove (samo prava vijest o ozljedi)", _r49["injury_n"] == 1)
+_orig_get49 = _pn49.requests.get
+try:
+    def _boom49(*a, **k):
+        raise ConnectionError("mreza pala")
+    _pn49.requests.get = _boom49
+    _pn49._cache.clear()
+    _e49 = _pn49.player_news("Test Igrac", "2026-09-27")
+    check("neuspjeh dohvata je {'error': ...}, ne prazno, i ne rusi run",
+          "error" in _e49 and "n" not in _e49, str(_e49))
+finally:
+    _pn49.requests.get = _orig_get49
+    _pn49._cache.clear()
+_tmpl49 = (_pr49._surface_specific_rules("hard") + _pr49._ANALYSIS_SYSTEM_TEMPLATE
+           + _pr49.ANALYSIS_PROMPT_TEMPLATE)
+check("vijesti NE ulaze u prompt (kljuc gnews nije u predlosku)", "gnews" not in _tmpl49)
+_prsrc49 = _in49.getsource(_pr49)
+check("snapshot biljezi p1_gnews i p2_gnews",
+      '"p1_gnews": p1.get("gnews") or None' in _prsrc49 and '"p2_gnews": p2.get("gnews") or None' in _prsrc49)
+_rdsrc49 = _in49.getsource(_rd49)
+check("dnevni run puni gnews za oba igraca",
+      '"gnews": p1_gnews' in _rdsrc49 and '"gnews": p2_gnews' in _rdsrc49
+      and "pn.player_news(match.get(\"player1\")" in _rdsrc49)
+check("prompt koristi samo 'news', nikad 'gnews'",
+      'p1_news=p1.get("news"' in _prsrc49 and 'p1.get("gnews")' not in _prsrc49.split('"context_version": 23')[0])
 
 print("\n" + "=" * 60)
 if _fails:

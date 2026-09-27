@@ -23,6 +23,7 @@ load_dotenv()
 
 from agent import data_fetcher as df
 from agent import player_context as pc
+from agent import player_news as pn   # 27.09.2026 11:53 — vijesti po igracu, SAMO biljezenje (K13)
 from agent.predictor import analyze_matches_batch
 from agent.ticket_builder import build_ticket, build_analysis_only_ticket
 from agent.feedback_analyzer import run_evening_update
@@ -931,6 +932,17 @@ def main():
                       f"{p1_tourn_form.get('matches', 0)} meceva, "
                       f"{match.get('player2','')} {p2_tourn_form.get('matches', 0)} meceva.")
 
+            # VIJESTI PO IGRACU (27.09.2026 11:53): Google News po imenu, zadnjih 14 dana.
+            # Idu SAMO u context_snapshot (`p*_gnews`, v23) za mjerenje K13 — kljuc je
+            # namjerno `gnews`, a prompt cita samo `news`, pa ih model NE vidi. Neuspjeh
+            # dohvata je {"error": ...} i ne rusi run. Puno obrazlozenje u agent/player_news.py.
+            p1_gnews = pn.player_news(match.get("player1"), match.get("date"))
+            p2_gnews = pn.player_news(match.get("player2"), match.get("date"))
+            _gn_inj = [n for n, g in ((match.get("player1"), p1_gnews), (match.get("player2"), p2_gnews))
+                       if (g or {}).get("injury_n")]
+            if _gn_inj:
+                print(f"    Vijesti o ozljedi (samo biljezenje): {', '.join(_gn_inj)}")
+
             # Kompajliraj p1_data i p2_data
             p1_data = {**p1_info, **p1_stats,
                        "tournament_form": p1_tourn_form,
@@ -955,6 +967,7 @@ def main():
                        "scouting": _find_scouting(match["player1"]),
                        "titles": p1_titles,
                        "ctx": p1_ctx,
+                       "gnews": p1_gnews,
                        }
 
             p2_data = {**p2_info, **p2_stats,
@@ -980,6 +993,7 @@ def main():
                        "scouting": _find_scouting(match["player2"]),
                        "titles": p2_titles,
                        "ctx": p2_ctx,
+                       "gnews": p2_gnews,
                        }
 
             _base_tname = match.get("tournament", "").split(" - ")[0].strip()

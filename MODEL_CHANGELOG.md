@@ -16,6 +16,41 @@ dnevnik napravljenog jednostavnim jezikom. Dopunjava se na kraju svake radne ses
 
 ---
 
+## 2026-09-27 11:59 — POVIJESNI LABORATORIJ (12.324 meča) + vijesti po igraču (snapshot v23);
+## prompt, odabir tiketa i era NEPROMIJENJENI (rules_hash i dalje 9696c4ee)
+
+**Povod:** korisnik je skinuo tennis-data.co.uk 2022–2026 i tražio da se analizira sve s našim
+podacima; uz to "implementiraj sve korisno iz pregleda alata" (27.09.2026).
+
+**1. Povijesni laboratorij — samo mjerenje, ništa u modelu.** tennis-data (kvote pred početak
+meča: Pinnacle do ~rujna 2025, inače prosjek kladionica) + TML (runde, statistika, povijest;
+spojeno 99,7%). Pragovi zapisani prije računanja (`revizije/2026-09-27/PRAGOVI_POVIJESNI_LAB.md`,
+11:33). Ishod: **nijedan od 10 kandidata ne tuče tržište** (K15 +0,0pp na 11.139 mečeva,
+povijest na turniru +0,2pp na 6.198, zajednički protivnik +0,2pp na 10.661, K12 r=+0,004...).
+Tržište NEMA rupu 1,35–1,60 (1,35–1,43 čak +3,7pp); Bo5 favoriti 1,30–1,50 +4,3pp (suprotno
+K3). Naši pickovi naspram zatvorne cijene: edge +1,5pp [−2,9, +5,9], EV po SuperSport kvoti
+−5,3%, noge pravih tiketa −3,1%. Konsenzus: edge ≈ gap, ROI tek u gap ≥ +2pp oko nule.
+Puno: `revizije/2026-09-27/POVIJESNI_LAB_2026-09-27.md`; tablica u `DECISION_INPUTS.md`
+("POVIJESNA PREDPROVJERA 27.09.2026"). Statusi kandidata NISU mijenjani — preporuke čekaju
+korisnika. Zamka u TML-u nađena usput: za 2026. `tourney_date` je datum meča (74% turnira).
+
+**2. Vijesti po igraču (Google News) — `context_version` 22 -> 23.** Novi modul
+`agent/player_news.py`; `agent/run_daily.py` puni `gnews` za oba igrača; `agent/predictor.py`
+bilježi `p1_gnews`/`p2_gnews`. Samo za mjerenje K13 (novi prag u DI). Model ih NE vidi: ključ
+je `gnews`, prompt čita samo `news` — `rules_hash` provjereno nepromijenjen (9696c4ee).
+Neuspjeh dohvata je `{"error": ...}`, ne prazno, i ne ruši run; ~1,2 s po igraču, keš po runu.
+Testovi: `test_cap_and_weather.py` odjeljak 49 (10 provjera); verzija u oba paketa na 23.
+
+**3. Pregled prompta prema Claudeovim uputama — samo izvještaj**
+(`revizije/2026-09-27/PROMPT_AUDIT_2026-09-27.md`): pravilo 11 (domaći) i uputa o statistici s
+turnira proturječe mjerenjima; prag 63% zastario na dva mjesta (kod: 60); povijest i CAPS
+naglasci u tekstu prompta. Predložena izmjena NIJE primijenjena (nova era = korisnikova odluka).
+
+**4. Radni tijek (izvan modela):** `CLAUDE.md`, skillovi `/oblikuj`, `/mjerenje` (sa
+`scripts/snaga.py`), `/kraj-sesije`, subagent `skeptik` (`.claude/`).
+
+---
+
 ## 2026-09-26 21:27 — ČIŠĆENJE PROMPTA: izmjereno kriva pravila van, odjeljci 4+5 spojeni;
 ## nova era d7e45052 (hard), korisnik odobrio
 

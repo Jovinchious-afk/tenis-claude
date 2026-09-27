@@ -40,3 +40,7 @@ Moje Biljeske/
 
 # Lokalni kes skripti za backfill (26.09.2026) — sirovi API odgovori, ne ide u repozitorij
 .cache/
+
+# Lokalne Claude Code postavke i dozvole (27.09.2026 11:49) — osobne, ne idu u repozitorij.
+# Skillovi (.claude/skills/) i subagenti (.claude/agents/) se prate.
+.claude/settings.local.json
