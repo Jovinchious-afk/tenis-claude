@@ -408,7 +408,8 @@ check("workflow ima ODDS_API_KEY", "ODDS_API_KEY" in _wf)
 # agent/ticket_builder.py iznad _CONSENSUS_GAP_MIN). Testovi sada čuvaju NOVO stanje —
 # ostaviti ih na starom značilo bi da paket tvrdi nešto što više nije istina.
 _tb = open("agent/ticket_builder.py", encoding="utf-8").read()
-check("prag spušten na 60", '"min_confidence": 60.0' in
+# REVIDIRANO 04.10.2026 19:22 — prag vraćen na 63 (K1 okidač, korisnikova odluka).
+check("prag vraćen na 63", '"min_confidence": 63.0' in
       open("config/model_config.py", encoding="utf-8").read())
 check("build_ticket sam i dalje ne čita tržište izravno",
       "market_p" not in _tb.split("def build_ticket")[1].split("def ")[0]

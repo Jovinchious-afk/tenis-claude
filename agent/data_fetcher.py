@@ -1198,40 +1198,94 @@ def find_player_elo(player_name: str, elo_data: dict) -> dict:
     if not player_name:
         return default
 
-    # Normalize hyphens to spaces — "Carreno-Busta" → "Carreno Busta"
-    name_norm = _normalize(player_name).replace("-", " ").replace("  ", " ")
-    _elo_debug = len(elo_data) == 0  # warn if elo_data is empty
+    # >>> POPRAVLJENO 04.10.2026 19:11 (revizija 04.10.2026, korisnik odobrio) — KRIVI IGRAC.
+    # "Jaume Antoni Munar Clar" (API ime, rang 64) dobivao je u SVIH 10 analiza ELO igraca
+    # "jay clarke" (ukupni 1421 / hard 1397 umjesto 1767 / 1748). Dva mehanizma:
+    #   - stari korak 2 trazio je prezime kao DIO rijeci: "clar" je u "clarke", jedini
+    #     pogodak -> vracen Clarke (tako do 04.10.);
+    #   - stari korak 3 prihvacao je samo POCETNO SLOVO imena ("j" od Jaume = "j" od Jay) —
+    #     isti mehanizam kao Dali/Darwin Blanch 08.09.
+    # Model je vidio "ELO jaz 250-330 bodova" i u svih 7 rijesenih meceva isao protiv
+    # Munara: 2-5 (Tokio: Fritz, Faria, Jacquet — sva tri poraza bas od Munara).
+    # Sada se uspoređuju CIJELE RIJECI imena, bez obzira na redoslijed:
+    #   1. tocno ime;
+    #   2. sve rijeci kljuca sadrzane u imenu ili obratno, uz najmanje dvije rijeci
+    #      ("jaume munar" u "jaume antoni munar clar", "yunchaokete bu" = "bu yunchaokete");
+    #   3. prezime kao CIJELA rijec, jedinstveno, i isto pocetno slovo imena (slovo samo
+    #      potvrduje, nikad ne odlucuje samo);
+    #   4. ime i prezime kao cijele rijeci, jedinstveno.
+    # Inace promasaj (1500), a run_daily takav mec preskace. Usporedba staro/novo na svih
+    # 332 igraca iz analyzed_matches: revizije/2026-10-04/skripte/r_elo_compare.py.
+    name_norm = _normalize(player_name).replace("-", " ")
+    name_norm = " ".join(name_norm.split())
+    toks = name_norm.split()
+    if not toks:
+        return default
+    tset = set(toks)
+    surname, first = toks[-1], toks[0]
 
     def _norm_key(k):
-        return _normalize(k).replace("-", " ").replace("  ", " ")
+        return " ".join(_normalize(k).replace("-", " ").split())
 
-    # 1. Direktno podudaranje (normalizirano, bez crtica)
-    for key in elo_data:
-        if _norm_key(key) == name_norm:
+    keys = [(key, _norm_key(key)) for key in elo_data]
+
+    def _unique(cands):
+        """Vrati zapis samo ako svi kandidati znace ISTO ime (normalizirano)."""
+        names = {nk for _, nk in cands}
+        return elo_data[cands[0][0]] if len(names) == 1 else None
+
+    # 1. Tocno podudaranje (normalizirano, bez crtica)
+    for key, nk in keys:
+        if nk == name_norm:
             return elo_data[key]
 
-    # 2. Poklapanje po prezimenu (zadnja riječ, bez crtica)
-    surname = name_norm.split()[-1]
-    matches = [key for key in elo_data if surname in _norm_key(key)]
-    if len(matches) == 1:
-        return elo_data[matches[0]]
+    # 2. Sadrzanost cijelih rijeci (najmanje dvije rijeci na manjoj strani)
+    if len(tset) >= 2:
+        hit = _unique([(k, nk) for k, nk in keys
+                       if len(set(nk.split())) >= 2
+                       and (set(nk.split()) <= tset or tset <= set(nk.split()))])
+        if hit:
+            return hit
 
-    # 3. Poklapanje prvog i zadnjeg dijela imena
-    parts = name_norm.split()
-    if len(parts) >= 2:
-        first, last = parts[0], parts[-1]
-        for key in elo_data:
-            k = _norm_key(key)
-            if last in k and (first in k or k.startswith(first[0])):
-                return elo_data[key]
+    # 3. Prezime kao cijela rijec, jedinstveno, uz isto pocetno slovo imena
+    cands = [(k, nk) for k, nk in keys if surname in nk.split()]
+    if cands:
+        hit = _unique(cands)
+        if hit and (len(toks) < 2 or cands[0][1].split()[0][:1] == first[:1]):
+            return hit
 
-    # Log missed lookups so we can diagnose ELO matching issues
-    surname = name_norm.split()[-1] if name_norm else ""
-    surname_matches = [key for key in elo_data if surname in _normalize(key)]
+    # 4. Ime i prezime kao cijele rijeci, jedinstveno
+    if len(toks) >= 2:
+        hit = _unique([(k, nk) for k, nk in keys if first in nk.split() and surname in nk.split()])
+        if hit:
+            return hit
+
+    # Promasaj se ispisuje da se podudaranje moze dijagnosticirati
+    surname_matches = [nk for _, nk in keys if surname in nk.split()]
     print(f"  ELO MISS: '{player_name}' (norm='{name_norm}') → "
           f"surname '{surname}' found {len(surname_matches)} candidates: "
           f"{surname_matches[:3] if surname_matches else 'none'}")
     return default
+
+
+# ZASTITA OD NEMOGUCEG ELO-a (04.10.2026 19:13, revizija 04.10.2026, korisnik odobrio).
+# Druga linija obrane uz popravak podudaranja imena gore: igrac iz top 100 ne moze imati
+# ukupni ELO ispod 1.550 — to je razina igraca izvan top 300. Kad se to dogodi, ELO je
+# gotovo sigurno tudji (Munar je dobivao Clarkeov 1421). Provjereno 04.10. na svih 103
+# igraca ranga <= 100 iz analyzed_matches: pravilo hvata SAMO Munara, nula laznih uzbuna.
+# run_daily takav mec preskace, isto kao mec bez ELO-a — prompt se ne mijenja.
+ELO_SUSPECT_MAX_RANK = 100
+ELO_SUSPECT_MIN_OVERALL = 1550.0
+
+
+def elo_implausible(elo: dict, ranking) -> bool:
+    """True kad ELO ocito ne pripada igracu: rang <= 100, a ukupni ELO < 1.550."""
+    try:
+        rank = int(float(ranking))
+        overall = float((elo or {}).get("elo_overall") or 0)
+    except (TypeError, ValueError):
+        return False
+    return 0 < rank <= ELO_SUSPECT_MAX_RANK and 0 < overall < ELO_SUSPECT_MIN_OVERALL
 
 
 # ── ATP News ──────────────────────────────────────────────────────────────────

@@ -16,6 +16,63 @@ dnevnik napravljenog jednostavnim jezikom. Dopunjava se na kraju svake radne ses
 
 ---
 
+## 2026-10-04 19:29 — Revizija azijske turneje: ELO popravak, rang iz singl liste, prag natrag na 63, analiza gubitka; K11 zatvoren
+
+Izvještaj: `revizije/2026-10-04/REVIZIJA_2026-10-04.md`. Sve izmjene korisnik je odobrio
+04.10.2026 (točke 1, 2, 4, 5; točku 3 prepustio meni). **Prompt predikcije NIJE diran — era
+ostaje `bccf4742`.**
+
+**1. ELO — dva tiha kvara (popravci, ne nalazi).**
+- *Što:* `find_player_elo` uspoređuje CIJELE riječi imena bez obzira na redoslijed; prezime mora
+  biti cijela riječ, a prvo slovo imena nikad ne odlučuje samo. `get_elo_cache` čita sve stranice
+  (PostgREST reže na 1.000 redaka), normalizira ime i uzima NOVIJI zapis. Iz `elo_cache`
+  obrisano 546 starih NBSP duplikata (sigurnosna kopija svih 1.138 redaka:
+  `.cache/rev_2026-10-04/elo_cache_backup_2026-10-04.json`). Nova zaštita
+  `data_fetcher.elo_implausible`: rang ≤ 100 a ukupni ELO < 1.550 → `run_daily` preskače meč
+  (isto kao bez ELO-a). 10 analiza s Munarovim krivim ELO-om označeno `elo_suspect` u
+  `context_snapshot`; `measure_candidates.py` ih preskače.
+- *Zašto:* "Jaume Antoni Munar Clar" je u svih 10 analiza dobivao ELO "jay clarke" (1421/1397
+  umjesto 1767/1748). Model je pisao o "ELO jazu 250–330 bodova" i u svih 7 riješenih mečeva
+  igrao protiv Munara: 2–5, uključujući Fritz, Faria i Jacquet u Tokiju. Uz to je 535 od 546
+  igrača čitalo stari ELO od 29.08. (osvježavanje 04.10. nije djelovalo).
+- *Ishod:* usporedba na svih 332 igrača (`revizije/2026-10-04/skripte/r_elo_compare.py`): novo
+  podudaranje mijenja SAMO 3 igrača, sva tri ispravka (Munar → jaume munar; Francisco Rocha i
+  Sander Jong više ne dobivaju ELO Henriquea Roche / Jespera de Jonga). Svježi keš mijenja ELO
+  268 igrača (medijan 19 bodova). Zaštita na podacima hvata samo Munara (0 lažnih na 103 igrača).
+
+**2. Rang iz ATP singl liste (popravak).**
+- *Što:* `run_daily._rank_of` — prvi izvor je `/atp/ranking/singles` (proširen na 500 igrača,
+  +3 poziva po runu), profil igrača samo rezerva. Ista funkcija puni snapshot i zaštitu ELO-a.
+- *Zašto:* profil je 24.–28.09. upisivao tuđi rang (Royer 548 umjesto 75, Bellucci 649/95,
+  Atmane 836/92, Basilashvili 22/145, Vacherot 568/21), a 04.10. za Vacherota rang 18 uz 54 boda.
+  Dva živa RapidAPI poziva 04.10. (korisnik odobrio): singl lista je točna (Vacherot 18,
+  Etcheverry 30, Munar 64, Jacquet 86).
+
+**3. Prag tiketa 60 → 63 (`TICKET_CONFIG["min_confidence"]`).**
+- *Zašto:* K1 pravilo zapisano 08.09. ("60–63 ispod nule uz n ≥ 25 → natrag na 63"). Peking +
+  Tokio (prvi turniri cijeli u eri bccf4742): 60–63 −17,9pp (n=26), ≥63 +12,2pp (n=17); od
+  08.09. 60–63 −7,5pp (n=54). Uz to kazna 65–68 opet radi ono za što je uvedena (uz prag 60
+  spušteni pickovi su opet prolazili na tiket: od 08.09. 7 nogu, −8,3pp).
+- *Ograda (skeptik):* ista skupina bila je +3,1pp (30.08.) i +9,3pp (US Open) — okretanje je
+  obrazac šuma, a pouzdanost ne nosi informaciju (r = −0,044, n=466). Prag mijenja UČESTALOST
+  tiketa, ne edge: uz 3–6 parova i kvotu ≥ 4,0 tiket je moguć u ~4 od 17 dana (prag 60: 11).
+- *Ishod:* pratiti broj dana bez tiketa i ROI tiketa; K1 se kao nalaz više ne tretira potvrđenim.
+
+**4. Prompt analize gubitka (`feedback_analyzer`, ne dira predikciju ni eru).**
+- R16/QF premješten među PALE nalaze (na ručnim rundama −1,5pp n=31, bolji od ostalih rundi);
+  uz pojaseve cijene "DESCRIPTIVE ONLY, NOT A CONFIRMED RULE"; u činjenice meča dodana razina
+  turnira; prag tiketa ispisuje se po datumu meča (63 / 60 od 08.09. / 63 od 05.10.).
+- *Zašto:* 3 od 8 analiza gubitaka od 26.09. zvalo je R16/QF "[SIGNAL CONFIRMED]", jedna i pojas
+  1,43–1,60; Fritz u Tokiju (ATP 500) opisan je kao "ATP 250".
+
+**5. K11 zatvoren** (točku 3 korisnik prepustio meni): u zadanom roku R16+QF −1,5pp (n=31), bolji
+od ostalih rundi; bez Munar analiza +1,2pp (n=29). Povijest: tržište u R16/QF nema rupu.
+
+**Testovi:** odjeljak 51 u `test_cap_and_weather.py` (+28), revidirani testovi praga u oba paketa;
+oba paketa prolaze.
+
+---
+
 ## 2026-09-27 12:49 — Intuicija: kapija K20 na DVIJE provjere (150 pa 300); mail 15.11. i 15.01.
 
 Korisnikova odluka prije ijedne zapisane procjene. Kriterij isti, uz manji uzorak jači dokaz

@@ -609,6 +609,13 @@ def _format_match_stats(p1: str, p2: str, stats: dict, p1_id=None, p2_id=None) -
 # VAZNIJE OD BROJKI: od danas analiza dobiva i CINJENICE O MECU izracunate u kodu
 # (`_loss_match_facts`) — kvotu, devig cijenu, pojas, rundu, status tiketa, predaju.
 # Revizija je pokazala da je 15 od 20 rujanskih analiza te cinjenice IZMISLJALO.
+# IZMJENA 04.10.2026 19:22 (revizija 04.10.2026, korisnik odobrio tocku 4). Analize gubitaka
+# su R16/QF tri puta u 8 proglasile "[SIGNAL CONFIRMED]" jer je redak ispod stajao bez oznake
+# "nepotvrdjeno", a jednom i pojas 1,43-1,60. Na rucnim rundama (od 14.09.) R16+QF su -1,5pp
+# (n=31), BOLJE od ostalih rundi (-3,5pp); K11 je 04.10. zatvoren kao nepotvrden, a povijest
+# kaze da trziste u R16/QF nema rupu (+0,6pp, n=3.423). Zato: R16/QF ide u PALE nalaze, a uz
+# pojaseve cijene stoji da su OPIS, ne potvrdjeno pravilo. Ova izmjena ne dira prompt predikcije
+# ni eru (`rules_hash`).
 _LOSS_BASE_RATES = """
 === MEASURED BASE RATES FROM OUR OWN CORPUS (all surfaces, n=451, through 26.09.2026) ===
 Read these BEFORE naming any cause. They tell you what a NORMAL match looks like, so you can
@@ -656,6 +663,9 @@ price already contains it - it is not a cause the market missed.
 These describe who dictated and who scrambled. They are POST-MATCH ONLY - never a model fix.
 
 *** PRICE BAND STRUCTURE - by OUR PICK's odds, edge vs the devigged price (26.09.2026) ***
+DESCRIPTIVE ONLY, NOT A CONFIRMED RULE: the "hole" below is an unconfirmed candidate (K5/K10),
+and on 12,324 historical matches the MARKET itself has no hole there. Never write
+[SIGNAL CONFIRMED] for a price band.
   odds 1.00-1.20   n= 56 | edge -1.6pp   (short favourites: a loss here is usually VARIANCE)
   odds 1.20-1.35   n= 80 | edge +8.8pp   <- our best band
   odds 1.35-1.43   n= 59 | edge -5.6pp   <- hole
@@ -668,7 +678,9 @@ confidence, never by the opponent's odds. (An audit on 26.09.2026 found analyses
 @1.24 pick "in the 1.35-1.43 hole" by converting confidence into odds. That is an error.)
 
 *** ROUND (only if the MATCH FACTS give a round) ***
-  R16 + QF: -10.7pp vs price (n=71); after 26.08: -17.5pp (n=15). Other rounds: about +1pp.
+  R16/QF is NOT a confirmed weakness. The old figure (-10.7pp, n=71, on unreliable round labels)
+  FAILED on manually entered rounds: R16+QF -1.5pp (n=31) vs other rounds -3.5pp (14.09.-04.10.
+  2026). Closed 04.10.2026 - do not cite R16/QF as a cause.
   A Grand Slam second round is R64 and a third round is R32 - they are NOT "R16/QF".
   If the round is UNKNOWN, round-based statements are not allowed.
 
@@ -687,7 +699,8 @@ confidence, never by the opponent's odds. (An audit on 26.09.2026 found analyses
   tournament (r=+0.167 -> -0.15) | "player who often lets us down" (r=-0.004, n=417) |
   lost to a weaker player at this event before (r=+0.04) | similar past matches (four
   backtests, r~0) | weather and its interactions | height (the old signal was missing
-  values stored as 0) | "collapse after winning the first set" (not separable from price).
+  values stored as 0) | "collapse after winning the first set" (not separable from price) |
+  R16/QF as a weak round (-1.5pp on manual rounds, better than other rounds; closed 04.10.).
 
 *** REPLICATION WARNING ***
 Only 3 of our last 12 tested findings held on new data. A factor that "looks strong in this
@@ -791,6 +804,14 @@ def _loss_match_facts(match: dict) -> str:
     else:
         lines.append("- Our pick's odds: UNKNOWN - do not estimate them.")
 
+    # Razina turnira (04.10.2026 19:22, revizija 04.10.): bez nje je analiza Fritza u Tokiju
+    # (ATP 500) pogodila "ATP 250" i primijenila krivu baznu stopu.
+    level = str(match.get("tournament_level") or "").strip()
+    if level:
+        lines.append(f"- Tournament level: {level} (authoritative - never infer the tier from the name).")
+    else:
+        lines.append("- Tournament level: UNKNOWN - do not guess the tier.")
+
     # `market_p` u snapshotu je vjerojatnost za player1 ANALIZE; `market_snapshot.p` na
     # tiketu je za player1 TIKETA — poravnava se prema izvoru, ne pretpostavlja.
     mp, ref_p1 = cs.get("market_p"), (am.get("player1") or p1)
@@ -838,9 +859,19 @@ def _loss_match_facts(match: dict) -> str:
         lines.append("- Ticket status: unknown.")
 
     conf = _sf(match.get("confidence"))
-    lines.append(f"- Our stored confidence: {conf:.0f}%. Ticket floor since 08.09.2026: "
-                 f"{TICKET_CONFIG.get('min_confidence', 60):.0f}% (65% at hard/clay Grand "
-                 f"Slams). Deterministic penalties may already be inside this number.")
+    # Prag tiketa VRIJEDEĆI NA DAN MEČA (04.10.2026 19:22): 63 do 07.09., 60 od 08.09. do
+    # 04.10., od 05.10. opet iz konfiguracije (63). Prije je pisalo "od 08.09." uz trenutnu
+    # vrijednost, sto bi nakon povratka na 63 bilo netocno za sve rujanske meceve.
+    md = str(match.get("match_date") or "")[:10]
+    if md and md < "2026-09-08":
+        floor = 63.0
+    elif md and md < "2026-10-05":
+        floor = 60.0
+    else:
+        floor = float(TICKET_CONFIG.get("min_confidence", 63))
+    lines.append(f"- Our stored confidence: {conf:.0f}%. Ticket floor on the match date: "
+                 f"{floor:.0f}% (65% at hard/clay Grand Slams). Deterministic penalties may "
+                 f"already be inside this number.")
     score = str(match.get("actual_score") or "")
     if "ret" in score.lower() or "w/o" in score.lower() or "walkover" in score.lower():
         lines.append(f"- The match ENDED BY RETIREMENT/WALKOVER (score: {score}). Classify it as "

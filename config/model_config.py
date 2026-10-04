@@ -192,13 +192,28 @@ SURFACE_MAP = {
 # i negativan je. Prag 63 je aktivno birao skupinu koja gubi. Spusten na 60, NE nize:
 # 58-60 je bucan i split-half mu okrece predznak (-5 / +11).
 # Vidi i memoriju "confidence-je-mrtva-varijabla" — ovo joj je treca neovisna potvrda.
+#
+# VRACENO NA 63 — 04.10.2026 19:22, korisnikova odluka (revizija 04.10.2026, kandidat K1).
+# Pravilo zapisano 08.09. ("ako skupina 60-63 na sljedecem dovrsenom turniru padne ispod
+# nule uz n>=25, prag se vraca na 63") okinulo je na prvim turnirima cijelima u eri
+# bccf4742 (Peking + Tokio):
+#     conf 60-63   n=26  -17,9pp naspram devigirane cijene   (cijeli novi uzorak n=30, -13,8pp)
+#     conf >= 63   n=17  +12,2pp
+#     od 08.09.: 60-63 n=54 -7,5pp | >=63 n=34 +5,0pp
+# OGRADA (skeptik): ista skupina bila je +3,1pp (30.08.) i +9,3pp (US Open) — okretanje
+# predznaka izmedju razdoblja je obrazac suma; pouzdanost i dalje ne nosi informaciju
+# (r(odmak od cijene, ishod) = -0,044, n=466). Prag dakle mijenja KOLIKO CESTO igramo,
+# ne edge. Uz 3-6 parova i kvotu >= 4,0 prag 63 daje tiket u ~4 od 17 dana (prag 60: 11).
+# Drugi razlog: kazna za pojas 65-68 (`predictor._apply_measured_penalties`) spusta te
+# pickove za 5pp — uz prag 60 su opet prolazili na tiket (od 08.09. 7 nogu, -8,3pp); uz
+# 63 kazna opet radi ono za sto je uvedena. Vidi revizije/2026-10-04/REVIZIJA_2026-10-04.md.
 TICKET_CONFIG = {
     "stake": 50.0,
     "min_matches": 3,
     "max_matches": 6,
     "min_combined_odds": 4.0,
     "max_combined_odds": 50.0,
-    "min_confidence": 60.0,
+    "min_confidence": 63.0,
     "fallback_confidence": 58.0,
     "last_resort_confidence": 55.0,
 }

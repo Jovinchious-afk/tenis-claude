@@ -72,7 +72,8 @@ Težine su hard v18; žive u Supabase `model_weights`, ne u kodu.
 
 **Izbacuje pick** (`_selection_ok` + conf floor):
 
-- pouzdanost < **60%** *(spušteno s 63 dana 08.09.2026 12:07 — kandidat K1 potvrđen na US Openu: pojas 58-63 dao +9,3pp uz n=49, dok je >=63 dao −3,0pp)* — iznimka je value-override: conf ≥58 uz edge ≥12pp, najviše 2 po tiketu
+- pouzdanost < **63%** *(04.10.2026 19:22 VRAĆENO na 63, korisnikova odluka — K1 okidač: Peking+Tokio 60-63 −17,9pp n=26, ≥63 +12,2pp n=17; od 08.09.2026 12:07 do 04.10. prag je bio 60)* — iznimka je value-override: conf ≥58 uz edge ≥12pp, najviše 2 po tiketu
+- **ELO nemoguć za rang** (04.10.2026 19:13): rang ≤ 100 a ukupni ELO < 1.550 → meč se preskače kao da ELO-a nema (`data_fetcher.elo_implausible`, `run_daily`). Rang od 04.10. dolazi s ATP singl liste (`run_daily._rank_of`), profil je rezerva.
 - nije glavni tour, ili nema kvotu
 - **oba igrača 0/3** u zadnja 3 meča
 - Grand Slam traži **65%** (hard i clay)
@@ -335,7 +336,7 @@ nije razlikovala potvrđeno od palog — ponovljivost predznaka jest.
 
 Ništa odavde NIJE u kodu. Svaki red ima unaprijed zapisan prag.
 
-### K1 — pickovi ispod praga 63% tuku tržište — **POTVRĐEN 08.09.2026 12:07, UŠAO U KOD**
+### K1 — pickovi ispod praga 63% tuku tržište — **POTVRĐEN 08.09.2026 12:07, UŠAO U KOD** — *04.10.2026 19:22: PRAG VRAĆEN NA 63 (korisnikova odluka); K1 se kao nalaz više NE tretira potvrđenim — nije se ponovio (vidi IZMJERENO 04.10.2026)*
 
 *(27.09.2026 12:16) Prompt je promijenjen (era 9696c4ee -> bccf4742): prag 60 i kaznu za pojas 65-68 premjeriti nakon prvog dovršenog turnira u eri bccf4742.*
 
@@ -515,7 +516,7 @@ pojasa kvote. Ako da → razmotriti spajanje slotova 4 i 5 u jedan i oslobađanj
 **ZAŠTO SE NE DIRA ODMAH:** nađeno na jednom korpusu, a stopa replikacije nam je 1 od 6.
 Uz to bi izmjena dirala prompt, dakle `rules_hash` — a upravo smo ga mijenjali dvaput danas.
 
-### K9 — duljina slota "Own read" obrnuto je povezana s uspjehom
+### K9 — duljina slota "Own read" obrnuto je povezana s uspjehom — **PAO 04.10.2026 18:32** (predznak suprotan drugi put)
 
 Isti uzorak. "Own read" je jedini neobavezan slot (prisutan u 297 od 529, 57%) i jedini
 s pozitivnim signalom u razini (64,3% naspram 62,6% ukupno). Ali:
@@ -591,7 +592,7 @@ uopće reagira prerušen u nešto drugo. Riješiti ih zajedno.
 **NE PONAVLJATI** sirovu usporedbu value=TRUE/FALSE bez kontrole cijene. Tri je puta
 izgledala kao dramatičan nalaz i tri je puta bila cijena.
 
-### K11 — rupa u R16/QF PREŽIVJELA je ispravak oznaka rundi
+### K11 — rupa u R16/QF PREŽIVJELA je ispravak oznaka rundi — **ZATVOREN 04.10.2026 19:27** (nije potvrđen u zadanom roku: −1,5pp n=31, bolji od ostalih rundi; bez analiza s krivim ELO-om +1,2pp n=29; tržište u R16/QF nema rupu)
 
 Premjereno 13.09.2026 11:30, **prvi put na točnim oznakama** (prije ispravka je 79,2%
 oznaka bilo krivo, pa se nalaz iz revizije 26.08.2026 nije mogao ni potvrditi ni odbaciti).
@@ -922,6 +923,119 @@ Izračunato: bezvrijedna intuicija prođe ~2% po provjeri (~3-4% preko obje); do
 uz 150 u 45%, uz 300 u 70% slučajeva. Pravilo živi na JEDNOM mjestu: `agent.intuicija.gate_status`
 (koriste ga measure_candidates, intuicija_report i intuicija_status_email). Mail sa stanjem stiže
 sam 15.11.2026 i 15.01.2027 (`.github/workflows/intuicija_status.yml`).
+
+### K21 — favorit u QF/SF/F protiv boljeg servera (04.10.2026 19:37) — KANDIDAT, skeptik SUMNJIVO
+
+**Korisnikova ideja** (04.10.2026): igrač koji u četvrtfinalu naiđe na protivnika slabijeg po
+ELO-u, ali jačeg po holdu ili asovima, češće pada. Igrač-specifična verzija nije mjerljiva
+(medijan 4 četvrtfinala po igraču u 2023–26, samo 62 igrača s 10+), pa je testirana opća
+verzija u povijesnom labu (`revizije/2026-10-04/skripte/r_lab2.py`, pragovi
+`PRAGOVI_DODATAK_2.md` 19:07).
+
+    favorit po cijeni u QF/SF/F, protivnik ...           n     edge naspram poštene cijene
+    ≥3pp bolji hold % (365 dana prije meča)   QF1       296   −5,8pp [−11,5, −0,1]  2022-23 −4,5 / 2024-26 −7,1
+    ≥2 asa na 100 servisnih poena više        QF2       554   −5,0pp [ −9,0, −1,0]  −4,8 / −5,2
+    SPOJENO (hold ILI asovi) = K21                      617   −4,1pp [ −7,8, −0,3]  −3,8 / −4,3
+    kontrole: isti uvjet u RANIM rundama +2,0 / +2,6pp; samo R16 +2,9 / +2,1pp; svi favoriti u QF+ +0,1pp
+    po podlozi: hard −10,2 / −5,0 | zemlja +2,5 / −3,8 | trava −12,6 / −7,5 (malo n)
+
+**Skeptik (04.10.2026): SUMNJIVO.**
+- Holm preko svih 23 testa sesije: QF1 P = 0,99, QF2 P = 0,34.
+- QF1 i QF2 su gotovo isti signal (78,7% preklapanja, r = 0,73 između margina).
+- Nema neovisne potvrde: polovice su iz istog izvora.
+- Moguće preklapanje s "vrućim servisom ovaj tjedan" (prozor uključuje ranije runde turnira).
+Curenje provjereno: OK.
+
+**PRAG ZA POTVRDU (zapisan 04.10.2026 19:37, prije ijednog novog podatka):** samo SPOJENO pravilo,
+samo na NEOVISNIM ATP mečevima nakon 13.09.2026 (tržišni podaci, ne samo naši pickovi), kad
+ih bude ≥ 150. Naredba: `python revizije/2026-10-04/skripte/r_lab2.py --od=2026-09-14` nakon
+osvježavanja `.cache/tennis-data/2026.xlsx` (i 2027) te `lab_data.py` / `r_lab.py`.
+- **PROLAZI:** edge ≤ −4pp, 95% interval ispod nule i obje polovice NOVOG razdoblja negativne →
+  prijedlog korisniku: kazna za takvu nogu pri izboru tiketa (`_score_combo`), NIKAD u promptu.
+- **PADA:** edge ≥ 0.
+- Inače čeka sljedeći blok od +150.
+
+Snaga: uz n=150 interval je ±7,6pp, pa se vidi samo učinak ≥ 9–10pp; za pouzdanih −5pp treba
+~400–560 mečeva. Takvih mečeva ima ~130 godišnje, pa je prva provjera realno **za ~godinu dana**.
+Do tada u model ne ulazi ništa.
+
+### IZMJERENO 04.10.2026 18:32 — revizija azijske turneje (K1, K9, K10, K11, K17; lab C/D)
+
+Izvještaj: `revizije/2026-10-04/REVIZIJA_2026-10-04.md`. Pragovi zapisani prije računanja:
+`revizije/2026-10-04/PRAGOVI_REVIZIJA_2026-10-04.md` (17:54; dodatak D10 u 18:07 označen kao
+naknadni). Kritičar (skeptik) proveo je provjeru; presude su u točki 15 izvještaja. **U modelu
+ništa nije mijenjano.**
+
+    NOVO (28.09.-04.10., era bccf4742)  n=57  35W  edge -4,5pp ±12,0   (bez 3 meča s krivim
+                                                                         Munarovim ELO-om: -1,9pp, n=54)
+    STARO                               n=466        edge -0,6pp ± 4,2
+
+- **K1 (prag 60) — NA PRAGU, odluka korisnika.** Novi uzorak 60-63: -13,8pp (n=30); samo
+  Peking+Tokio (prvi turniri cijeli u eri bccf4742): -17,9pp (n=26), >=63 +12,2pp (n=17).
+  Formalni uvjet ("sljedeći dovršeni turnir") ispunjava se kad Peking i Tokio odigraju finala;
+  preostali mečevi ne mogu vratiti predznak. Skeptik: SUMNJIVO — ista skupina bila je +3,1pp
+  (30.08.) i +9,3pp (US Open), pa je okretanje obrazac šuma; pouzdanost ne nosi informaciju
+  (r(odmak od cijene, ostatak) = -0,044, n=466). Uz strukturu tiketa 3-6/4-50 prag 63 daje tiket
+  u 4 od 17 dana od 08.09. (prag 60: 11 od 17). **Od 08.09. kazna 65-68 ne izbacuje s tiketa**
+  (spuštene na 60-63 prag 60 pušta; od 08.09. n=25, -8,3pp, 7 na tiketu).
+- **K9 — PAO.** Pobjede imaju DULJI "Own read" za 52 znaka; r(duljina, ishod - cijena) = +0,20
+  (n=57). Predznak suprotan hipotezi drugi put zaredom (26.09.: +144 znaka, r=+0,36). Po pravilu
+  ("ako predznak okrene -> odbaciti") zatvoren.
+- **K10 — ČEKA:** 1,20-1,35 +7,2pp (n=22) | 1,35-1,65 -5,6pp (n=34) | 1,65-1,85 -10,7pp (n=20);
+  n<25 u dva pojasa.
+- **K11 — NIJE POTVRĐEN u zadanom roku** (dva dovršena turnira od 13.09., runde ručne):
+  R16+QF -1,5pp (n=31), ostale runde -3,5pp; R16/QF su BOLJI od ostalih. Skripta kaže ČEKA
+  (ostatak nije iznad nule). Povijest: tržište u R16/QF nema rupu (+0,6pp, n=3.423). Prijedlog
+  zatvaranja čeka korisnika. Analize gubitaka ga i dalje zovu "[SIGNAL CONFIRMED]" (3 od 8),
+  jer ga prompt analize gubitka prikazuje bez oznake "nepotvrđeno".
+- **K17 — ČEKA, okreće se:** High od 27.09. +13,2pp (n=23), prije -11,7pp (n=53).
+- K5 (n=16), K13 (n=3), K18 (n=14, +14,5pp), K19 (4/9), K20 (57/150), KONS (n=14, -3,6pp) — ČEKA.
+
+**IZMJERENO I ODBAČENO (ne otvarati bez novog izvora podataka) — povijest, 12.324 meča, naspram
+poštene cijene, sve iz mečeva prije meča:** forma 10 (+0,2pp), podloga 365 dana (-0,2),
+hold % (-0,6), break % (+0,8, SLAB), asovi (-0,4), dvostruke (-0,2), H2H vođa (+0,7, n=2.897),
+bolji rang kao autsajder (-0,4), manje setova na turniru (-0,3, n=7.367), te kombinacije: vruć
+autsajder (0,0), server na brzom (+1,7), returner na zemlji (+1,8), H2H vođa kao autsajder
+(-0,1), umorniji u QF+ (-0,2), top-20 pobjede kao autsajder (-0,3), specijalist kao autsajder
+(-0,5), asovi u dvorani (+2,2), zalet na turniru kao autsajder (0,0, naknadno). **0 od 18
+prolazi**; s prosjekom kladionica iste presude. Rang povrh cijene r=+0,007 (n=12.302).
+Na našim pickovima 24 varijable, 0 preživi Holm. "Intuicija" (odmak pouzdanosti od cijene)
+ne nosi informaciju: r=-0,044 [-0,13, +0,05], n=466; pick = tržišni favorit 96,5% (novo).
+Scouting: profil ni razina ne nose ništa povrh cijene (s profilom -1,2pp, bez -0,4pp; razine
+okreću predznak između polovica) -> Excel se ne širi radi predviđanja.
+
+**KVAR PODATAKA (popravak, ne nalaz; čeka odobrenje):** `find_player_elo` daje "Jaume Antoni
+Munar Clar" ELO igrača "jay clarke" (1421/1397 umjesto 1767/1748). Korak 2 hvata prezime kao dio
+riječi ("clar" u "clarke"), a korak 3 prihvaća prvo slovo imena. 10 analiza; 7 riješenih
+pickova, svi protiv Munara, 2-5. `elo_cache` ima 546 imena dvaput (NBSP 29.08. + novi 04.10.);
+lookup vraća stari zapis za 535 (vrijednost se razlikuje u 448), a `get_elo_cache` čita 1.000 od
+1.138 redaka. Tih 10 analiza treba označiti prije budućih mjerenja.
+
+### IZMJERENO 04.10.2026 19:30 — korisnikovi novi prijedlozi (pragovi `revizije/2026-10-04/PRAGOVI_DODATAK_2.md`, 19:07)
+
+**ODBAČENO (ne otvarati bez novog izvora) — "tablica top 200 × turniri, pobjede i omjer na
+svakom turniru u 3 sezone"** (korisnikov prijedlog: "kako se igrač osjeća na tom turniru,
+gradu, ambijentu"). Povijest, 12.324 meča, naspram poštene cijene:
+
+    TWL1 bolji omjer pobjeda na OVOM turniru (3 sez., oba >=3 meča)  n=3.231  +1,4pp [-0,1, +2,9]  P1 +2,2 / P2 +1,0  PADA
+    TWL2 veći "višak" (omjer ondje − opći omjer istih godina)        n=3.533  +0,9pp [-0,5, +2,4]  P1 +2,1 / P2 +0,3  PADA
+    TWL3 višak +15pp, tržišni autsajder                              n=  809  +2,3pp [-0,9, +5,5]  P1 +6,7 / P2 -0,2  PADA
+    tercile TWL1 (mala/srednja/velika razlika): +1,6 / +2,4 / +0,2pp — nemonotono
+
+Smjer je dobar, ali tržište to već plaća (≤ 1,4pp, interval preko nule). Isto kao "najdalja
+runda na turniru" (POV, lab 27.09.: +0,2pp n=6.198). Tablica se NE gradi kao prediktor.
+
+**Vlažnost (korisnikov komentar o Đokovićevom disanju): nula.** Naš korpus, otvoreni tereni,
+n=366: r(vlaga, ishod − cijena) = +0,054 [−0,05, +0,16]; STARO +0,091, NOVO −0,136 (predznak se
+okreće); tercile −3,4 / −2,3 / +2,8pp; pick stariji 4+ godine pri visokoj vlazi +1,3pp (n=12).
+Đokovićev meč s Borgesom (Peking 30.09.) imao je zabilježenu vlagu **11%** — suh zrak; "teško
+disanje" u Pekingu vjerojatnije je kvaliteta zraka (smog), koju ne bilježimo. Vlaga se i dalje
+bilježi (`weather_humidity`).
+
+**K21 — favorit u QF/SF/F protiv igrača s boljim servisom (korisnikova ideja o četvrtfinalima)
+— predprovjera prošla, skeptik SUMNJIVO; upisan kao kandidat** (zaseban unos K21 u registru,
+iza K20). Povijest: protivnik ≥3pp bolji hold −5,8pp (n=296), ≥2 asa/100 više −5,0pp (n=554),
+obje polovice negativne; u ranim rundama i u R16 suprotan smjer.
 
 ### POVIJESNA PREDPROVJERA 27.09.2026 11:58 — 12.324 ATP meča naspram tržišne cijene
 

@@ -488,7 +488,7 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
     # I DALJE NIJE MIJENJANO — prag je nosiva greda selekcije, a zamjena (filtri po kvaliteti
     # nedavnih protivnika / dobi / rundi) mjerena je IN-SAMPLE i tek treba potvrdu na US Openu.
     # Vidi MODEL_CHANGELOG 26.08.2026 14:01, točke 4 i 10.
-    conf_floor = cfg["min_confidence"]            # 60 od 08.09.2026 12:07
+    conf_floor = cfg["min_confidence"]            # 63 od 04.10.2026 19:22 (60 od 08.09. do 04.10.)
     VALUE_MIN_CONF = 58.0
     VALUE_MIN_EDGE = 12.0
     VALUE_MAX_PICKS = 2

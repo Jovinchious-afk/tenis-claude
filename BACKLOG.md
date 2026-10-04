@@ -6,7 +6,7 @@ danima, jednostavnim jezikom). Brojke, obrazloženja i tehnički detalji su u
 (dalje: DI).
 
 **Pravilo:** na kraju svake radne sesije ovdje se dopiše što smo napravili i ažurira se
-popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 27.09.2026 19:29.
+popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 04.10.2026 19:38.
 
 **Jedna naredba za sve zakazane provjere kandidata:** `python scripts/measure_candidates.py`
 (čita bazu, ništa ne mijenja; kaže za svakog kandidata ČEKA / POTVRĐEN / PAO).
@@ -21,11 +21,13 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 | što | kada / uvjet | ishod | gdje |
 |---|---|---|---|
 | **Omjer protiv ljevaka** | 300 mečeva s ljevakom (danas 120) | ponovno izmjeriti; do tada samo bilježenje | DI "IZMJERENO 26.09.2026" |
-| **K1 — prag 60 + kazna 65-68** | prvi dovršeni turnir u eri **bccf4742** (prompt promijenjen 27.09. 12:13, raspodjela pouzdanosti će se pomaknuti) | skupina 60-63 ispod nule uz n≥25 → prag natrag na 63 | DI K1 |
-| **K17 — pick s "High" scouting profilom** | 30 takvih pickova od 27.09.2026 | ≤ −5pp → kazna −3pp; iznad nule → odbacuje se | DI K17; `measure_candidates.py` |
+| **K1 — prag VRAĆEN na 63 (04.10.2026 19:22, tvoja odluka)** | prva 3 tjedna (do ~25.10.) | pratiti koliko dana nema tiketa (procjena ~13 od 17) i ROI tiketa; K1 kao nalaz nije se ponovio, pa se prag više ne pomiče po pouzdanosti dok pouzdanost ne pokaže informaciju (r > 0) u dvije ere | `config/model_config.py` TICKET_CONFIG; DI K1 |
+| **Noćna sesija (samo bilježenje)** | 60 noćnih pickova od 05.10.2026 | tada pogledati smije li postati kandidat (stari +5,7pp n=83, novi +5,4pp n=12; interval dodiruje nulu, povijest je ne zna) | `context_snapshot.session` |
+| **K21 — favorit u QF/SF/F protiv boljeg servera** (tvoja ideja o četvrtfinalima, 04.10.2026) | kad bude ≥ 150 NOVIH ATP mečeva nakon 13.09.2026 (~godinu dana; ~130 godišnje) — nakon što osvježiš `.cache/tennis-data/2026.xlsx` | povijest: −4,1pp (n=617) — skeptik SUMNJIVO (23 testa u sesiji, nema neovisne potvrde). Prolazi: edge ≤ −4pp, interval ispod nule, obje polovice novog razdoblja < 0 → prijedlog kazne pri izboru tiketa (ne u promptu); pada: edge ≥ 0 | DI K21; `python revizije/2026-10-04/skripte/r_lab2.py --od=2026-09-14` |
+| **K17 — pick s "High" scouting profilom** | 30 takvih pickova od 27.09.2026 (04.10.: 23, +13,2pp — okreće se) | ≤ −5pp → kazna −3pp; iznad nule → odbacuje se | DI K17; `measure_candidates.py` |
 | **K18 — hard ATP 250 turniri** | 30 takvih pickova od 27.09.2026 (jesen je puna 250-ica) | ≤ −5pp → najviše jedna takva noga po tiketu; iznad nule → odbacuje se. Povijest 27.09.: tržište ondje nema rupu (+0,1pp) — ako postoji, to je naš izbor | DI K18 |
 | **K19 — povratak nakon pauze od 21+ dan** | 40 mečeva od 27.09.2026 | isti smjer kao na tržištu → ±2pp; obrnuto → odbacuje se. Povijest 27.09.: −2,5pp, ali polovice različite (slab znak) | DI K19 |
-| **K5, K8, K9, K10, K11** | sljedeći dovršeni turnir (Chengdu/Hangzhou, pa Tokyo/Beijing) | svaki ima svoj prag; **K11 (R16/QF) se od 26.09. prvi put mjeri na ručnim rundama**. **K5 od 27.09. traži n ≥ 100** (tržište u 1,35–1,43 daje +3,7pp); u R16/QF tržište nema rupe | DI K5-K11; `measure_candidates.py` |
+| **K5, K10** (K9 PAO, K11 ZATVOREN 04.10.; K8 se od spajanja odjeljaka 26.09. ne može mjeriti) | K5: n ≥ 100 (04.10.: 16); K10: 25 po pojasu (04.10.: 21/34/20) | svaki svoj prag; K10 oblik zasad kao hipoteza, povijest: tržište u 1,35–1,60 nema rupu | DI K5, K10; `measure_candidates.py` |
 | **Konsenzus kladionica** | do kraja listopada 2026: 60+ pickova uz razliku ≥1pp — **vjerojatno nedostižno**: Odds API ne pokriva ATP 250, od 13.09. bilo je 0 takvih mečeva | iznad +5pp → tvrdi uvjet; ispod nule → maknuti bonus. Povijest 27.09.: smjer točan, ali učinak ≈ veličina razlike (2–3pp), ne +10pp | `agent/ticket_builder.py`, blok uz `_CONSENSUS_GAP_MIN` |
 | **Odds API → besplatni plan** (tvoja odluka 27.09.2026 19:29) | u listopadu otkazuješ plaćeni plan prije naplate (kupljen 15.08., naplata vjerojatno ~15.10.); plaćeni vrijedi do kraja razdoblja | prva sesija nakon prelaska: besplatnim pozivom `/sports` (0 kredita) provjeriti radi li ključ i piše li limit 500 (`x-requests-remaining`); ako je ključ nov → GitHub Secrets `ODDS_API_KEY` i `.env`. Uz tvoj OK smanjiti večernje snimanje kvota s 3 na 1 dnevno (dan turnira sada troši ~14 kredita, najgori mjesec ~430 od 500; uz 1 snimanje ~240). RapidAPI ostaje Pro | `.github/workflows/market_close.yml`, `agent/market.py` |
 | **K20 — Intuicija (naučeni signal u sjeni)** | **dvije provjere:** 150 riješenih procjena (≈ sredina studenog) pa 300 (≈ siječanj), poslije svakih +300. **Mail sa stanjem stiže sam 15.11.2026 i 15.01.2027** | uz 150 treba r ≥ 0,16, uz 300 r ≥ 0,12 (interval iznad nule) i gornja trećina ≥ +3pp → prijedlog bonusa pri izboru tiketa (i za autsajdere); inače uči dalje u sjeni | DI K20; `python scripts/intuicija_report.py` |
@@ -60,6 +62,15 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
   samo micala izmjereno krivo. Hold% je u promptu već označen kao procjena i "nije drugi signal".
 - **Model može samo spustiti pouzdanost, nikad promijeniti stranu picka.** Otvoreno od
   29.08.2026.
+- **Kvaliteta zraka (AQI) uz vrijeme** (04.10.2026 19:38): tvoj komentar o Đokovićevom "teškom
+  disanju" u Pekingu — zabilježena vlaga bila je 11% (suh zrak), pa vlaga nije uzrok; vjerojatnije
+  smog. OpenWeather ima besplatan Air Pollution API (isti ključ, koordinate već dolaze uz prognozu).
+  Prijedlog: samo BILJEŽITI PM2,5/AQI u `context_snapshot` (model ne vidi), pa izmjeriti kad bude
+  dovoljno mečeva u Aziji. Čeka tvoj OK.
+- **Umor/odmor iz prompta kao "strong filter"** (04.10.2026 18:33): na 12.324 meča ne nosi ništa
+  povrh cijene (manje setova na turniru −0,3pp n=7.367; umorniji u QF+ −0,2pp n=1.056), a model ga
+  koristi u 60% "Own read" odjeljaka. Ide uz sljedeću izmjenu prompta (nova era): maknuti kao potvrdu,
+  ništa novo ne dodavati. Revizija 04.10., točka 13 C.
 - ~~**"Intuicija" — naučeni signal**~~ — **NAPRAVLJENO 27.09.2026 12:34** (u sjeni), vidi dnevnik i K20 gore.
 - **Drugi AI model kao neovisni analitičar** (mjeri se predviđa li slaganje dvaju modela
   bolje od jednoga). Niski prioritet.
@@ -102,6 +113,79 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 ---
 
 ## NAPRAVLJENO — dnevnik
+
+### 04.10.2026 19:32 — Provedeno: ELO popravak, rang iz singl liste, prag natrag na 63, analiza gubitka; tvoja pitanja
+
+Po tvojoj odluci iz revizije (točke 1, 2, 4, 5; točku 3 prepustio si meni):
+
+- **ELO.** Igrač se sada traži po cijelim riječima imena. Munar dobiva svoj ELO (1748), a ne
+  Clarkeov. Čita se cijela ELO tablica, ne samo prvih 1.000 redaka. Obrisano je 546 starih
+  duplikata (sigurnosna kopija je spremljena). Današnje osvježavanje ELO-a sada stvarno djeluje
+  (268 igrača dobilo je svjež ELO). Nova zaštita: ako igrač iz top 100 ima ELO ispod 1.550, meč
+  se preskače, jer je takav ELO gotovo sigurno tuđi. 10 analiza s krivim Munarovim ELO-om
+  označeno je i ne ulazi u mjerenja.
+- **Rang.** Sada dolazi s ATP singl liste (500 igrača). Profil igrača je ostao samo rezerva, jer
+  je 24.–28.09. davao tuđe rangove (Royer 548 umjesto 75, Basilashvili 22 umjesto 145).
+  Potrošena su 2 RapidAPI poziva za provjeru.
+- **Prag tiketa 63** (bio 60). Pravilo zapisano 08.09. je okinulo. Očekuj puno više dana bez
+  tiketa (procjena ~4 tiketa u 17 dana).
+- **K11 (R16/QF) zatvoren:** nije se potvrdio, a R16/QF su ovaj put bili čak bolji od ostalih
+  rundi.
+- **Analiza gubitka** više ne zove R16/QF "potvrđenim". Dobiva i razinu turnira i prag koji je
+  vrijedio na dan meča.
+- **Tvoja pitanja:**
+  - "1/16 finala" = R32 je ispravno (broji igrače, ne mečeve);
+  - duplikata u Analyzed Matches nema;
+  - tablica "top 200 × turniri" ne tuče tržište (+1,4pp, interval preko nule), pa je ne gradimo;
+  - vlaga ne nosi ništa (Đoković je u Pekingu igrao uz 11% vlage, dakle suh zrak);
+  - **tvoja ideja o četvrtfinalima prošla je predprovjeru** na 12.324 povijesna meča (vidi K21).
+
+**Pazi:** izmjene djeluju u dnevnom runu tek kad se commitaju i pushaju na GitHub.
+
+Gdje u kodu:
+- `agent/data_fetcher.py` (`find_player_elo`, `elo_implausible`)
+- `database/supabase_client.py` (`get_elo_cache`)
+- `agent/run_daily.py` (`_rank_of`, zaštita ELO-a)
+- `config/model_config.py` (`TICKET_CONFIG`)
+- `agent/feedback_analyzer.py` (`_LOSS_BASE_RATES`, `_loss_match_facts`)
+- `scripts/measure_candidates.py`
+- testovi: odjeljak 51
+
+### 04.10.2026 18:34 — Revizija azijske turneje: zašto smo pogađali i promašivali (ništa nije mijenjano)
+
+Pregledano 57 novih pickova (28.09.–04.10.: završnice Chengdua i Hangzhoua, Peking, Tokio),
+8 analiza gubitaka sa stranice, tvoje varijable na 12.324 povijesna meča i scouting.
+
+- **Rezultat:** 35 od 57, −4,5pp naspram cijene (interval ±12pp, dakle slučajnost). Sav minus je
+  Tokio (12 od 26); Peking 18 od 25. Bez 3 meča s krivim ELO-om manjak je −1,9pp.
+- **Kvar u podacima:** Munar je u svakoj analizi dobivao ELO Jaya Clarkea (1397 umjesto 1748).
+  Model je tri puta u Tokiju išao protiv njega zbog "ogromnog ELO jaza", i tri puta izgubio.
+  Uz to današnje osvježavanje ELO-a ne djeluje (stari zapisi s NBSP dolaze prvi) i čita se samo
+  1.000 od 1.138 redaka. Popravak čeka tvoj OK.
+- **Tvoje varijable** (forma, podloga, hold, break, asovi, DF, H2H, rang, umor) i 9 kombinacija:
+  na 12.324 meča **0 od 18** tuče tržište. Ne istraživati ponovno bez novog izvora.
+- **"Intuicija" agenta:** pick je tržišni favorit u 96,5% slučajeva, a odmak pouzdanosti od
+  cijene ne nosi informaciju. Najčešći argument modela je umor (60% "Own read"), a tržište ga
+  plaća.
+- **Kandidati:**
+  - K1 na pragu povratka na 63 (tvoja odluka, vidi ČEKA);
+  - K9 pao;
+  - K11 nije potvrđen (prijedlog zatvaranja);
+  - K17 se okreće.
+- **Analize gubitaka:** činjenice su sada točne (8 od 8). Ali 3 od 8 zovu R16/QF "potvrđenim",
+  jer ga njihov prompt prikazuje bez oznake "nepotvrđeno".
+- **Scouting Excel:** ne širiti radi predviđanja (pokrivenost 95%, profil ne nosi ništa povrh
+  cijene).
+
+Kritičar (skeptik) je oborio jedan moj naslov ("nadigrani, ne nesretni" kršio je vlastito
+pravilo zapisano unaprijed); ispravljeno u izvještaju.
+
+**Pazi:** ELO koji model vidi star je od 29.08. dok se ne popravi keš. Tih 10 analiza s
+Munarovim krivim ELO-om ulazi u sva buduća mjerenja dok se ne označe.
+
+Gdje: `revizije/2026-10-04/REVIZIJA_2026-10-04.md` (izvještaj), `PRAGOVI_REVIZIJA_2026-10-04.md`,
+`Revizija_2026-10-04_prilog.xlsx`, skripte `revizije/2026-10-04/skripte/r_*.py` (samo čitaju),
+DECISION_INPUTS "IZMJERENO 04.10.2026 18:32".
 
 ### 27.09.2026 19:29 — Pretplate: Odds API ide na besplatni plan, RapidAPI ostaje Pro
 

@@ -77,6 +77,10 @@ def load_rows() -> list:
         if p is None:
             continue
         cs = r.get("context_snapshot") or {}
+        # 04.10.2026 19:27: analize s dokazano TUĐIM ELO-om (Munar je dobivao ELO Jaya Clarkea,
+        # revizija 04.10.2026) ne ulaze u mjerenja — model je na njima čitao lažni podatak.
+        if cs.get("elo_suspect"):
+            continue
         a, b = ("p1", "p2") if is_p1 else ("p2", "p1")
         mp = cs.get("market_p")
         mp_pick = (mp if is_p1 else 1 - mp) if isinstance(mp, (int, float)) else None
@@ -142,12 +146,10 @@ def k11(rows):
     ot = [r for r in s if r["round"] not in ("R16", "QF", "DC")]
     n1, e1 = edge(rq)
     n2, e2 = edge(ot)
-    if n1 >= 20 and e1 is not None and e1 <= -5 and (e2 is None or e1 < e2):
-        st = "POTVRDJEN"
-    elif n1 >= 20 and e1 is not None and e1 > 0:
-        st = "PAO"
-    else:
-        st = "CEKA"
+    # ZATVOREN 04.10.2026 19:27 (revizija 04.10.): u zadanom roku (dva dovrsena turnira od
+    # 13.09., runde rucne) R16+QF -1,5pp n=31, BOLJE od ostalih rundi (-3,5pp); povijest: trziste
+    # u R16/QF nema rupu. Brojke se i dalje ispisuju samo radi pracenja.
+    st = "ZATVOREN 04.10."
     return [("K11 R16+QF (od 14.09., runda poznata)", n1, e1, st),
             ("    ostale runde (kontrola)", n2, e2, "")]
 

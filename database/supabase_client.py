@@ -607,12 +607,37 @@ def get_ticket_status(ticket_id: str) -> dict:
 # ── ELO Cache ─────────────────────────────────────────────────────────────────
 
 def get_elo_cache() -> dict:
-    """Fetch all ELO entries from Supabase cache. Returns dict keyed by player_name.lower()."""
-    rows = _select("elo_cache", select="player_name,elo_overall,elo_hard,elo_clay,elo_grass", limit=2000)
+    """Fetch all ELO entries from Supabase cache. Returns dict keyed by NORMALIZED player name.
+
+    POPRAVAK 04.10.2026 19:11 (revizija 04.10., korisnik odobrio) — dva tiha kvara:
+      1. Citalo se `limit=2000`, ali Supabase (PostgREST) vraca najvise 1.000 redaka po upitu.
+         Tablica je 04.10. imala 1.138 redaka, pa je 138 NAJNOVIJIH tiho otpadalo.
+         Sada se cita po stranicama dok ima redaka.
+      2. Isto ime postojalo je dvaput: stari zapis s neprekidnim razmakom (NBSP, upisan prije
+         popravka 08.09.) i novi s obicnim razmakom. Kljuc rjecnika bio je sirovo ime, pa su
+         obje verzije ulazile, a `find_player_elo` je vracao PRVU — staru (535 od 546 igraca).
+         Osvjezavanje ELO-a 04.10. zato nije djelovalo: model je vidio ELO od 29.08.
+         Sada je kljuc normalizirano ime i pobjeduje NOVIJI zapis (`updated_at`).
+    Vidi revizije/2026-10-04/REVIZIJA_2026-10-04.md, tocka 5.
+    """
+    rows, off = [], 0
+    while True:
+        chunk = _rest("GET", "elo_cache", params={
+            "select": "player_name,elo_overall,elo_hard,elo_clay,elo_grass,updated_at",
+            # drugi kljuc (jedinstveno ime) drzi redoslijed stabilnim izmedju stranica —
+            # cijeli batch upserta dijeli isti `updated_at`
+            "order": "updated_at.desc.nullslast,player_name.asc",
+            "offset": str(off), "limit": "1000"})
+        if not isinstance(chunk, list):
+            break
+        rows.extend(chunk)
+        if len(chunk) < 1000:
+            break
+        off += 1000
     result = {}
-    for r in rows:
-        name = (r.get("player_name") or "").lower().strip()
-        if name:
+    for r in rows:                      # najnoviji prvi -> prvi zapis imena pobjeduje
+        name = " ".join(str(r.get("player_name") or "").replace("\xa0", " ").lower().split())
+        if name and name not in result:
             result[name] = {
                 "elo_overall": r.get("elo_overall") or 1500,
                 "elo_hard":    r.get("elo_hard")    or 1500,

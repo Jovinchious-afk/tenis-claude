@@ -245,8 +245,22 @@ def main():
         print(f"  ELO cache osvježen prije {_elo_age} dana{_mark}")
 
     # 4. Dohvati ATP rankings
+    # RANG IZ SINGL LISTE (04.10.2026 19:25, revizija 04.10.2026, korisnik odobrio). Do danas je
+    # prvi izvor bio profil igrača (`get_player_info`), a lista tek rezerva. Profil zna vratiti
+    # tuđi rang — 24.-28.09. upisano je Royer 548 (stvarno 75), Bellucci 649 (95), Atmane 836
+    # (92), Basilashvili 22 (145), Vacherot 568 (21); 04.10. profil za Vacherota daje rang 18 uz
+    # 54 boda (singl lista: 2.250 bodova). `/atp/ranking/singles` je provjeren živim pozivom 04.10. i
+    # točan je (Vacherot 18, Etcheverry 30, Munar 64, Jacquet 86). Lista je sada PRVI izvor,
+    # proširena s 200 na 500 igrača (+3 poziva po runu); profil ostaje rezerva za ostale.
     print("Dohvaćam ATP rankings...")
-    atp_rankings = df.get_atp_rankings()
+    atp_rankings = df.get_atp_rankings(limit=500)
+    _rank_norm = {" ".join(str(k).replace("\xa0", " ").lower().replace("-", " ").split()): v
+                  for k, v in atp_rankings.items() if v}
+
+    def _rank_of(name: str, info: dict):
+        """Singl rang: ATP lista (po imenu), inače profil, inače 999 (nepoznato)."""
+        key = " ".join(str(name or "").replace("\xa0", " ").lower().replace("-", " ").split())
+        return _rank_norm.get(key) or (info or {}).get("ranking") or 999
 
     # 5. Dohvati odds za sve mečeve
     print("Dohvaćam bookmaker kvote...")
@@ -758,6 +772,21 @@ def main():
                       f"'{missing}' nema stvarnu ELO ocjenu (fallback 1500)")
                 continue
 
+            # NEMOGUĆ ELO (04.10.2026 19:13, revizija 04.10.2026): igrač iz top 100 s ukupnim
+            # ELO-om ispod 1.550 gotovo sigurno ima TUĐI ELO (Munar je dobivao Clarkeov 1421, model
+            # je to zvao "ogromnim jazom" i 3x u Tokiju izgubio). Isti postupak kao bez ELO-a:
+            # meč se preskače. Rang je ista funkcija (`_rank_of`) kao u `context_snapshot` ispod.
+            _rank1 = _rank_of(match["player1"], p1_info)
+            _rank2 = _rank_of(match["player2"], p2_info)
+            _sus = [(n, e.get("elo_overall"), r) for n, e, r in
+                    ((match["player1"], p1_elo, _rank1), (match["player2"], p2_elo, _rank2))
+                    if df.elo_implausible(e, r)]
+            if _sus:
+                print(f"  Preskačem (ELO nemoguć za rang): {match['player1']} vs {match['player2']} — "
+                      + "; ".join(f"'{n}' rang {r}, ELO {e}" for n, e, r in _sus)
+                      + " — vjerojatno tuđi ELO, provjeri ime u elo_cache")
+                continue
+
             # Tournament record (cached — isti igrač ne zove API više puta)
             tournament_id = match.get("tournament_id", "")
             p1_tournament_rec = df.get_player_tournament_record(p1_id, tournament_id) if p1_id and tournament_id else {}
@@ -954,7 +983,7 @@ def main():
                        "matches_7d": _count_matches_last_n_days(p1_form.get("matches", []), 7),
                        "sets_7d": _count_sets_last_n_days(p1_form.get("matches", []), 7),
                        "last_match_date": _last_match_date(p1_form.get("matches", [])),
-                       "ranking": p1_info.get("ranking") or atp_rankings.get(match["player1"], 999),
+                       "ranking": _rank_of(match["player1"], p1_info),  # 04.10.2026: lista prva
                        "news": _extract_player_news(match["player1"], injury_news),
                        "surface_summary": p1_surface_summary,
                        "tournament_record": p1_tournament_rec,
@@ -980,7 +1009,7 @@ def main():
                        "matches_7d": _count_matches_last_n_days(p2_form.get("matches", []), 7),
                        "sets_7d": _count_sets_last_n_days(p2_form.get("matches", []), 7),
                        "last_match_date": _last_match_date(p2_form.get("matches", [])),
-                       "ranking": p2_info.get("ranking") or atp_rankings.get(match["player2"], 999),
+                       "ranking": _rank_of(match["player2"], p2_info),  # 04.10.2026: lista prva
                        "news": _extract_player_news(match["player2"], injury_news),
                        "surface_summary": p2_surface_summary,
                        "tournament_record": p2_tournament_rec,

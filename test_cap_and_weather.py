@@ -571,8 +571,11 @@ check("underdog prag ostaje 2.00", _tbm._UNDERDOG_MIN_ODDS == 2.00)
 # REVIDIRANO 08.09.2026 12:07 — donja dva testa su do tada tvrdila prag 63 i granice
 # 4-6/6-40. Oboje je promijenjeno namjerno i uz korisnikovo odobrenje (mjerenja u
 # config/model_config.py iznad TICKET_CONFIG-a), pa testovi sada cuvaju NOVE vrijednosti.
-check("prag selekcije spusten na 60", _tbm.TICKET_CONFIG["min_confidence"] == 60.0
+# REVIDIRANO 04.10.2026 19:22 — prag VRACEN na 63 (K1 okidac, korisnikova odluka; mjerenja
+# u config/model_config.py iznad TICKET_CONFIG-a). Test cuva NOVO stanje i trazi obrazlozenje.
+check("prag selekcije vracen na 63 (K1, 04.10.2026)", _tbm.TICKET_CONFIG["min_confidence"] == 63.0
       if hasattr(_tbm, "TICKET_CONFIG") else True)
+check("povratak praga nosi obrazlozenje s mjerenjem", "VRACENO NA 63" in _mc and "-17,9pp" in _mc)
 check("granice tiketa: 3-6 parova, kvota 4-50",
       _mc.count('"min_matches": 3') == 1 and _mc.count('"max_matches": 6') == 1
       and '"min_combined_odds": 4.0' in _mc and '"max_combined_odds": 50.0' in _mc)
@@ -2761,6 +2764,139 @@ check("mail samo na zakazani dan (15.11.2026, 15.01.2027) ili dan poslije",
 _mcsrc50 = open("scripts/measure_candidates.py", encoding="utf-8").read()
 check("measure_candidates koristi ISTO pravilo (gate_status), ne vlastitu kopiju",
       "from agent.intuicija import gate_status" in _mcsrc50)
+
+print("\n=== 51. Revizija 04.10.2026: ELO podudaranje i keš, rang, prag 63, analiza gubitka (04.10.2026 19:27) ===")
+
+import agent.data_fetcher as _df51
+from database import supabase_client as _db51
+_NB51 = chr(160)
+
+
+def _e51(o, h):
+    return {"elo_overall": o, "elo_hard": h, "elo_clay": o, "elo_grass": o}
+
+
+_elo51 = {
+    "jay" + _NB51 + "clarke": _e51(1421.2, 1397.5),
+    "jaume munar": _e51(1766.7, 1748.0),
+    "henrique rocha": _e51(1626.9, 1569.5),
+    "jesper de jong": _e51(1683.1, 1610.0),
+    "yunchaokete bu": _e51(1700.0, 1690.0),
+    "diego dedura palomero": _e51(1561.2, 1350.6),
+    "maximus jones": _e51(1600.0, 1590.0),
+}
+
+
+def _q51(n):
+    return _df51.find_player_elo(n, _elo51)
+
+
+# --- A. Munar: API ime s dva prezimena dobiva SVOJ ELO, ne Clarkeov ("clar" u "clarke") ---
+check("ELO: 'Jaume Antoni Munar Clar' dobiva ELO 'jaume munar' (1748), ne 'jay clarke'",
+      _q51("Jaume Antoni Munar Clar")["elo_hard"] == 1748.0, str(_q51("Jaume Antoni Munar Clar")))
+check("ELO: prezime kao DIO rijeci vise ne pogadja ('clar' nije 'clarke')",
+      _q51("Jaume Antoni Munar Clar")["elo_hard"] != 1397.5)
+# --- B. Drugo ime, isto prezime: promasaj (1500), ne tudji ELO ---
+check("ELO: Francisco Rocha ne dobiva ELO Henriquea Roche", _q51("Francisco Rocha")["elo_hard"] == 1500)
+check("ELO: Sander Jong ne dobiva ELO Jespera de Jonga", _q51("Sander Jong")["elo_hard"] == 1500)
+check("ELO: jedinstveno prezime uz DRUGO pocetno slovo imena je promasaj (Ben nije Maximus Jones)",
+      _q51("Ben Jones")["elo_hard"] == 1500)
+# --- C. Isti igrac, drukciji zapis imena ---
+check("ELO: obrnuti redoslijed imena (Bu Yunchaokete = yunchaokete bu)", _q51("Bu Yunchaokete")["elo_hard"] == 1690.0)
+check("ELO: krace API ime unutar duzeg kljuca (Diego Dedura)", _q51("Diego Dedura")["elo_hard"] == 1350.6)
+# --- D. Zastita od nemoguceg ELO-a ---
+check("zastita: rang 64 + ukupni ELO 1421 = nemoguce", _df51.elo_implausible({"elo_overall": 1421.2}, 64))
+check("zastita: rang 64 + ukupni ELO 1767 = u redu", not _df51.elo_implausible({"elo_overall": 1766.7}, 64))
+check("zastita: rang 150 se ne provjerava", not _df51.elo_implausible({"elo_overall": 1421.2}, 150))
+check("zastita: nepoznat rang ne baca i ne okida", not _df51.elo_implausible({"elo_overall": 1421.2}, None)
+      and not _df51.elo_implausible({}, "x"))
+
+# --- E. get_elo_cache: cita SVE stranice, kljuc normaliziran, NOVIJI zapis pobjeduje ---
+_orig51 = _db51._rest
+_calls51 = []
+
+
+def _fake_rest51(method, table, params=None, body=None, prefer=None):
+    _calls51.append(dict(params or {}))
+    off = int((params or {}).get("offset", 0))
+    if off == 0:   # vec poredano po updated_at silazno, kao sto upit trazi
+        rows = [{"player_name": "jaume munar", "elo_overall": 1766.7, "elo_hard": 1748, "elo_clay": 1,
+                 "elo_grass": 1, "updated_at": "2026-10-04T15:36:15+00:00"}]
+        rows += [{"player_name": "igrac %d" % i, "elo_overall": 1600, "elo_hard": 1600, "elo_clay": 1600,
+                  "elo_grass": 1600, "updated_at": "2026-10-04T15:36:15+00:00"} for i in range(998)]
+        rows += [{"player_name": "jaume" + _NB51 + "munar", "elo_overall": 1772.6, "elo_hard": 1752,
+                  "elo_clay": 1, "elo_grass": 1, "updated_at": "2026-08-29T10:52:44+00:00"}]
+        return rows
+    if off == 1000:
+        return [{"player_name": "enzo aguiard", "elo_overall": 1338.8, "elo_hard": 1327.1, "elo_clay": 1,
+                 "elo_grass": 1, "updated_at": "2026-08-29T10:52:44+00:00"}]
+    return []
+
+
+try:
+    _db51._rest = _fake_rest51
+    _c51 = _db51.get_elo_cache()
+finally:
+    _db51._rest = _orig51
+check("get_elo_cache: cita drugu stranicu (preko 1.000 redaka)", "enzo aguiard" in _c51
+      and any(p.get("offset") == "1000" for p in _calls51), str(_calls51[:2]))
+check("get_elo_cache: NBSP i obican zapis su ISTI igrac — noviji (04.10.) pobjeduje",
+      _c51.get("jaume munar", {}).get("elo_hard") == 1748 and ("jaume" + _NB51 + "munar") not in _c51)
+check("get_elo_cache: upit trazi najnovije prvo, stabilno po imenu",
+      "updated_at.desc" in str(_calls51[0].get("order")) and "player_name" in str(_calls51[0].get("order")))
+
+# --- F. run_daily: rang iz singl liste, zastita od nemoguceg ELO-a ---
+_rd51 = io.open("agent/run_daily.py", encoding="utf-8").read()
+check("run_daily: singl lista do 500 igraca", "get_atp_rankings(limit=500)" in _rd51)
+check("run_daily: snapshot i zastita koriste ISTU funkciju ranga",
+      _rd51.count('_rank_of(match["player1"], p1_info)') == 2
+      and _rd51.count('_rank_of(match["player2"], p2_info)') == 2)
+check("run_daily: lista je PRVI izvor ranga, profil rezerva",
+      'return _rank_norm.get(key) or (info or {}).get("ranking") or 999' in _rd51)
+check("run_daily: mec s nemogucim ELO-om se preskace",
+      "df.elo_implausible(" in _rd51 and "ELO nemoguć za rang" in _rd51)
+
+# --- G. K11 zatvoren i tudji ELO izvan mjerenja ---
+_mc51 = io.open("scripts/measure_candidates.py", encoding="utf-8").read()
+check("measure_candidates: analize s tudjim ELO-om ne ulaze u mjerenja", 'cs.get("elo_suspect")' in _mc51)
+check("measure_candidates: K11 zatvoren 04.10.", "ZATVOREN 04.10." in _mc51)
+
+# --- H. Analiza gubitka: R16/QF pao, pojasevi su opis, razina turnira i prag po datumu ---
+import agent.feedback_analyzer as _fa51
+check("bazne stope: R16/QF vise nije 'potvrdjena slabost'",
+      "R16/QF is NOT a confirmed weakness" in _fa51._LOSS_BASE_RATES
+      and "R16 + QF: -10.7pp vs price (n=71); after 26.08" not in _fa51._LOSS_BASE_RATES)
+check("bazne stope: R16/QF u PALIM nalazima", "R16/QF as a weak round" in _fa51._LOSS_BASE_RATES)
+check("bazne stope: pojasevi cijene su OPIS, ne potvrdjeno pravilo",
+      "DESCRIPTIVE ONLY, NOT A CONFIRMED RULE" in _fa51._LOSS_BASE_RATES)
+_o51 = (_fa51.db.find_existing_analysis, _fa51.db.get_ticket_status, _fa51.db.get_resolved_for_context,
+        _fa51._CTX_ROWS_CACHE[:])
+try:
+    _fa51._CTX_ROWS_CACHE.clear()
+    _fa51.db.get_resolved_for_context = lambda *a, **k: []
+    _fa51.db.find_existing_analysis = lambda *a, **k: {
+        "player1": "Taylor Fritz", "player2": "Jaume Antoni Munar Clar", "round": "R32",
+        "bookmaker_odds_p1": 1.30, "bookmaker_odds_p2": 3.50, "context_snapshot": {"round_source": "manual"}}
+    _fa51.db.get_ticket_status = lambda *a, **k: {"status": "lost", "ticket_date": "2026-09-30"}
+    _lm51 = {"pick": "Taylor Fritz", "player1": "Taylor Fritz", "player2": "Jaume Antoni Munar Clar",
+             "odds": 1.30, "confidence": 74, "tournament": "Japan Open Tennis Championships - Tokyo",
+             "tournament_level": "ATP 500", "match_date": "2026-10-01", "ticket_id": "t51",
+             "round": "R32", "actual_score": "6-7(7) 6-4 6-3"}
+    _f51 = _fa51._loss_match_facts(_lm51)
+    check("cinjenice: razina turnira je dana (Tokio = ATP 500)", "Tournament level: ATP 500" in _f51, _f51)
+    check("cinjenice: prag tiketa na dan meca 01.10. = 60%", "Ticket floor on the match date: 60%" in _f51, _f51)
+    _lm51["match_date"] = "2026-10-06"
+    check("cinjenice: prag tiketa od 05.10. = 63%",
+          "Ticket floor on the match date: 63%" in _fa51._loss_match_facts(_lm51))
+    _lm51["match_date"] = "2026-09-01"
+    check("cinjenice: prag tiketa prije 08.09. = 63%",
+          "Ticket floor on the match date: 63%" in _fa51._loss_match_facts(_lm51))
+    _lm51.pop("tournament_level")
+    check("cinjenice: bez razine pise UNKNOWN (ne pogadja)",
+          "Tournament level: UNKNOWN" in _fa51._loss_match_facts(_lm51))
+finally:
+    (_fa51.db.find_existing_analysis, _fa51.db.get_ticket_status, _fa51.db.get_resolved_for_context) = _o51[:3]
+    _fa51._CTX_ROWS_CACHE[:] = _o51[3]
 
 print("\n" + "=" * 60)
 if _fails:
