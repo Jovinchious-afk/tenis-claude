@@ -16,6 +16,42 @@ dnevnik napravljenog jednostavnim jezikom. Dopunjava se na kraju svake radne ses
 
 ---
 
+## 2026-10-18 17:34 — Prelazak modela na TML servis/povrat (12 mj.) IZMJEREN i NIJE UVEDEN; implementacija na grani; novi kandidat K25 (samo glavni ždrijeb)
+
+**Povod:** korisnik je odobrio novu eru i prelazak na TML zadnjih 12 mjeseci, uz jedan plaćeni
+probni poziv, ali "ako rezultati i provjere opravdavaju promjenu". Kriteriji zapisani prije
+računanja: `revizije/2026-10-18/PRAGOVI_C_TML_PROMPT_2026-10-18.md` (16:25).
+
+**Što je napravljeno:** cijela nova era (881d89f8) — servis/povrat iz TML-a 12 mj. povučeno prema
+karijeri (K = 1.500), izmjereni hold, pragovi preslikani po kvantilima (zemlja 4,5pp), pričuva,
+scouting bez starih brojki, testovi — i jedan plaćeni probni poziv (prošao: valjan JSON, 2.299 /
+4.000 tokena, brojke 12 mj.). Sve je sačuvano na lokalnoj grani **`tml-era-881d89f8`**
+(commit 54590fb); u `master` nije ušlo ništa od toga.
+
+**Zašto NIJE uvedeno (izmjereno):**
+- po slovu kriterija čistih 12 mj. je LOŠIJE od karijere na 2024–26 (log-gubitak 0,6593 naspram
+  0,6529) → "prelazak se ne radi". Mješavina je odabrana po tumačenju, bez vlastitog praga;
+- skeptik PADA: mješavina naspram karijere na 2024–26 +0,0028 [−0,0015, +0,0068] — u šumu; po
+  godinama +0,009 / +0,011 / +0,008 / +0,005 / −0,005 (2026.);
+- uzrok: kad bar jedan igrač ima > 50% servisnih poena iz Challengera/kvalifikacija (48,5%
+  mečeva, ~45% naših), mješavina je lošija od karijere (−0,020 u 2025–26). Postotci protiv
+  slabijih protivnika nisu usporedivi s Tourom;
+- na istim mečevima (437) 58,3% → 59,3%: šum.
+Provjera kritičara ponovljena istim skriptama (`revizije/2026-10-18/skripte/skeptik_tml/`).
+
+**Novi kandidat K25 (DI):** TML samo glavnog ždrijeba, 12 mj. povučeno prema karijeri glavnog
+ždrijeba. Na viđenim podacima bolje svake godine (+0,013 do +0,019, i 2026.), ali to je naknadni
+rez — prag za potvrdu zapisan 17:34 prije gledanja: test A na godinama 2010–2019 (odmah, besplatno)
+i test B na budućim mečevima (n ≥ 700, ~prosinac). Tek kad oba prođu → prijedlog nove ere.
+
+**Nose:** dodatak 16:53 (Nose na mješavini) POVUČEN prije ijednog podatka; Nose ostaje na TML-u
+12 mj. (15:47), uz napomenu da su ti ulazi na 2024–26 slabiji od karijere (`nose_karijera` se
+bilježi usporedno).
+
+*Era bccf4742, odabir, tiket i Nose nepromijenjeni.* Testovi na `master`: 907 + 271 prolaze.
+
+---
+
 ## 2026-10-18 15:47 — TML forma 12 mj. prati se uz RapidAPI; Nose uživo na TML ulazima; prompt nepromijenjen
 
 Korisnik (18.10.): "može, napravi, pratit ćemo i jedno i drugo". Uz to je prenio prijedlog

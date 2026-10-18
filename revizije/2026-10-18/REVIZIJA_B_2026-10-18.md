@@ -703,3 +703,50 @@ Ništa od toga ne mijenja model.
 | potvrditi CI i deploy nakon pusha | djelomično | CI ne postoji (nijedan workflow se ne pokreće na push); dnevni run je ručni, pa izmjene djeluju od idućeg runa |
 | bez plaćenih poziva | da | nijedan plaćeni poziv; TML je besplatan |
 | K21/K23 kao zasebno otvoreno pitanje | već riješeno | `2026.xlsx` je stigao; pokrenuto, međustanje upisano |
+
+## 17. Dodatak 18.10.2026 19:45 — prelazak modela na TML servis/povrat: napravljen, provjeren, NIJE uveden
+
+**Tvoja odluka:** nova era prompta i TML za zadnjih 12 mjeseci, uključujući jedan plaćeni probni
+poziv, "ako rezultati i provjere opravdavaju promjenu". Pravila odluke zapisana su prije računanja
+(`PRAGOVI_C_TML_PROMPT_2026-10-18.md`, 16:25).
+
+**Što je napravljeno (sve na grani `tml-era-881d89f8`, commit 54590fb):**
+- servis/povrat iz TML-a, 12 mj. povučeno prema karijeri, i izmjereni hold;
+- pragovi preslikani po kvantilima (isti udio okidanja; zemlja 4,5pp);
+- pričuva za igrača bez TML-a (RapidAPI +0,9 / −4,1pp, s oznakom);
+- scouting bez starih brojki u zagradama;
+- testovi;
+- **jedan plaćeni probni poziv** (Zverev – Davidovich Fokina, podaci do 16.10.): valjan JSON iz prvog
+  pokušaja, 2.299 / 4.000 tokena, navodi brojke 12 mj. i nijednu staru.
+
+**Što kaže mjerenje:**
+
+| | P1 2022–23 | P2 2024–26 | presuda |
+|---|---|---|---|
+| (b) čistih 12 mj. naspram karijere | +0,0030 | **−0,0064** (z −2,1) | lošije → po slovu pravila "ne prelazi se" |
+| (c) mješavina naspram karijere | +0,0098 | +0,0028 [−0,0015, +0,0068] | u šumu; 2026. −0,005 |
+| (c) kad igrač ima > 50% poena iz Challengera/kval. (48,5% mečeva) | −0,005 (2022–24) | −0,020 (2025–26) | lošije |
+| (c) ostali mečevi | +0,013 do +0,028 | | bolje |
+| isti naši mečevi (437), pogođena strana | | 58,3% → 59,3% | šum (±2,7pp) |
+
+(razlike log-gubitka, pozitivno = TML bolji; skripte `c_tml_lab.py`, `skeptik_tml/`)
+
+**Kritičar (skeptik): PADA.** Implementacija mješavine bila je tumačenje pravila (za nju nije bio
+zapisan prag naspram sadašnjeg stanja), a dobitak je u šumu. Njegove brojke ponovljene su istim
+skriptama i slažu se.
+
+**Odluka:** model ostaje na RapidAPI karijeri (era bccf4742). U `master` nije ušlo ništa od nove
+ere. Nose ostaje na TML 12 mj. (dodatak 16:53 povučen prije prvog podatka).
+
+**Što to znači:** stari ulaz nije bio pokvaren nego zamrznut. Napuhani povrat je gotovo stalan
+pomak, pa razlike među igračima ostaju točne. Novi ulaz sa svim razinama pokvario bi procjenu
+upravo igrača koji puno igraju Challengere, a takvih je u našim mečevima ~45%.
+
+**Nastavak (K25):** TML samo s glavnog ždrijeba bio je na viđenim podacima bolji svake godine
+(+0,013 do +0,019, i 2026.). To je naknadni rez, pa je prag za potvrdu zapisan u 17:34, prije
+gledanja:
+- test A: godine 2010–2019 (odmah, besplatno);
+- test B: budući mečevi (n ≥ 700, ~prosinac).
+
+Tek kad prođu oba, predlaže se nova era. Ni to ne bi tuklo cijenu: log-gubitak cijene je 0,589,
+a najbolje varijante ~0,63.

@@ -6,7 +6,7 @@ danima, jednostavnim jezikom). Brojke, obrazloženja i tehnički detalji su u
 (dalje: DI).
 
 **Pravilo:** na kraju svake radne sesije ovdje se dopiše što smo napravili i ažurira se
-popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 18.10.2026 15:47.
+popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 18.10.2026 19:44.
 
 **Jedna naredba za sve zakazane provjere kandidata:** `python scripts/measure_candidates.py`
 (čita bazu, ništa ne mijenja; kaže za svakog kandidata ČEKA / POTVRĐEN / PAO).
@@ -20,6 +20,7 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 
 | što | kada / uvjet | ishod | gdje |
 |---|---|---|---|
+| **K25 — servis/povrat iz TML-a SAMO GLAVNOG ŽDRIJEBA** (18.10.2026, nastavak tvog prelaska na TML) | **test A odmah, na tvoj znak** (besplatno, godine 2010–2019 koje nitko nije gledao); **test B** sam se skuplja od 19.10.2026, provjera kad bude ≥ 700 ATP mečeva (~prosinac) | prag zapisan 17:34 prije gledanja: A bolji za ≥ 0,005 log-gubitka u obje polovice i u ≥ 8 od 10 godina; B bolji za ≥ 0,005 uz interval iznad nule naspram sadašnjeg stanja. Tek kad prođu oba → prijedlog nove ere (jedan plaćeni poziv). Na viđenim podacima +0,013 do +0,019 svake godine, ali to je naknadni rez | DI K25; `revizije/2026-10-18/PRAGOVI_C_TML_PROMPT_2026-10-18.md`; osnova koda na grani `tml-era-881d89f8` |
 | **Omjer protiv ljevaka** | 300 mečeva s ljevakom (danas 120) | ponovno izmjeriti; do tada samo bilježenje | DI "IZMJERENO 26.09.2026" |
 | **K1 — prag VRAĆEN na 63 (04.10.2026 19:22, tvoja odluka)** | prva 3 tjedna (do ~25.10.) | pratiti koliko dana nema tiketa (procjena ~13 od 17) i ROI tiketa; K1 kao nalaz nije se ponovio, pa se prag više ne pomiče po pouzdanosti dok pouzdanost ne pokaže informaciju (r > 0) u dvije ere | `config/model_config.py` TICKET_CONFIG; DI K1 |
 | **Noćna sesija (samo bilježenje)** | 60 noćnih pickova od 05.10.2026 | tada pogledati smije li postati kandidat (stari +5,7pp n=83, novi +5,4pp n=12; interval dodiruje nulu, povijest je ne zna) | `context_snapshot.session` |
@@ -47,9 +48,9 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
   (nijedan workflow se ne pokreće na push), pa se testovi vrte lokalno prije pusha. Povratak:
   `git revert <sha>` pa push; scouting `b_scouting_vrati.py --vrati`.
 - **Servis/povrat: TML 12 mj. se PRATI uz RapidAPI od 18.10.2026 15:47 (tvoja odluka).** Bilježi se uz svaku analizu, a Nose ga koristi.
-  - Prompt i dalje vidi RapidAPI (karijeru). Prelazak traži novo podešavanje pragova u pravilima
-    i jedan plaćeni živi poziv, pa ide uz sljedeću eru prompta, na tvoj znak.
-  - Kad se skupi ~150 novih analiza, usporediti koji izvor bolje prati ishod (opis, ne kapija).
+  - ~~Prelazak modela na TML~~ — **18.10.2026 19:44 izmjereno i NIJE uveden** (vidi dnevnik):
+    TML sa svim razinama (Challengeri, kvalifikacije) procjenjuje igrače jednako ili lošije od
+    karijere. Nastavak je K25 (samo glavni ždrijeb) gore u zakazanim provjerama.
   - Tablica: `config/tml_forma_12m.json`, osvježava se prije svakog dnevnog runa.
 - **Sljedeća era prompta — dvije stavke iz Šangaja (18.10.2026):**
   - (1) pravilo 2 ("dvije neovisne kategorije → 70%+") neka kaže da ELO, rang i omjer na podlozi
@@ -135,6 +136,41 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 ---
 
 ## NAPRAVLJENO — dnevnik
+
+### 18.10.2026 19:44 — Prelazak modela na TML servis/povrat: napravljen, provjeren i NIJE uveden
+
+Tvoje odobrenje: nova era, TML za zadnjih 12 mjeseci i jedan plaćeni probni poziv, **ako rezultati
+to opravdaju**. Pravila za odluku zapisana su prije računanja (PRAGOVI_C, 16:25).
+
+- **Napravljeno je sve:**
+  - prompt dobiva TML brojke (12 mj. "povučeno" prema karijeri) i izmjereni hold;
+  - pragovi u pravilima preslikani su na novu skalu, s pričuvom za igrača bez TML-a;
+  - iz scoutinga su maknute stare brojke;
+  - testovi su dopisani;
+  - **jedan plaćeni probni poziv je prošao**: ispravan odgovor, 57% stropa, navodi nove brojke.
+- **Mjerenje ga ne opravdava**, pa model ostaje kakav je bio (era bccf4742):
+  - čistih 12 mjeseci procjenjuje igrače lošije od karijere; po pravilu zapisanom unaprijed to
+    znači "ne prelazi se";
+  - mješavina 12 mj. + karijera bolja je za samo +0,003 na 2024–26, što je u šumu, a 2026. je lošija;
+  - na istim našim mečevima 58,3% → 59,3%, također šum;
+  - skeptik: PADA.
+- **Zašto:** u gotovo pola mečeva bar jedan igrač ima više od pola poena iz Challengera i
+  kvalifikacija. Ti su postotci postignuti protiv slabijih protivnika, pa ga brojke prikazuju
+  boljim nego što jest. U tim mečevima nova verzija je lošija od stare.
+- **Ništa nije izgubljeno:** cijela implementacija je na lokalnoj grani `tml-era-881d89f8`
+  (commit 54590fb).
+- **Novi kandidat K25:** TML samo s glavnog ždrijeba izgleda bolje svake godine (+0,013 do
+  +0,019), ali je nađen naknadno. Prag za potvrdu zapisan je unaprijed, a test A se može
+  napraviti odmah i besplatno.
+- **Nose:** ostaje kako je bio (TML 12 mj.). Dodatak da prijeđe na mješavinu povučen je prije
+  prvog podatka.
+
+Testovi na `master`: 907 + 271 OK. U modelu, tiketu i Noseu ništa nije promijenjeno.
+
+Gdje:
+- `revizije/2026-10-18/PRAGOVI_C_TML_PROMPT_2026-10-18.md` (pravila, rezultati, K25);
+- skripte: `revizije/2026-10-18/skripte/c_tml_*.py` i `skripte/skeptik_tml/`;
+- probni poziv: `revizije/2026-10-18/zivi_poziv_TML/`.
 
 ### 18.10.2026 15:47 — Novi 2026.xlsx, TML forma 12 mj. uz RapidAPI, Nose na TML-u, push
 

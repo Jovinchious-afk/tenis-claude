@@ -1105,6 +1105,59 @@ Mjeri: `python scripts/measure_candidates.py --only K24` (pravilo u `nose.gate_s
 > poena), inače oba na RapidAPI karijeri. Izvor je u `nose.inputs.servis_povrat`. Usporedna
 > varijanta samo na karijeri bilježi se kao `nose_karijera` i ne ulazi u K24. Provjera prije
 > uključivanja: pokrivenost 99–100% igrača i mečeva; skala povrata 4,5pp niža od RapidAPI-ja.
+>
+> **NAPOMENA 18.10.2026 19:43 (kritičar, PRAGOVI_C):** čisti TML 12 mj. (sve razine) na povijesti
+> procjenjuje igrače LOŠIJE od karijere (2024–26 −0,0064 log-gubitka, 2026. −0,017), osobito kod
+> igrača s puno Challengera. Definicije i pragovi K24 se NE mijenjaju (Nose je provjeren na tim
+> ulazima); uz presudu se opisno uspoređuje i `nose_karijera`. Dodatak 16:53 (Nose na mješavini)
+> povučen je prije ijednog podatka.
+
+### K25 — TML servis/povrat SAMO GLAVNOG ŽDRIJEBA bolje procjenjuje igrače od karijere svih razina (18.10.2026 17:34) — HIPOTEZA
+
+Naknadni nalaz kritičara pri provjeri prelaska na TML (PRAGOVI_C, "REZULTATI I ODLUKA"): kad se iz
+12-mjesečnog prozora i karijere izbace Challengeri i kvalifikacije, mješavina 12 mj. + karijera
+(K = 1.500) bolja je od karijere na istim mečevima svake godine 2022–26 (+0,013 do +0,019
+log-gubitka, i 2026.), u pojasu favorita 0,50–0,80 +0,009 do +0,012 (n = 11.087;
+`revizije/2026-10-18/skripte/skeptik_tml/main_only3.py`). Mehanizam: postotci osvojeni protiv
+slabijih protivnika nisu usporedivi s onima s Toura. Ograda: jedan od ~40 rezova, na viđenim
+podacima — zato ne smije u odluku bez potvrde. Ni ovo ne tvrdi da model tuče cijenu.
+
+**PRAG ZA POTVRDU (zapisan 18.10.2026 17:34, prije gledanja; puni tekst u PRAGOVI_C):**
+- **Test A (odmah, besplatno):** TML glavni ždrijeb 2010–2019 (godine koje nitko nije gledao),
+  mješavina glavnog ždrijeba naspram karijere glavnog ždrijeba, model poena kao u `c_tml_lab.py`.
+  PROLAZI: bolja za ≥ 0,005 u obje polovice (2010–14, 2015–19) i u ≥ 8 od 10 godina; PADA: ≤ 0 u
+  bilo kojoj polovici. Snaga: ~25.000 mečeva, SE ≈ 0,0012.
+- **Test B (budući mečevi od 19.10.2026, n ≥ 700, ~prosinac):** cijeli postupak (glavni ždrijeb kad
+  oba igrača imaju ≥ 300 + 300 poena u karijeri glavnog ždrijeba, inače karijera svih razina)
+  naspram karijere svih razina (≈ RapidAPI). PROLAZI: bolji za ≥ 0,005, 95% interval iznad nule
+  (klaster turnir), isti predznak u obje polovice; PADA: ≤ 0. Snaga: n = 700 → SE ≈ 0,007.
+- Tek kad prođu A i B → prijedlog nove ere (pragovi po kvantilima, pričuva, jedan plaćeni poziv).
+  Osnova za implementaciju postoji na grani `tml-era-881d89f8`.
+
+### IZMJERENO 18.10.2026 19:43 — prelazak modela na TML servis/povrat 12 mj. (PRAGOVI_C): NE UVODI SE
+
+Kriteriji zapisani 16:25, rezultat 16:27 (`skripte/c_tml_lab.py`, 12.315 ATP mečeva, model poena bez
+cijene i ELO-a). Kritičar (skeptik, odgovor primljen prije 17:32): **PADA** kao tvrdnja da rezultati opravdavaju prelazak;
+brojke ponovljene njegovim skriptama (`skripte/skeptik_tml/`).
+
+| izvor (log-gubitak / točnost) | P1 2022–23 | P2 2024–26 |
+|---|---|---|
+| (a) karijera (≈ RapidAPI, r 0,98 / 0,96) | 0,6554 / 60,3% | 0,6529 / 60,2% |
+| (b) TML 12 mj., sve razine | 0,6524 / 60,9% | 0,6593 / 59,7% |
+| (c) 12 mj. povučeno prema karijeri, K = 1.500 | 0,6456 / 61,4% | 0,6501 / 60,1% |
+
+- po slovu kriterija (b) PADA i "prelazak se ne radi" je okinulo; (c) − (a) na P2 +0,0028
+  [−0,0015, +0,0068] — šum; 2026. −0,005;
+- miješanje razina: kad bar jedan igrač ima > 50% poena u 12 mj. iz Challengera/kvalifikacija
+  (48,5% mečeva) (c) je lošiji od (a), −0,020 u 2025–26; inače bolji +0,013 do +0,028;
+- isti mečevi (437): 58,3% → 59,3% (+1,2 ± 2,7pp) — šum;
+- probni plaćeni poziv prošao (oblik), ali to ne govori ništa o točnosti.
+
+**Ishod:** model ostaje na RapidAPI karijeri (era bccf4742). Implementacija sačuvana na grani
+`tml-era-881d89f8` (54590fb). Nastavak: K25 (samo glavni ždrijeb).
+
+**ODBAČENO (ne otvarati bez novih podataka):** TML 12 mj. ili mješavina 12 mj. + karijera **svih
+razina** kao ulaz u prompt.
 
 ### IZMJERENO 18.10.2026 15:11 — revizija Šangaja, drugi dio (B1–B4b, TA2/TA3, N5–N7, Nose, težine v18, scouting, RapidAPI)
 
@@ -1144,7 +1197,9 @@ je +5,7pp iznad TML-a za 365 dana:
 - ~0,9 prozor, ~0,6 razina;
 - ~2,4 neobjašnjeno.
 
-Prijedlog TML 365 d — korisnikova odluka (nova era).
+Prijedlog TML 365 d — korisnikova odluka (nova era). **18.10.2026 19:43: izmjereno i NE uvodi se**
+(sve razine su lošije ili u šumu; vidi "IZMJERENO 18.10.2026 19:43" i K25 gore). Napuhani povrat je
+gotovo stalan pomak (kritičar: +3,4pp, SD 0,64), pa razlike među igračima ne kvari.
 
 **Scouting (2a):** 1 tekstualna izmjena (Atmane, povrat 3. percentil), 66 rangova; Đoković
 povučen; razine nisu mijenjane.

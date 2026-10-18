@@ -1,0 +1,155 @@
+=== MATCH ===
+Alexander Zverev vs Alejandro Davidovich Fokina
+Tournament: Shanghai Rolex Masters - Shanghai | Level: ATP Masters 1000
+Surface: Hard | Round: SF
+Date: 2026-10-17 | Format: Best of 3
+Round context: Semifinal (1/2 final). Four players left; both battle-hardened, fatigue and mental strength decisive. (Best of 3)
+
+=== Alexander Zverev ===
+Age: N/A | Playing hand: Desna | Country: GER
+ATP Ranking: #2
+ELO (overall): 2110.9 | ELO (Hard): 2049.9
+NOTE: Surface-specific ELO is more predictive than ATP ranking for this match.
+Hard record (last 3 years): Outdoor 83W/27L (75.5%) — 110 matches | Indoor 24W/10L (70.6%) — 34 matches
+Form (last 5): W W W W L | Form (last 10): 8/10
+Avg opponent ELO (last 10): 1861.0 — quality-adjusted form signal
+Hard form (6 months): not loaded for this test
+THIS TOURNAMENT so far: over 4 matches here: serve pts won 76.1%, aces/100 serve pts 15.2, BP saved 44.4%, BP converted 44.7%
+--- Serve & return (last 12 months, 84 matches, steadied by career numbers) ---
+Total serve points won: 70.4% | Hold % (measured; same information as serve points won, not a second signal): 88.8%
+1st serve %: 71.6 | 1st serve pts won: 76.3
+2nd serve pts won: 55.7 | Aces per 100 serve pts: 11.8
+BP saved: 60.7 | BP converted: 39.1
+Return pts won: 36.7%
+Tiebreaks (own record): 5W-2L (71%) | Deciding sets (Bo3 2-1): 0W-1L (0%)
+--- Physical condition ---
+Matches last 7 days: 3 | Sets last 7 days: 5 | Days rest: 2 | Age: N/A
+Build: 198 cm, 90 kg, Right-Handed, Two-Handed Backhand — height explains SERVE STYLE, not who wins (see rule below)
+Best at THIS tournament, last 3 seasons: round of 16
+Current tournament path: 4W/0L, 6 sets played | Scores: 6-4 6-4 | 7-6(6) 4-6 7-6(1) | 6-4 6-7(8) 6-3 | 6-4 7-6(4)
+Form trend: N/A
+Known injuries/news: No news
+
+=== Alejandro Davidovich Fokina ===
+Age: N/A | Playing hand: Desna | Country: ESP
+ATP Ranking: #26
+ELO (overall): 1920.2 | ELO (Hard): 1871
+NOTE: Surface-specific ELO is more predictive than ATP ranking for this match.
+Hard record (last 3 years): Outdoor 50W/33L (60.2%) — 83 matches | Indoor 15W/9L (62.5%) — 24 matches
+Form (last 5): W W W W L | Form (last 10): 8/10
+Avg opponent ELO (last 10): 1781.0 — quality-adjusted form signal
+Hard form (6 months): not loaded for this test
+THIS TOURNAMENT so far: over 4 matches here: serve pts won 70.7%, aces/100 serve pts 5.0, BP saved 70.2%, BP converted 50.6%
+--- Serve & return (last 12 months, 52 matches, steadied by career numbers) ---
+Total serve points won: 65.2% | Hold % (measured; same information as serve points won, not a second signal): 82.2%
+1st serve %: 68.0 | 1st serve pts won: 69.9
+2nd serve pts won: 55.1 | Aces per 100 serve pts: 5.2
+BP saved: 65.3 | BP converted: 40.8
+Return pts won: 36.9%
+Tiebreaks (own record): 4W-1L (80%) | Deciding sets (Bo3 2-1): 1W-1L (50%)
+--- Physical condition ---
+Matches last 7 days: 3 | Sets last 7 days: 4 | Days rest: 2 | Age: N/A
+Build: 180 cm, 80 kg — height explains SERVE STYLE, not who wins (see rule below)
+Best at THIS tournament, last 3 seasons: no trace in our records (3 seasons)
+Current tournament path: 4W/0L, 6 sets played | Scores: 4-1 ret. | 1-6 6-3 7-6(6) | 7-6(4) 4-6 7-6(6) | 6-1 6-3
+Form trend: N/A
+Known injuries/news: No news
+
+=== H2H ===
+Overall: not loaded for this test
+On Hard: not loaded for this test
+Last meeting: not loaded for this test
+Recent trend (last 3): not loaded for this test
+H2H reliability: not loaded for this test
+not loaded for this test
+
+=== CONTEXT ===
+Conditions: 27°C, Clouds, Wind: 17 km/h, Humidity: 60%
+Altitude: Normal altitude
+Venue type: Outdoor hard court
+Local start time at the venue: 16:30 (day session)
+Court pace this event (share of sets going to a tiebreak): fast court (tiebreak share not stored in snapshot)
+Market check (NOT an input — see MARKET PRICE rule below): Alexander Zverev 81% / Alejandro Davidovich Fokina 24% (implied by the bookmaker, overround not removed)
+Tournament draw history — verified API data, last 3 seasons (F/SF/QF/R16):
+not loaded for this test
+STRICT ANTI-HALLUCINATION RULE:
+- Draw history above is the ONLY authoritative source for past champions, finalists, and semifinalists.
+- Tournament records below show ONLY aggregate match win/loss COUNTS — the underlying API endpoint is known to contain round-label errors (e.g. labelling a player "Winner" when they did not win the title). Do NOT use them to make any historical claims about who won or reached which round.
+- Do NOT write "title defence", "defending champion", "winner last year", "finalist last year", or ANY historical tournament achievement for either player unless they are explicitly listed in the draw history above (e.g. "F: PlayerName def. ...").
+- If draw history shows "Nema podataka" — make ZERO historical tournament claims.
+- Do NOT invent geographic, political, or biographical claims beyond the literal Country value given above (e.g. "his home country borders the host nation", "he grew up nearby", "fans from the neighbouring country"). Documented error: the model claimed Slovakia borders Croatia to justify a "home crowd" narrative for a Slovak player at a Croatian tournament — Slovakia does not border Croatia. Use the Country field exactly as given; do not reason about geography, borders, or regional ties beyond it.
+- Read the draw history for what it ACTUALLY says about each player, including losses. Documented error: the model wrote "Van Assche won 2023 R16 here" when the draw history for that event explicitly recorded "2023 R16: Davidovich Fokina def. Luca Van Assche" — i.e. he lost that match. Before citing any past result, confirm the player's name is on the WINNING side of that specific line.
+- BALANCED CITATION (mandatory): if you cite tournament history as evidence FOR your pick, you must first check the SAME history for the opponent and for your pick's recent failures there, and mention anything comparable or stronger. Documented error: the model cited "Rublev won this title in 2023" to support picking Rublev, while the very same draw history in this prompt showed "Darderi: 2025 FW" (the opponent won the title more recently) and "2024 R16: Tirante def. Rublev" (our pick lost early on his most recent appearance). Citing only the half that supports your pick is a reasoning error even when the individual fact is true. Either present both sides or do not use tournament history as a key factor at all.
+Tournament record Alexander Zverev (aggregate W/L COUNTS ONLY — do not infer round achievements):
+not loaded for this test
+Tournament record Alejandro Davidovich Fokina (aggregate W/L COUNTS ONLY — do not infer round achievements):
+not loaded for this test
+
+=== CAREER FINALS EXPERIENCE (verified API counts) ===
+Relevant mainly from the quarterfinal onwards: how often each player has BEEN in a final and
+how often he CLOSED it. A player with many finals played and a high conversion rate handles
+closing pressure better than one with a poor conversion record; a player with no tour-level
+finals is unproven in that specific situation. Treat this as a supporting factor for late
+rounds (QF/SF/F), not as a driver in early rounds.
+Alexander Zverev: Tour-level finals: 45 played, 27 won (60% converted); of which Grand Slam finals: 6 played, 2 won | Challenger finals: 2 played, 2 won (100% converted)
+Alejandro Davidovich Fokina: Tour-level finals: 7 played, 2 won (29% converted); no Grand Slam final | Challenger finals: 5 played, 2 won (40% converted)
+
+
+=== SCOUTING PROFILES (secondary evidence — strict usage rules) ===
+Curated analyst scouting notes (qualitative priors, snapshot-dated). Usage rules:
+- SECONDARY evidence only: may adjust confidence by AT MOST ±3pp, and may act as the
+  tie-breaker when the measured factors above are close to even. It must NEVER override
+  the measured statistics (ELO, hold%, form, H2H) when they clearly point one way.
+- A CAP IS A CEILING, NOT A STARTING POINT: when any rule caps this
+  match, scouting may only move confidence DOWN from that cap — never up through it.
+  Documented failure: Landaluce vs Mejia, where rule 2's "one overwhelming category" cap
+  of 64% was treated as a base and +1pp of scouting was added on top for a final 65%.
+  That pick lost. If a cap applies, the cap is the maximum, full stop.
+- THE ±3pp BUDGET SCALES WITH THE PROFILE'S OWN CONFIDENCE. Each block
+  states its confidence — honour it instead of treating every profile as equal evidence:
+    High / Med-High -> the full ±3pp is available.
+    Med             -> at most ±2pp.
+    Med-Low         -> ASYMMETRIC: it may raise DOUBT about a pick, but it may never be
+                       cited as support FOR one. If the only thing backing your pick is a
+                       Med-Low profile, you do not have that evidence at all.
+                       DETERMINISTIC BACKSTOP: when the profile of
+                       the player YOU pick is Med-Low, code subtracts 4pp from your final
+                       number automatically. Do NOT subtract it yourself as well — state
+                       your honest number and let the deduction happen once.
+                       The measurement behind it: picks whose own profile was Med-Low went
+                       26.7% (n=15, ROI -51%) against 65.8% (n=114) for Med / Med-High /
+                       High. P=0.0035. Note the direction of the irony — profiles rated
+                       Low or Insufficient did BETTER (87.5% and 76.9%), because those are
+                       withheld from this prompt entirely, so nothing was built on them.
+                       Med-Low is the band you can see and therefore lean on.
+  Reason (measured 2026-07-31): the three scouting profiles that turned out to be plainly
+  wrong — Van Assche ("needs a weapon", then beat Rublev and won Estoril), Halys (who then
+  beat three of our picks in one week and took the title) and Majchrzak — were ALL Med-Low,
+  and all three participated in losses. Med-Low means "partial data", which is exactly the
+  profile most likely to be stale on a riser. One third of the table (50 of 150) is
+  Med-Low, so this is not a rare edge case.
+- Do NOT double-count: scouting is qualitative context for INTERPRETING the numbers above
+  (e.g. "big server" explains a high hold%, it is not a second, independent piece of
+  evidence on top of that hold%).
+- Style-vs-style matchups ARE a legitimate factor (research shows style matchups can swing
+  win probability by several points at equal rating, and the surface amplifies this):
+  e.g. big server vs counter-puncher tilts server on grass/indoor, counter-puncher on clay.
+  Use the style fields together with the CURRENT surface. The profiles no longer carry
+  "favours / struggles against" lists: measured on 101 such claims over 1,783 priced
+  matches, they carried no information beyond the market price (a player's record against
+  the named type was no worse than against anyone else), so do not reconstruct them from
+  memory either.
+- Where a profile says "No reliable scouting profile", do NOT substitute your own memory
+  of the player — treat scouting as absent and rely purely on the measured data above.
+- Profiles are a snapshot (see date) — recent form/results above always outrank them.
+Scouting Alexander Zverev: [confidence: High, snapshot: 2026-08-04] | Style: Aggressive baseliner / big server | Best surfaces: Indoor, Hard, Clay, Grass | Strengths: Huge serve; flat penetrating drives; good mover for 1.98 m; deep clay + hard runs | Weaknesses: Second-serve fragility; tight-margin / break-point conversion; FH can wobble under pressure
+Scouting Alejandro Davidovich Fokina: [confidence: Med, snapshot: 2026-08-04] | Style: All-court / variety | Best surfaces: Clay, Grass | Strengths: Variety; drop shots; athletic; clay + grass touch | Weaknesses: Streaky; mental swings; indoor / fast hard weaker
+
+=== MODEL WEIGHTS ===
+ELO + ranking trend + opponent quality: 19%
+Surface + playing style matchup: 18%
+Serve + return stats: 23%
+Recent form (last 5-10 matches): 17%
+Fatigue + injuries + schedule: 12%
+H2H + tournament context: 4%
+Tournament trajectory (in-tournament W/L run, current momentum, hot-hand): 7%
