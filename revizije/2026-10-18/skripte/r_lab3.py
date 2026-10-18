@@ -32,6 +32,10 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.a
 LAB = os.path.join(ROOT, ".cache", "lab")
 OUTD = os.path.join(ROOT, ".cache", "rev_2026-10-18")
 USE_AVG = "--avg" in sys.argv
+# --od=GGGG-MM-DD (dodano 18.10.2026 15:38): mjeri SAMO mečeve od tog datuma (npr. K23 na mečevima
+# nakon 13.09.2026); povijest igrača i granice tercila i dalje se računaju na cijelom LAB-u.
+# Polovice su tada prva/druga polovica novog razdoblja. Izlaz ide u zasebnu datoteku (_od_...).
+OD = next((x.split("=", 1)[1] for x in sys.argv if x.startswith("--od=")), None)
 SET_RE = re.compile(r"(\d+)-(\d+)")
 MAIN_LEVELS = {"G", "M", "250", "500", "A", "F", "D", "O"}
 
@@ -297,6 +301,11 @@ def main():
             vals.append((sum(sel) / len(sel) - sum(wons) / len(wons)) if len(sel) >= 8 else None)
         f[f"simexc_{a}"] = vals
 
+    if OD:
+        f = f[f["date"] >= pd.Timestamp(OD)].reset_index(drop=True)
+        mid = f["date"].sort_values().iloc[len(f) // 2] if len(f) else None
+        f["half"] = np.where(f["date"] < mid, "P1", "P2") if len(f) else f.get("half")
+        print(f"SAMO mečevi od {OD}: {len(f)} (polovice = prva/druga polovica tog razdoblja)")
     pf_arr, half_arr = f["pf"].values, f["half"].values
 
     def oriented(mw, ml):
@@ -519,6 +528,10 @@ def main():
             parts.append(f"{st_['edge']:+5.1f} (n={st_['n']}, razlika do {100*hi_:.1f}pp)" if hi_ < 9 else f"{st_['edge']:+5.1f} (n={st_['n']})")
         print("  T0 dubina 2+, tercile razlike (mala / srednja / velika): " + " | ".join(parts))
 
+    if OD:
+        with open(os.path.join(OUTD, f"lab3_rezultati_od_{OD}.json"), "w", encoding="utf-8") as fo:
+            json.dump(res, fo, indent=1, default=float)
+        return
     with open(os.path.join(OUTD, "lab3_rezultati" + ("_avg" if USE_AVG else "") + ".json"), "w", encoding="utf-8") as fo:
         json.dump(res, fo, indent=1, default=float)
     if not USE_AVG:

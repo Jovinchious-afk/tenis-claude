@@ -16,6 +16,23 @@ dnevnik napravljenog jednostavnim jezikom. Dopunjava se na kraju svake radne ses
 
 ---
 
+## 2026-10-18 15:46 — Povijesni podaci osvježeni (tennis-data 2026 do 06.10., TML do 14.10.), Intuicija prior, K21/K23 međustanje
+
+- *Što:*
+  - Korisnik je ručno skinuo novi `.cache/tennis-data/2026.xlsx` (do 06.10.2026; Pinnacle nakon
+    13.09. nema, pa vrijedi prosjek kladionica).
+  - TML (stats.tennismylife.org) preuzet svjež; stare datoteke su u
+    `.cache/prije_osvjezavanja_2026-10-18/`.
+  - LAB obnovljen (`lab_data.py`, `lab_features.py`): 12.472 meča s cijenom, 99,7% spojeno.
+  - Intuicija prior ponovno naučen po zapisanom postupku (`scripts/intuicija_prior.py`): 12.434
+    meča, λ = 1000, r +0,034 (bilo +0,036). Pomak je neznatan; kapija K20 nedirnuta.
+- *K21:* `r_lab2.py --od=2026-09-14`, 112 novih mečeva, uvjet n = 9 od 150 → ČEKA.
+- *K23:* `r_lab3.py --od=2026-09-14`, nova opcija koja mjeri samo mečeve od datuma. S1 n = 4,
+  dubina 4+ n = 1 → ČEKA (2027.).
+- *Ne mijenja:* prompt, odabir, tiket.
+
+---
+
 ## 2026-10-18 12:55 — Revizija Šangaja, drugi dio: Nose u sjeni, bonus za konsenzus van, analiza gubitka popravljena, scouting (1 tekst + rangovi)
 
 Izvještaj: `revizije/2026-10-18/REVIZIJA_B_2026-10-18.md`; pragovi zapisani prije računanja:

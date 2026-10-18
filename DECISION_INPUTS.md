@@ -916,6 +916,11 @@ autsajdera. Kod: `agent/intuicija.py` (model), `scripts/intuicija_prior.py` (pri
 računa TEK nakon što je tiket složen i upisuje u `context_snapshot["intuicija"]` — ne može
 utjecati na izbor.
 
+> **PRIOR OSVJEŽEN 18.10.2026 15:46** (zapisani postupak nakon novog `2026.xlsx`): 12.434 meča
+> umjesto 12.322, ista jačina kazne (λ = 1000), r na neviđenim +0,034 (bilo +0,036); koeficijenti
+> pomaknuti neznatno. Stari prior: `.cache/prije_osvjezavanja_2026-10-18/intuicija_prior.json` i git.
+> Kapija K20 se ne mijenja (procjene su zapisane u trenutku analize).
+
 **Kako radi:** logistička regresija s pomakom (polazi od devigirane SuperSport cijene i uči
 samo odstupanje), jaka L2 kazna, jačina izabrana vremenskim rezom; ako nijedna jačina nije
 bolja od čiste cijene na novijih 30% mečeva, sloj ŠUTI (0). Dva sloja: tržišni prior naučen
@@ -985,6 +990,11 @@ Snaga: uz n=150 interval je ±7,6pp, pa se vidi samo učinak ≥ 9–10pp; za po
 ~400–560 mečeva. Takvih mečeva ima ~130 godišnje, pa je prva provjera realno **za ~godinu dana**.
 Do tada u model ne ulazi ništa.
 
+> **MEĐUSTANJE 18.10.2026 15:46** (korisnik je osvježio `2026.xlsx`, podaci do 06.10.2026; LAB
+> obnovljen, TML do 14.10.): od 14.09. ima 112 novih mečeva s cijenom (Pinnacle nakon 13.09. nema →
+> prosjek kladionica). K21 spojeno pravilo: **n = 9** od potrebnih 150, edge −0,0pp [−32, +32] →
+> **ČEKA**. Ispis: `.cache/rev_2026-10-18b/out_k21_od_2026-09-14.txt`.
+
 ### K22 — ELO jaz i servis/povrat nose nešto povrh cijene OD 14.09.? (18.10.2026 10:09) — KANDIDAT
 
 Iz testa težina J2 (revizija 18.10., `r_nasi.py`): na hard pickovima od 04.08. predstavnik
@@ -1034,6 +1044,9 @@ prolazi bolje od kvote.
 interval ispod nule, obje polovice novog razdoblja negativne → prijedlog: ne kažnjavati
 "giant-killer" priču kad je naš pick bolji server (izbor, ne prompt). PADA: edge ≥ 0. Snaga:
 ~600 novih mečeva daje ~25–30 takvih slučajeva godišnje — realno provjerljivo tek 2027.
+
+> **MEĐUSTANJE 18.10.2026 15:46** (isti osvježeni LAB; `r_lab3.py --od=2026-09-14`, nova opcija):
+> S1 na novim mečevima **n = 4** (−35,8pp, PREMALO); dubina 4+ n = 1. → **ČEKA** (2027).
 
 ### K10b — izričita sklonost pojasu kvote umjesto `edge_bonus` (18.10.2026 10:09) — ZA ZASEBNO TESTIRANJE
 
