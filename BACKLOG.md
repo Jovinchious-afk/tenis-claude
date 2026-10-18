@@ -6,7 +6,7 @@ danima, jednostavnim jezikom). Brojke, obrazloženja i tehnički detalji su u
 (dalje: DI).
 
 **Pravilo:** na kraju svake radne sesije ovdje se dopiše što smo napravili i ažurira se
-popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 18.10.2026 19:44.
+popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 18.10.2026 19:56.
 
 **Jedna naredba za sve zakazane provjere kandidata:** `python scripts/measure_candidates.py`
 (čita bazu, ništa ne mijenja; kaže za svakog kandidata ČEKA / POTVRĐEN / PAO).
@@ -20,7 +20,7 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 
 | što | kada / uvjet | ishod | gdje |
 |---|---|---|---|
-| **K25 — servis/povrat iz TML-a SAMO GLAVNOG ŽDRIJEBA** (18.10.2026, nastavak tvog prelaska na TML) | **test A odmah, na tvoj znak** (besplatno, godine 2010–2019 koje nitko nije gledao); **test B** sam se skuplja od 19.10.2026, provjera kad bude ≥ 700 ATP mečeva (~prosinac) | prag zapisan 17:34 prije gledanja: A bolji za ≥ 0,005 log-gubitka u obje polovice i u ≥ 8 od 10 godina; B bolji za ≥ 0,005 uz interval iznad nule naspram sadašnjeg stanja. Tek kad prođu oba → prijedlog nove ere (jedan plaćeni poziv). Na viđenim podacima +0,013 do +0,019 svake godine, ali to je naknadni rez | DI K25; `revizije/2026-10-18/PRAGOVI_C_TML_PROMPT_2026-10-18.md`; osnova koda na grani `tml-era-881d89f8` |
+| **K25 — servis/povrat iz TML-a SAMO GLAVNOG ŽDRIJEBA** (18.10.2026, nastavak tvog prelaska na TML) | **test A ODGOĐEN** (tvoja odluka 18.10.2026 19:56: "za drugi put"; besplatno, godine 2010–2019 koje nitko nije gledao); **test B** sam se skuplja od 19.10.2026, provjera kad bude ≥ 700 ATP mečeva (~prosinac) | prag zapisan 17:34 prije gledanja: A bolji za ≥ 0,005 log-gubitka u obje polovice i u ≥ 8 od 10 godina; B bolji za ≥ 0,005 uz interval iznad nule naspram sadašnjeg stanja. Tek kad prođu oba → prijedlog nove ere (jedan plaćeni poziv). Na viđenim podacima +0,013 do +0,019 svake godine, ali to je naknadni rez | DI K25; `revizije/2026-10-18/PRAGOVI_C_TML_PROMPT_2026-10-18.md`; osnova koda na grani `tml-era-881d89f8` |
 | **Omjer protiv ljevaka** | 300 mečeva s ljevakom (danas 120) | ponovno izmjeriti; do tada samo bilježenje | DI "IZMJERENO 26.09.2026" |
 | **K1 — prag VRAĆEN na 63 (04.10.2026 19:22, tvoja odluka)** | prva 3 tjedna (do ~25.10.) | pratiti koliko dana nema tiketa (procjena ~13 od 17) i ROI tiketa; K1 kao nalaz nije se ponovio, pa se prag više ne pomiče po pouzdanosti dok pouzdanost ne pokaže informaciju (r > 0) u dvije ere | `config/model_config.py` TICKET_CONFIG; DI K1 |
 | **Noćna sesija (samo bilježenje)** | 60 noćnih pickova od 05.10.2026 | tada pogledati smije li postati kandidat (stari +5,7pp n=83, novi +5,4pp n=12; interval dodiruje nulu, povijest je ne zna) | `context_snapshot.session` |
@@ -166,6 +166,20 @@ to opravdaju**. Pravila za odluku zapisana su prije računanja (PRAGOVI_C, 16:25
   prvog podatka.
 
 Testovi na `master`: 907 + 271 OK. U modelu, tiketu i Noseu ništa nije promijenjeno.
+
+**Zatvaranje dana (19:56, tvoje odluke):** TML promjena zasad NE ulazi u glavni model; test A za drugi
+put; grana `tml-era-881d89f8` ostaje odvojena (samo lokalno, nije na GitHubu). Provjereno prije
+zatvaranja:
+- `master` = GitHub (7b89250), bez nespremljenih izmjena;
+- era hard bccf4742, clay 84792fca, grass b22b1375 (iste kao 04.10.);
+- prompt ne koristi TML;
+- Nose se računa tek nakon tiketa, a `ticket_builder` ga ne uvozi;
+- Daily Ticket se pokreće samo ručno, s `master`a;
+- testovi 907 + 271 OK.
+
+**Sutra (19.10.) prvi put u produkciji rade Nose i bilježenje TML-a.** U ispisu runa treba vidjeti
+"Nose (sjena, nose-v1): izracunat za N predikcija" i "TML forma 12 mj. (podaci do ...)". Redak s
+"!!!" znači da je taj dio pao; tiket time nije pogođen.
 
 Gdje:
 - `revizije/2026-10-18/PRAGOVI_C_TML_PROMPT_2026-10-18.md` (pravila, rezultati, K25);
