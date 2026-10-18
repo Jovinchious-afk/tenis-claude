@@ -2993,8 +2993,8 @@ check("Nose: K24 trazi i kontrolu pojasa cijene", _g1a.get("band_diff") is not N
 # --- C. Nose je U SJENI: racuna se nakon tiketa, tiket ga ne cita ---
 _rd52 = io.open("agent/run_daily.py", encoding="utf-8").read()
 check("run_daily: Nose se racuna NAKON slaganja tiketa i nakon Intuicije",
-      _rd52.find("_nose.shadow(pred)") > _rd52.find("ticket = build_ticket(")
-      and _rd52.find("_nose.shadow(pred)") > _rd52.find("_int.shadow_scores(pred"))
+      _rd52.find("_nose.shadow(pred") > _rd52.find("ticket = build_ticket(")
+      and _rd52.find("_nose.shadow(pred") > _rd52.find("_int.shadow_scores(pred"))
 check("run_daily: Nose se upisuje samo u context_snapshot['nose']",
       'pred["context_snapshot"]["nose"] = _n' in _rd52)
 _tb52 = io.open("agent/ticket_builder.py", encoding="utf-8").read()
@@ -3021,6 +3021,68 @@ check("measure_candidates: K22, K24 i L4 postoje",
 check("measure_candidates: KONS je oznacen kao uklonjen", "UKLONJEN 18.10." in _mc52)
 check("rules_hash netaknut nakon revizije 18.10. (drugi dio)",
       _pr._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
+
+print()
+print("=== 53. TML forma 12 mj. (18.10.2026 15:43): prati se uz RapidAPI, Nose je koristi, prompt ne ===")
+from agent import tml_forma as _tf53
+_tab53 = {"podaci_do": "2026-10-18", "igraci": {
+    "jaume munar": {"name": "Jaume Munar", "svpt": 900, "o_svpt": 900, "s": 0.63, "r": 0.39, "w1": 0.7, "w2": 0.52},
+    "yunchaokete bu": {"name": "Yunchaokete Bu", "svpt": 800, "o_svpt": 800, "s": 0.64, "r": 0.36, "w1": 0.72, "w2": 0.5},
+    "novak djokovic": {"name": "Novak Djokovic", "svpt": 1500, "o_svpt": 1500, "s": 0.676, "r": 0.350, "w1": 0.74, "w2": 0.55},
+    "malo poena": {"name": "Malo Poena", "svpt": 120, "o_svpt": 130, "s": 0.6, "r": 0.4, "w1": 0.7, "w2": 0.5},
+    "ivan horvat": {"name": "Ivan Horvat", "svpt": 900, "o_svpt": 900, "s": 0.6, "r": 0.4},
+    "ivan horvat kovac": {"name": "Ivan Horvat Kovac", "svpt": 900, "o_svpt": 900, "s": 0.6, "r": 0.4}}}
+check("TML: puno ime", _tf53.lookup("Novak Djokovic", _tab53).get("name") == "Novak Djokovic")
+check("TML: riječi drugim redom (Bu Yunchaokete)", _tf53.lookup("Bu Yunchaokete", _tab53).get("name") == "Yunchaokete Bu")
+check("TML: TML ime sadržano u našem (Jaume Antoni Munar Clar)",
+      _tf53.lookup("Jaume Antoni Munar Clar", _tab53).get("name") == "Jaume Munar")
+check("TML: dvosmisleno ime se NE pogađa", _tf53.lookup("Ivan Horvat Kovac Juric", _tab53) == {})
+check("TML: ispod 300 poena nije upotrebljivo", not _tf53.usable(_tf53.lookup("Malo Poena", _tab53)))
+_p53 = _cp52.deepcopy(_pred52)
+_t53 = {"p1": _tf53.lookup("Novak Djokovic", _tab53), "p2": _tf53.lookup("Jaume Antoni Munar Clar", _tab53)}
+_n53 = _ns.shadow(_p53, tml=_t53)
+check("Nose: s TML-om za oba igrača ulaz je 'tml12'", (_n53.get("inputs") or {}).get("servis_povrat") == "tml12", str(_n53)[:160])
+_n53b = _ns.shadow(_cp52.deepcopy(_pred52), tml={"p1": _t53["p1"], "p2": _tf53.lookup("Malo Poena", _tab53)})
+check("Nose: kad jednome fali TML, oba ostaju na karijeri (izvori se ne miješaju)",
+      (_n53b.get("inputs") or {}).get("servis_povrat") == "karijera")
+_p53c = _cp52.deepcopy(_pred52)
+_p53c["match"]["odds_p1"], _p53c["match"]["odds_p2"] = 1.10, 7.0
+_n53c = _ns.shadow(_p53c, tml=_t53)
+check("Nose: i s TML-om faza A ne ovisi o kvoti", _n53["frozen"] == _n53c["frozen"])
+check("Nose: opis kaže koji je izvor servisa/povrata", "TML zadnjih 12 mjeseci" in _ns.describe(_n53))
+check("Nose: usporedna karijerna varijanta postoji", "p_own" in _ns.shadow_karijera(_cp52.deepcopy(_pred52)))
+_rd53 = io.open("agent/run_daily.py", encoding="utf-8").read()
+check("run_daily: TML se bilježi NAKON tiketa i prije Nosea",
+      _rd53.find("ticket = build_ticket(") < _rd53.find('_cs["p1_tml12"]') < _rd53.find("_nose.shadow(pred, tml="))
+check("run_daily: biljezi se i karijerna varijanta Nosea", '["nose_karijera"]' in _rd53)
+check("prompt NE čita TML (predictor ga ne spominje)",
+      "tml_forma" not in io.open("agent/predictor.py", encoding="utf-8").read())
+_wf53 = io.open(".github/workflows/daily_ticket.yml", encoding="utf-8").read()
+check("workflow osvježava TML prije runa i ne ruši se ako ne uspije",
+      "update_tml_form.py --preuzmi" in _wf53 and "continue-on-error: true" in _wf53 and "TML_FORMA_PATH" in _wf53
+      and _wf53.find("update_tml_form.py") < _wf53.find("python agent/run_daily.py"))
+import importlib.util as _ilu53, tempfile as _tmp53, datetime as _dt53
+_spec53 = _ilu53.spec_from_file_location("_utf53", "scripts/update_tml_form.py")
+_utf53 = _ilu53.module_from_spec(_spec53)
+_spec53.loader.exec_module(_utf53)
+_hdr = ("tourney_id,tourney_name,tourney_date,round,winner_id,winner_name,loser_id,loser_name,"
+        "w_svpt,w_1stIn,w_1stWon,w_2ndWon,w_SvGms,w_bpSaved,w_bpFaced,w_ace,w_df,"
+        "l_svpt,l_1stIn,l_1stWon,l_2ndWon,l_SvGms,l_bpSaved,l_bpFaced,l_ace,l_df\n")
+_row = lambda tid, d, r, w, l, bad="": (f"{tid},T,{d},{r},{w},{w.upper()},{l},{l.upper()},"
+                                        f"80,50,38,16,12,3,4,{bad or 5},2,80,48,33,15,12,4,6,3,3\n")
+import os as _os53
+_d53 = _tmp53.mkdtemp()
+_f1, _f2 = _os53.path.join(_d53, "a.csv"), _os53.path.join(_d53, "b.csv")
+with open(_f1, "w", encoding="utf-8") as _fh:
+    _fh.write(_hdr + _row("t1", "20261001", "R32", "aa", "bb") + _row("t1", "20261002", "R16", "aa", "cc")
+              + _row("t0", "20241001", "R32", "aa", "bb") + _row("t2", "20261003", "QF", "aa", "dd", bad="4y")
+              + _row("t3", "20261004", "R32", "aa", "ee"))
+with open(_f2, "w", encoding="utf-8") as _fh:   # turnir u tijeku: isti meč kao u godišnjoj datoteci
+    _fh.write(_hdr + _row("t1", "20261001", "R32", "aa", "bb"))
+_res53 = _utf53.build([(_f1, "main"), (_f2, "main")], _dt53.date(2026, 10, 18))
+_aa = _res53["igraci"].get("aa", {})
+check("TML tablica: stari meč (izvan 12 mj.) i duplikat iz turnira u tijeku ne broje se, pokvarena vrijednost ne ruši",
+      _aa.get("n") == 3 and _res53["podaci_do"] == "2026-10-04", str(_aa))
 
 print("\n" + "=" * 60)
 if _fails:

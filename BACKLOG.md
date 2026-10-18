@@ -6,7 +6,7 @@ danima, jednostavnim jezikom). Brojke, obrazloženja i tehnički detalji su u
 (dalje: DI).
 
 **Pravilo:** na kraju svake radne sesije ovdje se dopiše što smo napravili i ažurira se
-popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 18.10.2026 15:46.
+popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 18.10.2026 15:47.
 
 **Jedna naredba za sve zakazane provjere kandidata:** `python scripts/measure_candidates.py`
 (čita bazu, ništa ne mijenja; kaže za svakog kandidata ČEKA / POTVRĐEN / PAO).
@@ -42,27 +42,21 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 
 ## ČEKA — ideje i popravci bez roka
 
-- **TVOJ KORAK — push na GitHub (18.10.2026 13:02).** Izmjene od 18.10. commitane su samo
-  lokalno. Push = deploy (GitHub Actions i Streamlit), pa ga radiš ti ili ga izričito tražiš.
-  Dok se ne pusha:
-  - jutarnji raspored Odds API snimanja (1× dnevno) ne djeluje;
-  - bonus za konsenzus ni Nose ne djeluju u dnevnom runu.
-  Scouting u Supabaseu (1 tekst, 66 rangova) djeluje odmah.
-- **Izvor servisa/povrata: TML umjesto RapidAPI-ja (prijedlog 18.10.2026, nije proveden).**
-  Ono što model i Nose vide kao "sezonsku" statistiku zapravo je **zamrznuta statistika
-  karijere** (kritičar: vrijednosti se ne miču, poklapaju se s TML karijerom). Povrat je napuhan
-  ~4,7pp (+2,3 naš neponderirani prosjek, ~2,4 neobjašnjeno), a za igrače u padu još više
-  (Đoković: karijera 41,8, zadnjih 365 dana 35,6). Mijenja ulaz u prompt, pa ide uz novu eru i
-  tvoju odluku. TML osvježavam ja (besplatno).
+- ~~**Push na GitHub**~~ — **NAPRAVLJENO 18.10.2026** (tvoje odobrenje; commiti b57c0eb, 416a42f i
+  TML commit). Push mijenja kod za idući ručni dnevni run i Streamlit. CI s testovima ne postoji
+  (nijedan workflow se ne pokreće na push), pa se testovi vrte lokalno prije pusha. Povratak:
+  `git revert <sha>` pa push; scouting `b_scouting_vrati.py --vrati`.
+- **Servis/povrat: TML 12 mj. se PRATI uz RapidAPI od 18.10.2026 15:47 (tvoja odluka).** Bilježi se uz svaku analizu, a Nose ga koristi.
+  - Prompt i dalje vidi RapidAPI (karijeru). Prelazak traži novo podešavanje pragova u pravilima
+    i jedan plaćeni živi poziv, pa ide uz sljedeću eru prompta, na tvoj znak.
+  - Kad se skupi ~150 novih analiza, usporediti koji izvor bolje prati ishod (opis, ne kapija).
+  - Tablica: `config/tml_forma_12m.json`, osvježava se prije svakog dnevnog runa.
 - **Sljedeća era prompta — dvije stavke iz Šangaja (18.10.2026):**
   - (1) pravilo 2 ("dvije neovisne kategorije → 70%+") neka kaže da ELO, rang i omjer na podlozi
     NISU neovisne potvrde (Zverev–ADF);
   - (2) blok težina maknuti ili ELO vratiti na 22 (v18 je nastala iz automatske petlje nad 10
     poraza i 10 pobjeda, a model težine ne koristi).
   Ništa novo se ne dodaje.
-- **Ručni scouting za Jodara (18.10.2026).** Rang 13, 53 meča glavnog ždrijeba, povrat 41,0%
-  (razina Sinnera), a profil je "Insufficient", pa ga model ne vidi. Razinu i tekst biraš ti
-  (Med-Low pokreće −4pp kad je on pick).
 
 - **Drugi izvor tržišnog konsenzusa za ATP 250.** The Odds API pokriva samo GS, Masters i
   nekoliko 500-ica; na ostalim turnirima jedini potvrđeni tržišni signal ne postoji. Treba
@@ -141,6 +135,33 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 ---
 
 ## NAPRAVLJENO — dnevnik
+
+### 18.10.2026 15:47 — Novi 2026.xlsx, TML forma 12 mj. uz RapidAPI, Nose na TML-u, push
+
+- **Tvoj novi `2026.xlsx`** (do 06.10.):
+  - povijesni laboratorij obnovljen (12.472 meča);
+  - TML preuzet svjež;
+  - Intuicija prior ponovno naučen, s neznatnim pomakom.
+  - K21 i K23 pokrenuti na mečevima nakon 13.09.: premalo slučajeva (9 od 150, odnosno 4). Čekaju
+    se do 2027.; to je zapisano unaprijed.
+- **TML forma za zadnjih 12 mjeseci** se od danas bilježi uz RapidAPI ("pratit ćemo i jedno i
+  drugo").
+  - Prije toga provjereno: pokrivenost 99–100%, svježina oko tjedan dana, pričuva definirana.
+  - Skala povrata je 4,5pp niža od RapidAPI-ja.
+  - Tablica se osvježava prije svakog dnevnog runa (besplatno).
+- **Nose** sada uživo koristi TML (iste brojke kao na povijesti), a karijernu varijantu bilježi
+  usporedno.
+- **Model (prompt) ostaje na RapidAPI-ju.** Pravila u njemu imaju pragove na toj skali, pa
+  prelazak ide uz sljedeću eru i jedan plaćeni poziv, na tvoj znak.
+- Jodarov scouting maknut s popisa (tvoja odluka).
+- Testovi: 907 i 271 OK. Tri commita, pushano.
+
+**Pazi:** Nose i bilježenje TML-a vide se tek od idućeg dnevnog runa.
+
+Gdje:
+- `scripts/update_tml_form.py`, `agent/tml_forma.py`, `config/tml_forma_12m.json`;
+- `agent/nose.py`, `agent/run_daily.py`, `.github/workflows/daily_ticket.yml`;
+- `revizije/2026-10-18/skripte/b_tml_provjera.py`.
 
 ### 18.10.2026 15:13 — Revizija Šangaja, drugi dio: Nose u sjeni, bonus za konsenzus van, analiza gubitka popravljena
 

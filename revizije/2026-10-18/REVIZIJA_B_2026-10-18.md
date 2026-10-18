@@ -654,3 +654,52 @@ Sve njegove primjedbe provjerene su i ugrađene.
 
 **Najbrža provjera koju je predložio:** točno pravilo IZBJEGAVAJ uz kontrolu pojasa. Napravljena
 je (`b_lab_naknadno.py`): +1,3pp, n=1.824.
+
+---
+
+## 16. Dodatak 18.10.2026 15:48 — novi 2026.xlsx, TML 12 mj., push
+
+**Tvoje odluke:**
+1. push odobren (prvo točka 2);
+2. novi `2026.xlsx`;
+3. "može, pratit ćemo i jedno i drugo";
+4. Jodar zanemaren.
+
+**Novi `2026.xlsx` (do 06.10.):**
+- laboratorij obnovljen (12.472 meča, TML svjež);
+- Intuicija prior ponovno naučen (pomak neznatan);
+- K21: od 14.09. n = 9 od 150 → ČEKA;
+- K23 (S1): n = 4 → ČEKA (2027.);
+- dubina 4+: n = 1.
+
+Ništa od toga ne mijenja model.
+
+**TML forma 12 mj.:** provjere prije uključivanja (`b_tml_provjera.py`):
+
+| provjera | rezultat |
+|---|---|
+| pokrivenost | 99–100% igrača i mečeva od 01.08. |
+| usporedivost | servis +1,0pp (r 0,83), povrat −4,5pp (r 0,81) naspram RapidAPI-ja |
+| svježina | tablica do 18.10., zadnji meč igrača medijan 7–8 dana; osvježava se prije svakog runa |
+| pričuva | bez TML-a za oba igrača → RapidAPI karijera, uz oznaku izvora |
+
+**Što je provedeno:**
+- TML se bilježi uz RapidAPI za svaki meč;
+- Nose ga koristi kao ulaz (iste brojke kao na povijesti), a karijernu varijantu bilježi
+  usporedno;
+- prompt ostaje na RapidAPI-ju (pragovi u pravilima su na toj skali; prelazak traži novu eru i
+  plaćeni živi poziv).
+
+**Prijedlozi drugog modela (ChatGPT) — što ima smisla za nas:**
+
+| prijedlog | ocjena | što je napravljeno |
+|---|---|---|
+| prije pusha provjeriti git status i sadržaj commita | da | provjereno; bez slučajnih datoteka (`.cache` i `__pycache__` su ignorirani) |
+| testovi neposredno prije pusha | da | oba paketa: 907 i 271 OK |
+| potvrditi da je Nose samo u sjeni i bonus ugašen | da | pokriveno testovima (Nose nakon tiketa, tiket ga ne uvozi, konsenzus ne mijenja bodovanje) |
+| ne mijenjati izvor servisa/povrata prije provjere pokrivenosti, usporedivosti, svježine, pričuve | da, i to je presudilo | provjere napravljene; prompt namjerno nije prebačen (skala), Nose jest |
+| označiti da Nose koristi karijerne podatke | da | opis u aplikaciji kaže koji je izvor (TML ili karijera) |
+| odvojeni commitovi | da | tri commita: revizija, osvježeni podaci, TML |
+| potvrditi CI i deploy nakon pusha | djelomično | CI ne postoji (nijedan workflow se ne pokreće na push); dnevni run je ručni, pa izmjene djeluju od idućeg runa |
+| bez plaćenih poziva | da | nijedan plaćeni poziv; TML je besplatan |
+| K21/K23 kao zasebno otvoreno pitanje | već riješeno | `2026.xlsx` je stigao; pokrenuto, međustanje upisano |

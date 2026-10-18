@@ -16,6 +16,38 @@ dnevnik napravljenog jednostavnim jezikom. Dopunjava se na kraju svake radne ses
 
 ---
 
+## 2026-10-18 15:47 — TML forma 12 mj. prati se uz RapidAPI; Nose uživo na TML ulazima; prompt nepromijenjen
+
+Korisnik (18.10.): "može, napravi, pratit ćemo i jedno i drugo". Uz to je prenio prijedlog
+drugog modela: ne mijenjati izvor za model prije provjere pokrivenosti, usporedivosti, svježine
+i pričuve. Provjere su napravljene (`revizije/2026-10-18/skripte/b_tml_provjera.py`):
+- pokrivenost: 99–100% igrača i mečeva od 01.08. (nakon boljeg uparivanja imena: Munar, Merida,
+  Bu);
+- usporedivost: servis +1,0pp (r 0,83), povrat −4,5pp (r 0,81) naspram RapidAPI-ja, odnosno
+  −2,2pp naspram ponderiranog RapidAPI povrata;
+- svježina: tablica do 18.10. (uključuje cijeli Šangaj), zadnji meč igrača medijan 7–8 dana;
+- pričuva: bez TML-a za oba igrača ostaje RapidAPI karijera, uz oznaku izvora.
+
+**Što je napravljeno:**
+- `scripts/update_tml_form.py` gradi `config/tml_forma_12m.json` (788 igrača): glavni ždrijeb,
+  Challengeri, kvalifikacije i turniri u tijeku, 365 dana. Pokvarene vrijednosti i duplikati
+  turnira u tijeku se preskaču.
+- `daily_ticket.yml` je osvježava prije svakog runa (`continue-on-error`; pričuva je spremljena
+  datoteka).
+- `agent/tml_forma.py` čita tablicu (uparivanje imena, prag 300 + 300 poena).
+- `run_daily` nakon tiketa bilježi `p1_tml12` / `p2_tml12` uz RapidAPI vrijednosti.
+- Nose koristi TML kad ga imaju oba igrača (prosjek povrata 0,3762, isto kao na povijesti), a
+  karijernu varijantu bilježi usporedno (`nose_karijera`, ne ulazi u K24).
+
+**Zašto prompt NIJE prebačen:** pravila u promptu imaju apsolutne pragove podešene na napuhanu
+RapidAPI skalu (npr. povrat "oko 42%"). Zamjena brojki bez novog podešavanja pomaknula bi
+ponašanje neizmjereno (upozorenje zapisano 07.08.2026 uz kvar povrata), a izmjena teksta traži novu eru i
+jedan živi plaćeni poziv. To je zasebna odluka; podaci za nju se od danas skupljaju.
+
+*Era bccf4742 nepromijenjena; odabir i tiket nepromijenjeni.* Testovi: odjeljak 53 (14 provjera).
+
+---
+
 ## 2026-10-18 15:46 — Povijesni podaci osvježeni (tennis-data 2026 do 06.10., TML do 14.10.), Intuicija prior, K21/K23 međustanje
 
 - *Što:*

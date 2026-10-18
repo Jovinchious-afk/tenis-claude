@@ -155,6 +155,8 @@ usidrena na fiksnu četvorku pa bi trojac dobio skriveni bonus od +3 boda.
 
 **Od 27.09.2026 12:34 u istom zapisu (v23):** `intuicija` — procjena naučenog signala za obje strane meča (K20), upisana nakon slaganja tiketa; model i tiket je ne vide.
 
+**Od 18.10.2026 15:47 u istom zapisu (v23):** `p1_tml12` / `p2_tml12` — TML forma za zadnjih 12 mjeseci (servis, povrat, 1./2. servis, povrat na 1. servis, hold, asovi po gemu, spašeni BP, broj mečeva po razini, zadnji meč, upotrebljivost), uz postojeće RapidAPI vrijednosti (`p*_serve_pts_won`, `p*_return_won`), koje su praktički zamrznuta statistika karijere. Upisuje se nakon slaganja tiketa iz `agent/tml_forma.py`; tablicu prije runa osvježava `scripts/update_tml_form.py` (korak u `daily_ticket.yml`, pričuva `config/tml_forma_12m.json`). **Prompt je NE vidi:** pravila u promptu imaju pragove na RapidAPI skali, a prelazak bi tražio novo podešavanje i živi (plaćeni) poziv — zasebna odluka. Uz to `nose_karijera` (usporedna varijanta Nosea).
+
 **Od 18.10.2026 12:41 u istom zapisu (v23, oznaka `nose-v1`; zapis 14:44):** `nose` — Nose u sjeni (K24, `agent/nose.py`): Pick Quality (vlastita vjerojatnost, pouzdanost), Mine Risk (M1–M5), Upset Value (U1–U4), Ticket Suitability (IZBJEGAVAJ = NO PICK), `frozen` (SHA-256 faze A) i `vs_market` (faza B). Računa se nakon slaganja tiketa iz teniskih polja snapshota bez ijednog tržišnog polja; model i tiket ga ne vide. Prikazuje se na Dnevnom listiću uz oznaku "u sjeni, nepotvrđeno".
 
 **v23 (27.09.2026 11:58):** vijesti po igraču s Google Newsa (`p1_gnews` / `p2_gnews`, naslovi
@@ -1097,6 +1099,12 @@ riješeni zapisi `nose-v1` od prvog runa, naspram devigirane SuperSport cijene, 
 - POTVRĐEN znači samo "smije se predložiti"; ulazak u odabir uvijek odobrava korisnik.
 
 Mjeri: `python scripts/measure_candidates.py --only K24` (pravilo u `nose.gate_status`).
+
+> **ULAZI UŽIVO (18.10.2026 15:47, PRIJE ijednog podatka; PRAGOVI_B NAKNADNO 15:47):** servis,
+> povrat i 1./2. servis iz **TML-a za zadnjih 12 mjeseci** kad ga imaju oba igrača (≥ 300 + 300
+> poena), inače oba na RapidAPI karijeri. Izvor je u `nose.inputs.servis_povrat`. Usporedna
+> varijanta samo na karijeri bilježi se kao `nose_karijera` i ne ulazi u K24. Provjera prije
+> uključivanja: pokrivenost 99–100% igrača i mečeva; skala povrata 4,5pp niža od RapidAPI-ja.
 
 ### IZMJERENO 18.10.2026 15:11 — revizija Šangaja, drugi dio (B1–B4b, TA2/TA3, N5–N7, Nose, težine v18, scouting, RapidAPI)
 

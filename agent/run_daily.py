@@ -1128,13 +1128,39 @@ def main():
     # utjecati na izbor; upisuje se samo u context_snapshot["nose"] (oznaka verzije nose-v1).
     # U odluku ulazi tek nakon kapije K24 (DECISION_INPUTS) i korisnikova odobrenja.
     # Greska po meču je {"error": ...} — nikad ne rusi run (vidi `nose.shadow`).
+    # TML FORMA 12 MJ. (18.10.2026 15:43, korisnik: "pratit cemo i jedno i drugo"): uz RapidAPI
+    # servis/povrat (prakticki zamrznuta KARIJERA) biljezi se i TML za zadnjih 12 mjeseci
+    # (`agent/tml_forma.py`; tablicu prije runa osvjezi `scripts/update_tml_form.py`). Upisuje se
+    # TEK OVDJE, nakon tiketa, u `p1_tml12` / `p2_tml12` — prompt je NE vidi (pravila u promptu
+    # imaju pragove na RapidAPI skali). Neuspjeh ne rusi run.
+    _tml_by_pred = {}
+    try:
+        from agent import tml_forma as _tf
+        _tml_tab = _tf.load()
+        _n_ok = 0
+        for pred in predictions:
+            _cs = pred.get("context_snapshot")
+            _m = pred.get("match") or {}
+            if not isinstance(_cs, dict):
+                continue
+            _r1, _r2 = _tf.lookup(_m.get("player1"), _tml_tab), _tf.lookup(_m.get("player2"), _tml_tab)
+            _cs["p1_tml12"] = _tf.snapshot_entry(_m.get("player1"), _tml_tab)
+            _cs["p2_tml12"] = _tf.snapshot_entry(_m.get("player2"), _tml_tab)
+            _tml_by_pred[id(pred)] = {"p1": _r1, "p2": _r2}
+            _n_ok += _tf.usable(_r1) and _tf.usable(_r2)
+        print(f"\nTML forma 12 mj. (podaci do {_tml_tab.get('podaci_do')}): oba igraca upotrebljiva u "
+              f"{_n_ok}/{len(predictions)} predikcija (biljezi se uz RapidAPI karijeru).")
+    except Exception as e:
+        print(f"!!! TML forma nije zabiljezena: {str(e)[:120]} — tiket nije pogodjen.")
     try:
         from agent import nose as _nose
         _avoid = []
         for pred in predictions:
             if isinstance(pred.get("context_snapshot"), dict):
-                _n = _nose.shadow(pred)
+                _n = _nose.shadow(pred, tml=_tml_by_pred.get(id(pred)))
                 pred["context_snapshot"]["nose"] = _n
+                # usporedna varijanta na karijernim (RapidAPI) ulazima — ne ulazi u K24
+                pred["context_snapshot"]["nose_karijera"] = _nose.shadow_karijera(pred)
                 if _n.get("no_pick"):
                     _avoid.append(f"{pred.get('pick')} ({'; '.join(_n.get('reasons') or [])[:60]})")
         print(f"\nNose (sjena, {_nose.VERSION}): izracunat za {len(predictions)} predikcija; "

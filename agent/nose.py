@@ -47,6 +47,10 @@ W_ELO = 0.80
 # ~2,3pp (memorija "serve/return data defects"), ali kako obje strane dolaze s iste skale,
 # pomak se u modelu poena poništava. U LAB-u se predaje LAB-ov prosjek.
 AVG_RETURN_LIVE = 0.414
+# Isti prosjek na skali TML-a za zadnjih 12 mjeseci (prosjek povrata u povijesnom laboratoriju, b_lab.py
+# 18.10.2026: 0,3762). Od 18.10.2026 15:43 Nose uživo koristi TML 12 mj. kad ga imaju OBA igrača —
+# iste brojke na kojima je provjeren na povijesti (kritičarev rizik 3: "uživo ulazi nisu LAB ulazi").
+AVG_RETURN_TML = 0.3762
 
 # Pragovi — prepisani iz PRAGOVI_B_2026-10-18.md (12:20; U4 ispravljen u 12:22 prije računanja).
 ELO_LEAD_M1 = 25.0          # bodova spojenog ELO-a
@@ -101,6 +105,7 @@ AVOID_EVIDENCE = "povijest: takvi favoriti prolaze kako cijena kaže (+1,3pp), m
 # Uživo ulazi NISU ulazi s povijesti (kritičar 18.10.2026): servis/povrat iz RapidAPI-ja je praktički
 # zamrznuta statistika KARIJERE (povrat ~+4,7pp napuhan), a na povijesti je 365 dana iz TML-a.
 LIVE_INPUT_NOTE = "uživo: servis/povrat su karijerni podaci (RapidAPI), ne zadnjih 12 mjeseci"
+LIVE_INPUT_NOTE_TML = "servis/povrat: TML zadnjih 12 mjeseci (kao na povijesti)"
 
 _LABELS = {
     "M1": "ELO prednost nije potvrđena servisom i povratom",
@@ -175,19 +180,33 @@ def side_features(cs: dict, side: str) -> dict:
     return out
 
 
-def match_features(cs: dict, surface: str = "", level: str = "") -> dict:
-    """Ulaz za fazu A iz `context_snapshot` analize. Čita SAMO teniska polja."""
+def match_features(cs: dict, surface: str = "", level: str = "", tml: dict = None) -> dict:
+    """Ulaz za fazu A iz `context_snapshot` analize. Čita SAMO teniska polja.
+
+    `tml` (18.10.2026 15:43): {"p1": zapis, "p2": zapis} iz `agent.tml_forma.lookup`. Kad su OBA
+    upotrebljiva (≥ 300 + 300 poena u 12 mj.), servis, povrat i 1./2. servis dolaze iz TML-a i
+    `src` = "tml12"; inače oba ostaju RapidAPI (karijera) i `src` = "karijera". Izvori se nikad
+    ne miješaju unutar meča (skale se razlikuju ~4,5pp na povratu)."""
     cs = cs or {}
     p1, p2 = side_features(cs, "p1"), side_features(cs, "p2")
     if cs.get("elo_suspect"):
         # Analiza s dokazano tuđim ELO-om (revizija 04.10.2026) — ELO se ne koristi.
         for d in (p1, p2):
             d["elo_s"] = d["elo_o"] = None
+    src = "karijera"
+    if tml:
+        from agent import tml_forma as _tf
+        a, b = tml.get("p1") or {}, tml.get("p2") or {}
+        if _tf.usable(a) and _tf.usable(b):
+            for d, rec in ((p1, a), (p2, b)):
+                for k in ("s", "r", "w1", "w2"):
+                    d[k] = rec.get(k)
+            src = "tml12"
     surf = (surface or "").lower()
     fast = bool(cs.get("venue_shielded") is True or "indoor" in surf
                 or (cs.get("court_pace_label") or "") == "fast")
     best_of = 5 if "grand slam" in (level or "").lower() else 3
-    return {"p1": p1, "p2": p2, "fast": fast, "best_of": best_of}
+    return {"p1": p1, "p2": p2, "fast": fast, "best_of": best_of, "src": src}
 
 
 # ------------------------------------------------------------------ model poena
@@ -333,12 +352,15 @@ def _reliability(a: dict, b: dict) -> str:
     return "visoka" if form else "srednja"
 
 
-def assess(feat: dict, pick_side: int, avg_r: float = AVG_RETURN_LIVE, w_elo: float = None) -> dict:
+def assess(feat: dict, pick_side: int, avg_r: float = None, w_elo: float = None) -> dict:
     """FAZA A — vlastita procjena iz teniskih podataka. `pick_side` 1 ili 2.
 
-    Odbija ulaz s tržišnim poljem: faza A ne smije ni vidjeti kvotu."""
+    Odbija ulaz s tržišnim poljem: faza A ne smije ni vidjeti kvotu. Prosjek povrata za model poena
+    bira se po izvoru ulaza (`feat["src"]`, 18.10.2026 15:43): TML 12 mj. ili RapidAPI karijera."""
     if _has_market(feat):
         raise ValueError("Nose faza A ne smije primiti trzisno polje")
+    if avg_r is None:
+        avg_r = AVG_RETURN_TML if feat.get("src") == "tml12" else AVG_RETURN_LIVE
     a, b = (feat["p1"], feat["p2"]) if pick_side == 1 else (feat["p2"], feat["p1"])
     p, p_elo, p_pts = own_probability(a, b, feat.get("best_of", 3), avg_r, w_elo)
     mines = mine_flags(a, b)
@@ -370,6 +392,7 @@ def assess(feat: dict, pick_side: int, avg_r: float = AVG_RETURN_LIVE, w_elo: fl
         "ticket_suitability": suit,
         "no_pick": suit == "IZBJEGAVAJ",
         "reasons": reasons,
+        "inputs": {"servis_povrat": feat.get("src") or "karijera"},
     }
 
 
@@ -414,9 +437,10 @@ def compare_with_market(stage_a: dict, odds_pick, odds_opp) -> dict:
 
 # ------------------------------------------------------------------ dnevni run
 
-def shadow(pred: dict) -> dict:
+def shadow(pred: dict, tml: dict = None) -> dict:
     """Nose za jednu predikciju dnevnog runa. Poziva se NAKON slaganja tiketa; ne dira pred
-    osim što vraća zapis za `context_snapshot["nose"]`. Greška je {"error": ...}, ne ruši run."""
+    osim što vraća zapis za `context_snapshot["nose"]`. Greška je {"error": ...}, ne ruši run.
+    `tml` = {"p1": zapis, "p2": zapis} iz `agent.tml_forma` (18.10.2026 15:43)."""
     try:
         m = pred.get("match") or {}
         cs = pred.get("context_snapshot") or {}
@@ -425,7 +449,7 @@ def shadow(pred: dict) -> dict:
         if not pick or pick not in (p1, p2):
             return {"version": VERSION, "error": "nema picka"}
         side = 1 if pick == p1 else 2
-        feat = match_features(cs, m.get("surface") or "", m.get("level") or "")
+        feat = match_features(cs, m.get("surface") or "", m.get("level") or "", tml=tml)
         a = assess(feat, side)
         a["frozen"] = freeze(a)
         o1, o2 = m.get("odds_p1"), m.get("odds_p2")
@@ -433,6 +457,22 @@ def shadow(pred: dict) -> dict:
         return a
     except Exception as e:  # noqa: BLE001 — sjena nikad ne smije srušiti run
         return {"version": VERSION, "error": str(e)[:120]}
+
+
+def shadow_karijera(pred: dict) -> dict:
+    """Usporedna varijanta samo na RapidAPI (karijernim) ulazima — "pratit ćemo i jedno i drugo"
+    (korisnik, 18.10.2026). Samo sažetak faze A; ne ulazi u kapiju K24. Greška je {"error": ...}."""
+    try:
+        m = pred.get("match") or {}
+        pick, p1, p2 = pred.get("pick") or "", m.get("player1") or "", m.get("player2") or ""
+        if not pick or pick not in (p1, p2):
+            return {"error": "nema picka"}
+        feat = match_features(pred.get("context_snapshot") or {}, m.get("surface") or "", m.get("level") or "")
+        a = assess(feat, 1 if pick == p1 else 2)
+        return {"p_own": a["pick_quality"]["p_own"], "suit": a["ticket_suitability"],
+                "mines": a["mine_risk"]["flags"], "ups": a["upset_value"]["flags"]}
+    except Exception as e:  # noqa: BLE001
+        return {"error": str(e)[:120]}
 
 
 def describe(n: dict) -> str:
@@ -457,7 +497,9 @@ def describe(n: dict) -> str:
         if abs(vm["diff_pp"]) >= 100 * MARKET_DIFF:
             txt += f" [{MARKET_DIFF_EVIDENCE}]"
         parts.append(txt)
-    return "Nose (u sjeni, nepotvrđeno; " + LIVE_INPUT_NOTE + "): " + " | ".join(parts)
+    note = (LIVE_INPUT_NOTE_TML if (n.get("inputs") or {}).get("servis_povrat") == "tml12"
+            else LIVE_INPUT_NOTE)
+    return "Nose (u sjeni, nepotvrđeno; " + note + "): " + " | ".join(parts)
 
 
 # ------------------------------------------------------------------ kapija K24

@@ -35,6 +35,16 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      # TML FORMA 12 MJ. (18.10.2026 15:43, korisnikova odluka "pratit cemo i jedno i drugo"):
+      # svjeza tablica servisa/povrata za zadnjih 12 mjeseci (stats.tennismylife.org, besplatno,
+      # bez kljuca). Koristi je samo Nose (u sjeni) i biljezenje — prompt i tiket je NE vide.
+      # Ako preuzimanje ne uspije, korak ne rusi run: ostaje spremljena config/tml_forma_12m.json.
+      - name: Refresh TML 12-month form (shadow only)
+        continue-on-error: true
+        run: |
+          python scripts/update_tml_form.py --preuzmi --izlaz="$RUNNER_TEMP/tml_forma_12m.json" \
+            && echo "TML_FORMA_PATH=$RUNNER_TEMP/tml_forma_12m.json" >> "$GITHUB_ENV"
+
       - name: Generate daily ticket
         env:
           # Ukljuceno 08.08.2026 11:35. Bez toga Python puferira stdout pa se ispis
