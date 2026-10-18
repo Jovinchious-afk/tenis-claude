@@ -16,6 +16,104 @@ dnevnik napravljenog jednostavnim jezikom. Dopunjava se na kraju svake radne ses
 
 ---
 
+## 2026-10-18 12:55 — Revizija Šangaja, drugi dio: Nose u sjeni, bonus za konsenzus van, analiza gubitka popravljena, scouting (1 tekst + rangovi)
+
+Izvještaj: `revizije/2026-10-18/REVIZIJA_B_2026-10-18.md`; pragovi zapisani prije računanja:
+`revizije/2026-10-18/PRAGOVI_B_2026-10-18.md` (12:20; NAKNADNO 12:22 i 12:52). Korisnik je
+odobrio opcije 1a, 2a i 3a ("kreni"). **Prompt predikcije NIJE diran — era ostaje `bccf4742`;
+težine ostaju v18; prag 63, 3–6 noga i kvota 4–50 nepromijenjeni.**
+
+**1. Bonus za konsenzus kladionica UGAŠEN (`ticket_builder._CONSENSUS_GAP_BONUS` 4.0 → 0.0).**
+- *Što:* kod (`_consensus_gap_pp`, zbrajanje u `_score_combo`) ostaje; stara vrijednost je u
+  `_CONSENSUS_GAP_BONUS_DO_18_10`, pa je povratak jedna konstanta. Signal se i dalje bilježi i
+  mjeri (`measure_candidates.py`, KONS "UKLONJEN 18.10. (prati se)").
+- *Zašto:* nalaz s Cincinnatija/US Opena (+10,5pp, n=61) na novim podacima se nije ponovio: od
+  08.09. gap ≥ +1pp n=40, −0,4pp ±13,9. Kriterij od 08.09. ("ispod nule → maknuti") ispunjen je
+  po slovu skripte.
+- *Očekivani učinak:* ~nula (Odds API ne pokriva ATP 250). Simulacija od 08.09. (ispravak
+  15:06: prag po datumu, 60 do 04.10.): bonus je promijenio kombinaciju u 3 od 9 dana i gurao
+  prema duljim tiketima (3,8 naspram 3,4 noge); očekivani povrat −18,4% s njim, −17,1% bez. *Rizik:* ako je signal ipak stvaran, gubimo ~+4
+  boda prednosti za rijetke Masters/GS kombinacije. *Praćenje:* KONS u `measure_candidates.py`;
+  ponovni test samo uz prag zapisan unaprijed.
+
+**2. Analiza gubitka (`feedback_analyzer._LOSS_BASE_RATES` i uputa) — kvar popravljen.**
+- *Što:* tri zastarjela retka ispravljena, ne obrisana: ATP pobjede u sezoni → ZATVORENO 27.09.
+  (+0,0pp na 11.139, novi mečevi r=+0,03); konsenzus → NIJE POTVRĐEN, bonus maknut 18.10.; hard
+  ATP 250 → nepotvrđen kandidat (K18) s današnjim brojkama. Oznaka [SIGNAL CONFIRMED] i ostale
+  zamijenjene s ČETIRI odvojena pojma po faktoru: (a) vidljivo prije meča, (b) naš zapis
+  pobjede/porazi u istom uzorku, (c) prediktivna vrijednost (kapija izvan uzorka — jedina koja
+  smije opravdati izmjenu; danas je nema nijedan faktor), (d) što se dogodilo u ovom meču.
+- *Zašto:* stara oznaka "CONFIRMED" značila je samo povezanost u istim mečevima; od 27.09.
+  dodijeljena je 6 puta bez ijedne potvrde, a 11 od 30 analiza spominjalo je ATP pobjede (5 kao
+  izmjenu modela) zbog retka "the only one".
+- *Ishod/praćenje:* ne dira predikciju ni eru (automatsko mijenjanje težina je ugašeno od
+  05.08.). Prve nove analize gubitka (od 19.10.) provjeriti: ima li još prijedloga izmjene bez
+  [GATE PASSED].
+
+**3. Nose u sjeni (`agent/nose.py`, novi modul; `run_daily.py`; `pages/1_Dnevni_Listic.py`).**
+- *Što:* četiri odvojene procjene po meču — Pick Quality (vlastita vjerojatnost + pouzdanost),
+  Mine Risk (M1–M5), Upset Value (U1–U4), Ticket Suitability (UKLJUČI / UZ UPOZORENJE /
+  IZBJEGAVAJ = NO PICK). Faza A čita samo teniska polja snapshota (nikad kvotu, konsenzus ni
+  Intuiciju — test to provjerava), zamrzne se SHA-256 sažetkom, tek onda faza B uspoređuje s
+  devigiranom cijenom. Računa se NAKON slaganja tiketa (kao Intuicija) i upisuje samo u
+  `context_snapshot["nose"]` (oznaka `nose-v1`; `context_version` ostaje 23). Prikaz na Dnevnom
+  listiću uz "u sjeni, nepotvrđeno" i razinu dokaza uz svako upozorenje.
+- *Parametri:* W_ELO = 0,80 (procijenjeno na LAB P1 2022–23 prema ishodu); prosjek povrata na
+  skali izvora 0,414; svi pragovi M/U iz PRAGOVI_B (U4 0,50, ispravak skale 12:22 prije računanja).
+- *Zašto u sjeni:* LAB P2 (2024–26, neviđeno): kad Nose daje strani 5pp+ više od cijene, ta
+  strana prolazi −2,3pp [−3,8, −0,8] — u pravu je bila cijena; kombinacije mina (N5 −1,0pp) i
+  autsajdera (N6 −2,6pp) pale. Na našim analizama (razvojni uzorak) IZBJEGAVAJ −8,8pp ±13,5
+  (n=50) — smjer hipoteze, nije dokaz.
+- *Kapija K24* (DECISION_INPUTS): G1 mina, G2 vrijednost na protivniku, G3 vlastita procjena;
+  probir n=60, odluka n=150 (G3 n=300). U odabir tek uz prolaz i korisnikovo odobrenje.
+- *Rizik:* nula za pickove (ne čita ga ništa u odabiru). Rizik je čitateljski: upozorenje bez
+  dokaza može navesti na ručni izbor — zato uz svaki "miris" stoji povijesna razina dokaza.
+
+**4. Sažetak dana bez tiketa (B4, samo prikaz).** `build_analysis_only_ticket(..., reason)`:
+"no_combo" kad mečeva ima, ali nijedna kombinacija ne prođe pravila (najčešće prag 63);
+"too_few" kad mečeva nema dovoljno. Stranica Dnevni listić više ne tvrdi da je razlog uvijek
+premalo mečeva.
+
+**5. Scouting top 150 (Supabase `player_scouting` + Excel), korisnikova opcija 2a.**
+- *Što:* po pravilu S (PRAGOVI_B 12:20, uz stroži uvjet NAKNADNO 12:52) jedina tekstualna
+  izmjena: Atmane, uz "strong return" dodana oznaka "[18.10.2026 check: 'strong returner' NOT
+  supported - return points won 31.1% (median 35.6%) ...]" (TML 365 d, 41 meč; i naš RapidAPI
+  zapis od 06.09. kaže 19. percentil). Đokovićeva izmjena iz 12:50 povučena u 12:52 (0,9pp ispod
+  medijana, unutar 1 standardne pogreške, izvori proturječni). Rang osvježen kod 66 igrača iz
+  ATP singl liste koju bilježi dnevni run (rang kod ne čita). Razine pouzdanosti i datumi
+  profila NISU mijenjani. Excel ima nove listove "Dokazi 18.10.2026" (statistika / rezultati
+  Tokio-Peking-Šangaj / procjena stila — odvojeno) i "Promjene 18.10.2026".
+- *Povratak:* `python revizije/2026-10-18/skripte/b_scouting_vrati.py --vrati` (kopija svih 150
+  redaka i starog Excela u `revizije/2026-10-18/scouting/`).
+- *Usput izmjereno (kvaliteta ulaza, nije izmjena):* RapidAPI povrat koji model vidi je +5,7pp
+  iznad TML-a za zadnjih 365 dana (87 igrača; 10.–90. pct +3,5 do +8,0; servis −1,0pp).
+  **Kritičar (15:04):** to NIJE sezona 2026. `get_player_stats` ne šalje sezonu, vrijednosti se
+  kroz ~54 dana ne miču (medijan 0,1pp na 90 igrača), a poklapaju se s TML KARIJEROM (servis
+  r=0,94). Rastav 5,6pp: +2,3 je naš neponderirani prosjek povrata (`data_fetcher.py`, poznato),
+  ~0,9 prozor, ~0,6 razina, ~2,4 neobjašnjeno. Đoković: ponderirani 41,9 = TML karijera 41,8,
+  zadnjih 365 dana 35,6. **Model dakle vidi karijerni servis/povrat kao da je sadašnji.**
+  Prijedlog (ne proveden): izvor servisa/povrata za prompt i Nose prebaciti na TML 365 dana.
+
+**5a. Kritičar (skeptik, 18.10. 15:04, presuda SUMNJIVO) — što je ispravljeno.**
+- B4b uz kontrolu pojasa cijene +0,4pp [−0,9, +1,7] → nije trag K22 (LAB r(ELO jaz) +0,00).
+- M2 nije monoton po pragu → u Noseu označen kao šum.
+- Točno pravilo IZBJEGAVAJ na povijesti +1,3pp uz pojas (n=1.824) → nema potpore za minu.
+- Kapija K24: presuda se zamrzava na prvih 60 / 150 / 300 i traži kontrolu pojasa (PRAGOVI_B
+  NAKNADNO 15:05, prije ijednog podatka).
+- Simulacija tiketa: prag po datumu (V0 sada 4/13 isto, 5/13 djelomično).
+- Definicije Nosea nisu mijenjane.
+
+**6. Mjerenja (`scripts/measure_candidates.py`):** dodani K22 (ELO i servis+povrat, 150 hard
+pickova od 19.10.), K24 (Nose, pravilo u `nose.gate_status`) i L4 (upozorenje AI recenzenta,
+30 novih označenih noga).
+
+**Testovi:** `test_cap_and_weather.py` 892 OK (novi odjeljak 52, uklj. zamrzavanje kapije K24; test "konsenzus podiže
+bodovanje" prepravljen da čuva novo stanje i povratnu konstantu), `test_provisional_schedule.py`
+271 OK (rječnik oznaka analize gubitka prepravljen na nova četiri pojma + 3 nove provjere).
+Nijedan test nije uklonjen.
+
+---
+
 ## 2026-10-04 19:29 — Revizija azijske turneje: ELO popravak, rang iz singl liste, prag natrag na 63, analiza gubitka; K11 zatvoren
 
 Izvještaj: `revizije/2026-10-04/REVIZIJA_2026-10-04.md`. Sve izmjene korisnik je odobrio

@@ -765,7 +765,7 @@ def _find_best_combination(candidates: list, cfg: dict) -> Optional[list]:
       score = joint_probability × 100
             + edge_bonus × 1.5        (edge >= 3pp, proportional, cap 10/pick)
             + high_conf_count × 2     (confidence >= 72%)
-            + consensus_bonus         (+4 po picku uz gap >= +1pp, 08.09.2026 12:07)
+            + consensus_bonus         (0 od 18.10.2026; od 08.09. bilo +4 po picku uz gap >= +1pp)
             - weakest_pick_penalty    (max(0, 63 - min_conf) × 0.6, oslabljeno 08.09.2026)
             - extra_pick_penalty      ((n_picks - min_matches) × 3)
     Combined odds range is a hard filter, not a target.
@@ -934,7 +934,42 @@ def _find_best_combination(candidates: list, cfg: dict) -> Optional[list]:
 #   - tablica promasaja po igracu (ideja 2), povijest poraza na turniru (ideja 3),
 #     kretanje kvota (cetvrti put), vrijeme, 276 interakcija (0 prezivi korekciju).
 _CONSENSUS_GAP_MIN = 1.0     # postotnih bodova
-_CONSENSUS_GAP_BONUS = 4.0   # bodova po picku u _score_combo
+_CONSENSUS_GAP_BONUS = 0.0   # UGASEN 18.10.2026 12:37 (korisnik, opcija 3a); do tada 4.0 — vidi ispod
+_CONSENSUS_GAP_BONUS_DO_18_10 = 4.0   # stara vrijednost, cuva se za ponovni test (ne citati u kodu)
+# Komentar ispod je namjerno ISPOD konstanti (18.10.2026 09:40): test trazi da prag "do kraja
+# listopada 2026" stoji neposredno iznad `_CONSENSUS_GAP_MIN`, pa se novi zapisi dodaju ovdje.
+# ── STANJE 18.10.2026 (09:37, ispravljeno 10:08 po skeptiku; revizija 18.10., tocka 8) ──
+# NIJE POTVRDJEN, ALI NI OBOREN: od 08.09. gap >= +1pp n=40, edge -0,4pp ±13,9 (prije
+# +10,5 naspram -2,1; sada -0,4 naspram +0,1). measure_candidates kaze PAO (n>=30 i <0), ali
+# tekst iznad veze odluku uz kraj listopada i 60 pickova -> kriterij NIJE nedvosmislen, pa
+# bonus NIJE maknut. Izbor je korisnikov: maknuti odmah (ne kosta nista — bonus ionako ne
+# okida) ili odluciti 31.10. (n=16 / -5,9pp iz r_kvote.py je druga mjera i podskup — ne broji
+# se kao druga provjera.) Provedba (_CONSENSUS_GAP_BONUS 4 -> 0) ceka "provedi".
+# UZ TO: Odds API kljuc je od ~15.10. DEAKTIVIRAN (401 DEACTIVATED_KEY nakon otkazivanja
+# placenog plana) — od 16.10. analize idu s `market_source = screenshot`. Novi kljuc
+# besplatnog plana -> GitHub Secrets ODDS_API_KEY i .env (korisnikov korak).
+# 18.10.2026 09:37: K17 PAO (od 27.09. +13,7pp, n=43; prije -11,7pp — razine scoutinga
+# okrecu predznak) -> kazna -3pp se NE uvodi; nikad nije bila u kodu. K18 se puni od 19.10.
+# (Bruxelles, Lyon, Almaty), K19 ceka (4 + 11).
+# 18.10.2026 10:08 (skeptik): spojeno STARO+NOVO High -0,3pp (n=96); +13,7 nose Peking
+# (+24,5, n=16) i Hangzhou (+28,8, n=5). Svih 5 razina okrece predznak — i postojeca kazna
+# Med-Low (-4pp, predictor) je ista nestabilna obitelj (NOVO n=6, +11,2), ni potvrdjena ni oborena.
+# ── BONUS UGASEN 18.10.2026 12:37 (korisnikova odluka 3a, revizija 18.10. drugi dio) ──────
+# STO: `_CONSENSUS_GAP_BONUS` 4.0 -> 0.0. Kod (`_consensus_gap_pp`, zbrajanje u `_score_combo`)
+# ostaje netaknut, pa je povratak JEDNA konstanta (`_CONSENSUS_GAP_BONUS_DO_18_10`).
+# ZASTO: nalaz s Cincinnatija/US Opena (+10,5pp, n=61) se na novim podacima nije ponovio — od
+# 08.09. gap >= +1pp n=40, edge -0,4pp ±13,9 (ostali +0,1pp). Teret dokaza je na pravilu koje
+# mijenja izbor, a ono ga vise nema. Zapisani kriterij od 08.09. ("ako padne ispod nule — maknuti
+# bonus") ispunjen je po slovu `measure_candidates.py` (n>=30 i edge < 0).
+# UCINAK: nula na danasnjem rasporedu — Odds API ne pokriva ATP 250 (Bruxelles, Lyon, Almaty). U
+# simulaciji od 08.09. (b_tiketi_sim.py, priblizan bazen; ispravak 18.10.2026 15:06 — prag po
+# datumu, 60 do 04.10.) bonus je promijenio kombinaciju u 3 od 9 dana (29.09., 01.10., 06.10. —
+# Masters/500 s konsenzusom) i gurao je prema DULJIM tiketima (prosjek 3,8 noge s bonusom, 3,4 bez);
+# ocekivani povrat -18,4% s bonusom naspram -17,1% bez. Anegdota i mehanika, ne dokaz.
+# STO OSTAJE: konsenzus se i dalje dohvaca, biljezi (`market_p`, `market_gap_pp`, snapshot) i mjeri
+# (`measure_candidates.py`, KONS). Ponovni test samo s pragom zapisanim UNAPRIJED: npr. 60+ novih
+# pickova s gap >= +1pp ili drugi izvor konsenzusa za ATP 250 (BACKLOG). Zapis: MODEL_CHANGELOG
+# 18.10.2026.
 
 
 def _consensus_gap_pp(pred: dict):
@@ -1023,6 +1058,15 @@ def _score_combo(combo: tuple) -> float:
     #
     # NE PONAVLJATI MJERENJE bez kontrole cijene. Sirova usporedba value=TRUE/FALSE tri
     # puta je dosad izgledala kao dramatican nalaz i tri puta je bila cijena.
+    #
+    # 18.10.2026 (09:37, ispravljeno 10:08 po skeptiku) — K10 FORMALNO ZADOVOLJEN, OBLIK SE
+    # NIJE PONOVIO: od 14.09. 1,20-1,35 +10,4pp (n=33) | 1,35-1,65 -3,3pp (67) | 1,65-1,85
+    # -6,9pp (33) — uvjet prolazi samo granom "ILI". Pojas 1,65-1,85 koji ovaj clan nagradjuje
+    # (value = kvota >= ~1,66) bio je +12,3pp prije 14.09. (n=81), a sada je -6,9pp; fini
+    # pojasevi daju liniju koja pada s kvotom, ne "dolinu". Dakle i "sretan mehanizam" gore je
+    # nestabilan. Izricit bonus po pojasu je nova heuristika -> NE uvodi se bez korisnika;
+    # kandidat K10b za zasebno testiranje (oprez: LAB favoriti 1,35-1,43 +3,7pp, pa bi takav
+    # bonus mogao rezati pojas koji trziste ne kaznjava). Do tada clan ostaje kakav jest.
     edge_total = 0.0
     for p in combo:
         fair = p.get("fair_odds") or 0
@@ -1111,6 +1155,14 @@ def _review_ticket(proposed: list, rejected: list, cfg: dict) -> list:
     (home crowd)" — ista politika kao pravilo o domacem terenu u promptu analize, maknuto
     istim danom (domaci igraci −1,4pp naspram cijene na 2.775 meceva). Ostavljena bi znacila
     da ista kazna zivi dalje na drugom mjestu (memorija "dvije kapije, jedna politika").
+
+    18.10.2026 (09:37, ispravljeno 10:08 po skeptiku) — OPIS, NIJE KANDIDAT (revizija 18.10.,
+    tocka 13): noga koju ovaj recenzent u `reviewer_warning` imenuje "carries the most risk"
+    na 25 noga s dvostranom cijenom -13,8pp, ali na svih 49 oznacenih noga (priblizna cijena)
+    samo -6,0pp [-19, +7]; unutar tiketa oznacena je losija u 25 od 49 (novcic). Ideja je
+    nastala nakon pogleda na 10 tiketa (post hoc). Prag L4 nije ispunjen -> samo PRACENJE:
+    kad se skupi 30 novih oznacenih noga (od 19.10.), pogledati ponovno. Oznaka se NE koristi
+    za izbor. Ne mijenjati tekst upozorenja dok traje pracenje.
     """
     def _pick_summary(p: dict) -> str:
         m = p.get("match", {})
@@ -1314,13 +1366,16 @@ _ANALYSIS_ONLY_MAX_PICKS = 12     # max mečeva u analysis-only prikazu
 _ANALYSIS_ONLY_MIN_ODDS = 1.06    # ispod ove kvote nema smisla pratiti pick
 
 
-def build_analysis_only_ticket(predictions: list) -> dict:
+def build_analysis_only_ticket(predictions: list, reason: str = None) -> dict:
     """
     Builds an analysis-only entry when there aren't enough matches for a full ticket.
     Max 12 picks, sorted by odds descending (higher-odds matches make the cut),
     picks below 1.06 excluded. Tracks results, never marks won/lost.
     Also computes a HYPOTHETICAL "forced risk" ticket (limits from TICKET_CONFIG) for the
     EMAIL ONLY — what we'd play if we absolutely had to bet today. Not saved to DB.
+
+    `reason` (18.10.2026 12:40): "too_few" (premalo mečeva) ili "no_combo" (nijedna kombinacija
+    nije prosla pravila tiketa) — samo za tekst sazetka, vidi `_analysis_only_prompt`.
     """
     valid = [p for p in predictions
              if not p.get("skip_reason") and _is_main_tour(p)
@@ -1371,7 +1426,7 @@ def build_analysis_only_ticket(predictions: list) -> dict:
             "result": "pending",
         })
 
-    summary = _generate_analysis_only_summary(ticket_matches)
+    summary = _generate_analysis_only_summary(ticket_matches, reason)
 
     # Hipotetski "kad bih baš morao riskirati" tiket: najbolja kombinacija iz gornje liste,
     # bez conf floora (forsirani scenarij). _find_best_combination boduje po KVALITETI, ne
@@ -1733,8 +1788,15 @@ def _repair_flips(text: str, matches: list, flips: list) -> str:
     return out
 
 
-def _analysis_only_prompt(matches: list) -> str:
-    """Prompt u nacinu IZVJESTAVANJA. Izdvojen iz poziva da ga test moze citati."""
+def _analysis_only_prompt(matches: list, reason: str = None) -> str:
+    """Prompt u nacinu IZVJESTAVANJA. Izdvojen iz poziva da ga test moze citati.
+
+    `reason` (18.10.2026 12:40, revizija 18.10. tocka B4): "no_combo" kad je mečeva bilo
+    dovoljno, ali nijedna kombinacija nije prosla pravila tiketa (prag pouzdanosti, 3-6 noga,
+    ukupna kvota). Do danas je sazetak tada pisao "only N main-tour matches were available",
+    a stvarni razlog je bio prag 63 (od 04.10. tiket je bio u 4 od 10 dana). Bez razloga, ili
+    uz "too_few", tekst je kao prije. Ovo je samo PRIKAZ — pick, tiket i `rules_hash` se ne diraju.
+    """
     picks_text = "\n".join([
         "%d. SELECTION: %s to win  (%s vs %s — %s, %s, %s) — odds %.2f, confidence %.0f%%%s%s\n"
         "   Risk: %s\n"
@@ -1747,17 +1809,30 @@ def _analysis_only_prompt(matches: list) -> str:
         for i, m in enumerate(matches)
     ])
     n = len(matches)
-    count_phrase = ("is only 1 main-tour match" if n == 1
-                    else "are only %d main-tour matches" % n)
+    if reason == "no_combo":
+        opening = ("Today %d main-tour selection%s analysed, but no combination of them passed the "
+                   "ticket rules (confidence floor %.0f%%, %d-%d legs, total odds %.0f-%.0f), so no ticket "
+                   "was placed. This was NOT a shortage of matches."
+                   % (n, " was" if n == 1 else "s were", TICKET_CONFIG["min_confidence"],
+                      TICKET_CONFIG["min_matches"], TICKET_CONFIG["max_matches"],
+                      TICKET_CONFIG["min_combined_odds"], TICKET_CONFIG["max_combined_odds"]))
+        why = ("why no ticket was formed (no combination passed the ticket rules — do not blame "
+               "the number of matches)")
+    else:
+        count_phrase = ("is only 1 main-tour match" if n == 1
+                        else "are only %d main-tour matches" % n)
+        opening = ("Today there %s available — not enough to build a full accumulator ticket, so "
+                   "no ticket was placed." % count_phrase)
+        why = "why no ticket was formed (too few matches for a valid accumulator)"
     return """You are an expert tennis analyst writing up decisions that have ALREADY been made.
 
-Today there %s available — not enough to build a full accumulator ticket, so no ticket was placed. The selections below are final and are already recorded in the database. Your job is to REPORT them, not to re-decide them.
+%s The selections below are final and are already recorded in the database. Your job is to REPORT them, not to re-decide them.
 
 TODAY'S SELECTIONS (already decided — %d in total):
 %s
 
 Write the analysis as:
-1. One sentence: why no ticket was formed (too few matches for a valid accumulator)
+1. One sentence: %s
 2. For EACH of the %d selections, in the same order: exactly one concise sentence naming the SELECTED player as the winner and giving the single strongest reason for that selection. Cover ALL %d, do not stop early.
 3. One closing sentence on overall confidence
 
@@ -1768,10 +1843,10 @@ HARD RULE — the selected player is fixed:
 - A selection marked [NOT BACKED] is one the model itself scored below 50%%, i.e. it reads the match as a coin-flip against its own lean. Still name that player as the side the model leaned to, but say plainly that this one is not backed (e.g. "Wu is the lean, but below our floor — not a bet"). Do not present it as a recommendation.
 
 Keep each sentence short. Be direct and specific. This entry is tracked for model learning.""" % (
-        count_phrase, n, picks_text, n, n)
+        opening, n, picks_text, why, n, n)
 
 
-def _generate_analysis_only_summary(matches: list) -> str:
+def _generate_analysis_only_summary(matches: list, reason: str = None) -> str:
     """Write-up za analysis-only dane — late runde s premalo meceva za tiket.
 
     Sazetak IZVJESTAVA o vec donesenim odlukama; ne odlucuje nista i ne upisuje se
@@ -1781,7 +1856,7 @@ def _generate_analysis_only_summary(matches: list) -> str:
     if not matches:
         return "No main-tour matches available for analysis today."
 
-    prompt = _analysis_only_prompt(matches)
+    prompt = _analysis_only_prompt(matches, reason)
 
     # Strop skalira s brojem meceva (1 recenica po picku); analysis-only je ogranicen
     # na 12 meceva, pa je strop ~13 — dovoljno da nista ne reze.

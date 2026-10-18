@@ -616,6 +616,30 @@ def _format_match_stats(p1: str, p2: str, stats: dict, p1_id=None, p2_id=None) -
 # kaze da trziste u R16/QF nema rupu (+0,6pp, n=3.423). Zato: R16/QF ide u PALE nalaze, a uz
 # pojaseve cijene stoji da su OPIS, ne potvrdjeno pravilo. Ova izmjena ne dira prompt predikcije
 # ni eru (`rules_hash`).
+# KVAR NADJEN 18.10.2026 09:37 (ispravljeno 10:08 po skeptiku; revizija 18.10., tocka 4) — JOS
+# NIJE POPRAVLJEN, ceka korisnikov "provedi": tri retka ispod su ZASTARJELA. (1) "ATP wins this
+# season ... 0.042 <- the only one": K15 je zatvoren 27.09.2026 (povijest +0,0pp na 11.139 meceva;
+# novi mecevi r=+0,03). Zbog tog retka 11 od 30 analiza od 27.09. spominje ATP pobjede, 5 ih
+# predlaze kao izmjenu modela, a 2 su ih proglasile [SIGNAL CONFIRMED] bez poznatog smjera.
+# (2) "consensus ... +9.2pp ... our one validated market signal": 18.10. NIJE POTVRDJEN (n=40,
+# -0,4pp ±13,9). (3) "hard ATP 250 ... -11,2pp n=63": od 27.09. +14,5pp (n=14), povijest +0,1pp.
+# Od 6 stvarnih oznaka CONFIRMED od 27.09. nijedna nije potvrdjena (3 opovrgnute — R16/QF; 3
+# neodlucene — pojas 1,43-1,60 i ATP pobjede). Steta je samo informacijska, jer je
+# WEIGHTS_AUTO_UPDATE_ENABLED=False. Popravak ne dira predikciju ni eru.
+# NAPOMENA (18.10.2026): winneri/neiznudjene greske/mrezni napadi postoje SAMO za Grand Slam
+# (US Open 120/120, ATP turniri 0/137 od 27.09.) — ogranicenje izvora, ne kvar. Redak r=+0,705
+# ispod zato vrijedi samo za Slamove.
+# >>> POPRAVLJENO 18.10.2026 12:40 (korisnikov "kreni", revizija 18.10. drugi dio): sva tri retka
+# ispravljena (ATP pobjede ZATVORENE, konsenzus NIJE POTVRDJEN i bonus maknut, hard ATP 250 =
+# nepotvrdjen kandidat s danasnjim brojkama). Retci se NE brisu — model mora znati da su pali.
+# OZNAKE (isti dan): stara [SIGNAL CONFIRMED] znacila je samo "vidjelo se prije meca I bazne stope
+# (isti mecevi!) razdvajaju pobjede od poraza" — dakle povezanost U UZORKU, ne dokazanu
+# prediktivnu vrijednost. Zato je 6 puta dodijeljena bez ijedne potvrde (3x R16/QF, 1x pojas
+# 1,43-1,60, 2x ATP pobjede — sve tri tvrdnje stajale su ovdje kao "jedina koja prezivi" ili bez
+# oznake "nepotvrdjeno"). Sada su to CETIRI odvojena pojma: (a) vidljivo prije meca, (b) nas
+# zapis pobjede/porazi (u uzorku), (c) prediktivna vrijednost (kapija izvan uzorka — jedina koja
+# opravdava izmjenu; danas je nema nijedan faktor), (d) sto se dogodilo u ovom mecu. Stare
+# analize u bazi zadrzavaju stare oznake (nisu prepisivane).
 _LOSS_BASE_RATES = """
 === MEASURED BASE RATES FROM OUR OWN CORPUS (all surfaces, n=451, through 26.09.2026) ===
 Read these BEFORE naming any cause. They tell you what a NORMAL match looks like, so you can
@@ -648,12 +672,15 @@ price is taken into account (the price already knows ELO and ranking):
   opponents' ELO (last 5), gap      94         58     0.068         0.63
   days rest, gap                  0.11       2.20     0.35          0.55
   age gap                        -0.90       0.21     0.18          0.39
-  ATP wins this season, gap       9.1        4.4     <0.0001        0.042  <- the only one
+  ATP wins this season, gap       9.1        4.4     <0.0001        0.042  (same matches only - CLOSED, see below)
 
 WHAT THIS MEANS, STATED PLAINLY: serve, return, break points, form, rest, age and opponent
 quality are statistically IDENTICAL in our wins and our losses once the price is known. If you name one
-of them, write [SIGNAL NOT CONFIRMED]. ELO separates wins from losses only because the
+of them, its OUR RECORD label is [DOES NOT SEPARATE]. ELO separates wins from losses only because the
 price already contains it - it is not a cause the market missed.
+ATP WINS THIS SEASON: the 0.042 came from these same 451 matches. On 11,139 historical matches it adds
+NOTHING beyond the price (+0.0pp), and on our matches since 27.09.2026 r = +0.03. CLOSED 27.09.2026:
+its PREDICTIVE VALUE label is [FAILED OR CLOSED]; never call it confirmed, never propose it as a change.
 
 *** WHAT ACTUALLY EXPLAINS HOW A MATCH WENT (post-match only, n=104) ***
   winners-to-unforced-errors ratio, gap   r = +0.705   <- strongest relationship we have
@@ -664,8 +691,8 @@ These describe who dictated and who scrambled. They are POST-MATCH ONLY - never 
 
 *** PRICE BAND STRUCTURE - by OUR PICK's odds, edge vs the devigged price (26.09.2026) ***
 DESCRIPTIVE ONLY, NOT A CONFIRMED RULE: the "hole" below is an unconfirmed candidate (K5/K10),
-and on 12,324 historical matches the MARKET itself has no hole there. Never write
-[SIGNAL CONFIRMED] for a price band.
+and on 12,324 historical matches the MARKET itself has no hole there. A price band is never
+[GATE PASSED].
   odds 1.00-1.20   n= 56 | edge -1.6pp   (short favourites: a loss here is usually VARIANCE)
   odds 1.20-1.35   n= 80 | edge +8.8pp   <- our best band
   odds 1.35-1.43   n= 59 | edge -5.6pp   <- hole
@@ -685,13 +712,17 @@ confidence, never by the opponent's odds. (An audit on 26.09.2026 found analyses
   If the round is UNKNOWN, round-based statements are not allowed.
 
 *** MARKET ***
-  bookmaker consensus >= +1pp above SuperSport for our pick: +9.2pp (n=63) - our one validated
-  market signal. The Odds API does NOT cover ATP 250 events, so for most of them no
-  consensus exists; the MATCH FACTS say whether it existed for this match.
+  bookmaker consensus >= +1pp above SuperSport for our pick: NOT CONFIRMED on new data (since
+  08.09.2026: -0.4pp, n=40; the earlier +9.2pp, n=63 did not repeat). Its ticket bonus was
+  REMOVED on 18.10.2026 - [FAILED OR CLOSED], never "validated". The Odds API does NOT cover
+  ATP 250 events, so for most of them no consensus exists; the MATCH FACTS say whether it
+  existed for this match.
   Our pick as market underdog: consensus version -10.7pp (n=20), screenshot version -4.0pp
   (n=28). ODDS MOVEMENT CARRIES NOTHING - tested four times (06.09.: r=+0.007, P=0.927,
   n=167; 26.09.: r=-0.06, n=158). Never explain a loss with "the market moved against us".
-  Hard ATP 250 + Davis Cup: -11.2pp (n=63) vs +1.2pp at big events - a CANDIDATE, unconfirmed.
+  Hard ATP 250: a CANDIDATE, unconfirmed (K18). The old -11.2pp (n=63, to 26.09.) did not
+  repeat: since 27.09.2026 +14.5pp (n=14), and on 2,311 historical matches the market has no
+  hole there (+0.1pp). Do not cite ATP 250 as a cause.
 
 *** FINDINGS THAT FAILED OUT OF SAMPLE - do not cite them as support ***
   tiebreak record (the sign reversed between samples) | form x opponent quality (r=+0.284 ->
@@ -1024,19 +1055,30 @@ EVIDENCE DISCIPLINE (mandatory - this section overrides your instinct to find a 
 
 Write a concise but COMPLETE analysis (~250 words, never leave a sentence unfinished):
 
-1. WHAT WE GOT WRONG - name at most two pre-match factors. For EACH one, end with exactly
-   one of these verdicts, and justify it with a number:
-     [SIGNAL CONFIRMED]      visible pre-match AND the base rates separate wins from losses
-     [SIGNAL NOT CONFIRMED]  the factor is roughly as common in our wins as in our losses
-     [SIGNAL CONTRADICTED]   the base rates point the OPPOSITE way to your reading
-     [INSUFFICIENT DATA]     not measurable from what we record
-     [POST-MATCH ONLY]       real in this match, but not knowable before it
+1. WHAT WE GOT WRONG - name at most two pre-match factors. For EACH one give FOUR separate
+   labels, one per line, each justified with a number (or "no data"):
+     (a) PRE-MATCH:        [VISIBLE BEFORE THE MATCH] or [POST-MATCH ONLY]
+     (b) OUR RECORD:       wins vs losses after the price, from the base rates above:
+                           [SEPARATES WINS FROM LOSSES] / [DOES NOT SEPARATE] /
+                           [POINTS THE OTHER WAY] / [NOT MEASURED]
+     (c) PREDICTIVE VALUE: the out-of-sample gate - the ONLY label that can justify a change:
+                           [GATE PASSED] / [CANDIDATE, UNCONFIRMED] / [FAILED OR CLOSED] /
+                           [NEVER TESTED]
+     (d) THIS MATCH:       [PRESENT IN THIS MATCH] or [ABSENT IN THIS MATCH] - what happened
+                           here is description, never evidence on its own.
+   (b) is a pattern inside the SAME matches the base rates come from, so it is NOT proof.
+   As of 18.10.2026 NO factor has [GATE PASSED]. [FAILED OR CLOSED]: ATP wins this season,
+   R16/QF, tournament statistics, tiebreak record, form x opponent quality, the bookmaker
+   consensus. [CANDIDATE, UNCONFIRMED]: price bands (K5/K10), hard ATP 250 (K18), ELO and
+   serve/return since 14.09. (K22).
 
 2. HOW THE MATCH WENT - the post-match story, explicitly labelled as description. It is fine
    and useful to say "his second serve collapsed"; it is wrong to call that a model failure.
 
-3. WHAT SHOULD CHANGE - at most ONE proposal, and only if you reached [SIGNAL CONFIRMED] in
-   part 1. If you did not, write exactly: "No model change justified by this match." That is
+3. WHAT SHOULD CHANGE - at most ONE proposal, and only for a factor whose PREDICTIVE VALUE is
+   [GATE PASSED]. If none is, write exactly: "No model change justified by this match." You may
+   add ONE line "Worth measuring: <factor>" for a factor that is [VISIBLE BEFORE THE MATCH] and
+   [NEVER TESTED] - that is a registry candidate, not a change. "No model change" is
    a complete and correct answer, and it is the RIGHT answer most of the time - the single
    most common error in these analyses has been proposing a fix that the data does not carry.
    If you do propose something, state what it would cost when it fires on a match we would

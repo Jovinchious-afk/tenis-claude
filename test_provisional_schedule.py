@@ -521,10 +521,13 @@ check("zapisan racun snage ishod vs cijena",
 check("zapisana ograda o mijesanju dviju kuca",
       "mijesa dvije kuce" in _cap or "mijesa dvije kuće" in _cap)
 
-# --- workflow: tri termina ---
-check("workflow ima tri crona", _wf.count("- cron:") == 3)
-for _c in ("30 16 * * *", "30 20 * * *", "30 0 * * *"):
-    check(f"cron {_c} postoji", _c in _wf)
+# --- workflow: JEDAN termin (REVIDIRANO 18.10.2026 11:22) ---
+# Do 18.10. su ovdje stajala tri termina (16:30, 20:30, 00:30 UTC). Korisnik je otkazao placeni
+# Odds API plan (besplatni ima 500 kredita mjesecno) i odobrio jedno snimanje dnevno; kretanje
+# linije je peti put izmjereno kao nula (revizija 18.10.). Test sada cuva NOVO stanje.
+check("workflow ima jedan cron", _wf.count("- cron:") == 1)
+check("cron 30 17 * * * postoji", "30 17 * * *" in _wf)
+check("zapisano zasto je jedan termin", "SMANJENO NA JEDNO SNIMANJE DNEVNO" in _wf)
 check("workflow prosljedjuje --max-hours", "--max-hours" in _wf)
 check("workflow objasnjava korisnikov tijek rada",
       "NE MOGU promijeniti nijedan njegov tiket" in _wf)
@@ -686,9 +689,21 @@ check("pravi ELO od 1500 na jednoj podlozi NIJE podrazumijevana vrijednost",
 # --- analiza gubitaka: bazne stope + verdikti + zabrana dodavanja postojecih ulaza ---
 _fb = open("agent/feedback_analyzer.py", encoding="utf-8").read()
 check("analiza gubitka ima bazne stope", "_LOSS_BASE_RATES" in _fb and "{base_rates}" in _fb)
-for _v in ("[SIGNAL CONFIRMED]", "[SIGNAL NOT CONFIRMED]", "[SIGNAL CONTRADICTED]",
-           "[INSUFFICIENT DATA]", "[POST-MATCH ONLY]"):
-    check(f"verdikt {_v} postoji", _v in _fb)
+# REVIDIRANO 18.10.2026 12:50 (revizija 18.10., drugi dio; korisnikov "kreni"): jedna oznaka
+# [SIGNAL CONFIRMED] mijesala je "vidljivo prije meca" s povezanoscu U ISTOM UZORKU, pa je od
+# 27.09. dodijeljena 6 puta bez ijedne potvrde. Zamijenjena je s CETIRI odvojena pojma; test
+# cuva novi rjecnik i da izmjenu smije predloziti SAMO oznaka [GATE PASSED].
+for _v in ("[VISIBLE BEFORE THE MATCH]", "[POST-MATCH ONLY]", "[SEPARATES WINS FROM LOSSES]",
+           "[DOES NOT SEPARATE]", "[POINTS THE OTHER WAY]", "[NOT MEASURED]", "[GATE PASSED]",
+           "[CANDIDATE, UNCONFIRMED]", "[FAILED OR CLOSED]", "[NEVER TESTED]",
+           "[PRESENT IN THIS MATCH]", "[ABSENT IN THIS MATCH]"):
+    check(f"oznaka {_v} postoji", _v in _fb)
+check("izmjenu smije predloziti samo [GATE PASSED]",
+      "only for a factor whose PREDICTIVE VALUE is\n   [GATE PASSED]" in _fb)
+check("stara definicija [SIGNAL CONFIRMED] vise nije u uputi",
+      "[SIGNAL CONFIRMED]      visible pre-match" not in _fb)
+check("uputa kaze da danas nijedan faktor nije prosao kapiju",
+      "As of 18.10.2026 NO factor has [GATE PASSED]" in _fb)
 check("rijec 'cause' je ogranicena", "is BANNED unless" in _fb)
 check("dopusteno je ne predloziti nista", "No model change justified by this match." in _fb)
 check("popis postojecih ulaza (protiv 'dodaj 2. servis')",

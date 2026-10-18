@@ -377,6 +377,9 @@ def main():
     # tih. O konsenzusu ovise jedini potvrdjeni trzisni signal (bonus u `_score_combo`) i,
     # do danas, kazna za trzisnog autsajdera. Kazna od danas ima fallback na screenshot
     # cijenu (`predictor._apply_measured_penalties`); bonus nema zamjenu. Zato ispis po turniru.
+    # >>> 18.10.2026 14:43: bonus za konsenzus je UGASEN (korisnik, 3a — nije se potvrdio na
+    # novim podacima, n=40, -0,4pp), pa "jedini potvrdjeni trzisni signal" vise ne vrijedi.
+    # Konsenzus se i dalje dohvaca i biljezi (mjerenje KONS) i sluzi kazni za autsajdera.
     _by_t = {}
     for _m in all_matches:
         _t = _m.get("tournament") or "?"
@@ -387,7 +390,8 @@ def main():
     for _t, (_n_all, _n_ok) in sorted(_by_t.items()):
         if _n_all and not _n_ok:
             print(f"  KONSENZUS NEDOSTUPAN: {_t} (0/{_n_all} parova) — The Odds API ne pokriva "
-                  f"turnir. Bonus za konsenzus ne radi; provjera autsajdera koristi screenshot cijenu.")
+                  f"turnir. Provjera autsajdera koristi screenshot cijenu (bonus za konsenzus "
+                  f"ugasen 18.10.2026).")
 
     # NEOBJAVLJEN RASPORED ZA SUTRA (14.08.2026 11:02, korisnikov zahtjev).
     #
@@ -644,6 +648,8 @@ def main():
     # i MODEL_CHANGELOG 30.08.2026 12:37.
     #
     # Zastavice OSTAJU jer su jeftine i potrebne za ponovnu provjeru nakon US Opena.
+    # >>> 18.10.2026 09:37: provjera je obavljena — obrnuti veto ZATVOREN 26.09.2026 20:46
+    # (DI 4e). Zastavice se i dalje samo racunaju i ispisuju; nitko ih ne cita za izbor.
     from collections import Counter as _Counter
     _beat_counts = _Counter()   # {(winner_name_lower, tournament_base_lower): broj poraza}
     beaten_us = set()           # samo oni s 2+ poraza — ovo čita _beat_us ispod
@@ -1069,14 +1075,17 @@ def main():
 
     # 8. Generiraj tiket ili analysis-only zapis
     print("\nGeneriram tiket...")
+    # Razlog bez tiketa ide u sazetak (18.10.2026 12:40, revizija B4): "too_few" = premalo
+    # meceva; "no_combo" = meceva je bilo, ali nijedna kombinacija nije prosla pravila tiketa
+    # (najcesce prag 63). Do danas je sazetak u oba slucaja pisao "only N matches".
     if analysis_only_mode or len(valid_predictions) < 4:
-        ticket = build_analysis_only_ticket(valid_predictions)
+        ticket = build_analysis_only_ticket(valid_predictions, reason="too_few")
         print(f"Analysis-only: {ticket['matches_count']} mečeva analizirano, tiket nije kreiran.")
     else:
         ticket = build_ticket(predictions, weights, min_odds_override=min_odds_override)
         if not ticket:
             print("Kaskadni fallback nije uspio — prelazim u analysis-only mode.")
-            ticket = build_analysis_only_ticket(valid_predictions)
+            ticket = build_analysis_only_ticket(valid_predictions, reason="no_combo")
 
     print(f"\n=== TIKET GENERIRAN ===")
     print(f"Mečevi: {ticket['matches_count']}")
@@ -1111,6 +1120,27 @@ def main():
         for pred in predictions:
             if isinstance(pred.get("context_snapshot"), dict):
                 pred["context_snapshot"]["intuicija"] = {"error": str(e)[:120]}
+
+    # NOSE U SJENI (18.10.2026 12:41, korisnikova odluka 1a; agent/nose.py): cetiri odvojene
+    # procjene (Pick Quality, Mine Risk, Upset Value, Ticket Suitability / NO PICK). Faza A je
+    # vlastita procjena iz teniskih polja snapshota — kvotu NE vidi; zamrzne se (SHA-256) pa se
+    # tek onda usporedi s cijenom. Racuna se TEK OVDJE, kad je tiket vec slozen, pa ne moze
+    # utjecati na izbor; upisuje se samo u context_snapshot["nose"] (oznaka verzije nose-v1).
+    # U odluku ulazi tek nakon kapije K24 (DECISION_INPUTS) i korisnikova odobrenja.
+    # Greska po meču je {"error": ...} — nikad ne rusi run (vidi `nose.shadow`).
+    try:
+        from agent import nose as _nose
+        _avoid = []
+        for pred in predictions:
+            if isinstance(pred.get("context_snapshot"), dict):
+                _n = _nose.shadow(pred)
+                pred["context_snapshot"]["nose"] = _n
+                if _n.get("no_pick"):
+                    _avoid.append(f"{pred.get('pick')} ({'; '.join(_n.get('reasons') or [])[:60]})")
+        print(f"\nNose (sjena, {_nose.VERSION}): izracunat za {len(predictions)} predikcija; "
+              f"NO PICK bi rekao za {len(_avoid)}" + (f": {', '.join(_avoid)}" if _avoid else ""))
+    except Exception as e:
+        print(f"!!! Nose (sjena) nije izracunat: {str(e)[:120]} — tiket nije pogodjen.")
 
     # 9. Spremi u Supabase
     is_analysis_only = ticket.get("status") == "analysis_only"

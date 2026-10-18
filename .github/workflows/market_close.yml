@@ -23,6 +23,15 @@ name: Market Close Capture
 #
 # TROSAK: ~9 kredita po pokretanju x 3 = ~27 dnevno, oko 800 mjesecno naspram plana 20.000.
 #
+# SMANJENO NA JEDNO SNIMANJE DNEVNO (18.10.2026 11:22, korisnikova odluka): placeni plan je
+# otkazan, besplatni plan ima 500 kredita mjesecno (novi kljuc provjeren 18.10.: 500/500).
+# Trosak je 3 kredita (regije eu,uk,us) po aktivnom ATP turniru po pokretanju; uz jutarnji
+# dohvat u daily runu to je ~6 kredita dnevno po turniru, ~180-360 mjesecno. Kretanje linije
+# je peti put izmjereno kao nula (revizija 18.10.2026), pa vise termina ne vrijedi kredita.
+# Zadrzan je JEDAN termin u 17:30 UTC: preostali pokriveni turniri sezone su europski
+# (Pariz, Torino), a nakon 25.10. Europa je UTC+1 — prozor 17:30-20:00 UTC hvata kasne dnevne
+# meceve i vecernju sesiju (~19:30 UTC). Za Australian Open (sijecanj) termin treba pomaknuti.
+#
 # NE MIJENJA NIJEDAN PICK. Samo dopisuje retke u `market_lines`; kljuc je
 # (event_id, bookmaker, captured_at) pa svaka snimka stoji pored prethodne.
 #
@@ -33,9 +42,7 @@ name: Market Close Capture
 # ~2.000 koliko treba mjerenje preko ishoda. Detaljan racun je u docstringu skripte.
 on:
   schedule:
-    - cron: '30 16 * * *'
-    - cron: '30 20 * * *'
-    - cron: '30 0 * * *'
+    - cron: '30 17 * * *'   # jedno snimanje dnevno od 18.10.2026 (besplatni plan, vidi gore)
   workflow_dispatch:
     inputs:
       max_hours:

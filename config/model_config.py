@@ -21,6 +21,11 @@ automatically by the feedback loop. These are the initial defaults.
 #   smjerovima (jednom "underweighted", drugi put "over-weighted", treci put "misfired in the
 #   wrong direction"). Kad se ista korekcija optuzi u oba smjera, to je sum, a ne losa
 #   kalibracija. Kandidat za smanjenje — ali tek kad bude cime izmjeriti.
+#   >>> IZMJERENO (zapisano 18.10.2026 09:37): povijest (12.324 meca) manje setova na turniru
+#   -0,3pp, umorniji u QF+ -0,2pp; dob x umor (stariji uz 6+ setova) -0,2pp; nasi hard pickovi
+#   od 04.08. r(setovi 7 dana, ostatak) = -0,04 u obje polovice. Umor dakle ne nosi nista ni u
+#   jednom smjeru — kriterij za smanjenje tezine (r <= -0,10 u obje polovice) nije ispunjen,
+#   a nije ni za povecanje. Revizija 18.10., tocka 10.
 # =============================================================================================
 # MJERENJE 26.08.2026 14:01 — hard, tezine v18, n=178 rijesenih analiza (04.-26.08.2026).
 # Referentna vrijednost je DEVIGIRANA SuperSport cijena (obje strane; marza 5,13%).

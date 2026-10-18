@@ -120,6 +120,16 @@ value (edge 3-20pp za favorite, 3-28pp za pickove ≥2,00), plus bonus za pouzda
 minus kazna za najslabiji pick, minus kazna za svaki par preko minimalnog broja nogu.
 
 **NOVO 08.09.2026 12:07 — tržišni konsenzus ulazi u izbor kombinacije.**
+> **UGAŠEN 18.10.2026 12:37 (korisnikova odluka 3a; zapis 14:44):** `_CONSENSUS_GAP_BONUS` 4.0 →
+> 0.0, stara vrijednost u `_CONSENSUS_GAP_BONUS_DO_18_10`. Konsenzus više NE ulazi u izbor; i
+> dalje se dohvaća, bilježi i mjeri (KONS u `measure_candidates.py`) i služi kazni za tržišnog
+> autsajdera. Ponovni test samo uz prag zapisan unaprijed. MODEL_CHANGELOG 18.10.2026 12:55.
+>
+> **STANJE 18.10.2026 10:09:** na novim podacima (od 08.09.) n=40, −0,4pp ±13,9 — **NIJE
+> POTVRĐEN** (ni oboren). Kriterij za uklanjanje nije nedvosmislen (skripta: n ≥ 30; komentar u
+> kodu: 31.10. i n ≥ 60), pa je bonus i dalje u kodu do korisnikove odluke. Odds API ključ je od
+> ~15.10. deaktiviran, pa bonus trenutno ionako ne okida. Vidi "IZMJERENO 18.10.2026".
+
 Bonus **+4 boda po picku** kojemu konsenzus ~47 kladionica daje **1pp ili više** više nego
 devigirana SuperSport cijena (`_consensus_gap_pp`). Prvi signal u projektu koji je prošao
 dvostupanjsku kapiju — nađen na Cincinnatiju, potvrđen na US Openu:
@@ -144,6 +154,8 @@ usidrena na fiksnu četvorku pa bi trojac dobio skriveni bonus od +3 boda.
 ## 3. Bilježi se, ali NE utječe na odluku — `context_snapshot` v21 (v23 od 27.09.2026)
 
 **Od 27.09.2026 12:34 u istom zapisu (v23):** `intuicija` — procjena naučenog signala za obje strane meča (K20), upisana nakon slaganja tiketa; model i tiket je ne vide.
+
+**Od 18.10.2026 12:41 u istom zapisu (v23, oznaka `nose-v1`; zapis 14:44):** `nose` — Nose u sjeni (K24, `agent/nose.py`): Pick Quality (vlastita vjerojatnost, pouzdanost), Mine Risk (M1–M5), Upset Value (U1–U4), Ticket Suitability (IZBJEGAVAJ = NO PICK), `frozen` (SHA-256 faze A) i `vs_market` (faza B). Računa se nakon slaganja tiketa iz teniskih polja snapshota bez ijednog tržišnog polja; model i tiket ga ne vide. Prikazuje se na Dnevnom listiću uz oznaku "u sjeni, nepotvrđeno".
 
 **v23 (27.09.2026 11:58):** vijesti po igraču s Google Newsa (`p1_gnews` / `p2_gnews`, naslovi
 iz zadnjih 14 dana, `injury_n`, oznaka `bet` za kladioničarske naslove) — samo za mjerenje K13;
@@ -592,6 +604,14 @@ uopće reagira prerušen u nešto drugo. Riješiti ih zajedno.
 **NE PONAVLJATI** sirovu usporedbu value=TRUE/FALSE bez kontrole cijene. Tri je puta
 izgledala kao dramatičan nalaz i tri je puta bila cijena.
 
+**ISHOD 18.10.2026 10:09 — FORMALNO ZADOVOLJEN, OBLIK SE NIJE PONOVIO (NE PROVODI SE):** od
+14.09. 1,20–1,35 +10,4pp (n=33) | 1,35–1,65 −3,3pp (67) | 1,65–1,85 −6,9pp (33). Uvjet prolazi
+samo granom "ILI" (1,20–1,35 > 0). Pojas 1,65–1,85, koji `edge_bonus` nagrađuje, bio je +12,3pp
+prije 14.09. (n=81), a sada je −6,9pp (razlika vanjskih pojaseva z=1,5); fini pojasevi daju
+liniju koja pada s kvotom (+12,6 @1,30–1,40 … −23,0 @1,85–2,10), ne dolinu. Akcija iz praga
+("izričiti bonus po pojasu") je nova heuristika → po korisnikovoj uputi 18.10. NE uvodi se u ovom
+ciklusu; bilježi se kao **K10b** (niže). Skeptik: SUMNJIVO — pisati "formalno, ne potvrđeno".
+
 ### K11 — rupa u R16/QF PREŽIVJELA je ispravak oznaka rundi — **ZATVOREN 04.10.2026 19:27** (nije potvrđen u zadanom roku: −1,5pp n=31, bolji od ostalih rundi; bez analiza s krivim ELO-om +1,2pp n=29; tržište u R16/QF nema rupu)
 
 Premjereno 13.09.2026 11:30, **prvi put na točnim oznakama** (prije ispravka je 79,2%
@@ -846,7 +866,13 @@ Svi pragovi ostaju kakvi su zapisani; skripta ih drži na jednom mjestu. Stanje 
     KONS konsenzus >=+1 od 08.09.      n=2             CEKA — Odds API ne pokriva ATP 250;
                                                        prag "60 do 31.10." vjerojatno nedostizan
 
-### K17 — High scouting profil našeg picka (26.09.2026 20:46) — KANDIDAT
+### K17 — High scouting profil našeg picka (26.09.2026 20:46) — **PAO 18.10.2026 10:09, ZATVOREN**
+
+**Ishod (prag ispod, zapisan 26.09.):** od 27.09. n=43, edge **+13,7pp** (> 0 → odbaciti). Kazna
+−3pp se ne uvodi (nikad nije bila u kodu — `_apply_measured_penalties` ima samo Med-Low,
+autsajdera i pojas 65–68). Spojeno STARO+NOVO −0,3pp (n=96); +13,7 nose Peking (+24,5, n=16) i
+Hangzhou (+28,8, n=5). Svih 5 razina scoutinga okreće predznak između uzoraka → profil ne nosi
+informaciju; i postojeća kazna Med-Low je ista nestabilna obitelj (NOVO n=6). Revizija 18.10.
 
     High      n= 52 | 63,5% | tržište 75,9% | edge -12,4pp | ROI -22,3%
     razdoblja: do 26.08. -14,0pp (n=28) | poslije -10,6pp (n=24)   <- isti predznak
@@ -958,6 +984,213 @@ osvježavanja `.cache/tennis-data/2026.xlsx` (i 2027) te `lab_data.py` / `r_lab.
 Snaga: uz n=150 interval je ±7,6pp, pa se vidi samo učinak ≥ 9–10pp; za pouzdanih −5pp treba
 ~400–560 mečeva. Takvih mečeva ima ~130 godišnje, pa je prva provjera realno **za ~godinu dana**.
 Do tada u model ne ulazi ništa.
+
+### K22 — ELO jaz i servis/povrat nose nešto povrh cijene OD 14.09.? (18.10.2026 10:09) — KANDIDAT
+
+Iz testa težina J2 (revizija 18.10., `r_nasi.py`): na hard pickovima od 04.08. predstavnik
+kategorije naspram ostatka nakon cijene. Kriterij za promjenu težina (obje polovice) NIJE
+ispunjen, ali polovice se jako razlikuju (skeptik: "nešto se promijenilo 14.09."):
+
+    ELO jaz na podlozi       do 13.09. r=-0,014 (n=249) | od 14.09. r=+0,190 [+0,04, +0,33] (n=169)  z razlike 2,0
+    servis + povrat          do 13.09. r=-0,108 (n=257) | od 14.09. r=+0,182 [+0,03, +0,32] (n=169)  z razlike 2,9
+    od 14.09. po trećinama   ELO -8,8 | -8,2 | +13,5pp ; servis+povrat -4,0 | -12,3 | +12,3pp
+    pick vodi i u ELO-u i u servisu+povratu  od 14.09. +1,9pp (n=119) | ostali -8,6pp (n=50)
+
+Moguća objašnjenja: popravljeni ulazi (13.09. četiri kvara; 04.10. ELO duplikati i tuđi ELO)
+pa model sada vidi točnije brojke — ILI šum (takvo okretanje je u projektu dosad bilo šum: K1,
+K17). Holm u obitelji J (7 kategorija × 2 polovice) ≈ 0,2. Povijest ELO nema (rang +0,007 na
+12.302 → tržište rang plaća).
+
+**PRAG ZA POTVRDU (zapisan 18.10.2026 10:09, prije ijednog novog podatka):** na sljedećih **150
+hard pickova od 19.10.2026** (bez `elo_suspect`), uz kontrolu cijene:
+- **PROLAZI:** r(ELO jaz, ostatak) ≥ +0,10 ILI r(servis+povrat jaz, ostatak) ≥ +0,10, uz 95%
+  interval iznad nule, I isti predznak u obje polovice tih 150 → prijedlog korisniku: bonus pri
+  izboru tiketa (`_score_combo`) ili veća težina — odluka korisnika.
+- **PADA:** oba r ≤ 0.
+- Inače čeka +150. Snaga: uz n=150 interval r je ±0,16, pa je ovo probir.
+
+> **DOPUNA 18.10.2026 15:11 (revizija, drugi dio; kritičar):** povijest K22 NE podupire —
+> r(ELO jaz, ishod − cijena) = +0,00 [−0,02, +0,02], servis+povrat +0,02 (LAB, n=12.320). LAB test
+> B4b (ELO +50 potvrđen servisom/povratom i protivnicima) izgledao je +1,6pp, ali 98% su favoriti;
+> uz kontrolu pojasa +0,4pp [−0,9, +1,7]. Rez "od 14.09." odabran je naknadno. Mjerenje ostaje
+> (`measure_candidates.py`, K22 od 19.10.), prag se ne mijenja.
+
+### K23 — "zalet protiv boljih servera" se precjenjuje (S1, obrnuti smjer) (18.10.2026 10:09) — HIPOTEZA
+
+LAB (`revizije/2026-10-18/skripte/r_lab3.py`, test S1, strogi datum): igrač A dobio je zadnja 2
+meča (≤ 21 dan) protiv protivnika s holdom ≥ 3pp boljim od svog, a današnji protivnik B također
+ima hold ≥ 3pp bolji. Hipoteza je bila "+", izmjereno suprotno:
+
+    n=550  edge A -5,1pp [-8,7, -1,5]  2022-23 -3,7 / 2024-26 -6,1  Holm (36 testova) 0,21
+    s prosjekom kladionica -5,5pp (Holm 0,11); bez strogog datuma -5,3pp (Holm 0,11)
+    ostatak iste skupine -0,4pp (n=2.287); glavni učinci: niz +0,5, hold +0,2 -> učinak samo u konjunkciji
+
+Po pravilu PADA (smjer suprotan hipotezi). Skeptik: "ni nula ni nalaz"; ne citirati kao potvrdu
+K21 (isti LAB). Kao NOVA hipoteza obrnutog smjera: bolji server protiv igrača u takvom zaletu
+prolazi bolje od kvote.
+
+**PRAG ZA POTVRDU (zapisan 18.10.2026 10:09):** na ATP mečevima nakon 13.09.2026, kad se osvježi
+`.cache/tennis-data/2026.xlsx` (korisnik skida ručno; isti postupak kao K21): edge A ≤ −3pp, 95%
+interval ispod nule, obje polovice novog razdoblja negativne → prijedlog: ne kažnjavati
+"giant-killer" priču kad je naš pick bolji server (izbor, ne prompt). PADA: edge ≥ 0. Snaga:
+~600 novih mečeva daje ~25–30 takvih slučajeva godišnje — realno provjerljivo tek 2027.
+
+### K10b — izričita sklonost pojasu kvote umjesto `edge_bonus` (18.10.2026 10:09) — ZA ZASEBNO TESTIRANJE
+
+Akcija koju traži K10 (vidi ISHOD 18.10. uz K10). Ne uvodi se bez korisnika. Oprez prije testa:
+oblik se nije ponovio (pojas 1,65–1,85 +12,3pp → −6,9pp), a povijest kaže da favoriti u
+1,35–1,43 prolaze BOLJE od kvote (+3,7pp [+1,3, +6,1]) — izričit bonus mogao bi rezati pojas koji
+tržište ne kažnjava. **Plan:** (1) simulacija `_find_best_combination` s varijantama bodovanja
+(bez `edge_bonus`; s bonusom samo za 1,20–1,35) na danima od 14.09. — samo opis; (2) prag za
+potvrdu zapisati PRIJE sljedeća dva dovršena turnira; (3) odluka korisnika.
+
+### K24 — Nose (nose-v1) u sjeni: vlastita procjena, mine i autsajderi (18.10.2026 12:41; zapis 15:11) — EKSPERIMENT
+
+Korisnikova odluka "1a". Kod: `agent/nose.py`; u dnevnom runu nakon slaganja tiketa →
+`context_snapshot["nose"]`; prikaz na Dnevnom listiću. **Ne ulazi u odabir pickova ni tiketa.**
+Definicije (zapisane PRIJE računanja, `revizije/2026-10-18/PRAGOVI_B_2026-10-18.md` 12:20, U4 skala
+12:22):
+- **Pick Quality:** vlastita vjerojatnost = 0,80·ELO + 0,20·model poena (W_ELO procijenjen na LAB
+  P1 2022–23 prema ishodu), pouzdanost;
+- **Mine Risk:** M1–M5;
+- **Upset Value:** U1–U4;
+- **Ticket Suitability:** IZBJEGAVAJ = NO PICK ako je vlastita < 50% ili 2+ mine.
+
+Faza A bez ijednog tržišnog polja, zamrznuta SHA-256 prije faze B (usporedba s devigiranom cijenom).
+
+**Povijest prije starta** (LAB, vremenski odvojeno; 18.10.2026):
+- N7 strana kojoj Nose daje 5pp+ više od cijene: −1,9pp (P2 −2,3), uz kontrolu pojasa −1,5pp
+  [−2,6, −0,4];
+- N5 mine −1,0pp, N6 autsajderi −2,6pp (oba PALA);
+- točno pravilo IZBJEGAVAJ na favoritu: +1,3pp uz pojas (n=1.824).
+
+Na našim analizama (razvojni uzorak): IZBJEGAVAJ −8,8pp ±13,5 (n=50), uz pojas −6,9pp [−21,9,
++8,3] — nije dokaz.
+
+**PRAG (12:20; postupak ispravljen NAKNADNO 15:05 po kritičaru, PRIJE ijednog podatka):** svi
+riješeni zapisi `nose-v1` od prvog runa, naspram devigirane SuperSport cijene, bez `elo_suspect`.
+- **G1 mina** (pickovi IZBJEGAVAJ):
+  - probir na PRVIH 60 (edge ≥ +3pp → PAO);
+  - odluka na PRVIH 150 po datumu: POTVRĐEN ako je edge ≤ −5pp, interval ispod 0, obje
+    polovice < 0 I razlika naspram ostalih pickova u istom pojasu cijene ≤ −3pp;
+  - PAO ako je edge ≥ 0 ili je razlika ≥ 0; inače NEJASNO.
+- **G2 vrijednost na protivniku:** zrcalno (+5pp, +3pp).
+- **G3:** r(vlastita − cijena, ishod − cijena) ≥ +0,10 na PRVIH 300, interval iznad 0, obje
+  polovice > 0.
+- Presuda je ZAMRZNUTA; nova provjera samo uz nose-v2 (kapija od nule). G1 i G2 dijele ~76%
+  redaka i broje se kao jedan dokaz.
+- Snaga: uz n=150 ±7,6pp; za stvarnih −5pp snaga ~22%; uz povijesna očekivanja šansa prolaza
+  ~1% po kapiji (kritičar).
+- POTVRĐEN znači samo "smije se predložiti"; ulazak u odabir uvijek odobrava korisnik.
+
+Mjeri: `python scripts/measure_candidates.py --only K24` (pravilo u `nose.gate_status`).
+
+### IZMJERENO 18.10.2026 15:11 — revizija Šangaja, drugi dio (B1–B4b, TA2/TA3, N5–N7, Nose, težine v18, scouting, RapidAPI)
+
+Izvještaj: `revizije/2026-10-18/REVIZIJA_B_2026-10-18.md`. Pragovi zapisani prije računanja:
+`PRAGOVI_B_2026-10-18.md` (12:20; NAKNADNO 12:22, 12:52, 15:05). Kritičar (skeptik, 15:04):
+**SUMNJIVO** — zaključci "ništa ne mijenjati / Nose u sjeni / težine ne dirati" drže, tragovi
+B4b, M2 i "smjer" IZBJEGAVAJ ne drže (ispravljeno prije upisa).
+
+**LAB (12.320 mečeva, poštena cijena, strogi datum, Holm na 10):**
+
+| test | edge | presuda |
+|---|---|---|
+| B1 1. servis + povrat na 1. servis (#3) | +0,9pp | PADA |
+| B2 favorit-asovi vs jak povratnik, spora podloga (#5) | −1,3pp | PADA |
+| B3 spašeni BP vs realizator (#6) | +2,7pp (obrnuto) | PADA |
+| B4a ELO nepotvrđen (#10) | −1,4pp | PADA |
+| B4b ELO potvrđen | +1,6pp sirovo, **+0,4pp uz kontrolu pojasa** | PADA |
+| TA2 zadnja 3 meča na turniru | −0,5pp | PADA |
+| TA3 turnir + 365 d na podlozi | +1,7pp (P1 +4,0 / P2 +0,2) | PADA |
+| N5 Nose mine | −1,0pp | PADA |
+| N6 Nose autsajderi | −2,6pp | PADA |
+| N7 vlastita vjerojatnost | −1,9pp, uz pojas −1,5pp | PADA, obrnuto (cijena u pravu) |
+
+Na istom povijesnom uzorku ukupno 79 testova.
+
+**Opis:** M2 −4,8pp nemonotono po pragu → šum.
+
+**Naši podaci:**
+- težine v18 nastale su iz automatske petlje nad 10 poraza i 10 pobjeda; v18 − v14 uz pojas
+  +0,7pp ±18,7 → bez podloge, ne mijenjaju se;
+- simulacija tiketa (prag po datumu) → nijedna strukturna varijanta ne prolazi kriterij +5pp
+  uz ≤ 30% manje dana.
+
+**Ulazi:** RapidAPI servis/povrat je praktički zamrznuta statistika KARIJERE (ne sezona). Povrat
+je +5,7pp iznad TML-a za 365 dana:
+- +2,3 je naš neponderirani prosjek;
+- ~0,9 prozor, ~0,6 razina;
+- ~2,4 neobjašnjeno.
+
+Prijedlog TML 365 d — korisnikova odluka (nova era).
+
+**Scouting (2a):** 1 tekstualna izmjena (Atmane, povrat 3. percentil), 66 rangova; Đoković
+povučen; razine nisu mijenjane.
+
+**ODBAČENO (ne otvarati bez novog izvora):**
+- statistika s turnira i u pristupima 2 i 3;
+- kombinacije B1–B4b;
+- Nose kao veto ili bonus prije K24.
+
+### IZMJERENO 18.10.2026 10:09 — revizija Peking/Tokio/Šangaj (KONS, K10, K17, K15; LAB D/E/S/F; L4)
+
+Izvještaj: `revizije/2026-10-18/REVIZIJA_2026-10-18.md`. Pragovi zapisani prije računanja:
+`revizije/2026-10-18/PRAGOVI_REVIZIJA_2026-10-18.md` (09:07; NAKNADNO 09:12 i 09:31). Kritičar
+(skeptik): SUMNJIVO — "nule" drže, tri stvari su bile prejako predstavljene i ispravljene (točka
+18 izvještaja). **U modelu ništa nije mijenjano** (korisnikova uputa: prvo izvještaj).
+
+    NOVO (od 27.09., hard)   n=140  93W  edge +0,7pp ±7,6 (s 3 Munarova meča -0,4pp)  ROI -4,8%
+    ŠANGAJ                   n= 72        edge -1,4pp ±10,7
+    tiketi od 27.09.: 10, dobitan 1, očekivano 1,93 (P(<=1) >= 39,5%); svih 66 od 27.05.: 5 dobitnih,
+    očekivano 6,9, P(<=5)=30%; EV tiketa ≈ -21% i bez greške modela; noge 63,9% vs 64,2%
+
+**Ishodi kandidata (pravila zapisana ranije):**
+- **K17 — PAO, ZATVOREN** (n=43, +13,7pp; spojeno −0,3pp).
+- **KONS — NIJE POTVRĐEN, ni oboren** (od 08.09. n=40, −0,4pp ±13,9). `measure_candidates` kaže
+  PAO (n ≥ 30 i < 0), komentar u `ticket_builder.py` (08.09.) veže odluku uz 31.10. i n ≥ 60 →
+  kriterij nije nedvosmislen; bonus NIJE maknut; odluka korisnika (maknuti odmah ili 31.10.).
+- **K10 — formalno zadovoljen, oblik se nije ponovio** → K10b.
+- **K15** (zatvoren 27.09.): NOVO r = +0,03 (n=140) — ostaje zatvoren.
+- K5 25/100, K13 15/40, K18 14/30, K19 4+11/40, K20 132/150 — ČEKA.
+
+**IZMJERENO I ODBAČENO (ne otvarati bez novog izvora) — LAB 12.324 meča naspram poštene cijene,
+strogi datum, Holm na 36 testova (najmanja korigirana P = 0,21):**
+- prosjek statistike s aktualnog turnira (udio poena, hold, asovi, 1./2. servis, povrat, BP,
+  setovi, gemovi) na dubini 2 i 3+: 18 od 18 PADA (−2,0 do +2,4pp). Bolji na turniru pobjeđuje
+  56–64%, favorit 68%. Robusno na kontinuiranu verziju i prilagodbu protivnicima; ne isključuje
+  1–2pp. Dubina 3+ = runde R16–F. "Dubina 4+" (+4,1pp, n=312) nemjerljiva — nije trag.
+- kombinacije E1–E13 (povratnik vs slab 2. servis +0,7; server vs slab povratnik +1,3; +8 ATP
+  pobjeda i bolji hold −0,9; +8 ATP pobjeda kao autsajder +2,2 uz razilaženje polovica; viši u
+  dvorani +2,1; dob × umor +0,9 / −2,1; stariji u QF+ +0,6; "mina" favorit slabijeg 2. servisa −1,6;
+  autsajder dominantniji na turniru −3,0; favorit s 60+ min više −0,8; slični protivnici −0,2 nakon
+  popravka greške) — sve PADA; S2, S3 PADA; F2a visina +0,2 PADA; F2b dob 5+ −1,2 SLAB. S1 → K23.
+- na našim podacima: vrijeme W1–W4 premalo (n=4–14), glavni učinci okreću predznak; W0 (vrijeme ×
+  prvi servis) bila je razlika između turnira (unutar turnira r ≈ ±0,07) — povučeno; runde —
+  nijedna ne zadovoljava kriterij; težine v18 — kriterij nije ispunjen (vidi K22); razine
+  scoutinga okreću predznak; kretanje kvota M1–M3 (peti put) |r| ≤ 0,07 ("nije otkriveno",
+  interval ±0,18); pravilo 15 u promptu −3,5pp (n=52) nejasno.
+- **upozorenje AI recenzenta (L4)** — prag NIJE ispunjen → OPIS, ne kandidat: 25 noga s
+  dvostranom cijenom −13,8pp [−32, +5]; svih 49 (približna cijena) −6,0pp [−19, +7]; unutar tiketa
+  označena lošija u 25 od 49 (novčić); post hoc. **Praćenje:** kad se skupi 30 novih označenih noga
+  (od 19.10.) — ako je uparena razlika ≤ −5pp i interval ispod nule na spojenom uzorku, tek tada
+  kandidat. Tekst upozorenja ne mijenjati dok traje praćenje.
+
+**OPIS (nije prediktor):** visina ↔ asovi r = +0,42, hold +0,20 (27.022 igrač-meča); dob sve
+|r| ≤ 0,04. Winneri/neiznuđene greške postoje samo za Grand Slam (ograničenje izvora).
+
+**KVAR (popravak čeka korisnika):** `_LOSS_BASE_RATES` (analiza gubitka) ima 3 zastarjela retka (ATP
+pobjede "jedina koja preživi cijenu", konsenzus "potvrđen", hard ATP 250 −11,2pp); od 6 oznaka
+[SIGNAL CONFIRMED] od 27.09. nijedna nije potvrđena (3 opovrgnute, 3 neodlučene).
+> **POPRAVLJENO 18.10.2026 12:40** (korisnikov "kreni"; zapis 14:44): sva tri retka ispravljena
+> (ne obrisana), a oznaka SIGNAL zamijenjena s četiri odvojena pojma — vidljivo prije meča / naš
+> zapis u istom uzorku / prediktivna vrijednost (kapija) / ovaj meč; izmjenu smije predložiti samo
+> "GATE PASSED", koji danas nema nijedan faktor. MODEL_CHANGELOG 18.10.2026 12:55, točka 2.
+
+**OPERATIVNO:** Odds API ključ deaktiviran (401 DEACTIVATED_KEY), zadnja snimka 15.10.2026 05 h.
+
+**Višestruko testiranje:** u sesiji ≈118 testova → ~6 nominalnih P < 0,05 očekuje se slučajno.
+LAB je kroz tri revizije korišten za 69 testova — jedna obitelj pokušaja.
 
 ### IZMJERENO 04.10.2026 18:32 — revizija azijske turneje (K1, K9, K10, K11, K17; lab C/D)
 

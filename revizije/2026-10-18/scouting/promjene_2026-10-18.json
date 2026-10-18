@@ -1,0 +1,952 @@
+{
+ "vrijeme": "18.10.2026 12:50, ispravak 12:52",
+ "pravila": "PRAGOVI_B_2026-10-18.md, točka S (12:20) i NAKNADNO 12:52",
+ "promjene": [
+  {
+   "player_name": "jaime faria",
+   "display_name": "Jaime Faria",
+   "confidence": "Med",
+   "old": {
+    "rank": 88
+   },
+   "new": {
+    "rank": 60
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-07"
+   ]
+  },
+  {
+   "player_name": "brandon nakashima",
+   "display_name": "Brandon Nakashima",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 32
+   },
+   "new": {
+    "rank": 18
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-11"
+   ]
+  },
+  {
+   "player_name": "alexander bublik",
+   "display_name": "Alexander Bublik",
+   "confidence": "Med",
+   "old": {
+    "rank": 11
+   },
+   "new": {
+    "rank": 22
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-13"
+   ]
+  },
+  {
+   "player_name": "casper ruud",
+   "display_name": "Casper Ruud",
+   "confidence": "High",
+   "old": {
+    "rank": 13
+   },
+   "new": {
+    "rank": 24
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-16"
+   ]
+  },
+  {
+   "player_name": "alejandro davidovich fokina",
+   "display_name": "Alejandro Davidovich Fokina",
+   "confidence": "Med",
+   "old": {
+    "rank": 20
+   },
+   "new": {
+    "rank": 26
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-17"
+   ]
+  },
+  {
+   "player_name": "jiri lehecka",
+   "display_name": "Jiri Lehecka",
+   "confidence": "Med",
+   "old": {
+    "rank": 12
+   },
+   "new": {
+    "rank": 19
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-12"
+   ]
+  },
+  {
+   "player_name": "jakub mensik",
+   "display_name": "Jakub Mensik",
+   "confidence": "Med",
+   "old": {
+    "rank": 18
+   },
+   "new": {
+    "rank": 15
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-13"
+   ]
+  },
+  {
+   "player_name": "arthur fils",
+   "display_name": "Arthur Fils",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 23
+   },
+   "new": {
+    "rank": 10
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-12"
+   ]
+  },
+  {
+   "player_name": "rafael jodar",
+   "display_name": "Rafael Jodar",
+   "confidence": "Insufficient",
+   "old": {
+    "rank": 25
+   },
+   "new": {
+    "rank": 13
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-17"
+   ]
+  },
+  {
+   "player_name": "martin landaluce",
+   "display_name": "Martin Landaluce",
+   "confidence": "Med",
+   "old": {
+    "rank": 62
+   },
+   "new": {
+    "rank": 73
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-08"
+   ]
+  },
+  {
+   "player_name": "novak djokovic",
+   "display_name": "Novak Djokovic",
+   "confidence": "High",
+   "old": {
+    "rank": 7
+   },
+   "new": {
+    "rank": 11
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-06"
+   ]
+  },
+  {
+   "player_name": "daniil medvedev",
+   "display_name": "Daniil Medvedev",
+   "confidence": "High",
+   "old": {
+    "rank": 8
+   },
+   "new": {
+    "rank": 5
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-17"
+   ]
+  },
+  {
+   "player_name": "zizou bergs",
+   "display_name": "Zizou Bergs",
+   "confidence": "Med",
+   "old": {
+    "rank": 34
+   },
+   "new": {
+    "rank": 39
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-14"
+   ]
+  },
+  {
+   "player_name": "arthur fery",
+   "display_name": "Arthur Fery",
+   "confidence": "Low",
+   "old": {
+    "rank": 36
+   },
+   "new": {
+    "rank": 37
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-07"
+   ]
+  },
+  {
+   "player_name": "alexander blockx",
+   "display_name": "Alexander Blockx",
+   "confidence": "Med",
+   "old": {
+    "rank": 38
+   },
+   "new": {
+    "rank": 28
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-09"
+   ]
+  },
+  {
+   "player_name": "taylor fritz",
+   "display_name": "Taylor Fritz",
+   "confidence": "High",
+   "old": {
+    "rank": 10
+   },
+   "new": {
+    "rank": 12
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-12"
+   ]
+  },
+  {
+   "player_name": "alex michelsen",
+   "display_name": "Alex Michelsen",
+   "confidence": "Med",
+   "old": {
+    "rank": 44
+   },
+   "new": {
+    "rank": 35
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-10"
+   ]
+  },
+  {
+   "player_name": "tomas machac",
+   "display_name": "Tomas Machac",
+   "confidence": "Med",
+   "old": {
+    "rank": 53
+   },
+   "new": {
+    "rank": 75
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-07"
+   ]
+  },
+  {
+   "player_name": "juan manuel cerundolo",
+   "display_name": "Juan Manuel Cerundolo",
+   "confidence": "Med",
+   "old": {
+    "rank": 50
+   },
+   "new": {
+    "rank": 55
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-10"
+   ]
+  },
+  {
+   "player_name": "stefanos tsitsipas",
+   "display_name": "Stefanos Tsitsipas",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 51
+   },
+   "new": {
+    "rank": 43
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-14"
+   ]
+  },
+  {
+   "player_name": "fabian marozsan",
+   "display_name": "Fabian Marozsan",
+   "confidence": "Med",
+   "old": {
+    "rank": 54
+   },
+   "new": {
+    "rank": 63
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-08"
+   ]
+  },
+  {
+   "player_name": "sebastian baez",
+   "display_name": "Sebastian Baez",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 56
+   },
+   "new": {
+    "rank": 53
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-10"
+   ]
+  },
+  {
+   "player_name": "adolfo daniel vallejo",
+   "display_name": "Adolfo Daniel Vallejo",
+   "confidence": "Insufficient",
+   "old": {
+    "rank": 63
+   },
+   "new": {
+    "rank": 52
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-10"
+   ]
+  },
+  {
+   "player_name": "quentin halys",
+   "display_name": "Quentin Halys",
+   "confidence": "Med",
+   "old": {
+    "rank": 52
+   },
+   "new": {
+    "rank": 48
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-11"
+   ]
+  },
+  {
+   "player_name": "frances tiafoe",
+   "display_name": "Frances Tiafoe",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 17
+   },
+   "new": {
+    "rank": 8
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-11"
+   ]
+  },
+  {
+   "player_name": "denis shapovalov",
+   "display_name": "Denis Shapovalov",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 67
+   },
+   "new": {
+    "rank": 42
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-07"
+   ]
+  },
+  {
+   "player_name": "camilo ugo carabelli",
+   "display_name": "Camilo Ugo Carabelli",
+   "confidence": "Low",
+   "old": {
+    "rank": 69
+   },
+   "new": {
+    "rank": 77
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-10"
+   ]
+  },
+  {
+   "player_name": "hubert hurkacz",
+   "display_name": "Hubert Hurkacz",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 70
+   },
+   "new": {
+    "rank": 34
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-13"
+   ]
+  },
+  {
+   "player_name": "holger rune",
+   "display_name": "Holger Rune",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 80
+   },
+   "new": {
+    "rank": 195
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-07"
+   ]
+  },
+  {
+   "player_name": "valentin royer",
+   "display_name": "Valentin Royer",
+   "confidence": "Low",
+   "old": {
+    "rank": 75
+   },
+   "new": {
+    "rank": 105
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-08"
+   ]
+  },
+  {
+   "player_name": "sho shimabukuro",
+   "display_name": "Sho Shimabukuro",
+   "confidence": "Low",
+   "old": {
+    "rank": 97
+   },
+   "new": {
+    "rank": 109
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-07"
+   ]
+  },
+  {
+   "player_name": "facundo diaz acosta",
+   "display_name": "Facundo Diaz Acosta",
+   "confidence": "Med-Low",
+   "old": {
+    "rank": 107
+   },
+   "new": {
+    "rank": 69
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-08"
+   ]
+  },
+  {
+   "player_name": "bu yunchaokete",
+   "display_name": "Bu Yunchaokete",
+   "confidence": "Med-Low",
+   "old": {
+    "rank": 111
+   },
+   "new": {
+    "rank": 93
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-10"
+   ]
+  },
+  {
+   "player_name": "valentin vacherot",
+   "display_name": "Valentin Vacherot",
+   "confidence": "Insufficient",
+   "old": {
+    "rank": 19
+   },
+   "new": {
+    "rank": 14
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-12"
+   ]
+  },
+  {
+   "player_name": "alex de minaur",
+   "display_name": "Alex De Minaur",
+   "confidence": "High",
+   "old": {
+    "rank": 5
+   },
+   "new": {
+    "rank": 9
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-15"
+   ]
+  },
+  {
+   "player_name": "francisco cerundolo",
+   "display_name": "Francisco Cerundolo",
+   "confidence": "Med",
+   "old": {
+    "rank": 22
+   },
+   "new": {
+    "rank": 20
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-11"
+   ]
+  },
+  {
+   "player_name": "tommy paul",
+   "display_name": "Tommy Paul",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 24
+   },
+   "new": {
+    "rank": 17
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-16"
+   ]
+  },
+  {
+   "player_name": "karen khachanov",
+   "display_name": "Karen Khachanov",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 26
+   },
+   "new": {
+    "rank": 27
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-13"
+   ]
+  },
+  {
+   "player_name": "matteo arnaldi",
+   "display_name": "Matteo Arnaldi",
+   "confidence": "Med",
+   "old": {
+    "rank": 33
+   },
+   "new": {
+    "rank": 38
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-10"
+   ]
+  },
+  {
+   "player_name": "ignacio buse",
+   "display_name": "Ignacio Buse",
+   "confidence": "Med",
+   "old": {
+    "rank": 35
+   },
+   "new": {
+    "rank": 36
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-10"
+   ]
+  },
+  {
+   "player_name": "jan-lennard struff",
+   "display_name": "Jan-Lennard Struff",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 41
+   },
+   "new": {
+    "rank": 59
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-10"
+   ]
+  },
+  {
+   "player_name": "matteo berrettini",
+   "display_name": "Matteo Berrettini",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 42
+   },
+   "new": {
+    "rank": 46
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-07"
+   ]
+  },
+  {
+   "player_name": "adrian mannarino",
+   "display_name": "Adrian Mannarino",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 46
+   },
+   "new": {
+    "rank": 83
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-11"
+   ]
+  },
+  {
+   "player_name": "nuno borges",
+   "display_name": "Nuno Borges",
+   "confidence": "Med",
+   "old": {
+    "rank": 48
+   },
+   "new": {
+    "rank": 51
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-10"
+   ]
+  },
+  {
+   "player_name": "terence atmane",
+   "display_name": "Terence Atmane",
+   "confidence": "Med-High",
+   "old": {
+    "strengths": "Big lefty serve; aggressive forehand; strong return (37% BP conv.); improving net/drop shot | [nasa mjerenja 06.09.2026] hold 81.9% = 62. percentil, return 39.7% = 19. percentil (od 110 igraca koje pratimo, 7 nasih analiza)"
+   },
+   "new": {
+    "strengths": "Big lefty serve; aggressive forehand; strong return (37% BP conv.); improving net/drop shot | [nasa mjerenja 06.09.2026] hold 81.9% = 62. percentil, return 39.7% = 19. percentil (od 110 igraca koje pratimo, 7 nasih analiza) [18.10.2026 check: 'strong returner' NOT supported - return points won 31.1% (median 35.6%); ATP main draw, 41 matches to 23.09.2026]"
+   },
+   "reasons": [
+    "jak povratnik (strengths): OPOVRGNUTO: return points won 31.1% (median 35.6%)"
+   ]
+  },
+  {
+   "player_name": "yannick hanfmann",
+   "display_name": "Yannick Hanfmann",
+   "confidence": "Med",
+   "old": {
+    "rank": 52
+   },
+   "new": {
+    "rank": 57
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-07"
+   ]
+  },
+  {
+   "player_name": "botic van de zandschulp",
+   "display_name": "Botic Van De Zandschulp",
+   "confidence": "Med",
+   "old": {
+    "rank": 55
+   },
+   "new": {
+    "rank": 41
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-14"
+   ]
+  },
+  {
+   "player_name": "thiago agustin tirante",
+   "display_name": "Thiago Agustin Tirante",
+   "confidence": "Low",
+   "old": {
+    "rank": 57
+   },
+   "new": {
+    "rank": 54
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-10"
+   ]
+  },
+  {
+   "player_name": "luca van assche",
+   "display_name": "Luca Van Assche",
+   "confidence": "Med",
+   "old": {
+    "rank": 48
+   },
+   "new": {
+    "rank": 45
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-08"
+   ]
+  },
+  {
+   "player_name": "tallon griekspoor",
+   "display_name": "Tallon Griekspoor",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 66
+   },
+   "new": {
+    "rank": 58
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-08"
+   ]
+  },
+  {
+   "player_name": "kamil majchrzak",
+   "display_name": "Kamil Majchrzak",
+   "confidence": "Med",
+   "old": {
+    "rank": 71
+   },
+   "new": {
+    "rank": 70
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-07"
+   ]
+  },
+  {
+   "player_name": "daniel merida aguilar",
+   "display_name": "Daniel Merida Aguilar",
+   "confidence": "Med",
+   "old": {
+    "rank": 59
+   },
+   "new": {
+    "rank": 44
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-08"
+   ]
+  },
+  {
+   "player_name": "hamad medjedovic",
+   "display_name": "Hamad Medjedovic",
+   "confidence": "Med-Low",
+   "old": {
+    "rank": 72
+   },
+   "new": {
+    "rank": 78
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-08"
+   ]
+  },
+  {
+   "player_name": "zachary svajda",
+   "display_name": "Zachary Svajda",
+   "confidence": "Low",
+   "old": {
+    "rank": 73
+   },
+   "new": {
+    "rank": 82
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-10"
+   ]
+  },
+  {
+   "player_name": "jenson brooksby",
+   "display_name": "Jenson Brooksby",
+   "confidence": "Med",
+   "old": {
+    "rank": 74
+   },
+   "new": {
+    "rank": 102
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-08"
+   ]
+  },
+  {
+   "player_name": "james duckworth",
+   "display_name": "James Duckworth",
+   "confidence": "Med",
+   "old": {
+    "rank": 82
+   },
+   "new": {
+    "rank": 64
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-08"
+   ]
+  },
+  {
+   "player_name": "marin cilic",
+   "display_name": "Marin Cilic",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 86
+   },
+   "new": {
+    "rank": 80
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-07"
+   ]
+  },
+  {
+   "player_name": "daniel altmaier",
+   "display_name": "Daniel Altmaier",
+   "confidence": "Med",
+   "old": {
+    "rank": 61
+   },
+   "new": {
+    "rank": 67
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-07"
+   ]
+  },
+  {
+   "player_name": "aleksandar kovacevic",
+   "display_name": "Aleksandar Kovacevic",
+   "confidence": "Low",
+   "old": {
+    "rank": 93
+   },
+   "new": {
+    "rank": 81
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-07"
+   ]
+  },
+  {
+   "player_name": "ben shelton",
+   "display_name": "Ben Shelton",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 6
+   },
+   "new": {
+    "rank": 4
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-11"
+   ]
+  },
+  {
+   "player_name": "dalibor svrcina",
+   "display_name": "Dalibor Svrcina",
+   "confidence": "Med-Low",
+   "old": {
+    "rank": 116
+   },
+   "new": {
+    "rank": 126
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-12"
+   ]
+  },
+  {
+   "player_name": "arthur gea",
+   "display_name": "Arthur Gea",
+   "confidence": "Med",
+   "old": {
+    "rank": 127
+   },
+   "new": {
+    "rank": 56
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-15"
+   ]
+  },
+  {
+   "player_name": "felix auger-aliassime",
+   "display_name": "Felix Auger-Aliassime",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 4
+   },
+   "new": {
+    "rank": 6
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-14"
+   ]
+  },
+  {
+   "player_name": "nicolas mejia",
+   "display_name": "Nicolas Mejia",
+   "confidence": "Med-Low",
+   "old": {
+    "rank": 131
+   },
+   "new": {
+    "rank": 119
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-08"
+   ]
+  },
+  {
+   "player_name": "miomir kecmanovic",
+   "display_name": "Miomir Kecmanovic",
+   "confidence": "Med",
+   "old": {
+    "rank": 58
+   },
+   "new": {
+    "rank": 61
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-07"
+   ]
+  },
+  {
+   "player_name": "cameron norrie",
+   "display_name": "Cameron Norrie",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 39
+   },
+   "new": {
+    "rank": 40
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-08"
+   ]
+  },
+  {
+   "player_name": "marcos giron",
+   "display_name": "Marcos Giron",
+   "confidence": "Med",
+   "old": {
+    "rank": 85
+   },
+   "new": {
+    "rank": 88
+   },
+   "reasons": [
+    "rang: ATP singl lista iz dnevnog runa 2026-10-08"
+   ]
+  }
+ ],
+ "povuceno": [
+  {
+   "player": "Novak Djokovic",
+   "polje": "style",
+   "zapis_12_50": "[18.10.2026 check: 'strong returner' NOT supported - return points won 34.7% (median 35.6%) ...]",
+   "razlog": "povučeno 12:52: 0,9pp ispod medijana je unutar ~1 standardne pogreške (28 mečeva), bez prilagodbe jačini protivnika; RapidAPI (06.09.) kaže 87. percentil. Rang ostaje."
+  }
+ ]
+}

@@ -67,6 +67,31 @@ def _context_line(m: dict) -> str:
     if not parts:
         return ""
     return "📊 Samo za tebe (model ovo NE vidi): " + " · ".join(parts)
+
+
+# ── NOSE U SJENI (18.10.2026 12:47, korisnikova odluka 1a) ───────────────────────
+# Cetiri odvojene procjene iz `agent/nose.py`, zapisane u dnevnom runu NAKON slaganja tiketa
+# (`context_snapshot["nose"]`). Samo prikaz: ne mijenja pick ni tiket. Uz svako upozorenje stoji
+# razina dokaza (povijest), jer nijedno nije potvrdjeno na nasim buducim mecevima (kapija K24).
+@st.cache_data(ttl=600, show_spinner=False)
+def _nose_record(tournament: str, p1: str, p2: str, match_date: str) -> dict:
+    try:
+        r = db.find_existing_analysis(tournament, p1, p2, match_date, select="id,context_snapshot")
+    except Exception:
+        return {}
+    return ((r or {}).get("context_snapshot") or {}).get("nose") or {}
+
+
+def _nose_line(m: dict) -> str:
+    n = _nose_record(m.get("tournament", ""), m.get("player1", ""), m.get("player2", ""),
+                     str(m.get("match_date", ""))[:10])
+    if not n:
+        return ""
+    try:
+        from agent.nose import describe
+    except Exception:
+        return ""
+    return "👃 " + describe(n)
 st.title("🎾 Daily Ticket")
 
 
@@ -129,9 +154,12 @@ with col5:
             st.error("Error deleting ticket.")
 
 if status == "analysis_only":
+    # 18.10.2026 12:47 (revizija B4): tekst je tvrdio da je razlog uvijek premalo meceva; od
+    # 04.10. najcesce je razlog prag pouzdanosti (nijedna kombinacija nije prosla pravila).
     st.info(
-        "📊 **Analysis only** — insufficient main-tour matches for a full accumulator today. "
-        "Predictions below are tracked for model learning. Results and loss analysis run automatically."
+        "📊 **Analysis only** — no ticket today: too few main-tour matches, or no combination "
+        "passed the ticket rules (confidence floor, 3-6 legs, total odds 4-50). The summary below "
+        "says which. Predictions are tracked for model learning; results and loss analysis run automatically."
     )
 
 st.markdown("---")
@@ -237,6 +265,9 @@ for i, m in enumerate(matches):
             _cl = _context_line(m)
             if _cl:
                 st.caption(_cl)
+            _nl = _nose_line(m)
+            if _nl:
+                st.caption(_nl)
 
         st.markdown("</div>", unsafe_allow_html=True)
 

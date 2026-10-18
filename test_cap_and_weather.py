@@ -1432,8 +1432,19 @@ _c_no = tuple(_copy35.deepcopy(_b35) for _ in range(3))
 _c_yes = tuple(_copy35.deepcopy(_b35) for _ in range(3))
 for _x in _c_yes:
     _x["match"]["market_p"] = 0.70
-check("konsenzus podize bodovanje kombinacije",
-      _tbm._score_combo(_c_yes) > _tbm._score_combo(_c_no))
+# REVIDIRANO 18.10.2026 12:50 — bonus UGASEN (korisnikova odluka 3a, revizija 18.10., drugi dio):
+# konsenzus se na novim podacima nije potvrdio (od 08.09. n=40, -0,4pp). Do danas je ovdje stajalo
+# "konsenzus podize bodovanje". Test sada cuva NOVO stanje i dokazuje da je odluka reverzibilna.
+check("konsenzus VISE NE podize bodovanje (bonus 0 od 18.10.2026)",
+      _tbm._score_combo(_c_yes) == _tbm._score_combo(_c_no))
+_old_b35 = _tbm._CONSENSUS_GAP_BONUS
+try:
+    _tbm._CONSENSUS_GAP_BONUS = _tbm._CONSENSUS_GAP_BONUS_DO_18_10
+    check("stari bonus (4) vraca se jednom konstantom i tada radi kao prije",
+          _tbm._CONSENSUS_GAP_BONUS_DO_18_10 == 4.0
+          and _tbm._score_combo(_c_yes) > _tbm._score_combo(_c_no))
+finally:
+    _tbm._CONSENSUS_GAP_BONUS = _old_b35
 check("bodovanje radi i kad trzista nema",
       isinstance(_tbm._score_combo(_c_no), float))
 
@@ -2897,6 +2908,119 @@ try:
 finally:
     (_fa51.db.find_existing_analysis, _fa51.db.get_ticket_status, _fa51.db.get_resolved_for_context) = _o51[:3]
     _fa51._CTX_ROWS_CACHE[:] = _o51[3]
+
+print()
+print("=== 52. Revizija 18.10.2026, drugi dio: Nose u sjeni, konsenzus van, analiza gubitka, B4 ===")
+# Dodano 18.10.2026 12:52. Nijedna od ovih izmjena ne dira prompt analize (era bccf4742).
+import copy as _cp52
+from agent import nose as _ns
+
+# --- A. Analiza gubitka: tri zastarjela retka popravljena (korisnikov "kreni") ---
+_b52 = _fa51._LOSS_BASE_RATES
+check("bazne stope: ATP pobjede vise nisu 'the only one'", "the only one" not in _b52)
+check("bazne stope: ATP pobjede izricito ZATVORENE", "CLOSED 27.09.2026" in _b52 and "11,139" in _b52)
+check("bazne stope: konsenzus vise nije 'validated'", "our one validated" not in _b52
+      and "NOT CONFIRMED on new data" in _b52 and "REMOVED on 18.10.2026" in _b52)
+check("bazne stope: hard ATP 250 = nepotvrdjen kandidat s danasnjim brojkama",
+      "Hard ATP 250: a CANDIDATE, unconfirmed (K18)" in _b52 and "+14.5pp (n=14)" in _b52)
+check("bazne stope i dalje u budzetu", len(_b52) < 12000, "%d" % len(_b52))
+
+# --- B. Nose: faza A ne vidi trziste ---
+_cs52 = {"p1_elo_surface": 1920, "p1_elo_overall": 2000.8, "p2_elo_surface": 1936.4,
+         "p2_elo_overall": 1956, "p1_serve_pts_won": 63.7, "p2_serve_pts_won": 65.5,
+         "p1_return_won": 43.8, "p2_return_won": 42.7, "p1_first_serve_won": 70.1,
+         "p2_first_serve_won": 75.0, "p1_second_serve_won": 53.6, "p2_second_serve_won": 50.7,
+         "p1_form_10": "7/10", "p2_form_10": "9/10", "p1_form_quality": 0.555,
+         "p2_form_quality": 0.815, "p1_tourn_form_matches": 4, "p2_tourn_form_matches": 4,
+         "p1_tourn_form_serve_won": 67.0, "p2_tourn_form_serve_won": 67.2, "p1_sets_7d": 10,
+         "p2_sets_7d": 10, "p1_days_rest": 1, "p2_days_rest": 1, "court_pace_label": "fast",
+         "market_p": 0.66, "intuicija": {"pick": {"edge_pp": 1.0}}}
+_pred52 = {"pick": "Daniil Medvedev", "context_snapshot": _cs52,
+           "match": {"player1": "Rafael Jodar", "player2": "Daniil Medvedev", "surface": "Hard",
+                     "level": "ATP Masters 1000", "odds_p1": 2.85, "odds_p2": 1.55}}
+_a52 = _ns.shadow(_cp52.deepcopy(_pred52))
+check("Nose: verzija nose-v1 i zamrznuti sazetak faze A", _a52.get("version") == "nose-v1"
+      and len(_a52.get("frozen") or "") == 12, str(_a52)[:200])
+check("Nose: cetiri procjene postoje",
+      all(k in _a52 for k in ("pick_quality", "mine_risk", "upset_value", "ticket_suitability")))
+check("Nose: Ticket Suitability je iz dopustenog skupa",
+      _a52.get("ticket_suitability") in ("UKLJUČI", "UZ UPOZORENJE", "IZBJEGAVAJ", "NEMA PODATAKA"))
+_p52b = _cp52.deepcopy(_pred52)
+_p52b["match"]["odds_p1"], _p52b["match"]["odds_p2"] = 1.20, 4.50
+_p52b["context_snapshot"]["market_p"] = 0.10
+_p52b["context_snapshot"]["intuicija"] = {"pick": {"edge_pp": -9.0}}
+_b52n = _ns.shadow(_p52b)
+_strip = lambda d: {k: v for k, v in d.items() if k != "vs_market"}
+check("Nose: faza A NE ovisi o kvoti, konsenzusu ni Intuiciji (isti sazetak)",
+      _strip(_a52) == _strip(_b52n) and _a52["frozen"] == _b52n["frozen"])
+check("Nose: faza B (cijena) se mijenja s kvotom",
+      _a52["vs_market"]["p_market"] != _b52n["vs_market"]["p_market"])
+_raised = False
+try:
+    _ns.assess({"p1": {"odds": 1.5}, "p2": {}, "fast": False, "best_of": 3}, 1)
+except ValueError:
+    _raised = True
+check("Nose: faza A odbija ulaz s trzisnim poljem", _raised)
+check("Nose: ulaz faze A sadrzi samo teniska polja",
+      set(_ns.match_features(_cs52)["p1"]) == set(_ns._SIDE_FIELDS))
+check("Nose: ELO 1500 = nepoznat (tihi null)",
+      _ns.side_features({"p1_elo_surface": 1500, "p1_elo_overall": 1500}, "p1")["elo_s"] is None)
+check("Nose: model poena — jednaki igraci 50%", abs(_ns.point_model_prob(0.64, 0.64) - 0.5) < 1e-9)
+check("Nose: model poena — bolji server > 50% i simetrican",
+      _ns.point_model_prob(0.66, 0.62) > 0.5
+      and abs(_ns.point_model_prob(0.66, 0.62) + _ns.point_model_prob(0.62, 0.66) - 1) < 1e-9)
+check("Nose: tezina ELO-a procijenjena na LAB P1 (0,80) i zapisana", _ns.W_ELO == 0.80
+      and "P1 (ATP 2022–2023) prema ISHODU" in io.open("agent/nose.py", encoding="utf-8").read())
+check("Nose: uz razilazenje s cijenom stoji povijesna razina dokaza",
+      "cijena je bila u pravu" in _ns.describe(_a52) if (_a52["vs_market"].get("diff_pp") is not None
+      and abs(_a52["vs_market"]["diff_pp"]) >= 5) else True)
+check("Nose: kapija na malom uzorku kaze CEKA",
+      all(v["status"] == "CEKA" for v in _ns.gate_status([]).values()))
+# 18.10.2026 15:06 (kriticar): presuda K24 se ZAMRZAVA na prvih 150 oznacenih redaka po datumu —
+# kasniji redovi je ne smiju promijeniti (ponovno gledanje dize laznu potvrdu s 2,4% na 7,5%).
+_g_rows = ([{"suit": "IZBJEGAVAJ", "win": 0.0 if _i % 3 else 1.0, "p": 0.6, "opp_value": False,
+             "diff": -0.1, "date": "2026-11-%02d" % (1 + _i // 10)} for _i in range(150)]
+           + [{"suit": "UKLJUČI", "win": 1.0 if _i % 3 else 0.0, "p": 0.6, "opp_value": False,
+               "diff": 0.0, "date": "2026-11-%02d" % (1 + _i // 30)} for _i in range(400)])
+_g1a = _ns.gate_status(_g_rows)["G1"]
+_g1b = _ns.gate_status(_g_rows + [{"suit": "IZBJEGAVAJ", "win": 1.0, "p": 0.6, "opp_value": False,
+                                   "diff": -0.1, "date": "2027-03-01"} for _ in range(300)])["G1"]
+check("Nose: presuda K24 zamrznuta na prvih 150 (kasniji redovi je ne mijenjaju)",
+      _g1a["status"] == _g1b["status"] and _g1a["edge"] == _g1b["edge"] and "prvih 150" in _g1a["status"],
+      "%s | %s" % (_g1a, _g1b))
+check("Nose: K24 trazi i kontrolu pojasa cijene", _g1a.get("band_diff") is not None)
+
+# --- C. Nose je U SJENI: racuna se nakon tiketa, tiket ga ne cita ---
+_rd52 = io.open("agent/run_daily.py", encoding="utf-8").read()
+check("run_daily: Nose se racuna NAKON slaganja tiketa i nakon Intuicije",
+      _rd52.find("_nose.shadow(pred)") > _rd52.find("ticket = build_ticket(")
+      and _rd52.find("_nose.shadow(pred)") > _rd52.find("_int.shadow_scores(pred"))
+check("run_daily: Nose se upisuje samo u context_snapshot['nose']",
+      'pred["context_snapshot"]["nose"] = _n' in _rd52)
+_tb52 = io.open("agent/ticket_builder.py", encoding="utf-8").read()
+check("ticket_builder ne uvozi Nose (ne moze ga citati pri izboru)",
+      "import nose" not in _tb52 and "from agent.nose" not in _tb52 and "agent import nose" not in _tb52)
+check("stranica Dnevni listic prikazuje Nose uz oznaku 'u sjeni'",
+      "_nose_line(m)" in io.open("pages/1_Dnevni_Listic.py", encoding="utf-8").read()
+      and "u sjeni, nepotvrđeno" in io.open("agent/nose.py", encoding="utf-8").read())
+
+# --- D. B4: sazetak dana bez tiketa kaze pravi razlog ---
+_m52 = {"pick": "A B", "player1": "A B", "player2": "C D", "tournament": "T", "surface": "Hard",
+        "round": "R32", "odds": 1.5, "confidence": 61, "key_factors": []}
+_pnc = _tbm._analysis_only_prompt([_m52, _m52, _m52, _m52], reason="no_combo")
+check("B4: bez kombinacije -> 'NOT a shortage of matches' i prag 63",
+      "NOT a shortage of matches" in _pnc and "confidence floor 63%" in _pnc)
+check("B4: bez razloga ostaje stari tekst (premalo meceva)",
+      "are only 2 main-tour matches" in _tbm._analysis_only_prompt([_m52, _m52]))
+check("B4: run_daily predaje pravi razlog", 'reason="no_combo"' in _rd52 and 'reason="too_few"' in _rd52)
+
+# --- E. Mjerenja: K22, K24, L4 i KONS ---
+_mc52 = io.open("scripts/measure_candidates.py", encoding="utf-8").read()
+check("measure_candidates: K22, K24 i L4 postoje",
+      all(k in _mc52 for k in ('"K22": k22', '"K24": k24', '"L4": l4')))
+check("measure_candidates: KONS je oznacen kao uklonjen", "UKLONJEN 18.10." in _mc52)
+check("rules_hash netaknut nakon revizije 18.10. (drugi dio)",
+      _pr._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
 
 print("\n" + "=" * 60)
 if _fails:

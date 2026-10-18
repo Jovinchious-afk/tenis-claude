@@ -1185,6 +1185,9 @@ treat them as hard constraints, not guidelines.
 #   3/13 = 23,1% naspram 61,3% očekivano (-38,3pp, z=-2,87, ROI -68,0%); isti pick na < 28C
 #   -4,1pp (n=46); niži pick na >= 28C +12,2pp (n=11). Glavni učinak visine je nula
 #   (r=-0,096, P=0,26), pa je riječ o čistoj interakciji. n=13 u ključnoj ćeliji — pratiti.
+#   >>> PRAĆENO 18.10.2026 09:37 (revizija 18.10., točka 7): na mečevima POSLIJE 26.08. ista
+#   ćelija -3,1pp (n=12), dakle izblijedjela. Vrijeme ni ovaj put ne nosi ništa (415 mečeva na
+#   otvorenom: temperatura r=-0,08, vlaga/tlak/vjetar mijenjaju predznak). Ne vraćati.
 #
 # Puni zapis, uključujući reviziju svih 20 analiza gubitaka: MODEL_CHANGELOG 26.08.2026 14:01.
 # =============================================================================================
@@ -1359,6 +1362,14 @@ and MUST be enforced from day one.
    genuine edges can absorb it.
 
 === END HARD-SPECIFIC RULES v1 ==="""
+
+# PRAVILO 15 IZMJERENO PRVI PUT 18.10.2026 09:37 (revizija 18.10., tocka 12; komentar je IZVAN
+# teksta prompta, pa se `rules_hash` ne mijenja): hard pickovi od 04.08. gdje pravilo vrijedi
+# (pick <= 50% na hardu ILI protivnik >= 70%) n=52, -3,5pp [-16,3, +9,2], ostali +0,2pp ->
+# po pragu zapisanom unaprijed NEJASNO. Polovica "protivnik >= 70%" ide u smjeru pravila
+# (-11,4pp, n=21), polovica "pick <= 50%" ne (+1,8pp, n=31). Analize gubitaka pisu da ga model
+# ponekad koristi da pick podigne IZNAD trzista (Majchrzak, Landaluce) — pratiti uz sljedecu
+# izmjenu prompta; ako bude >= 0 uz n >= 30, kandidat za brisanje.
 
 
 # =============================================================================================
@@ -1665,6 +1676,16 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         odds_alert=_odds_alert(odds_p1, odds_p2, match["player1"], match["player2"]),
         market_line=_market_line(odds_p1, odds_p2, match["player1"], match["player2"]),
 
+        # TEZINE (18.10.2026 09:37, revizija 18.10., tocka 10): na hard pickovima od 04.08.
+        # (aktivne v18) predstavnik svake kategorije naspram ostatka nakon cijene: ELO +0,07,
+        # servis/povrat +0,01, forma -0,03, podloga +0,04, umor -0,04, put na turniru -0,05.
+        # Kriterij za promjenu (|r| >= 0,10 u obje polovice) nije ispunjen ni za jednu -> NEMA
+        # PODLOGE za promjenu ni u jednom smjeru. ALI (10:08, skeptik): polovice nisu iste —
+        # ELO -0,01 -> +0,19 [+0,04, +0,33] i servis/povrat -0,11 -> +0,18 [+0,03, +0,32] od 14.09.
+        # (n=169; z razlike 2,0 i 2,9). Nesto se promijenilo (popravljeni ulazi 13.09./04.10.?
+        # ili sum) -> kandidat K22 s pragom za buducu provjeru (DI). Tezine utjecu na pouzdanost,
+        # a ona ne nosi informaciju povrh cijene, pa promjena tezina sama mijenja samo koliko
+        # pickova prijedje prag.
         w_elo_ranking=weights.get("elo_ranking", 22),
         w_surface_style=weights.get("surface_style", 20),
         w_serve_return=weights.get("serve_return", 22),
@@ -1817,6 +1838,14 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             #       izricitu ogradu u promptu. OVA POLJA POSTOJE DA SE HIPOTEZA MOZE
             #       PROVJERITI: za 2-3 turnira usporediti ishod po dubini (2 meca / 3 / 4+).
             #       Ako i na dubini 3+ bude nula, varijabla izlazi.
+            #       >>> 27.09.2026 izasla iz odlucivanja (LAB +0,4pp na 970). 18.10.2026 09:37
+            #       (ispravljeno 10:08 po skeptiku; revizija 18.10., tocka 5): 9 statistika
+            #       (udio poena, hold, asovi, 1./2. servis, povrat, BP, setovi, gemovi) x dubina
+            #       2 i 3+ = 18 testova na 12.324 meca, strogi datum: 0 prolazi (-2,0 do +2,4pp).
+            #       Bolji na turniru pobjedjuje 56-64%, trzisni favorit 68% — kvota to vec zna.
+            #       Nula ne iskljucuje 1-2pp (premalo za dobit). Dubina 3+ je zapravo runda
+            #       R16-F. Winneri/greske se na ATP turnirima NE mogu pratiti (izvor ih daje
+            #       samo za Grand Slam). Polja ostaju kao opis.
             #   `p*_news` vec postoji od v18, ali OD DANAS UTJECE NA ODLUKU (prompt joj daje
             #       izricitu tezinu). Rez korpusa je zato ovdje, ne na v18.
             # Granica ere: rules_hash 6ca9a0ab -> b2139075 (hard).
@@ -2095,6 +2124,10 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
         #                  samo da se moze premjeriti na vecem uzorku
         # NIJEDNA NE ULAZI U PROMPT. Odluka o koristenju tek nakon US Opena — ocjenjivacka
         # tablica s unaprijed zapisanim pragovima je u MODEL_CHANGELOG 26.08.2026 15:20.
+        # >>> ISHOD (zapisano 18.10.2026 09:37): sve tri su PALE izvan uzorka 26.09.2026
+        # (forma x kvaliteta +3,2pp, ELO protivnika <1700 +2,6pp, dob 4+ -0,7pp; DI "IZMJERENO I
+        # ODBACENO 26.09."). Na NOVO od 27.09. dob 4+ cak +15,6pp (n=21), forma x kvaliteta
+        # r=-0,02. Biljezenje ostaje (jeftino), odluka je donesena: ne ulaze.
         _v16 = match.get("v16_logging") or {}
         _q1 = _v16.get("p1_avg_opp_elo_5") or {}
         _q2 = _v16.get("p2_avg_opp_elo_5") or {}
