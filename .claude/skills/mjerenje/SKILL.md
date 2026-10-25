@@ -15,6 +15,10 @@ Nijedan korak se ne preskače. Na kraju ide izvještaj u formatu ispod.
 - Hipoteza jednom rečenicom i SMJER (+ ili −).
 - Prag za "prolazi / pada" zapiši UNAPRIJED (u `DECISION_INPUTS.md` sekcija 0a ili u
   `revizije/<datum>/PRAGOVI_*.md`) s vremenom iz `date "+%d.%m.%Y %H:%M"`.
+- Ako prag kaže "prvih N", zapiši i POREDAK: stabilno po (datum meča, vrijeme upisa analize),
+  presuda zamrznuta na tih N (od 25.10.2026 — K18 je inače "treperio" između POTVRĐEN i ČEKA).
+- Vrijeme u docstringu svake nove skripte: rezervirano mjesto pa odmah `date` + `sed` — nikad
+  procjena (dogodilo se 27.09. i 25.10.).
 - Izračunaj snagu i napiši je uz prag:
   `python ${CLAUDE_SKILL_DIR}/scripts/snaga.py --n <n>` (koliki edge taj n uopće vidi) ili
   `python ${CLAUDE_SKILL_DIR}/scripts/snaga.py --edge 5` (koliki n treba).

@@ -50,6 +50,17 @@ PRAGOVI (zapisani PRIJE podataka; isti su u DECISION_INPUTS.md, sekcija 0a):
   L4   upozorenje AI recenzenta    od 19.10.   30 novih oznacenih noga; na spojenom uzorku uparena
                                                razlika (oznacena − ostale noge istog tiketa) <= -5pp
                                                i interval ispod 0 -> tek tada kandidat (DI 18.10. 10:09)
+  K13b protivnik s OZLJEDOM (v2)   od 26.10.   strogi detektor `player_news.strict_injury` (injury_n2,
+                                               inj_v=2); PRVIH 30 takvih pickova po (datum, vrijeme
+                                               analize): edge >= ostali + 5pp -> prijedlog korisniku;
+                                               razlika <= 0 -> samo biljezenje (DI K13b, 25.10.2026 11:44)
+  K18b hard ATP 250 — NOVA serija  od 26.10.   PRVIH 30 po (datum, vrijeme analize): edge <= -5pp ->
+                                               prijedlog "najvise 1 takva noga"; > 0 -> K18 zatvoriti;
+                                               inace nejasno (DI K18b, 25.10.2026 11:44). K18 je okinut
+                                               25.10. na JEDNOM tjednu i NIJE uveden.
+POREDAK (od 25.10.2026, revizija 25.10., P5): kad prag kaze "prvih N", redci se slazu STABILNO po
+(datum, vrijeme upisa analize) i presuda se zamrzava na tih N — inace presuda "treperi" (K18 je
+20.10. bio POTVRDJEN, 21.-23. CEKA, 24. opet POTVRDJEN).
 """
 import sys
 import os
@@ -72,7 +83,8 @@ def load_rows() -> list:
     while True:
         chunk = db._rest("GET", "analyzed_matches", params={
             "select": "match_date,player1,player2,predicted_winner,actual_winner,prediction_correct,"
-                      "bookmaker_odds_p1,bookmaker_odds_p2,round,surface,tournament_level,context_snapshot",
+                      "bookmaker_odds_p1,bookmaker_odds_p2,round,surface,tournament_level,context_snapshot,"
+                      "created_at",
             "prediction_correct": "not.is.null", "order": "match_date.asc",
             "offset": str(off), "limit": "1000"})
         raw.extend(chunk)
@@ -121,6 +133,10 @@ def load_rows() -> list:
             "ctxv": cs.get("context_version") or 0,
             "inj_pick": (cs.get(f"{a}_gnews") or {}).get("injury_n"),
             "inj_opp": (cs.get(f"{b}_gnews") or {}).get("injury_n"),
+            # K13b (25.10.2026 11:44): strogi detektor v2; None = zapis bez v2 (prije 26.10.) ili greska.
+            "inj2_opp": ((cs.get(f"{b}_gnews") or {}).get("injury_n2")
+                         if (cs.get(f"{b}_gnews") or {}).get("inj_v") == 2 else None),
+            "created": str(r.get("created_at") or ""),
             # K20 (27.09.2026 12:33): procjena Intuicije za NAS pick, zapisana prije meca.
             "int_edge": ((cs.get("intuicija") or {}).get("pick") or {}).get("edge_pp"),
             "elo_gap": elo_gap, "sr_gap": sr_gap,
@@ -181,8 +197,12 @@ def k10(rows):
         st = "PAO"
     else:
         st = "CEKA"
-    return [(f"K10 pojas {k} (od 14.09.)", v[0], v[1], st if k == "1,35-1,65" else "")
-            for k, v in res.items()]
+    out = [(f"K10 pojas {k} (od 14.09.)", v[0], v[1], st if k == "1,35-1,65" else "")
+           for k, v in res.items()]
+    # 25.10.2026 11:44: okinut 18.10. i 25.10., ali se oblik nije ponovio (dulje kvote losije, ne
+    # bolje), a trzisni pojasevi su ravni (±2pp) -> ne provodi se; izricit bonus po pojasu = K10b.
+    out.append(("    odluka 25.10.2026: oblik se nije ponovio, ne provodi se (K10b)", 0, None, ""))
+    return out
 
 
 def k11(rows):
@@ -206,11 +226,48 @@ def k17(rows):
     return [("K17 pick s High profilom (od 27.09.)", n, e, st)]
 
 
+def _first_n(rows, n):
+    """Prvih n redaka po (datum, vrijeme upisa analize) — stabilan poredak (P5, 25.10.2026 11:44)."""
+    return sorted(rows, key=lambda r: (r.get("date") or "", r.get("created") or ""))[:n]
+
+
 def k18(rows):
     s = [r for r in rows if r["date"] >= "2026-09-27" and r["level"] == "ATP 250" and "hard" in r["surface"]]
     n, e = edge(s)
     st = "POTVRDJEN" if n >= 30 and e <= -5 else ("PAO" if n >= 30 and e > 0 else "CEKA")
-    return [("K18 hard ATP 250 (od 27.09.)", n, e, st)]
+    # 25.10.2026 11:44: okinut po slovu, ali na JEDNOM tjednu (Lyon/Bruxelles/Almaty = 74 od 88;
+    # bez njih +14,5pp, n=14). Korisnik je odluku prepustio preporuci ("provedi sve sto smatras
+    # korisnim") -> NE uvodi se; nova serija od 26.10. je K18b ispod.
+    return [("K18 hard ATP 250 (od 27.09.)", n, e, st),
+            ("    odluka 25.10.2026: okinut na jednom tjednu, NE uvodi se -> K18b", 0, None, "")]
+
+
+def k18b(rows):
+    """Hard ATP 250 — nova serija od 26.10.2026, presuda zamrznuta na prvih 30 (DI K18b)."""
+    s = [r for r in rows if r["date"] >= "2026-10-26" and r["level"] == "ATP 250" and "hard" in r["surface"]]
+    f = _first_n(s, 30)
+    n, e = edge(f)
+    if n < 30:
+        st = f"CEKA ({n}/30)"
+    else:
+        st = "POTVRDJEN (prijedlog korisniku)" if e <= -5 else ("PAO (K18 zatvoriti)" if e > 0 else "NEJASNO")
+    return [("K18b hard ATP 250 (od 26.10., prvih 30)", n, e, st)]
+
+
+def k13b(rows):
+    """Protivnik s vijesti o ozljedi po strogom detektoru v2 (DI K13b, prag 25.10.2026 11:44)."""
+    s = [r for r in rows if r["date"] >= "2026-10-26" and r.get("inj2_opp") is not None]
+    inj = _first_n([r for r in s if r["inj2_opp"] >= 1], 30)
+    last = inj[-1]["date"] if inj else ""
+    rest = [r for r in s if r["inj2_opp"] == 0 and (not last or r["date"] <= last)]
+    n1, e1 = edge(inj)
+    n2, e2 = edge(rest)
+    if n1 >= 30 and e1 is not None and e2 is not None:
+        st = "POTVRDJEN (prijedlog)" if e1 - e2 >= 5 else ("PAO" if e1 - e2 <= 0 else "NEJASNO")
+    else:
+        st = f"CEKA ({n1}/30)"
+    return [("K13b protivnik s ozljedom v2 (od 26.10.)", n1, e1, st),
+            ("     protivnik bez takve vijesti", n2, e2, "")]
 
 
 def k19(rows):
@@ -386,8 +443,8 @@ def l4(_rows):
     return [(lab, n, (100 * mu) if mu is not None else None, st)]
 
 
-ALL = {"K5": k5, "K10": k10, "K11": k11, "K13": k13, "K17": k17, "K18": k18, "K19": k19, "K20": k20,
-       "KONS": kons, "K22": k22, "K24": k24, "L4": l4}
+ALL = {"K5": k5, "K10": k10, "K11": k11, "K13": k13, "K13b": k13b, "K17": k17, "K18": k18,
+       "K18b": k18b, "K19": k19, "K20": k20, "KONS": kons, "K22": k22, "K24": k24, "L4": l4}
 
 if __name__ == "__main__":
     # Preusmjerenje izlaza SAMO kad se skripta pokrece — test je uvozi kao modul, a zamjena

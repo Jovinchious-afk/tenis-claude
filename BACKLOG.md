@@ -6,7 +6,7 @@ danima, jednostavnim jezikom). Brojke, obrazloženja i tehnički detalji su u
 (dalje: DI).
 
 **Pravilo:** na kraju svake radne sesije ovdje se dopiše što smo napravili i ažurira se
-popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 18.10.2026 19:56.
+popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 25.10.2026 11:50.
 
 **Jedna naredba za sve zakazane provjere kandidata:** `python scripts/measure_candidates.py`
 (čita bazu, ništa ne mijenja; kaže za svakog kandidata ČEKA / POTVRĐEN / PAO).
@@ -21,23 +21,26 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 | što | kada / uvjet | ishod | gdje |
 |---|---|---|---|
 | **K25 — servis/povrat iz TML-a SAMO GLAVNOG ŽDRIJEBA** (18.10.2026, nastavak tvog prelaska na TML) | **test A ODGOĐEN** (tvoja odluka 18.10.2026 19:56: "za drugi put"; besplatno, godine 2010–2019 koje nitko nije gledao); **test B** sam se skuplja od 19.10.2026, provjera kad bude ≥ 700 ATP mečeva (~prosinac) | prag zapisan 17:34 prije gledanja: A bolji za ≥ 0,005 log-gubitka u obje polovice i u ≥ 8 od 10 godina; B bolji za ≥ 0,005 uz interval iznad nule naspram sadašnjeg stanja. Tek kad prođu oba → prijedlog nove ere (jedan plaćeni poziv). Na viđenim podacima +0,013 do +0,019 svake godine, ali to je naknadni rez | DI K25; `revizije/2026-10-18/PRAGOVI_C_TML_PROMPT_2026-10-18.md`; osnova koda na grani `tml-era-881d89f8` |
-| **Omjer protiv ljevaka** | 300 mečeva s ljevakom (danas 120) | ponovno izmjeriti; do tada samo bilježenje | DI "IZMJERENO 26.09.2026" |
-| **K1 — prag VRAĆEN na 63 (04.10.2026 19:22, tvoja odluka)** | prva 3 tjedna (do ~25.10.) | pratiti koliko dana nema tiketa (procjena ~13 od 17) i ROI tiketa; K1 kao nalaz nije se ponovio, pa se prag više ne pomiče po pouzdanosti dok pouzdanost ne pokaže informaciju (r > 0) u dvije ere | `config/model_config.py` TICKET_CONFIG; DI K1 |
-| **Noćna sesija (samo bilježenje)** | 60 noćnih pickova od 05.10.2026 | tada pogledati smije li postati kandidat (stari +5,7pp n=83, novi +5,4pp n=12; interval dodiruje nulu, povijest je ne zna) | `context_snapshot.session` |
+| ~~**TVOJ "PROVEDI" — revizija 25.10.2026**~~ | **PROVEDENO 25.10.2026 11:49** (tvoj "provedi sve što smatraš korisnim") | P1 panel vijesti zamijenjen (Google News: samo priče i stvarne ozljede, 3 dana) · P2 detektor ozljeda v2 + K13b · P3 analiza gubitka popravljena · P4 K18 i K10 NE uvedeni, K18b nova serija · P5 pravilo poretka "prvih N" · P7 sigurnosna provjera ključeva prije pusha (čisto). **P6 NIJE proveden** — čeka zimsku pauzu (stavka "Sljedeća era prompta" niže) | MODEL_CHANGELOG 25.10.2026 11:49 |
+| **K13b — vijest o OZLJEDI protivnika, strogi detektor v2** (25.10.2026) | 30 riješenih pickova od 26.10.2026 s protivnikom `injury_n2 ≥ 1`, prvih 30 po (datum, vrijeme analize) — realno proljeće 2027. (~3% igrača ima stvarnu vijest) | edge te skupine ≥ ostali + 5pp → prijedlog (kod u odabiru, ne prompt); ≤ 0 → samo bilježenje. Snaga ±17pp (probir) | DI K13b; `measure_candidates.py --only K13b` |
+| **K18b — hard ATP 250, nova serija** (25.10.2026) | prvih 30 hard 250 pickova od 26.10.2026 (sljedeće 250-ice na hardu tek u siječnju 2027.) | ≤ −5pp → prijedlog "najviše jedna takva noga"; > 0 → K18 zatvoriti; između nejasno | DI K18b; `measure_candidates.py --only K18b` |
+| **Omjer protiv ljevaka** | 300 mečeva s ljevakom (25.10.: 162) | ponovno izmjeriti; do tada samo bilježenje | DI "IZMJERENO 26.09.2026" |
+| ~~**K1 — prag VRAĆEN na 63 (04.10.2026 19:22, tvoja odluka)**~~ | **ZATVORENO 25.10.2026** | 21 dan od 05.10.: 7 s tiketom, 10 bez (prag je sam odlučio 3 dana), 4 bez runa; 0 od 7 dobitnih (oček. 1,34). Pouzdanost i dalje bez informacije (r −0,09 u eri bccf4742, −0,03 prije) → prag 63 ostaje i ne pomiče se po pouzdanosti | DI "IZMJERENO 25.10.2026" |
+| **Noćna sesija (samo bilježenje)** | 60 noćnih pickova od 05.10.2026 (25.10.: 35) | tada pogledati smije li postati kandidat (stari +5,7pp n=83, novi +5,4pp n=12; od 05.10. −3,1pp naspram dana −5,3pp) | `context_snapshot.session` |
 | **K21 — favorit u QF/SF/F protiv boljeg servera** (tvoja ideja o četvrtfinalima, 04.10.2026) | kad bude ≥ 150 NOVIH ATP mečeva nakon 13.09.2026 (~godinu dana; ~130 godišnje) — nakon što osvježiš `.cache/tennis-data/2026.xlsx` | povijest: −4,1pp (n=617) — skeptik SUMNJIVO (23 testa u sesiji, nema neovisne potvrde). Prolazi: edge ≤ −4pp, interval ispod nule, obje polovice novog razdoblja < 0 → prijedlog kazne pri izboru tiketa (ne u promptu); pada: edge ≥ 0 | DI K21; `python revizije/2026-10-04/skripte/r_lab2.py --od=2026-09-14` · **18.10.2026 15:46: `2026.xlsx` osvježen (do 06.10.), LAB obnovljen — K21 n = 9 od 150, ČEKA** |
 | ~~**K17 — pick s "High" scouting profilom**~~ | **PAO i zatvoren 18.10.2026** (n=43, +13,7pp; spojeno −0,3pp) — kazna nikad nije bila u kodu | — | DI K17 |
 | ~~**TVOJ "PROVEDI" — revizija 18.10.2026**~~ | **PROVEDENO 18.10.2026 13:02** (tvoj "kreni, 1a 2a 3a") | B1 bazne stope analize gubitka popravljene + četiri nove oznake umjesto SIGNAL CONFIRMED; B2 bonus za konsenzus ugašen; B3 recenzent (L4), K22 i Nose (K24) u `measure_candidates.py`; B4 sažetak dana bez tiketa kaže pravi razlog | `revizije/2026-10-18/REVIZIJA_B_2026-10-18.md` |
-| **K22 — ELO jaz i servis/povrat od 14.09.** | 150 hard pickova od 19.10.2026 | r ≥ +0,10 (interval iznad nule, obje polovice) za ELO ili servis+povrat → prijedlog bonusa/težine; oba ≤ 0 → pada. Sada od 14.09.: +0,19 i +0,18 (n=169), prije 0 i obrnuto | DI K22 · od 18.10. mjeri `measure_candidates.py` (K22). **Povijest ga NE podupire** (kritičar 18.10.): LAB r(ELO jaz) +0,00, servis+povrat +0,02 (n=12.320); B4b uz kontrolu pojasa +0,4pp; rez "od 14.09." odabran naknadno |
-| **K24 — Nose u sjeni (nose-v1)** (tvoja odluka 1a, 18.10.2026) | od prvog runa s Noseom (~19.10.): G1 mina i G2 vrijednost na protivniku — probir n=60 (G1 ~kraj prosinca, G2 ~5 tjedana), odluka n=150; G3 vlastita procjena n=300 (~2 mjeseca) | presuda ZAMRZNUTA na prvih 60 (probir) / 150 (odluka) / 300 (G3) po datumu; G1: IZBJEGAVAJ ≤ −5pp, interval ispod 0, obje polovice < 0 I ≤ −3pp naspram ostalih pickova u istom pojasu cijene → prijedlog; G2 zrcalno; G3 r ≥ +0,10. Povijest: NO PICK na favoritu +1,3pp, razilaženje s cijenom −1,5pp → realno očekuj PAO (šansa prolaza ~1%, kritičar) | DI K24; `python scripts/measure_candidates.py --only K24` |
+| **K22 — ELO jaz i servis/povrat od 14.09.** | 150 hard pickova od 19.10.2026 (25.10.: 74; ELO r +0,18, servis+povrat −0,08) | r ≥ +0,10 (interval iznad nule, obje polovice) za ELO ili servis+povrat → prijedlog bonusa/težine; oba ≤ 0 → pada. Sada od 14.09.: +0,19 i +0,18 (n=169), prije 0 i obrnuto | DI K22 · od 18.10. mjeri `measure_candidates.py` (K22). **Povijest ga NE podupire** (kritičar 18.10.): LAB r(ELO jaz) +0,00, servis+povrat +0,02 (n=12.320); B4b uz kontrolu pojasa +0,4pp; rez "od 14.09." odabran naknadno |
+| **K24 — Nose u sjeni (nose-v1)** (tvoja odluka 1a, 18.10.2026) | od prvog runa s Noseom (~19.10.): G1 mina i G2 vrijednost na protivniku — probir n=60 (G1 ~kraj prosinca, G2 ~5 tjedana), odluka n=150; G3 vlastita procjena n=300 (~2 mjeseca). **25.10.: G1 10 (−14,2pp), G2 22 (+1,4), G3 r −0,12 (74)** | presuda ZAMRZNUTA na prvih 60 (probir) / 150 (odluka) / 300 (G3) po datumu; G1: IZBJEGAVAJ ≤ −5pp, interval ispod 0, obje polovice < 0 I ≤ −3pp naspram ostalih pickova u istom pojasu cijene → prijedlog; G2 zrcalno; G3 r ≥ +0,10. Povijest: NO PICK na favoritu +1,3pp, razilaženje s cijenom −1,5pp → realno očekuj PAO (šansa prolaza ~1%, kritičar) | DI K24; `python scripts/measure_candidates.py --only K24` |
 | **K23 — "zalet protiv boljih servera" precijenjen (S1 obrnuto)** + **K21** + dubina 4+ | kad osvježiš `.cache/tennis-data/2026.xlsx` (ručno, tennis-data.co.uk) | jednom pokrenuti na ATP mečevima nakon 13.09. s pragovima iz DI (K23: ≤ −3pp, interval ispod nule, obje polovice < 0) | DI K21, K23 · **18.10.2026 15:46: pokrenuto na novim mečevima — S1 n = 4, dubina 4+ n = 1 → ČEKA (2027.)** |
 | **K10b — izričit bonus po pojasu kvote** | zasebno testiranje (nije hitno) | prvo simulacija tiketa po varijantama bodovanja, pa prag prije dva turnira; oprez: povijest 1,35–1,43 +3,7pp | DI K10, K10b |
-| **Upozorenje AI recenzenta (samo praćenje)** | 30 novih označenih noga od 19.10.2026 | uparena razlika ≤ −5pp i interval ispod nule (spojeno) → tek tada kandidat; sada opis (svih 49: −6,0pp, novčić 25/49) | DI "IZMJERENO 18.10.2026" · od 18.10. mjeri `measure_candidates.py` (L4) |
-| **K18 — hard ATP 250 turniri** | 30 takvih pickova od 27.09.2026 (jesen je puna 250-ica) | ≤ −5pp → najviše jedna takva noga po tiketu; iznad nule → odbacuje se. Povijest 27.09.: tržište ondje nema rupu (+0,1pp) — ako postoji, to je naš izbor | DI K18 |
-| **K19 — povratak nakon pauze od 21+ dan** | 40 mečeva od 27.09.2026 | isti smjer kao na tržištu → ±2pp; obrnuto → odbacuje se. Povijest 27.09.: −2,5pp, ali polovice različite (slab znak) | DI K19 |
-| **K5, K10** (K9 PAO, K11 ZATVOREN 04.10.; K8 se od spajanja odjeljaka 26.09. ne može mjeriti) | K5: n ≥ 100 (04.10.: 16); K10: 25 po pojasu (04.10.: 21/34/20) | svaki svoj prag; K10 oblik zasad kao hipoteza, povijest: tržište u 1,35–1,60 nema rupu | DI K5, K10; `measure_candidates.py` |
+| **Upozorenje AI recenzenta (samo praćenje)** | 30 novih označenih noga od 19.10.2026 (25.10.: 3 — pogođen 1) | uparena razlika ≤ −5pp i interval ispod nule (spojeno) → tek tada kandidat; sada opis (svih 49: −6,0pp, novčić 25/49) | DI "IZMJERENO 18.10.2026" · od 18.10. mjeri `measure_candidates.py` (L4) |
+| ~~**K18 — hard ATP 250 turniri**~~ | **OKINUT 25.10.2026 i NE UVODI SE** (odluka po preporuci, tvoj "provedi sve što smatraš korisnim") | prvih 30 po datumu i vremenu analize −5,3pp, ali 74 od 88 pickova su Lyon/Bruxelles/Almaty (bez njih +14,5pp, n=14); noge tiketa iz 250-ica +8,6pp (n=21); povijest +0,1pp; pravilo bi od 27.09. blokiralo 4 od 13 tiketa (i jedini dobitni). Nastavak: K18b gore | DI K18, "K18 i K10 — ODLUKA 25.10.2026" |
+| **K19 — povratak nakon pauze od 21+ dan** | 40 mečeva od 27.09.2026 (25.10.: 22) | isti smjer kao na tržištu → ±2pp; obrnuto → odbacuje se. Povijest 27.09.: −2,5pp, ali polovice različite (slab znak) | DI K19 |
+| **K5, K10** (K9 PAO, K11 ZATVOREN 04.10.; K8 se od spajanja odjeljaka 26.09. ne može mjeriti) | K5: n ≥ 100 (25.10.: 35, −0,0pp); K10: 25 po pojasu — **dosegnuto, okinut drugi put (18.10. i 25.10.)** | K5 svoj prag; **K10: oblik se nije ponovio (dulje kvote lošije: 1,65–1,85 −13,1pp), povijest: pojasevi tržišta ravni ±2pp → NE provodi se (odluka 25.10.2026)**; ostaje K10b | DI K5, K10; `measure_candidates.py` |
 | ~~**Konsenzus kladionica**~~ | **BONUS UGAŠEN 18.10.2026 12:37** (tvoja odluka 3a) | nije potvrđen (n=40, −0,4pp ±13,9); stara vrijednost 4.0 čuva se u `_CONSENSUS_GAP_BONUS_DO_18_10`; signal se i dalje bilježi i prati (KONS). Ponovni test samo uz prag zapisan unaprijed | `agent/ticket_builder.py` |
 | ~~**Odds API — ključ deaktiviran**~~ | **RIJEŠENO 18.10.2026 11:24** | novi ključ besplatnog plana upisan u GitHub Secrets i `.env`; besplatni `/sports` poziv: status 200, **500/500 kredita**. Večernje snimanje smanjeno na **1× dnevno (17:30 UTC)**. Pratiti potrošnju: `kredita preostalo` u ispisu daily runa; za Australian Open (siječanj) pomaknuti termin | `.github/workflows/market_close.yml` |
-| **K20 — Intuicija (naučeni signal u sjeni)** | **dvije provjere:** 150 riješenih procjena (≈ sredina studenog) pa 300 (≈ siječanj), poslije svakih +300. **Mail sa stanjem stiže sam 15.11.2026 i 15.01.2027** | uz 150 treba r ≥ 0,16, uz 300 r ≥ 0,12 (interval iznad nule) i gornja trećina ≥ +3pp → prijedlog bonusa pri izboru tiketa (i za autsajdere); inače uči dalje u sjeni | DI K20; `python scripts/intuicija_report.py` |
+| **K20 — Intuicija (naučeni signal u sjeni)** | **dvije provjere:** 150 riješenih procjena — **NAPRAVLJENA 25.10.2026: n=209, r −0,035 (trebalo ≥ 0,14) → NIJE PROŠLA, uči dalje** — pa 300 (≈ siječanj), poslije svakih +300. **Mail sa stanjem stiže sam 15.11.2026 i 15.01.2027** | uz 150 treba r ≥ 0,16, uz 300 r ≥ 0,12 (interval iznad nule) i gornja trećina ≥ +3pp → prijedlog bonusa pri izboru tiketa (i za autsajdere); inače uči dalje u sjeni | DI K20; `python scripts/intuicija_report.py` |
 | **K14 — Davis Cup** | 20 riješenih Davis Cup mečeva (finalni turnir u studenom) | unutar 5pp od prosjeka → smije na tiket | DI K14 |
 | **Clay težine** | prije prve zemlje 2027. (siječanj 2027.) | aktivna v17 nastala je iz auto-feedbacka na analizama gubitaka (ELO spušten na 11%) — vratiti na v13 ili izjednačiti s hardom | Supabase `model_weights`; MODEL_CHANGELOG 26.09.2026 20:46 |
 
@@ -57,7 +60,13 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
     NISU neovisne potvrde (Zverev–ADF);
   - (2) blok težina maknuti ili ELO vratiti na 22 (v18 je nastala iz automatske petlje nad 10
     poraza i 10 pobjeda, a model težine ne koristi).
-  Ništa novo se ne dodaje.
+  - (3) *dodano 25.10.2026 11:24:* redak "Average opponent ELO context" (forma × kvaliteta) više ne
+    smije biti druga potvrda — kad je pick bolji po njoj, NOVO −9,0pp u istom pojasu (n=116), STARO
+    hard −4,2pp; agent ga koristi u ~2/3 poraza Lyona/Bruxellesa/Almatyja. Uz to umor kao "strong
+    filter" (stavka niže). Pravilo 15 ostaje (25.10.: nejasno, ne briše se).
+  Ništa novo se ne dodaje. **Kada (25.10.2026 11:50):** u zimskoj pauzi (prosinac 2026., nakon
+  Pariza i ATP Finala), sve stavke odjednom, uz jedan plaćeni probni poziv — tada nova era ne reže
+  mjerenja usred sezone (K22, K24, K5/K10).
 
 - **Drugi izvor tržišnog konsenzusa za ATP 250.** The Odds API pokriva samo GS, Masters i
   nekoliko 500-ica; na ostalim turnirima jedini potvrđeni tržišni signal ne postoji. Treba
@@ -73,6 +82,12 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
   ključa) — probano na Machaču, vratio je 50+ članaka, među njima i vijest o njegovoj ozljedi
   stopala s Roland-Garrosa. **NAPRAVLJENO 27.09.2026 12:00:** bilježi se uz svaku analizu
   (model ne vidi); K13 se mjeri kad bude 40 pickova protiv igrača s vijesti o ozljedi (DI K13).
+  *Izmjereno 25.10.2026 11:24:* Google News je svjež (medijan 1 dan, 154/154 igrača), ali 76% su
+  najave, rezultati i kladionice, a od 15 oznaka ozljede stvarne su 3–5 (ostalo umirovljenje
+  karijere, walkover, tuđa ozljeda) → K13 (21/40) je zagađen. Panel ESPN/BBC na listiću pada
+  (4 od 12 pogodaka o pravom igraču i svježe; "Fils" pogađa "Monfils").
+  **PROVEDENO 25.10.2026 11:49:** panel sada čita spremljeni Google News (samo priče i stvarne
+  ozljede, zadnja 3 dana); uz stari detektor bilježi se i strogi v2 (K13b gore).
 
 - ~~**Povijesni laboratorij**, **radni tijek u Claude Codeu** (CLAUDE.md, `/oblikuj`,
   `/mjerenje`, `/kraj-sesije`, skeptik) i **pregled prompta** (izvještaj)~~ — **NAPRAVLJENO
@@ -136,6 +151,59 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 ---
 
 ## NAPRAVLJENO — dnevnik
+
+### 25.10.2026 11:50 — Provedba revizije: vijesti, analiza gubitka, K13b/K18b (model predviđanja netaknut)
+
+Tvoj "provedi sve što smatraš korisnim … commitaj i pushaj". Provedeno je ono što ne dira
+predviđanje i tiket, a koristi nama, budućim mjerenjima i "nosu":
+
+- **Panel vijesti na Dnevnom listiću:** ESPN/BBC dohvat je maknut. Panel sada čita Google News
+  naslove koje run već sprema i pokazuje samo "priče" (npr. Rubljov o mentalnoj krizi, Hačanov s
+  novim trenerom) i stvarne ozljede (🩹) iz zadnja 3 dana, s datumom i izvorom. Najave, rezultati i
+  kladionice su izostavljeni.
+- **Detektor ozljeda v2:** traži riječ o ozljedi uz prezime igrača, a ne bilo gdje u naslovu, pa
+  više ne broji Wawrinkin oproštaj ni tuđe ozljede. Bilježi se uz stari od sutra; novi kandidat
+  K13b mjeri vrijede li prave vijesti o ozljedama nešto povrh kvote.
+- **Analiza gubitka:** nema više zastarjelih brojki pojaseva; dobila je popis "već izmjereno —
+  ne predlagati"; kad nema statistike meča, ne smije nagađati.
+- **K18 i K10 nisu uvedeni** (sav signal iz jednog tjedna); K18 se mjeri ispočetka kao K18b.
+- **Pravilo za buduća mjerenja:** "prvih N" uvijek po datumu i vremenu analize (u `/mjerenje`).
+- **Sigurnost:** prije pusha provjereno da nijedan ključ nije u gitu (čisto).
+- **Nije provedeno:** P6 (izmjena prompta) — zimska pauza.
+
+Pazi: prvi run s novim panelom i detektorom je sutra (Basel/Beč). Era hard bccf4742 ista;
+testovi 926 + 271 OK. Gdje u kodu: `agent/player_news.py` (`strict_injury`, `display_items`),
+`pages/1_Dnevni_Listic.py` (panel), `agent/feedback_analyzer.py` (`_LOSS_BASE_RATES`, prompt),
+`scripts/measure_candidates.py` (K13b, K18b, `_first_n`), `test_cap_and_weather.py` (sekcija 54).
+
+### 25.10.2026 11:24 — Revizija Lyon/Bruxelles/Almaty i priprema za Basel i Beč (samo mjerenje)
+
+Tvoja uputa: velika analiza svih dobitnih i gubitnih parova od 18.10., detaljno svaki poraz, tvoje
+dvije ideje (forma iz zadnja 3 turnira, vijesti), sve što smo zapisali da pratimo, Nos, GitHub
+popis — i **ništa ne implementirati prije zaključka**. U modelu, tiketu i Noseu ništa nije
+mijenjano; dodani su samo komentari s datumom u kodu. Ere su iste (hard bccf4742, clay 84792fca,
+grass b22b1375). Testovi 907 + 271 OK. Ništa nije commitano ni pushano.
+
+- **Što je napravljeno:** izvještaj `revizije/2026-10-25/REVIZIJA_2026-10-25.md` (14 točaka),
+  kartica za svaki od 33 poraza (`KARTICE_GUBITAKA_2026-10-25.md`), pragovi unaprijed (10:20 i
+  10:32), 8 skripti u `revizije/2026-10-25/skripte/`, provjera skeptika (SUMNJIVO; dvije greške u
+  mojim skriptama i tri preglasne tvrdnje ispravljene prije upisa), zapis u DI "IZMJERENO
+  25.10.2026".
+- **Glavni nalazi:**
+  - tjedan 74 picka −10,8pp; gotovo sav manjak su "novčići" (kvota 1,65+: 2 od 15, oček. 7,4),
+    ostalih 59 −4,4pp; nema kvara podataka;
+  - 3 tiketa, svaki pao na jednoj nozi; od 27.05. 5 od 69 uz oček. 7,5 (unutar slučajnosti);
+  - tvoja ideja 1 izmjerena na 12.436 povijesnih mečeva: +0,0pp — tržište to zna; "ritam
+    protiv odmora" isto;
+  - vijesti: panel ESPN/BBC pada (33%), Google News svjež ali većinom najave/kladionice,
+    detektor ozljeda većinom griješi;
+  - težine: 0 od 8 kategorija za promjenu; pravilo 15 nejasno (ostaje);
+  - K18 i K10 okinuti po slovu, preporuka ne uvoditi (isti tjedan) — tvoja odluka;
+  - Intuicija prva provjera (n=209) nije prošla; Nose bez vještine (opis).
+- **Gdje u kodu (samo komentari):** `agent/ticket_builder.py` (K18/K10), `agent/predictor.py`
+  (pravilo 15, izvan prompta), `agent/feedback_analyzer.py` (tablica pojaseva), `agent/player_news.py`
+  (detektor ozljeda), `pages/1_Dnevni_Listic.py` (panel vijesti).
+- **Čeka tebe:** stavka "TVOJ PROVEDI — revizija 25.10.2026" na vrhu ČEKA (P1–P7).
 
 ### 18.10.2026 19:44 — Prelazak modela na TML servis/povrat: napravljen, provjeren i NIJE uveden
 

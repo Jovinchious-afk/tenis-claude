@@ -3084,6 +3084,90 @@ _aa = _res53["igraci"].get("aa", {})
 check("TML tablica: stari meč (izvan 12 mj.) i duplikat iz turnira u tijeku ne broje se, pokvarena vrijednost ne ruši",
       _aa.get("n") == 3 and _res53["podaci_do"] == "2026-10-04", str(_aa))
 
+print("\n=== 54. Revizija 25.10.2026: vijesti (detektor v2, panel), analiza gubitka, K13b/K18b (11:47) ===")
+# Nijedna od ovih izmjena ne dira prompt PREDVIĐANJA (era bccf4742) ni odabir tiketa.
+from agent import player_news as _pn54
+import agent.feedback_analyzer as _fa54
+# --- A. Strogi detektor ozljeda v2: stvarni naslovi 19.–25.10.2026 su specifikacija (DI K13b) ---
+_spec54 = [
+    ("Alexander Bublik", "Alexander Bublik retires suddenly as semi-final vs Daniil Medvedev ends in worrying scenes - Daily Express", True),
+    ("Daniil Medvedev", "Alexander Bublik retires suddenly as semi-final vs Daniil Medvedev ends in worrying scenes - Daily Express", False),
+    ("Alexander Bublik", "Medvedev into Almaty final after Bublik retirement, faces Basilashvili for trophy - ATP Tour", True),
+    ("Daniil Medvedev", "Medvedev into Almaty final after Bublik retirement, faces Basilashvili for trophy - ATP Tour", False),
+    ("Corentin Moutet", "Lyon: Corentin Moutet battles through cramps to take down Ugo Humbert in 3h20 thriller - TennisTemple", True),
+    ("Ugo Humbert", "Lyon: Corentin Moutet battles through cramps to take down Ugo Humbert in 3h20 thriller - TennisTemple", False),
+    ("Stan Wawrinka", "Stan Wawrinka handed nightmare draw in his penultimate tournament before retiring - Yahoo Sports", False),
+    ("Stan Wawrinka", "Carlos Alcaraz reveals how Stan Wawrinka helped him while he was out for four months with a wrist injury - Yahoo Sports", False),
+    ("Stan Wawrinka", "Stan Wawrinka reacts after winning first ATP match since May ahead of retirement in Basel - Tennishead", False),
+    ("Daniil Medvedev", "Daniil Medvedev names the Grand Slam tournament where he would consider retiring from tennis - Tennishead", False),
+    ("Stefanos Tsitsipas", "Stefanos Tsitsipas reacts to Gael Monfils suddenly retiring from tennis, 'I'm actually quite sad' - Tennishead", False),
+    ("Arthur Fils", "Brussels: The Draw Is Out, and Fils Is Suddenly the Top Seed After a Major Withdrawal - TennisTemple", False),
+    ("Arthur Fils", "Gael Monfils withdraws from Paris", False),
+    ("Arthur Fils", "Draper's withdrawal hands Fils the top seed in Brussels", False),
+    ("Jack Draper", "Draper's withdrawal hands Fils the top seed in Brussels", True),
+    ("Daniil Medvedev", "“No Wild Cards” – Daniil Medvedev Rejects Special Treatment for Novak Djokovic", False),
+    ("Tomas Machac", "Machac confirms foot tear at Roland-Garros - tennismajors.com", True),
+    ("Novak Djokovic", "Đoković pulls out of Paris with knee issue", True),
+    ("Jaume Antoni Munar Clar", "Munar withdraws from Vienna", True),
+]
+_bad54 = [(n, t) for n, t, e in _spec54 if bool(_pn54.strict_injury(t, n)) != e]
+check("detektor v2: svih 19 stvarnih naslova razvrstano kako piše u DI K13b", not _bad54, str(_bad54))
+_r54 = _pn54.parse_feed(_rss49, "2026-06-02", name="Tomas Machac")
+check("parse_feed s imenom: inj2 po stavci, injury_n2 i inj_v=2",
+      _r54.get("inj_v") == 2 and "injury_n2" in _r54 and all("inj2" in x for x in _r54["items"]), str(_r54))
+check("parse_feed bez imena: stari zapis K13 ostaje isti (nema injury_n2)",
+      "injury_n2" not in _pn54.parse_feed(_rss49, "2026-06-02") and _r54["injury_n"] == 1)
+check("player_news predaje ime detektoru v2",
+      "parse_feed(resp.content, match_date, name=name)" in _in49.getsource(_pn54))
+# --- B. Prikaz na listiću: samo priče i stvarne ozljede, svježe, bez kladionica i rezultata ---
+_g54 = {"q": '"Andrey Rublev" tennis', "items": [
+    {"d": "2026-10-21", "s": "The Times", "t": "Andrey Rublev opens up on mental struggles, says he was at the bottom - The Times", "bet": False, "inj": []},
+    {"d": "2026-10-21", "s": "X", "t": "Andrey Rublev opens up on mental struggles, says he was at the bottom - Copy", "bet": False, "inj": []},
+    {"d": "2026-10-21", "s": "ATP", "t": "Rublev reaches Almaty QFs with win over Kovacevic - ATP Tour", "bet": False, "inj": []},
+    {"d": "2026-10-21", "s": "NYP", "t": "Rublev vs Mannarino prediction: odds and picks - NY Post", "bet": True, "inj": []},
+    {"d": "2026-10-10", "s": "Old", "t": "Andrey Rublev talks about his coach and the new season ahead - Old", "bet": False, "inj": []},
+    {"d": "2026-10-20", "s": "TM", "t": "Rublev withdraws from doubles with shoulder pain - Tennis Majors", "bet": False, "inj": ["pain"]}]}
+_d54 = _pn54.display_items(_g54, "2026-10-21")
+check("prikaz: priča da, duplikat jednom, rezultat/kladionica/stara vijest ne, ozljeda da",
+      [x["kind"] for x in _d54] == ["priča", "ozljeda"] and _d54[1]["inj"] == ["withdraws"], str(_d54))
+_pg54 = io.open("pages/1_Dnevni_Listic.py", encoding="utf-8").read()
+check("Dnevni listić: nema više ESPN/BBC dohvata, čita spremljeni Google News",
+      "espn.com" not in _pg54 and "bbci.co.uk" not in _pg54 and "display_items" in _pg54
+      and "p1_gnews" in _pg54 and "model ovo NE vidi" in _pg54)
+# --- C. Analiza gubitka: bez zastarjelih brojki pojaseva, popis izmjerenog, bez nagađanja ---
+_b54 = _fa54._LOSS_BASE_RATES
+check("bazne stope: brojke pojaseva maknute, upućuje na živu brojku iz MATCH FACTS",
+      "+8.8pp" not in _b54 and "n= 72 | edge +4.8pp" not in _b54 and "numbers removed 25.10.2026" in _b54
+      and "THE LIVE EDGE FOR THIS MATCH'S BAND IS IN THE MATCH FACTS" in _b54)
+check("bazne stope: blok ALREADY MEASURED postoji i pokriva statistiku s turnira i ritam",
+      "ALREADY MEASURED" in _b54 and "CURRENT tournament" in _b54 and "rhythm vs" in _b54)
+check("bazne stope: K18 okinut na jednom tjednu, nije uveden", "NOT introduced" in _b54)
+_fbsrc54 = _in49.getsource(_fa54)
+check("bez statistike meča model dobiva izričito NOT AVAILABLE i zabranu nagađanja",
+      "NOT AVAILABLE for this match" in _fbsrc54 and "never write \\\"almost certainly\\\"" in _fbsrc54)
+check("'Worth measuring' samo izvan popisa ALREADY MEASURED", "NOT on the ALREADY MEASURED list" in _fbsrc54)
+check("bazne stope i dalje u budžetu", len(_b54) < 12000, "%d" % len(_b54))
+# --- D. Mjerila: K13b i K18b, presuda zamrznuta na prvih N po (datum, vrijeme analize) ---
+_spec54b = _iu48.spec_from_file_location("measure_candidates54", "scripts/measure_candidates.py")
+_mc54 = _iu48.module_from_spec(_spec54b)
+_spec54b.loader.exec_module(_mc54)
+check("measure_candidates: K13b i K18b postoje", "K13b" in _mc54.ALL and "K18b" in _mc54.ALL)
+_syn54 = [{"date": "2026-10-27", "created": f"2026-10-27T10:{i:02d}", "odds": 1.8, "p": 0.55,
+           "win": 0.0, "round": "R32", "round_source": "manual", "surface": "hard", "level": "ATP 250",
+           "inj2_opp": 1} for i in range(30)]
+check("K18b: 30 hard 250 poraza od 26.10. -> prijedlog", _mc54.k18b(_syn54)[0][3].startswith("POTVRDJEN"))
+check("K18b: stari mečevi (prije 26.10.) se ne broje",
+      _mc54.k18b([dict(x, date="2026-10-20") for x in _syn54])[0][3] == "CEKA (0/30)")
+check("K18: prvi redak i dalje računa pravilo (test 48), drugi bilježi odluku",
+      _mc54.k18(_syn48)[0][3] == "POTVRDJEN" and "NE uvodi se" in _mc54.k18(_syn48)[1][0])
+_rest54 = [dict(x, inj2_opp=0, win=1.0, created=f"2026-10-27T11:{i:02d}") for i, x in enumerate(_syn54)]
+check("K13b: protivnik s ozljedom, naš pick gubi -> PAO (razlika <= 0)",
+      _mc54.k13b(_syn54 + _rest54)[0][3] == "PAO")
+_shuf54 = list(reversed(_syn54 + [dict(_syn54[0], date="2026-10-28", win=1.0)]))
+check("prvih N: stabilan poredak po (datum, vrijeme) ne ovisi o redoslijedu ulaza",
+      _mc54._first_n(_shuf54, 30) == _mc54._first_n(list(reversed(_shuf54)), 30))
+check("rules_hash netaknut nakon provedbe revizije 25.10.", _pr._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
+
 print("\n" + "=" * 60)
 if _fails:
     print(f"PALO: {len(_fails)}")

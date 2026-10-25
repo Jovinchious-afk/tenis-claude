@@ -1370,6 +1370,11 @@ and MUST be enforced from day one.
 # (-11,4pp, n=21), polovica "pick <= 50%" ne (+1,8pp, n=31). Analize gubitaka pisu da ga model
 # ponekad koristi da pick podigne IZNAD trzista (Majchrzak, Landaluce) — pratiti uz sljedecu
 # izmjenu prompta; ako bude >= 0 uz n >= 30, kandidat za brisanje.
+# 25.10.2026 11:21 (revizija 25.10., H2 ponovno; komentar IZVAN prompta): n=72, -8,1pp
+# [-18,9, +2,7], u istom pojasu -6,2pp — po slovu praga "podloga", ALI svih 20 novih je iz
+# Lyona/Bruxellesa/Almatyja (bez njih -3,5pp, n=52), a polovica "pick <= 50%" okrenula se s +1,8
+# na -30,3pp (n=12; omjeri u dvorani n~26 su sum). Skeptik: NEJASNO. Pravilo ostaje kakvo jest —
+# vise nije kandidat za brisanje, ali ni za pojacanje.
 
 
 # =============================================================================================

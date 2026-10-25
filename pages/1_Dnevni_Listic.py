@@ -278,6 +278,16 @@ for i, m in enumerate(matches):
 
 # ── VIJESTI O IGRACIMA S LISTICA (13.09.2026 11:55) ─────────────────────────────
 #
+# IZMJERENO 25.10.2026 11:21 (revizija 25.10., točka 8): za 80 igrača Lyona/Bruxellesa/Almatyja
+# stari ESPN/BBC panel dao je 12 pogodaka (pokriva 6 igrača). Samo 4 su o pravom igraču i mlađa od
+# 14 dana (33%); 4 su o Monfilsu jer prezime "Fils" pogađa "Monfils"; najstariji 104 dana (feed seže
+# do 170 dana unatrag, a datum se nije provjeravao). Kriterij zapisan unaprijed (>= 50%) -> pada.
+# ZAMIJENJENO 25.10.2026 11:42 (P1, korisnikov "provedi"): panel više ne dohvaća ništa izvana. Čita
+# Google News naslove koje dnevni run već sprema uz svaku analizu (`p*_gnews`), a
+# `agent.player_news.display_items` ostavlja samo "priče" i stvarne ozljede (detektor v2) iz zadnja 3
+# dana, s datumom i izvorom; najave, rezultati i kladionice (76% naslova) su izostavljeni. Na
+# Lyonu/Bruxellesu/Almatyju to je 50 naslova za 30 od 154 igrača, od toga 3 ozljede.
+#
 # NAMJERNO ODVOJENO OD MODELA. Korisnik je pitao zelimo li vijesti kao SEDMI odjeljak u
 # `key_factors` (uz rating / serve / form / matchup / tournament history / own read).
 # Odgovor je bio NE, i to iz mjerenja, ne iz nacela — razvrstavanje 66 stavki oba feeda
@@ -290,58 +300,44 @@ for i, m in enumerate(matches):
 # za COVJEKA, ne za model. Ne dira prompt, ne dira `rules_hash`, ne ulazi ni u jednu
 # odluku. Filtar je ovdje SIRI nego u promptu (namjerno) — covjek sam procjenjuje sto
 # je vazno, a model ne smije.
-with st.expander("📰 Vijesti o igracima s listica (samo za citanje — model ovo NE vidi)"):
-    st.caption("Izvori: ESPN i BBC tennis RSS. Ovaj panel ne utjece na pickove; model u "
-               "prompt dobiva SAMO vijesti o ozljedama, i to bez ijedne recenice o kvotama.")
+with st.expander("📰 Vijesti o igracima s listica (Google News, zadnja 3 dana — samo za citanje, "
+                 "model ovo NE vidi)"):
+    st.caption("Samo priče i stvarne ozljede o igračima s listića; najave, rezultati i "
+               "kladioničarski naslovi su namjerno izostavljeni (76% svih naslova, revizija "
+               "25.10.2026). Vrijednost ovih vijesti nije izmjerena — čitaj ih kao opis.")
 
-    @st.cache_data(ttl=1800, show_spinner=False)
-    def _tennis_headlines():
-        """Naslovi oba feeda. Kesirano 30 min da se stranica ne vuce na svako osvjezavanje."""
-        import requests
-        from bs4 import BeautifulSoup
-        out = []
-        for name, url in (("ESPN", "https://www.espn.com/espn/rss/tennis/news"),
-                          ("BBC", "https://feeds.bbci.co.uk/sport/tennis/rss.xml")):
-            try:
-                r = requests.get(url, timeout=10,
-                                 headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
-                soup = BeautifulSoup(r.text, "xml")
-                for it in soup.find_all("item"):
-                    t, d = it.find("title"), it.find("description")
-                    out.append((name,
-                                t.get_text(strip=True) if t else "",
-                                d.get_text(strip=True) if d else "",
-                                (it.find("link").get_text(strip=True) if it.find("link") else "")))
-            except Exception as e:
-                out.append((name, f"(izvor nedostupan: {str(e)[:60]})", "", ""))
-        return out
+    @st.cache_data(ttl=600, show_spinner=False)
+    def _gnews_record(tournament: str, p1: str, p2: str, match_date: str) -> tuple:
+        """(p1_gnews, p2_gnews) iz snapshota analize — naslovi koje je dnevni run već spremio."""
+        try:
+            r = db.find_existing_analysis(tournament, p1, p2, match_date, select="id,context_snapshot")
+        except Exception:
+            return {}, {}
+        cs = (r or {}).get("context_snapshot") or {}
+        return cs.get("p1_gnews") or {}, cs.get("p2_gnews") or {}
 
-    _heads = _tennis_headlines()
-    _names = []
+    from agent.player_news import display_items as _display_news
+    _shown, _players = 0, 0
     for _m in matches:
-        for _k in ("player1", "player2"):
-            if _m.get(_k):
-                _names.append(_m[_k])
-
-    _shown = 0
-    for _nm in _names:
-        _sn = _nm.split()[-1].lower() if _nm.split() else ""
-        if len(_sn) < 4:
-            continue
-        _rel = [(src, ti, de, ln) for src, ti, de, ln in _heads
-                if _sn in (ti + " " + de).lower()]
-        if not _rel:
-            continue
-        _shown += 1
-        st.markdown(f"**{_nm}**")
-        for src, ti, de, ln in _rel[:4]:
-            _txt = f"[{src}] {ti}"
-            st.markdown(f"- {('[' + _txt + '](' + ln + ')') if ln else _txt}")
-            if de and de[:60] != ti[:60]:
-                st.caption(de[:260])
+        _md = str(_m.get("match_date", ""))[:10]
+        for _g in _gnews_record(_m.get("tournament", ""), _m.get("player1", ""),
+                                _m.get("player2", ""), _md):
+            if not _g:
+                continue
+            _players += 1
+            _its = _display_news(_g, _md)
+            if not _its:
+                continue
+            _shown += 1
+            st.markdown(f"**{str(_g.get('q') or '').replace(chr(34), '').replace(' tennis', '')}**")
+            for _it in _its:
+                _icon = "🩹" if _it["kind"] == "ozljeda" else "•"
+                st.markdown(f"{_icon} {_it['t']}  \n<span style='color:#888;font-size:12px'>"
+                            f"{_it['d']} · {_it['s'] or ''}"
+                            f"{' · riječi: ' + ', '.join(_it['inj']) if _it['inj'] else ''}</span>",
+                            unsafe_allow_html=True)
     if not _shown:
-        st.info(f"Nijedan od {len(_names)} igraca s listica ne spominje se u "
-                f"{len(_heads)} trenutnih naslova.")
+        st.info(f"Za {_players} igrača s listića nema svježih priča ni vijesti o ozljedama.")
 
 st.markdown("---")
 if status != "analysis_only":

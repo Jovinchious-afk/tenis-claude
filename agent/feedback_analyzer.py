@@ -640,6 +640,16 @@ def _format_match_stats(p1: str, p2: str, stats: dict, p1_id=None, p2_id=None) -
 # zapis pobjede/porazi (u uzorku), (c) prediktivna vrijednost (kapija izvan uzorka — jedina koja
 # opravdava izmjenu; danas je nema nijedan faktor), (d) sto se dogodilo u ovom mecu. Stare
 # analize u bazi zadrzavaju stare oznake (nisu prepisivane).
+# PROVJERENO 25.10.2026 11:21 (revizija 25.10., tocka 5; samo komentar): 17 analiza od 19.10. —
+# 17/17 "No model change", 0 dodijeljenih [GATE PASSED] (9 spominjanja su negacije). Tri kvara:
+# (1) staticka tablica pojaseva ispod (26.09.) proturjecila je zivim "match facts" brojkama
+# (1,60-1,75: +4,8 ovdje, uzivo -0,5pp), pa je analiza pisala obje; (2) ~13-14 od 17 "Worth
+# measuring" vec je izmjereno (analiza nije znala popis ODBACENO iz DECISION_INPUTS); (3) bez
+# statistike meca analiza je nagadjala ("almost certainly", Fils).
+# PROVEDENO 25.10.2026 11:43 (P3, korisnikov "provedi"): brojke pojaseva maknute (ostaju nazivi i
+# uputa "citiraj samo zivu brojku iz MATCH FACTS"; pojas nije faktor koji smo pogrijesili), dodan
+# blok ALREADY MEASURED, K18 redak osvjezen, a bez statistike model dobiva izricito "NOT AVAILABLE".
+# Prompt PREDVIDJANJA nije diran (rules_hash isti).
 _LOSS_BASE_RATES = """
 === MEASURED BASE RATES FROM OUR OWN CORPUS (all surfaces, n=451, through 26.09.2026) ===
 Read these BEFORE naming any cause. They tell you what a NORMAL match looks like, so you can
@@ -689,17 +699,16 @@ its PREDICTIVE VALUE label is [FAILED OR CLOSED]; never call it confirmed, never
   winners, gap                            r = +0.368
 These describe who dictated and who scrambled. They are POST-MATCH ONLY - never a model fix.
 
-*** PRICE BAND STRUCTURE - by OUR PICK's odds, edge vs the devigged price (26.09.2026) ***
-DESCRIPTIVE ONLY, NOT A CONFIRMED RULE: the "hole" below is an unconfirmed candidate (K5/K10),
-and on 12,324 historical matches the MARKET itself has no hole there. A price band is never
-[GATE PASSED].
-  odds 1.00-1.20   n= 56 | edge -1.6pp   (short favourites: a loss here is usually VARIANCE)
-  odds 1.20-1.35   n= 80 | edge +8.8pp   <- our best band
-  odds 1.35-1.43   n= 59 | edge -5.6pp   <- hole
-  odds 1.43-1.60   n= 89 | edge -9.0pp   <- hole (coded caution zone)
-  odds 1.60-1.75   n= 72 | edge +4.8pp
-  odds 1.75-2.00   n= 56 | edge -0.5pp
-  odds 2.00+       n= 39 | edge -2.1pp
+*** PRICE BAND STRUCTURE - by OUR PICK's odds (numbers removed 25.10.2026) ***
+DESCRIPTIVE ONLY, NOT A CONFIRMED RULE: band "holes" are unconfirmed candidates (K5/K10), and
+on 12,324 historical matches the MARKET itself has no hole in any band. A price band is never
+[GATE PASSED]. Bands: 1.00-1.20 (short favourites: a loss here is usually VARIANCE) | 1.20-1.35 |
+1.35-1.43 | 1.43-1.60 (coded caution zone) | 1.60-1.75 | 1.75-2.00 | 2.00+.
+THE LIVE EDGE FOR THIS MATCH'S BAND IS IN THE MATCH FACTS - quote only that figure. (The fixed
+table that stood here, dated 26.09., contradicted the live figures, e.g. 1.60-1.75 +4.8 here vs
+-0.5pp live, so analyses quoted both.)
+A PRICE BAND IS WHERE THE MATCH SITS ON THE ODDS LADDER, NOT A FACTOR WE GOT WRONG: never list it
+under WHAT WE GOT WRONG (14 of 17 analyses did so in Oct 2026).
 THE BAND IS DECIDED BY OUR PICK'S OWN ODDS AS GIVEN IN THE MATCH FACTS - never by our
 confidence, never by the opponent's odds. (An audit on 26.09.2026 found analyses placing an
 @1.24 pick "in the 1.35-1.43 hole" by converting confidence into odds. That is an error.)
@@ -720,9 +729,10 @@ confidence, never by the opponent's odds. (An audit on 26.09.2026 found analyses
   Our pick as market underdog: consensus version -10.7pp (n=20), screenshot version -4.0pp
   (n=28). ODDS MOVEMENT CARRIES NOTHING - tested four times (06.09.: r=+0.007, P=0.927,
   n=167; 26.09.: r=-0.06, n=158). Never explain a loss with "the market moved against us".
-  Hard ATP 250: a CANDIDATE, unconfirmed (K18). The old -11.2pp (n=63, to 26.09.) did not
-  repeat: since 27.09.2026 +14.5pp (n=14), and on 2,311 historical matches the market has no
-  hole there (+0.1pp). Do not cite ATP 250 as a cause.
+  Hard ATP 250: a CANDIDATE, unconfirmed (K18). Its rule triggered on 25.10.2026 on ONE week
+  (Lyon/Brussels/Almaty were 74 of 88 picks); without that week +14.5pp (n=14), and on 2,311
+  historical matches the market has no hole there (+0.1pp). NOT introduced. Do not cite ATP 250
+  as a cause.
 
 *** FINDINGS THAT FAILED OUT OF SAMPLE - do not cite them as support ***
   tiebreak record (the sign reversed between samples) | form x opponent quality (r=+0.284 ->
@@ -732,6 +742,18 @@ confidence, never by the opponent's odds. (An audit on 26.09.2026 found analyses
   backtests, r~0) | weather and its interactions | height (the old signal was missing
   values stored as 0) | "collapse after winning the first set" (not separable from price) |
   R16/QF as a weak round (-1.5pp on manual rounds, better than other rounds; closed 04.10.).
+
+*** ALREADY MEASURED - never write "Worth measuring" for any of these (added 25.10.2026) ***
+  confidence below the ticket floor, or our confidence vs the market price | any statistic from
+  the CURRENT tournament (serve, 1st/2nd serve, aces, break points saved or converted, sets,
+  games, win streak, "momentum") | how deep a player went at his last 3 tournaments | rhythm vs
+  rest, qualifiers, fatigue, days off | surface specialists and surface-record gaps (rule 15
+  is already in the model) | aces or big serve on fast/indoor courts | scouting profile vs
+  record (scouting carries nothing beyond the price) | form x opponent quality | ATP wins |
+  R16/QF | bookmaker consensus | odds movement | weather | height | age | tiebreak record | H2H |
+  similar past matches | price bands. If every idea you have is on this list, write NO
+  "Worth measuring" line - that is the normal case. (In Oct 2026 about 13 of 17 such lines
+  proposed something already measured.)
 
 *** REPLICATION WARNING ***
 Only 3 of our last 12 tested findings held on new data. A factor that "looks strong in this
@@ -981,12 +1003,17 @@ def _analyze_lost_match(match: dict, stats: dict = None) -> str:
     confidence = match.get("confidence", 0)
     key_factors = match.get("key_factors", [])
 
-    stats_block = ""
+    # 25.10.2026 11:43 (revizija 25.10., P3): bez statistike meča blok je prije bio PRAZAN, pa je
+    # analiza Fils–Struff (24.10.) nagađala "Struffov servis je gotovo sigurno radio". Sada model
+    # izričito dobiva da statistike nema i da ne smije nagađati.
+    stats_block = ("=== MATCH STATISTICS === NOT AVAILABLE for this match. In section 2 write "
+                   "\"No match statistics available.\" and describe only the score - never guess "
+                   "serve, return, break-point or ace numbers, and never write \"almost certainly\".\n")
     if stats:
         # ID-evi su nužni za poravnanje statistike s našim redoslijedom igrača — vidi
         # `_format_match_stats`. Bez njih se blok namjerno izostavlja.
         stats_block = _format_match_stats(p1, p2, stats,
-                                          match.get("player1_id"), match.get("player2_id"))
+                                          match.get("player1_id"), match.get("player2_id")) or stats_block
 
     # Draw povijest + anti-halucinacijsko pravilo (A2, 26.07.2026). Povod: analiza gubitka
     # Van Assche-Carreno-Busta (23.07.) tvrdila je "his 2023 Estoril win", a naša draw baza
@@ -1070,7 +1097,8 @@ Write a concise but COMPLETE analysis (~250 words, never leave a sentence unfini
    As of 18.10.2026 NO factor has [GATE PASSED]. [FAILED OR CLOSED]: ATP wins this season,
    R16/QF, tournament statistics, tiebreak record, form x opponent quality, the bookmaker
    consensus. [CANDIDATE, UNCONFIRMED]: price bands (K5/K10), hard ATP 250 (K18), ELO and
-   serve/return since 14.09. (K22).
+   serve/return since 14.09. (K22). The price band is where the match sits, not a factor:
+   do not name it here.
 
 2. HOW THE MATCH WENT - the post-match story, explicitly labelled as description. It is fine
    and useful to say "his second serve collapsed"; it is wrong to call that a model failure.
@@ -1078,7 +1106,8 @@ Write a concise but COMPLETE analysis (~250 words, never leave a sentence unfini
 3. WHAT SHOULD CHANGE - at most ONE proposal, and only for a factor whose PREDICTIVE VALUE is
    [GATE PASSED]. If none is, write exactly: "No model change justified by this match." You may
    add ONE line "Worth measuring: <factor>" for a factor that is [VISIBLE BEFORE THE MATCH] and
-   [NEVER TESTED] - that is a registry candidate, not a change. "No model change" is
+   [NEVER TESTED] and NOT on the ALREADY MEASURED list in the base rates - that is a registry
+   candidate, not a change; if every idea is on that list, write no such line. "No model change" is
    a complete and correct answer, and it is the RIGHT answer most of the time - the single
    most common error in these analyses has been proposing a fix that the data does not carry.
    If you do propose something, state what it would cost when it fires on a match we would

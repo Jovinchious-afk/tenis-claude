@@ -970,6 +970,14 @@ _CONSENSUS_GAP_BONUS_DO_18_10 = 4.0   # stara vrijednost, cuva se za ponovni tes
 # (`measure_candidates.py`, KONS). Ponovni test samo s pragom zapisanim UNAPRIJED: npr. 60+ novih
 # pickova s gap >= +1pp ili drugi izvor konsenzusa za ATP 250 (BACKLOG). Zapis: MODEL_CHANGELOG
 # 18.10.2026.
+# ── K18 I K10 OKINUTI, NISU UVEDENI (25.10.2026 11:21, revizija 25.10., tocka 6) ────────────
+# K18 (najvise jedna hard ATP 250 noga po tiketu): prvih 30 od 27.09. po (datum, vrijeme analize)
+# -5,3pp -> po slovu praga OKINUT (uz druge poretke -5,9 / -8,4; svih 88 -6,8). ALI 74 od 88 su
+# Lyon/Bruxelles/Almaty (19.-25.10.); bez njih +14,5pp (n=14); noge tiketa iz 250-ica +8,6pp
+# (n=21); povijest: trziste na hard 250 nema rupu (+0,1pp, n=2.311); pravilo bi od 27.09.
+# blokiralo 4 od 13 tiketa, medju njima jedini dobitni (skeptik). K10 (bonus po pojasu) formalno
+# ispunjen vec 18.10., oblik se nije ponovio (dulje kvote losije). Preporuka: NE uvoditi; odluka
+# korisnika (kao KONS 18.10.). Ovdje se NISTA ne mijenja dok korisnik ne kaze "provedi".
 
 
 def _consensus_gap_pp(pred: dict):

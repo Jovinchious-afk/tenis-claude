@@ -16,6 +16,39 @@ dnevnik napravljenog jednostavnim jezikom. Dopunjava se na kraju svake radne ses
 
 ---
 
+## 2026-10-25 11:49 — Revizija Lyon/Bruxelles/Almaty provedena: vijesti (detektor v2, panel), analiza gubitka, K13b/K18b; predviđanje i odabir tiketa NEPROMIJENJENI
+
+**Povod:** revizija 25.10.2026 (`revizije/2026-10-25/REVIZIJA_2026-10-25.md`, skeptik SUMNJIVO —
+ispravljeno prije upisa). Korisnik: "provedi sve što smatraš korisnim … commitaj i pushaj".
+
+**Što je promijenjeno:**
+- **Vijesti — strogi detektor ozljeda v2** (`agent/player_news.strict_injury`): riječ o tijelu
+  ≤ 4 riječi od prezimena; odustajanje samo iza prezimena; "retire" samo uz riječ meča, nikad uz
+  umirovljenje karijere; bez kladionica. Bilježi se UZ stari (`inj2`, `injury_n2`, `inj_v: 2`
+  unutar `p*_gnews`), od prvog runa 26.10.2026. Stari `inj`/`injury_n` (K13) netaknut.
+- **Dnevni listić — panel vijesti:** ESPN/BBC dohvat maknut (izmjereno 33% točnih i svježih;
+  "Fils" je pogađao "Monfils"). Panel čita već spremljene Google News naslove i prikazuje samo
+  "priče" i stvarne ozljede iz zadnja 3 dana (`player_news.display_items`). Na tjednu 19.–25.10.:
+  50 naslova za 30 od 154 igrača, od toga 3 ozljede.
+- **Analiza gubitka** (`agent/feedback_analyzer.py`): brojke pojaseva kvote maknute iz statičke
+  tablice (proturječile su živim brojkama; ostaju nazivi i uputa da se citira samo živa brojka iz
+  MATCH FACTS); "pojas nije faktor koji smo pogriješili"; novi blok ALREADY MEASURED (13–14 od 17
+  "Worth measuring" prijedloga bilo je već izmjereno); K18 redak osvježen; bez statistike meča
+  model dobiva izričito "NOT AVAILABLE" i zabranu nagađanja.
+- **Mjerila** (`scripts/measure_candidates.py`): K13b i K18b (pragovi u DI zapisani 25.10. 11:46,
+  prije podataka); presuda "prvih N" po stabilnom poretku (datum, vrijeme analize); uz K18 i K10
+  ispisuje se odluka.
+- **K18 i K10 okinuti, NE uvode se** (odluka po preporuci; oba nalaza su isti tjedan).
+- `.claude/skills/mjerenje`: pravilo poretka za "prvih N" i vrijeme u docstringu samo iz `date`.
+
+**Što NIJE mijenjano:** prompt predviđanja (era hard **bccf4742**, clay 84792fca, grass b22b1375),
+težine (v18), prag 63, tiket 3–6 / 4–50, Nose, Intuicija. P6 (forma × kvaliteta i umor više nisu
+potvrda) čeka zimsku pauzu — sada bi nova era resetirala mjerenja koja teku (K22, K24, K5/K10), a
+izmjerene koristi nema. Testovi: 926 + 271 OK (19 novih).
+
+**Ishod:** K13b i K18b čekaju prve podatke (0/30). Pazi: prvi run s detektorom v2 je 26.10.; ako
+Google News ne odgovori, zapis je `{"error"}` kao i dosad.
+
 ## 2026-10-18 17:34 — Prelazak modela na TML servis/povrat (12 mj.) IZMJEREN i NIJE UVEDEN; implementacija na grani; novi kandidat K25 (samo glavni ždrijeb)
 
 **Povod:** korisnik je odobrio novu eru i prelazak na TML zadnjih 12 mjeseci, uz jedan plaćeni
