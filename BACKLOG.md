@@ -6,7 +6,7 @@ danima, jednostavnim jezikom). Brojke, obrazloženja i tehnički detalji su u
 (dalje: DI).
 
 **Pravilo:** na kraju svake radne sesije ovdje se dopiše što smo napravili i ažurira se
-popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 25.10.2026 11:50.
+popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 26.10.2026 20:01.
 
 **Jedna naredba za sve zakazane provjere kandidata:** `python scripts/measure_candidates.py`
 (čita bazu, ništa ne mijenja; kaže za svakog kandidata ČEKA / POTVRĐEN / PAO).
@@ -40,6 +40,7 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 | **K5, K10** (K9 PAO, K11 ZATVOREN 04.10.; K8 se od spajanja odjeljaka 26.09. ne može mjeriti) | K5: n ≥ 100 (25.10.: 35, −0,0pp); K10: 25 po pojasu — **dosegnuto, okinut drugi put (18.10. i 25.10.)** | K5 svoj prag; **K10: oblik se nije ponovio (dulje kvote lošije: 1,65–1,85 −13,1pp), povijest: pojasevi tržišta ravni ±2pp → NE provodi se (odluka 25.10.2026)**; ostaje K10b | DI K5, K10; `measure_candidates.py` |
 | ~~**Konsenzus kladionica**~~ | **BONUS UGAŠEN 18.10.2026 12:37** (tvoja odluka 3a) | nije potvrđen (n=40, −0,4pp ±13,9); stara vrijednost 4.0 čuva se u `_CONSENSUS_GAP_BONUS_DO_18_10`; signal se i dalje bilježi i prati (KONS). Ponovni test samo uz prag zapisan unaprijed | `agent/ticket_builder.py` |
 | ~~**Odds API — ključ deaktiviran**~~ | **RIJEŠENO 18.10.2026 11:24** | novi ključ besplatnog plana upisan u GitHub Secrets i `.env`; besplatni `/sports` poziv: status 200, **500/500 kredita**. Večernje snimanje smanjeno na **1× dnevno (17:30 UTC)**. Pratiti potrošnju: `kredita preostalo` u ispisu daily runa; za Australian Open (siječanj) pomaknuti termin | `.github/workflows/market_close.yml` |
+| **Snimanje zatvarajućih kvota — novi termin 08:30 UTC, prozor 4 h** (26.10.2026 20:01, tvoja odluka "B") | prvi zakazani run 27.10.2026 (~11:30–13:30 po našem), pa do kraja Basela i Beča (01.11.) | GitHub → Actions → Market Close Capture → zadnji run → redak "Zapisano N redaka, M meceva": očekivano 3–6 mečeva dnevno. Ako dva dana zaredom (dok turnir traje) piše "Nijedan mec ne pocinje u tom prozoru" → GitHub kasni drukčije, termin pomaknuti. **Siječanj: za Australian Open termin pomaknuti** (08:30 UTC je ondje večer) | `.github/workflows/market_close.yml` |
 | **K20 — Intuicija (naučeni signal u sjeni)** | **dvije provjere:** 150 riješenih procjena — **NAPRAVLJENA 25.10.2026: n=209, r −0,035 (trebalo ≥ 0,14) → NIJE PROŠLA, uči dalje** — pa 300 (≈ siječanj), poslije svakih +300. **Mail sa stanjem stiže sam 15.11.2026 i 15.01.2027** | uz 150 treba r ≥ 0,16, uz 300 r ≥ 0,12 (interval iznad nule) i gornja trećina ≥ +3pp → prijedlog bonusa pri izboru tiketa (i za autsajdere); inače uči dalje u sjeni | DI K20; `python scripts/intuicija_report.py` |
 | **K14 — Davis Cup** | 20 riješenih Davis Cup mečeva (finalni turnir u studenom) | unutar 5pp od prosjeka → smije na tiket | DI K14 |
 | **Clay težine** | prije prve zemlje 2027. (siječanj 2027.) | aktivna v17 nastala je iz auto-feedbacka na analizama gubitaka (ELO spušten na 11%) — vratiti na v13 ili izjednačiti s hardom | Supabase `model_weights`; MODEL_CHANGELOG 26.09.2026 20:46 |
@@ -151,6 +152,25 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 ---
 
 ## NAPRAVLJENO — dnevnik
+
+### 26.10.2026 20:01 — Snimanje zatvarajućih kvota: novi termin i širi prozor (model netaknut)
+
+Tvoja odluka "B": "Market Close Capture" ostaje automatski, ali kreće ranije.
+
+- **Što je bilo:** GitHub ga je pokretao 2–4 sata kasnije od zadanog (17:30 UTC → stvarno
+  19:37–21:38), kad su europski večernji mečevi već počeli. Od 18.10. nije spremio nijedan redak.
+- **Što je sada:** zadano 08:30 UTC, pa uz kašnjenje krene ~11:30–13:30 po našem, tik pred
+  dnevnu sesiju. Prozor je 4 h umjesto 2,5 h (rezerva za kašnjenje); krediti su isti. Na
+  rasporedu 26.10. stari termin hvata 0 od 11 mečeva, novi 5–6.
+- **Čemu služi:** da se CLV podaci (cijena tik pred meč) stvarno skupljaju. Tiket, model, prompt
+  i dnevni run se ne mijenjaju.
+- **Ručno uz jutarnji tiket nema smisla:** dnevni run sam povuče i spremi iste kvote (25. i 26.10.
+  tako pokrenuto: 0 redaka). Neobavezno: ručni klik oko 18:30 uhvati večernje mečeve.
+- **Pazi:** prvi zakazani run je 27.10.; za Australian Open termin opet treba pomaknuti.
+  Testovi 926 + 279 OK (8 novih provjera, među njima filtar na izmišljenim mečevima).
+- **Gdje u kodu:** `.github/workflows/market_close.yml` (termin, prozor, obrazloženje),
+  `scripts/capture_market_close.py` (`DEFAULT_MAX_HOURS`), `scripts/clv_report.py` (napomena),
+  `test_provisional_schedule.py` (odjeljak 13).
 
 ### 25.10.2026 11:50 — Provedba revizije: vijesti, analiza gubitka, K13b/K18b (model predviđanja netaknut)
 

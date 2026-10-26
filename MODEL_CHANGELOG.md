@@ -16,6 +16,34 @@ dnevnik napravljenog jednostavnim jezikom. Dopunjava se na kraju svake radne ses
 
 ---
 
+## 2026-10-26 20:01 — Snimanje zatvarajućih kvota: termin 08:30 UTC i prozor 4 h (GitHub kasni 2–4 h); model, prompt, tiket i era NEPROMIJENJENI
+
+**Povod:** korisnik je predložio da "Market Close Capture" pokreće ručno 3–4 min prije dnevnog
+runa. Provjereno 26.10.2026: dnevni run sam dohvaća i sprema iste kvote (`agent/run_daily.py`
+~339–349), a `market_lines` čita samo `scripts/clv_report.py`, pa bi ručna snimka uz tiket bila
+ista snimka dvaput (25. i 26.10. tako pokrenuto: 0 spremljenih redaka). Korisnik posao ne želi
+ukinuti; od tri ponuđene opcije odabrao je "B" (automatski, ranije, širi prozor).
+
+**Što je promijenjeno (samo mjerni alat):**
+- `.github/workflows/market_close.yml`: cron `30 17` → `30 8` (UTC); zadani prozor 2,5 → 4 h
+  (ručni unos i rezerva za zakazani run); obrazloženje s brojkama u zaglavlju.
+- `scripts/capture_market_close.py`: `DEFAULT_MAX_HOURS` 2.5 → 4.0; `scripts/clv_report.py`:
+  napomena za strogo zatvaranje (`--max-hours 2.5`).
+- `test_provisional_schedule.py`, odjeljak 13: čuva novo stanje (isti prozor na sva tri mjesta)
+  i provjerava filtar na izmišljenim mečevima, bez mreže i kredita.
+
+**Zašto (izmjereno):**
+- GitHub zakazani run kasni 2–4 h: 19.–25.10. zadano 17:30 UTC, start 19:37–21:38 UTC (medijan
+  ~3 h); stari termini 16:30/20:30/00:30 kasnili su 2–6 h. Od 18.10. spremljeno je 0 redaka.
+- Raspored 26.10. (Basel/Beč, 11 mečeva 12:30–19:00 UTC): stari termin hvata 0 mečeva, novi 5–6
+  uz kašnjenje 2–4 h (najmanje 3 uz kašnjenje 0 ili 6 h).
+- Krediti isti: 3 po aktivnom turniru po pokretanju, plaća se dohvat. Stanje 26.10.: 477/500.
+
+**Ishod:** za model očekivano nula (kretanje linije 5× izmjereno kao nula, DI); svrha je da CLV
+podaci budu prave završne cijene. Provjera: prvi zakazani run 27.10.2026 (~11:30–13:30 po našem),
+ispis "Zapisano N redaka, M meceva". Za Australian Open termin opet treba pomaknuti. Testovi
+926 + 279 OK; `rules_hash` netaknut.
+
 ## 2026-10-25 11:49 — Revizija Lyon/Bruxelles/Almaty provedena: vijesti (detektor v2, panel), analiza gubitka, K13b/K18b; predviđanje i odabir tiketa NEPROMIJENJENI
 
 **Povod:** revizija 25.10.2026 (`revizije/2026-10-25/REVIZIJA_2026-10-25.md`, skeptik SUMNJIVO —

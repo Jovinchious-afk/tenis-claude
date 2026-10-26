@@ -45,6 +45,8 @@ POKRETANJE
     python scripts/clv_report.py                    # sve od 22.08.2026
     python scripts/clv_report.py --since 2026-09-01
     python scripts/clv_report.py --max-hours 3      # samo snimke unutar 3h od početka
+    python scripts/clv_report.py --max-hours 2.5    # strogo zatvaranje: od 26.10.2026 19:58
+                                                    # hvatanje sprema do 4 h prije početka
 """
 import os
 import sys

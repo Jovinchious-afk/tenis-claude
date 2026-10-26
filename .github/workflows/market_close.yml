@@ -31,6 +31,24 @@ name: Market Close Capture
 # Zadrzan je JEDAN termin u 17:30 UTC: preostali pokriveni turniri sezone su europski
 # (Pariz, Torino), a nakon 25.10. Europa je UTC+1 — prozor 17:30-20:00 UTC hvata kasne dnevne
 # meceve i vecernju sesiju (~19:30 UTC). Za Australian Open (sijecanj) termin treba pomaknuti.
+# >>> ZAMIJENJENO 26.10.2026 19:58 (vidi odmah ispod): 17:30 UTC u praksi nije hvatao nista.
+#
+# TERMIN 08:30 UTC I PROZOR 4 H (26.10.2026 19:58, korisnikova odluka "B"; i dalje JEDAN termin).
+# GITHUB KASNI 2-4 h sa zakazanim runom (izmjereno na GitHub API-ju): 19.-25.10. zadano 17:30
+# UTC, stvarni start 19:37-21:38 UTC, medijan ~3 h; stari termini 16:30/20:30/00:30 kasnili su
+# 2-6 h. Start oko 20:30 UTC dolazi kad su europski vecernji mecevi vec poceli, a zapocete
+# skripta preskace — od 18.10. spremljeno je 0 redaka (8 zakazanih i 2 rucna pokretanja; dio
+# toga otpada i na ATP 250, kojih u Odds API-ju nema). Na rasporedu 26.10. (Basel i Bec,
+# 11 meceva od 12:30 do 19:00 UTC) stari termin hvata 0 meceva, novi 5-6 uz kasnjenje 2-4 h
+# (najmanje 3 i kad kasni 0 ili 6 h). 08:30 UTC uz kasnjenje daje start ~10:30-12:30 UTC, tik
+# pred dnevnu sesiju, kad pocinje vecina meceva. Prozor 4 h (bilo 2,5) je rezerva za
+# promjenjivo kasnjenje. Krediti su ISTI: placa se dohvat (3 po turniru), ne broj spremljenih
+# meceva. Strogo zatvaranje i dalje se izdvaja u izvjestaju: `clv_report.py --max-hours 2.5`.
+# Vecernji mecevi (~17:30-19:00 UTC) ostaju bez druge snimke; rucni klik oko 17:30 UTC (18:30
+# kod nas) ih uhvati — neobavezno, 3 kredita po turniru.
+# POZOR: dok raspored dana nije objavljen, API sve meceve dana stavlja na pocetak sesije (26.10.
+# ujutro: svih 11 sutrasnjih meceva u Baselu u 11:00 UTC); na dan meca satnice su prave.
+# Za Australian Open (sijecanj, UTC+11) termin opet treba pomaknuti: 08:30 UTC je ondje vecer.
 #
 # NE MIJENJA NIJEDAN PICK. Samo dopisuje retke u `market_lines`; kljuc je
 # (event_id, bookmaker, captured_at) pa svaka snimka stoji pored prethodne.
@@ -42,13 +60,15 @@ name: Market Close Capture
 # ~2.000 koliko treba mjerenje preko ishoda. Detaljan racun je u docstringu skripte.
 on:
   schedule:
-    - cron: '30 17 * * *'   # jedno snimanje dnevno od 18.10.2026 (besplatni plan, vidi gore)
+    # Jedno snimanje dnevno od 18.10.2026 (besplatni plan). Termin od 26.10.2026 19:58: 08:30 UTC,
+    # jer GitHub kasni 2-4 h, pa je stvarni start ~10:30-12:30 UTC (vidi gore).
+    - cron: '30 8 * * *'
   workflow_dispatch:
     inputs:
       max_hours:
         description: 'Prozor u satima prije pocetka (0 = bez filtra)'
         required: false
-        default: '2.5'
+        default: '4'   # bilo 2.5; isti broj u skripti (DEFAULT_MAX_HOURS) i ispod — 26.10.2026 19:58
         type: string
 
 jobs:
@@ -75,4 +95,5 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
-        run: python scripts/capture_market_close.py --max-hours "${{ inputs.max_hours || '2.5' }}"
+        # Zakazani run nema unosa, pa dobiva rezervu '4' (bilo '2.5'; 26.10.2026 19:58).
+        run: python scripts/capture_market_close.py --max-hours "${{ inputs.max_hours || '4' }}"

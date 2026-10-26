@@ -502,7 +502,9 @@ _wf = open(".github/workflows/market_close.yml", encoding="utf-8").read()
 
 # --- filtar na prozor prije pocetka ---
 check("skripta ima --max-hours", "--max-hours" in _cap)
-check("zadani prozor je 2.5h", "DEFAULT_MAX_HOURS = 2.5" in _cap)
+# REVIDIRANO 26.10.2026 19:58 — zadani prozor 2.5 -> 4.0 (korisnikova odluka "B"): GitHub kasni
+# 2-4 h sa zakazanim runom, pa je 4 h rezerva. Test cuva NOVO stanje.
+check("zadani prozor je 4h", "DEFAULT_MAX_HOURS = 4.0" in _cap)
 check("filtar koristi hours_to_start", 'r["hours_to_start"] <= args.max_hours' in _cap)
 check("prazan prozor nije greska",
       "Nijedan mec ne pocinje u tom prozoru" in _cap and "return 0" in _cap)
@@ -526,7 +528,16 @@ check("zapisana ograda o mijesanju dviju kuca",
 # Odds API plan (besplatni ima 500 kredita mjesecno) i odobrio jedno snimanje dnevno; kretanje
 # linije je peti put izmjereno kao nula (revizija 18.10.). Test sada cuva NOVO stanje.
 check("workflow ima jedan cron", _wf.count("- cron:") == 1)
-check("cron 30 17 * * * postoji", "30 17 * * *" in _wf)
+# REVIDIRANO 26.10.2026 19:58 — termin 17:30 -> 08:30 UTC: 17:30 je uz kasnjenje GitHuba (2-4 h)
+# startao nakon pocetka europskih vecernjih meceva i od 18.10. nije spremio nijedan redak.
+check("cron 30 8 * * * postoji", "- cron: '30 8 * * *'" in _wf)
+check("stari termin 17:30 UTC vise nije aktivan", "cron: '30 17" not in _wf)
+check("zapisano kasnjenje GitHub crona", "GITHUB KASNI 2-4 h" in _wf)
+# Isti prozor na tri mjesta (zadani unos, rezerva za zakazani run, skripta) — mora se slagati.
+check("zadani unos u workflowu je 4", "default: '4'" in _wf)
+check("zakazani run dobiva 4 h", "inputs.max_hours || '4'" in _wf)
+check("nigdje u workflowu ne ostaje 2.5 kao zadano",
+      "default: '2.5'" not in _wf and "|| '2.5'" not in _wf)
 check("zapisano zasto je jedan termin", "SMANJENO NA JEDNO SNIMANJE DNEVNO" in _wf)
 check("workflow prosljedjuje --max-hours", "--max-hours" in _wf)
 check("workflow objasnjava korisnikov tijek rada",
@@ -546,6 +557,53 @@ check("clv_report nosi polaznu tocku -0,53pp", "-0,53pp" in _clv)
 _tb2 = open("agent/ticket_builder.py", encoding="utf-8").read()
 check("ticket_builder ne zna za CLV", "clv" not in _tb2.lower())
 check("hvatanje ne uvozi ticket_builder", "ticket_builder" not in _cap)
+
+# --- filtar stvarno radi (26.10.2026 19:58): izmisljeni mecevi, bez mreze, baze i kredita ---
+# Cetiri meca pocinju za 1 h, 3,5 h, 4,5 h i -0,5 h (vec poceo). Zadani prozor (4 h) mora uzeti
+# prva dva, prozor 2,5 h samo prvi; dry-run ne smije nista spremiti.
+import importlib.util as _ilu
+import contextlib as _ctx
+import datetime as _dtc
+_spec = _ilu.spec_from_file_location("_cap_mod", "scripts/capture_market_close.py")
+_cm = _ilu.module_from_spec(_spec)
+_spec.loader.exec_module(_cm)
+_now_c = _dtc.datetime.now(_dtc.timezone.utc)
+
+
+def _cap_ev(i, hours):
+    t = (_now_c + _dtc.timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return {"id": f"t{i}", "home_team": f"A{i}", "away_team": f"B{i}", "commence_time": t,
+            "bookmakers": [{"key": "pinnacle", "markets": [{"key": "h2h", "outcomes": [
+                {"name": f"A{i}", "price": 1.6}, {"name": f"B{i}", "price": 2.4}]}]}]}
+
+
+_cap_evs = [_cap_ev(1, 1.0), _cap_ev(2, 3.5), _cap_ev(3, 4.5), _cap_ev(4, -0.5)]
+_cap_orig = (_cm.mkt.active_tennis_keys, _cm.mkt.fetch_odds, sys.argv,
+             _os3.environ.get("ODDS_API_KEY"))
+
+
+def _cap_run(argv):
+    sys.argv = ["capture_market_close.py"] + argv
+    _buf = io.StringIO()
+    with _ctx.redirect_stdout(_buf):
+        _cm.main()
+    return _buf.getvalue()
+
+
+try:
+    _os3.environ["ODDS_API_KEY"] = _cap_orig[3] or "test"
+    _cm.mkt.active_tennis_keys = lambda tour="atp": ["tennis_atp_test"]
+    _cm.mkt.fetch_odds = lambda sk, **kw: [dict(e) for e in _cap_evs]
+    _out_def = _cap_run(["--dry-run"])
+    _out_25 = _cap_run(["--dry-run", "--max-hours", "2.5"])
+finally:
+    _cm.mkt.active_tennis_keys, _cm.mkt.fetch_odds, sys.argv = _cap_orig[:3]
+    if _cap_orig[3] is None:
+        _os3.environ.pop("ODDS_API_KEY", None)
+check("zadani prozor 4 h uzima mec za 1 h i za 3,5 h", "Dogadjaja u prozoru: 2 " in _out_def,
+      _out_def[-300:])
+check("prozor 2,5 h uzima samo mec za 1 h", "Dogadjaja u prozoru: 1 " in _out_25, _out_25[-300:])
+check("dry-run nista ne sprema", "[DRY RUN]" in _out_def and "Zapisano" not in _out_def)
 
 
 # ============================================================================

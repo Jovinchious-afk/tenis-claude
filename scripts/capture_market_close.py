@@ -84,13 +84,26 @@ Odds APIju. Mjerenje je zato bucnije nego idealno, ali smjer i predznak ostaju u
 STO OVO NE RJESAVA: ako CLV kaze da nemamo prednost, to je informacija a ne lijek — reci ce
 nam brze da nesto ne valja, nece nam reci sto.
 
+=============================================================================================
+TERMIN 08:30 UTC I PROZOR 4 H (26.10.2026 19:58, korisnikova odluka)
+=============================================================================================
+GitHubov zakazani run kasni 2-4 h (19.-25.10.: zadano 17:30 UTC, start 19:37-21:38 UTC), pa je
+jedini dnevni termin dolazio nakon pocetka europskih vecernjih meceva: od 18.10. spremljeno je
+0 redaka. Novi termin 08:30 UTC uz kasnjenje krece ~10:30-12:30 UTC, tik pred dnevnu sesiju.
+Zadani prozor je 4 h (bilo 2,5) kao rezerva za promjenjivo kasnjenje; kredita ne trosi vise,
+jer se placa dohvat, a ne spremanje. Strogo zatvaranje: `clv_report.py --max-hours 2.5`.
+Rucno pokretanje uz jutarnji tiket nema smisla: dnevni run sam dohvati i spremi iste cijene.
+Brojke i detalji: `.github/workflows/market_close.yml`.
+
 TROSAK
 Tri termina dnevno x ~9 kredita = ~27 dnevno, oko 800 mjesecno naspram plana od 20.000.
 Popis turnira (`/sports`) je besplatan.
+(Dopisano 26.10.2026 19:58: od 18.10.2026 jedan termin dnevno, 3 kredita po aktivnom turniru;
+besplatni plan ima 500 kredita mjesecno.)
 
 POKRETANJE
     python scripts/capture_market_close.py --dry-run       # ispisi sto bi se spremilo
-    python scripts/capture_market_close.py                 # prozor 2,5h (zadano)
+    python scripts/capture_market_close.py                 # prozor 4h (zadano; do 26.10.2026 19:58 2,5h)
     python scripts/capture_market_close.py --max-hours 0   # bez filtra (stari nacin)
 """
 import os
@@ -108,7 +121,9 @@ import agent.market as mkt
 from database import supabase_client as db
 
 
-DEFAULT_MAX_HOURS = 2.5
+# 4.0 od 26.10.2026 19:58 (bilo 2.5): rezerva za kasnjenje GitHub crona 2-4 h, vidi docstring.
+# Isti broj stoji u market_close.yml (zadani unos i rezerva za zakazani run) — test to provjerava.
+DEFAULT_MAX_HOURS = 4.0
 
 
 def main() -> int:
