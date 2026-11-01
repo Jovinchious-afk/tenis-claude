@@ -71,6 +71,8 @@ izvještaj u `revizije/`.
 | `agent/data_fetcher.py` | RapidAPI, ELO, vrijeme, vijesti |
 | `agent/player_news.py` | vijesti po igraču (Google News) — samo bilježenje, model ne vidi |
 | `agent/intuicija.py` | "Intuicija": naučeni signal u sjeni (K20); prior u `config/intuicija_prior.json` |
+| `agent/nos_ploca.py` | "Nos-ploča": 17 znakova prije meča u sjeni (K26, od 02.11.2026); Dnevni listić + analiza gubitka |
+| `agent/clv.py` | CLV jednog picka (pomak kvote do početka) — sudac za nos-ploču; izvještaj `scripts/clv_report.py` |
 | `agent/feedback_analyzer.py` | večernji rezultati i analize gubitaka |
 | `agent/market.py` | The Odds API konsenzus |
 | `agent/player_context.py`, `agent/history_features.py` | varijable igrača, zaštita od curenja |

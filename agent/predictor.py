@@ -2571,6 +2571,13 @@ def _apply_measured_penalties(result: dict, match: dict, p1: dict, p2: dict) -> 
     #
     # `_tb_pct` je namjerno ZADRZAN: koristi ga buduca analiza i cuva se za premjeravanje
     # kad korpus naraste. Konstante `_TB_LEAD_*` zadrzane su iz istog razloga.
+    #
+    # 01.11.2026 13:38 (revizija 01.11., tocka 9; samo komentar): povijest 12.436 ATP meceva naspram
+    # postene cijene — bolji TB zapis 12 mj. za 20pp+ -0,8pp (n=2.150); "kad je ostalo slicno"
+    # (cijena 0,40-0,60, poeni +-1pp) -2,8pp (n=338); TB zapis na ovom turniru +0,2pp (n=797).
+    # Postojanost TB postotka iz godine u godinu r=+0,12 [+0,07, +0,17], povrh udjela poena
+    # +0,05 do +0,09 (2.037 igrac-godina): mala stvarna vjestina, ali u jednom mecu tone u sreci
+    # (udio poena drzi r=+0,61) -> u promptu ostaje "not an argument".
 
     interim = round(conf - sum(a["penalty"] for a in applied), 1) if applied else conf
 

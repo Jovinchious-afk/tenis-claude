@@ -16,6 +16,54 @@ dnevnik napravljenog jednostavnim jezikom. Dopunjava se na kraju svake radne ses
 
 ---
 
+## 2026-11-01 17:52 — Nos-ploča (znakovi prije meča, u sjeni), analiza gubitka v3 "provjera mine", prikaz na Dnevnom listiću, CLV kao mjerilo, K26; predviđanje, tiket i era NEPROMIJENJENI
+
+**Povod:** revizija 01.11.2026 (`revizije/2026-11-01/REVIZIJA_2026-11-01.md`, skeptik SUMNJIVO —
+ispravljeno prije upisa). Korisnik: "napravi P1, P2 i P2b … zapiši sve promjene … idemo se
+najbolje pripremiti za Pariz". Nalazi koji su doveli do izmjene:
+- naš pick je tržišni favorit u 94–96% mečeva, a "uvijek favorit" dao bi isti broj pobjeda
+  (tjedan 43 = 43, NOVO 179 / 180, STARO 291 / 303);
+- svaki dosad izmjereni "nos" (pouzdanost, Nose, Intuicija, rečenica agenta "samo ELO") ne zna
+  više od cijene; 21 novi povijesni test korisnikovih ideja — nijedan ne tuče tržište;
+- analize gubitka bile su tržišni šablon (12/12 "tržište je isto mislilo", 11/12 tablica razloga);
+- CLV (pomak kvote do početka) vidi prednost od 1pp na ~11 mečeva; prvi broj od 27.10.: −0,80pp
+  [−1,59, −0,01], n=26 (tržište se u prosjeku miče OD naših pickova).
+
+**Što je promijenjeno:**
+- **P2 — nos-ploča** (`agent/nos_ploca.py`, novo, nos-ploca-v1): 17 znakova vidljivih PRIJE meča za
+  naš pick (novčić 1,65+, pojas 1,35–1,45, pick autsajder, tanki ELO < 50, profil točke 1 — elitni
+  povrat + slab servis u dvorani, za pick i protivnika, domaći/susjed, mlađi pick 4+ god. u
+  R128/R64 ili od QF, prava ozljeda v2, pauza 21+, Nose, noćna), svaki s vrstom (mina / prilika /
+  opis) i razinom dokaza. `agent/run_daily.py`: računa se NAKON tiketa, iza Nosea, u try/except,
+  upisuje se samo u `context_snapshot["nos_ploca"]` (~190 znakova po meču).
+- **CLV** (`agent/clv.py`, novo): isto pravilo kao `scripts/clv_report.py` (par ±1 dan, zadnja snimka
+  ≤ 4 h prije početka, medijan kladionica), kao čiste funkcije; provjereno — daje istih −0,80pp
+  na istih 26 pickova. `database/supabase_client.py`: `get_rows_for_nos_ploca` (samo potrebna polja
+  snapshota preko JSON putanja) i `get_market_lines_between` — oba samo čitaju.
+- **P1 — analiza gubitka v3 "provjera mine"** (`agent/feedback_analyzer.py`): u MATCH FACTS maknut
+  redak s edgeom pojasa kvote, dodana "rečenica o cijeni" (jedina tržišna rečenica) i redak o
+  zatvaranju (CLV); novi blok NOSE BOARD (znakovi ovog meča + njihova bilanca na pobjedama I
+  porazima u istom pojasu cijene); novi redoslijed: cijena → provjera mine → zatvaranje → priča
+  meča → pouka za nos → izmjena samo uz [GATE PASSED]. Iz baznih stopa maknuta tablica razloga
+  poraza (36/30/12%); pojasevi se ne raspravljaju osim ako su na ploči; na ALREADY MEASURED dodano
+  izmjereno 01.11. Kočnice ostaju (četiri oznake, "cause" ograničen, kontrolna tablica,
+  "No model change"). Prompt PREDVIĐANJA nije diran.
+- **P2b — Dnevni listić** (`pages/1_Dnevni_Listic.py`): redak 🐽 po paru (znakovi s razinom dokaza;
+  za nogu čiji se pick razlikuje od zadnje analize ploča se računa za pick s tiketa) i tablica svih
+  znakova s bilancom (dosad / od 02.11.).
+- **K26** (`scripts/measure_candidates.py`, DI K26, pragovi zapisani prije prvog podatka): probir po
+  CLV-u na prvih 40, odluka po ishodu na prvih 150 po znaku. Usput: `load_rows` sada dohvaća i
+  `tournament`.
+- **Testovi:** novih 32 provjere (sekcija 55); tri stare provjere svjesno prepravljene (pojas u
+  MATCH FACTS i "PRICE BAND STRUCTURE" — korisnikova odluka); 958 + 279 OK.
+
+**Što NIJE mijenjano:** prompt predviđanja (era hard **bccf4742**, `rules_hash` netaknut — test),
+težine (v18), prag 63, odabir tiketa i struktura 3–6 / 4–50, Nose, Intuicija, `context_version`.
+
+**Ishod:** za model očekivano nula (ploča je u sjeni); svrha je da "nos" od Pariza skuplja znakove na
+pobjedama i porazima jednako, s cijenom kao sucem. Prva presuda K26 po cijeni (CLV) realno za 4–6
+tjedana za česte znakove; po ishodu (150) tek u proljeće 2027.
+
 ## 2026-10-26 20:01 — Snimanje zatvarajućih kvota: termin 08:30 UTC i prozor 4 h (GitHub kasni 2–4 h); model, prompt, tiket i era NEPROMIJENJENI
 
 **Povod:** korisnik je predložio da "Market Close Capture" pokreće ručno 3–4 min prije dnevnog

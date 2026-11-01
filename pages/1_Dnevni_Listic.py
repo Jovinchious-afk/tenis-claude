@@ -92,6 +92,45 @@ def _nose_line(m: dict) -> str:
     except Exception:
         return ""
     return "👃 " + describe(n)
+
+
+# ── NOS-PLOČA U SJENI (01.11.2026 17:44, korisnikov "provedi P1, P2 i P2b" nakon revizije 01.11.2026) ──
+# Znakovi vidljivi PRIJE meča (`agent/nos_ploca.py`), svaki s razinom dokaza: ⚠️ moguća mina,
+# 🟢 moguća prilika, ℹ️ opis. Dnevni run ih od 02.11.2026 sprema u `context_snapshot["nos_ploca"]`;
+# za starije analize ploča se računa iz polja snapshota. Samo prikaz za korisnika: model ih ne vidi,
+# tiket ih ne koristi; sudac je K26 (CLV i edge u istom pojasu cijene).
+@st.cache_data(ttl=600, show_spinner=False)
+def _nos_ploca_line(tournament: str, p1: str, p2: str, match_date: str, pick: str) -> str:
+    try:
+        from agent import nos_ploca as _np
+        r = db.find_existing_analysis(
+            tournament, p1, p2, match_date,
+            select="id,player1,player2,predicted_winner,bookmaker_odds_p1,bookmaker_odds_p2,"
+                   "surface,tournament,round,match_date,context_snapshot")
+        if not r:
+            return ""
+        return _np.opis(_np.board_for_pick(r, pick))
+    except Exception:
+        return ""
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _nos_ploca_tally() -> tuple:
+    """(bilanca svih riješenih, broj od 02.11.2026) — samo potrebna polja snapshota."""
+    try:
+        from agent import nos_ploca as _np
+        fn = getattr(db, "get_rows_for_nos_ploca", None)
+        if fn is None:   # zastarjeli modul u memoriji Streamlit Clouda — isti obrazac kao gore
+            import importlib
+            importlib.reload(db)
+            fn = getattr(db, "get_rows_for_nos_ploca", None)
+        rows = _np.rows_with_boards(fn() if fn else [])
+        new = [x for x in rows if x["date"] >= _np.START_DATE]
+        return _np.tally(rows), _np.tally(new), len(rows), len(new)
+    except Exception:
+        return {}, {}, 0, 0
+
+
 st.title("🎾 Daily Ticket")
 
 
@@ -268,6 +307,10 @@ for i, m in enumerate(matches):
             _nl = _nose_line(m)
             if _nl:
                 st.caption(_nl)
+            _npl = _nos_ploca_line(m.get("tournament", ""), m.get("player1", ""), m.get("player2", ""),
+                                   str(m.get("match_date", ""))[:10], m.get("pick", ""))
+            if _npl:
+                st.caption(_npl)
 
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -275,6 +318,32 @@ for i, m in enumerate(matches):
         with st.expander(f"Key factors — {m.get('pick','')}"):
             for factor in m.get("key_factors", []):
                 st.write(f"• {factor}")
+
+# Tablica nos-ploče: svaki znak, razina dokaza i kako je dosad prošao (01.11.2026 17:44, P2b). "Dosad"
+# uključuje analize prije 02.11.2026 izračunate naknadno iz snapshota — OPIS, ne dokaz.
+with st.expander("🐽 Nos-ploča — svi znakovi, razina dokaza i kako su dosad prošli "
+                 "(samo za tebe; model je ne vidi, tiket je ne koristi)"):
+    try:
+        from agent import nos_ploca as _np_tab
+        _t_all, _t_new, _n_all, _n_new = _nos_ploca_tally()
+        st.caption(f"Bilanca na {_n_all} riješenih pickova (od 02.11.2026 sudac je K26: {_n_new} pickova). "
+                   "Edge = pogođeno − devigirana cijena; 'u istom pojasu' = razlika naspram naših ostalih "
+                   "pickova sa sličnom cijenom (za znakove koji su sami pojas cijene nema smisla, pa piše –). "
+                   "Ispod ~30 pickova znak se ne smije čitati.")
+        _rows_tab = ["| znak | vrsta | razina dokaza | dosad: pickova (pobjeda) | edge | u istom pojasu | od 02.11. |",
+                     "|---|---|---|---|---|---|---|"]
+        for _sid, _inf in _np_tab.INFO.items():
+            _a, _b = _t_all.get(_sid) or {}, _t_new.get(_sid) or {}
+            _e = f"{_np_tab._hr(_a['edge'], 1)}pp" if _a.get("edge") is not None else "–"
+            _d = f"{_np_tab._hr(_a['band_diff'], 1)}pp" if _a.get("band_diff") is not None else "–"
+            _e = ("+" + _e) if _a.get("edge") is not None and _a["edge"] >= 0 else _e
+            _d = ("+" + _d) if _a.get("band_diff") is not None and _a["band_diff"] >= 0 else _d
+            _rows_tab.append(f"| {_np_tab._IKONA[_inf['vrsta']]} {_inf['oznaka']} | {_inf['vrsta']} | "
+                             f"{_inf['dokaz']} | {_a.get('n', 0)} ({_a.get('w', 0)}) | {_e} | {_d} | "
+                             f"{_b.get('n', 0)} |")
+        st.markdown("\n".join(_rows_tab))
+    except Exception as _e_tab:
+        st.caption(f"Nos-ploča trenutno nije dostupna ({str(_e_tab)[:60]}).")
 
 # ── VIJESTI O IGRACIMA S LISTICA (13.09.2026 11:55) ─────────────────────────────
 #

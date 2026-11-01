@@ -650,22 +650,28 @@ def _format_match_stats(p1: str, p2: str, stats: dict, p1_id=None, p2_id=None) -
 # uputa "citiraj samo zivu brojku iz MATCH FACTS"; pojas nije faktor koji smo pogrijesili), dodan
 # blok ALREADY MEASURED, K18 redak osvjezen, a bez statistike model dobiva izricito "NOT AVAILABLE".
 # Prompt PREDVIDJANJA nije diran (rules_hash isti).
+# PROVJERENO 01.11.2026 13:38 (revizija 01.11., tocka 3; samo komentar): 12 analiza Basela/Beca —
+# 12/12 "No model change", 12/12 trose recenice na trziste/cijenu ("market also backed our pick" —
+# predlozak ispod to sam trazi kroz "after price"), 5/12 citiraju edge pojasa, 11/12 ponavljaju
+# tablicu razloga (36/30/12%); novi znak mine vidljiv prije meca 1/12 (Cerundolo: elitni povrat +
+# slab hold u dvorani). LAB C1 (-5,1pp, n=65) je samo povijesni proxy iz TML profila, ne signal
+# koji je model vidio (RapidAPI/scouting karijera) i nema snage -> NEODLUCENO, ne "palo" (skeptik).
+# Korisnik: analiza mora jacati "nos" (mina / preskociti), ne ponavljati da je trziste isto mislilo.
+# Prijedlog P1 ("provjera mine") + P2 (registar znakova za SVE pickove) ceka "provedi".
+# PROVEDENO 01.11.2026 17:43 (P1, korisnikov "provedi P1, P2 i P2b"): analiza gubitka v3 "provjera mine".
+# Iz baznih stopa maknuta je tablica razloga poraza (36% tijesni / 30% "trziste je isto mislilo" /
+# 12% autsajder ...) — analize su je prepisivale u 11 od 12 slucajeva, a korisniku "apsolutno nista
+# ne znaci"; poruka "vecina poraza ne trazi izmjenu" ostaje pod REPLICATION WARNING. Pojasevi kvote se
+# vise ne raspravljaju (osim ako je pojas na nos-ploci), CLV dobiva jedan redak u MATCH FACTS, a na
+# popis ALREADY MEASURED dodano je izmjereno na reviziji 01.11. (nacionalnost/susjedi, putovanje,
+# dvostruke, svjezi H2H, "ubojica diva", tie-break na povijesti). Kocnice ostaju: cetiri oznake,
+# izmjenu smije predloziti samo [GATE PASSED], rijec "cause" ogranicena, kontrolna tablica.
 _LOSS_BASE_RATES = """
 === MEASURED BASE RATES FROM OUR OWN CORPUS (all surfaces, n=451, through 26.09.2026) ===
 Read these BEFORE naming any cause. They tell you what a NORMAL match looks like, so you can
 tell a real signal apart from a number that merely looks extreme in this one match.
-The MATCH FACTS block tells you where THIS match sits (price band, round, ticket).
+The MATCH FACTS block tells you where THIS match sits (price, round, ticket).
 Apply a base rate to this match ONLY if the facts say the match belongs to that group.
-
-*** HOW OUR LOSSES ACTUALLY BREAK DOWN (171 losses, classified by fixed rules) ***
-  close match (our pick won >=48% of points, or lost a tight decider)   36%
-  outplayed, but the market ALSO backed our pick                         30%
-  lost after winning the first set (not separable from calibration)      13%
-  our pick was the market underdog (a loss was the likelier outcome)     12%
-  retirement / injury                                                     5%
-  outplayed while we were 8pp+ above the market (a real model error)      4%
-Most losses therefore need NO model change. "No model change justified by this match" is
-the correct answer far more often than not.
 
 *** THE CONTROL TABLE - wins vs losses, and what survives the PRICE (26.09.2026) ***
 A factor can only explain a loss if it differs between our wins and our losses AFTER the
@@ -699,19 +705,15 @@ its PREDICTIVE VALUE label is [FAILED OR CLOSED]; never call it confirmed, never
   winners, gap                            r = +0.368
 These describe who dictated and who scrambled. They are POST-MATCH ONLY - never a model fix.
 
-*** PRICE BAND STRUCTURE - by OUR PICK's odds (numbers removed 25.10.2026) ***
-DESCRIPTIVE ONLY, NOT A CONFIRMED RULE: band "holes" are unconfirmed candidates (K5/K10), and
-on 12,324 historical matches the MARKET itself has no hole in any band. A price band is never
-[GATE PASSED]. Bands: 1.00-1.20 (short favourites: a loss here is usually VARIANCE) | 1.20-1.35 |
-1.35-1.43 | 1.43-1.60 (coded caution zone) | 1.60-1.75 | 1.75-2.00 | 2.00+.
-THE LIVE EDGE FOR THIS MATCH'S BAND IS IN THE MATCH FACTS - quote only that figure. (The fixed
-table that stood here, dated 26.09., contradicted the live figures, e.g. 1.60-1.75 +4.8 here vs
--0.5pp live, so analyses quoted both.)
-A PRICE BAND IS WHERE THE MATCH SITS ON THE ODDS LADDER, NOT A FACTOR WE GOT WRONG: never list it
-under WHAT WE GOT WRONG (14 of 17 analyses did so in Oct 2026).
-THE BAND IS DECIDED BY OUR PICK'S OWN ODDS AS GIVEN IN THE MATCH FACTS - never by our
-confidence, never by the opponent's odds. (An audit on 26.09.2026 found analyses placing an
-@1.24 pick "in the 1.35-1.43 hole" by converting confidence into odds. That is an error.)
+*** PRICE BANDS - NOT DISCUSSED IN LOSS ANALYSES (01.11.2026, the user's explicit request) ***
+DESCRIPTIVE ONLY, NOT A CONFIRMED RULE: a band is where the match sits on the odds ladder, never
+a factor we got wrong, and on 12,324 historical matches the MARKET itself has no hole in any band
+(band numbers removed 25.10.2026; the live band edge removed from the MATCH FACTS 01.11.2026).
+Bands: 1.00-1.20 (a loss here is usually VARIANCE) | 1.20-1.35 | 1.35-1.43 | 1.43-1.60 |
+1.60-1.75 | 1.75-2.00 | 2.00+. The one band the user tracks is on the NOSE BOARD ("Odds band
+1.35-1.45", candidate K5) - mention a band ONLY if the board lists it, and never derive a band
+from our confidence or from the opponent's odds (an audit on 26.09.2026 found an @1.24 pick
+placed "in the 1.35-1.43 hole" by converting confidence into odds - that is an error).
 
 *** ROUND (only if the MATCH FACTS give a round) ***
   R16/QF is NOT a confirmed weakness. The old figure (-10.7pp, n=71, on unreliable round labels)
@@ -724,8 +726,11 @@ confidence, never by the opponent's odds. (An audit on 26.09.2026 found analyses
   bookmaker consensus >= +1pp above SuperSport for our pick: NOT CONFIRMED on new data (since
   08.09.2026: -0.4pp, n=40; the earlier +9.2pp, n=63 did not repeat). Its ticket bonus was
   REMOVED on 18.10.2026 - [FAILED OR CLOSED], never "validated". The Odds API does NOT cover
-  ATP 250 events, so for most of them no consensus exists; the MATCH FACTS say whether it
-  existed for this match.
+  ATP 250 events (it does cover Masters and bigger 500s such as Basel and Vienna), so for many
+  matches no consensus exists; the MATCH FACTS say whether it existed for this match.
+  CLOSING LINE (CLV) in the MATCH FACTS describes OUR ENTRY PRICE: whether the bookmaker
+  consensus moved toward or away from our pick before the start. It is NOT a cause of the result
+  and NOT a predictor (odds movement, below) - report it in one line and move on.
   Our pick as market underdog: consensus version -10.7pp (n=20), screenshot version -4.0pp
   (n=28). ODDS MOVEMENT CARRIES NOTHING - tested four times (06.09.: r=+0.007, P=0.927,
   n=167; 26.09.: r=-0.06, n=158). Never explain a loss with "the market moved against us".
@@ -735,7 +740,10 @@ confidence, never by the opponent's odds. (An audit on 26.09.2026 found analyses
   as a cause.
 
 *** FINDINGS THAT FAILED OUT OF SAMPLE - do not cite them as support ***
-  tiebreak record (the sign reversed between samples) | form x opponent quality (r=+0.284 ->
+  tiebreak record (the sign reversed between samples; on 12,436 historical matches -0.8pp,
+  n=2,150, and tiebreak skill barely persists year to year, r=0.12) | nationality and home
+  crowd (neighbour +0.4pp n=3,040; "compatriots' tournament" +0.8pp n=2,199; home players
+  -1.5pp n=2,796 - the market already prices the crowd, slightly too much) | form x opponent quality (r=+0.284 ->
   +0.02) | opponents' average ELO below 1700 | pick 4+ years older | best round at this
   tournament (r=+0.167 -> -0.15) | "player who often lets us down" (r=-0.004, n=417) |
   lost to a weaker player at this event before (r=+0.04) | similar past matches (four
@@ -751,13 +759,17 @@ confidence, never by the opponent's odds. (An audit on 26.09.2026 found analyses
   is already in the model) | aces or big serve on fast/indoor courts | scouting profile vs
   record (scouting carries nothing beyond the price) | form x opponent quality | ATP wins |
   R16/QF | bookmaker consensus | odds movement | weather | height | age | tiebreak record | H2H |
-  similar past matches | price bands. If every idea you have is on this list, write NO
-  "Worth measuring" line - that is the normal case. (In Oct 2026 about 13 of 17 such lines
-  proposed something already measured.)
+  similar past matches | price bands | nationality, home crowd, neighbouring countries | travel
+  and time zones | double-fault spikes | recent H2H swings | a "giant-killer" in his next match |
+  an elite returner with a weak serve indoors (now on the nose board) - all measured 01.11.2026.
+  If every idea you have is on this list, write NO "Worth measuring" line - that is the normal
+  case. (In Oct 2026 about 13 of 17 such lines proposed something already measured.)
 
 *** REPLICATION WARNING ***
 Only 3 of our last 12 tested findings held on new data. A factor that "looks strong in this
-one match" is almost certainly noise. The correct output is usually NO proposed change.
+one match" is almost certainly noise. The correct output is usually NO proposed change: a 65%
+pick loses one match in three with nothing wrong, so "No model change justified by this match"
+is the correct answer far more often than not.
 
 OUR PICK'S POST-MATCH NUMBERS - average in matches we WON vs matches we LOST (n=138):
   double faults              won 2.93  |  lost 4.60   (opponent's DF: 3.36 vs 3.35 - flat)
@@ -783,6 +795,40 @@ A recommendation to "add" something from this list is a factual error, not a fin
 
 _CTX_ROWS_CACHE: list = []
 
+# Polja retka analize koja trebaju MATCH FACTS i nos-ploča (01.11.2026 17:43, P1).
+_LOSS_AM_SELECT = ("id,player1,player2,predicted_winner,match_date,tournament,round,surface,"
+                   "predicted_confidence,bookmaker_odds_p1,bookmaker_odds_p2,context_snapshot")
+
+
+def _loss_clv_line(match: dict, am: dict, pick: str) -> str:
+    """Jedan redak o zatvaranju (CLV) za MATCH FACTS (01.11.2026 17:43, P1, `agent/clv.py`).
+
+    Pomak konsenzusa kladionica do početka meča naspram naše ulazne cijene. Za korisnikov "nos"
+    to je jedini pošten "miris" koji se vidi bez naknadne pameti: je li tržište prije meča pobjeglo
+    od našeg picka. Nije uzrok ishoda i nije prediktor (kretanje linije 5× izmjereno kao nula)."""
+    import datetime as _dt
+    res = None
+    try:
+        from agent import clv as _clv
+        d = str(match.get("match_date") or am.get("match_date") or "")[:10]
+        d0 = _dt.date.fromisoformat(d)
+        rows = db.get_market_lines_between((d0 - _dt.timedelta(days=1)).isoformat(),
+                                           (d0 + _dt.timedelta(days=2)).isoformat())
+        res = _clv.for_pick(_clv.index_lines(rows, 4.0), am.get("player1") or match.get("player1"),
+                            am.get("player2") or match.get("player2"), pick,
+                            am.get("bookmaker_odds_p1"), am.get("bookmaker_odds_p2"), d)
+    except Exception:
+        res = None
+    if not res:
+        return ("- Closing line: NOT CAPTURED for this match - say nothing about how the market "
+                "moved before the start.")
+    c = res["clv_pp"]
+    way = "TOWARD our pick" if c > 0 else ("AWAY FROM our pick" if c < 0 else "not at all")
+    return (f"- Closing line (CLV): before the start the bookmaker consensus moved {way} by "
+            f"{abs(c):.1f}pp (closing {100 * res['close_p']:.1f}% vs our entry {100 * res['entry_p']:.1f}%, "
+            f"{res['n_books']} bookmakers, {res['hrs']} h before the start). It describes the price we "
+            f"entered at, not the cause of the result.")
+
 
 def _loss_match_facts(match: dict) -> str:
     """Cinjenice o mecu koje analiza gubitka NE SMIJE pogadjati (26.09.2026 20:28, H2).
@@ -802,8 +848,7 @@ def _loss_match_facts(match: dict) -> str:
     Sve se racuna ovdje, iz nasih zapisa; model ih samo cita. Neuspjeh bilo kojeg izvora
     ostavlja stavku kao "unknown" — nikad je ne pogadja.
     """
-    from utils.helpers import (price_band, price_band_label, devig_pick_prob,
-                               band_edge_context, normalize_round_code, safe_float as _sf)
+    from utils.helpers import devig_pick_prob, normalize_round_code, safe_float as _sf
     from config.model_config import TICKET_CONFIG
 
     pick = match.get("pick") or ""
@@ -815,9 +860,7 @@ def _loss_match_facts(match: dict) -> str:
     am = {}
     try:
         am = db.find_existing_analysis(
-            match.get("tournament"), p1, p2, match.get("match_date"),
-            select="id,player1,player2,match_date,tournament,round,predicted_confidence,"
-                   "bookmaker_odds_p1,bookmaker_odds_p2,context_snapshot") or {}
+            match.get("tournament"), p1, p2, match.get("match_date"), select=_LOSS_AM_SELECT) or {}
     except Exception:
         am = {}
     cs = am.get("context_snapshot") or {}
@@ -836,24 +879,15 @@ def _loss_match_facts(match: dict) -> str:
             lines.append(f"- Our pick {pick} at odds {pick_odds:.2f}; opponent {opp} at "
                          f"{opp_odds:.2f} -> devigged market price for our pick "
                          f"{100 * p_dev:.1f}%.")
+            # REČENICA O CIJENI (01.11.2026 17:43, P1): korisnik je tražio da analiza tržište spomene
+            # JEDNOM i ide dalje. Redak s brojkom edgea pojasa kvote je maknut (vidi bazne stope).
+            lose10 = max(0, min(10, round(10 * (1 - p_dev))))
+            lines.append(f"- PRICE SENTENCE (the only market statement the analysis may make): the "
+                         f"market gave our pick {100 * p_dev:.0f}%, so about {lose10} in 10 such picks lose.")
             lines.append(f"- Market underdog: {'YES' if p_dev < 0.5 else 'no'} "
                          f"(by the screenshot price).")
         else:
             lines.append(f"- Our pick {pick} at odds {pick_odds:.2f}; opponent's odds unknown.")
-        band = price_band(pick_odds)
-        if band:
-            global _CTX_ROWS_CACHE
-            if not _CTX_ROWS_CACHE:
-                try:
-                    _CTX_ROWS_CACHE = db.get_resolved_for_context() or []
-                except Exception:
-                    _CTX_ROWS_CACHE = []
-            be = band_edge_context(_CTX_ROWS_CACHE, pick_odds) if _CTX_ROWS_CACHE else None
-            if be and be.get("n"):
-                lines.append(f"- Price band of OUR PICK's odds: {price_band_label(band)} -> our "
-                             f"measured edge in this band {be['edge']:+.1f}pp (n={be['n']}).")
-            else:
-                lines.append(f"- Price band of OUR PICK's odds: {price_band_label(band)}.")
     else:
         lines.append("- Our pick's odds: UNKNOWN - do not estimate them.")
 
@@ -880,6 +914,7 @@ def _loss_match_facts(match: dict) -> str:
     else:
         lines.append("- Bookmaker consensus: NOT AVAILABLE for this match (The Odds API does "
                      "not cover this event), so no consensus signal existed.")
+    lines.append(_loss_clv_line(match, am, pick))
 
     # Runda: rucni unos (od 26.09.2026) ima prednost; oznake ociscene 26.09. kao krive
     # (Chengdu/Hangzhou, `cleared_wrong_auto`) su NEPOZNATE, iako tiket jos nosi staru.
@@ -933,8 +968,112 @@ def _loss_match_facts(match: dict) -> str:
             "re-derive them) ===\n" + "\n".join(lines))
 
 
+_NOS_ROWS: list = []
+
+
+def _nos_tally(exclude=None) -> dict:
+    """Bilanca svakog znaka nos-ploče na riješenim analizama (01.11.2026 17:43, P1): n, pobjede, edge i
+    razlika naspram ostalih pickova u istom pojasu cijene. Retci se dohvaćaju jednom po procesu
+    (`get_rows_for_nos_ploca`, samo potrebna polja). `exclude` = (par igrača, datum) — sam meč
+    koji se analizira ne ulazi u vlastitu bilancu (±3 dana)."""
+    import datetime as _dt
+    from agent import nos_ploca as _np
+    global _NOS_ROWS
+    if not _NOS_ROWS:
+        try:
+            raw = db.get_rows_for_nos_ploca() or []
+        except Exception:
+            raw = []
+        rows = []
+        for r in raw:
+            if str(r.get("elos") or "").lower() == "true" or r.get("prediction_correct") is None:
+                continue
+            st = r.get("nos")
+            b = (st if isinstance(st, dict) and st.get("version") == _np.VERSION and not st.get("error")
+                 else _np.compute(_np.rec_from_flat(r)))
+            if b.get("error"):
+                continue
+            pick, p1, p2 = r.get("predicted_winner"), r.get("player1"), r.get("player2")
+            o_p, o_o = ((r.get("bookmaker_odds_p1"), r.get("bookmaker_odds_p2")) if pick == p1
+                        else (r.get("bookmaker_odds_p2"), r.get("bookmaker_odds_p1")))
+            p = _np.devig(o_p, o_o)
+            if p is None:
+                continue
+            rows.append({"znakovi": b.get("znakovi") or [], "win": 1.0 if r["prediction_correct"] else 0.0,
+                         "p": p, "pair": frozenset([p1, p2]), "date": str(r.get("match_date") or "")[:10]})
+        _NOS_ROWS = rows
+    use = _NOS_ROWS
+    if exclude:
+        pair, d = exclude
+        try:
+            d0 = _dt.date.fromisoformat(d)
+            use = [x for x in _NOS_ROWS if not (x["pair"] == pair and x["date"]
+                   and abs((_dt.date.fromisoformat(x["date"]) - d0).days) <= 3)]
+        except ValueError:
+            use = [x for x in _NOS_ROWS if x["pair"] != pair]
+    return _np.tally(use)
+
+
+def _loss_nose_block(match: dict) -> str:
+    """NOS-PLOČA u analizi gubitka (01.11.2026 17:43, P1): znakovi ovog meča prije početka i dosadašnja
+    bilanca svakog znaka (pobjede I porazi, isti pojas cijene). Model ih pri predikciji nije vidio;
+    ovdje služe za provjeru mine bez naknadne pameti. Neuspjeh daje izričito "not available"."""
+    from agent import nos_ploca as _np
+    head = ("=== NOSE BOARD (pre-match signs computed by code from our records; the prediction "
+            "model never saw them) ===")
+    try:
+        am = db.find_existing_analysis(match.get("tournament"), match.get("player1") or "",
+                                       match.get("player2") or "", match.get("match_date"),
+                                       select=_LOSS_AM_SELECT) or {}
+    except Exception:
+        am = {}
+    cs = am.get("context_snapshot") or {}
+    leg_pick = match.get("pick") or ""
+    p1a = am.get("player1") or match.get("player1") or ""
+    p2a = am.get("player2") or match.get("player2") or ""
+    pick = p1a if _names_match(leg_pick, p1a) else (p2a if _names_match(leg_pick, p2a) else leg_pick)
+    stored = cs.get("nos_ploca") if isinstance(cs, dict) else None
+    if (isinstance(stored, dict) and stored.get("version") == _np.VERSION and not stored.get("error")
+            and _names_match(am.get("predicted_winner") or "", pick)):
+        board = stored
+    else:
+        board = _np.compute({"pick": pick, "p1": p1a, "p2": p2a,
+                             "odds_p1": am.get("bookmaker_odds_p1"), "odds_p2": am.get("bookmaker_odds_p2"),
+                             "surface": am.get("surface") or match.get("surface") or "",
+                             "tournament": am.get("tournament") or match.get("tournament") or "",
+                             "round": am.get("round") or match.get("round") or "", "cs": cs})
+    if board.get("error"):
+        return head + f"\n- Not available for this match ({board['error']}) - do not invent signs."
+    tally = _nos_tally(exclude=(frozenset([p1a, p2a]), str(match.get("match_date") or "")[:10]))
+    lines = [head]
+    z = board.get("znakovi") or []
+    if not z:
+        lines.append("- No sign on the board was present for our pick in this match.")
+    for sid in z:
+        i = _np.INFO.get(sid) or {}
+        t = tally.get(sid) or {}
+        if t.get("n"):
+            rec = (f"our record with this sign so far: {t['n']} picks, {t['w']} won, edge {t['edge']:+.1f}pp "
+                   f"vs price" + (f", {t['band_diff']:+.1f}pp vs our other picks at the same price"
+                                  if t.get("band_diff") is not None else ""))
+        else:
+            rec = "our record with this sign so far: none"
+        lines.append(f"- {i.get('label_en', sid)} - evidence: {i.get('ev_en', '')} - {rec}.")
+    lines.append("Record counts include matches before 02.11.2026 re-computed from stored fields "
+                 "(description, not proof); fewer than 30 picks with a sign = TOO EARLY to judge.")
+    return "\n".join(lines)
+
+
 def _analyze_lost_match(match: dict, stats: dict = None) -> str:
     """Claude analizira zašto smo pogriješili na konkretnom paru.
+
+    ANALIZA GUBITKA v3 "PROVJERA MINE" (01.11.2026 17:43, P1, korisnikov "provedi P1, P2 i P2b"):
+    korisnik je na reviziji 01.11.2026 rekao da mu rečenice "tržište je isto mislilo / naš gap u
+    pojasu 1,35-1,43" ne znače ništa i da analiza mora jačati "nos" (kad je meč mina, kad ga
+    preskočiti). Revizija je izbrojala 12/12 takvih analiza. Novi redoslijed: (1) cijena u JEDNOJ
+    rečenici, (2) provjera mine kroz NOS-PLOČU (znakovi prije meča + njihova bilanca na pobjedama i
+    porazima u istom pojasu cijene, `_loss_nose_block`), (3) zatvaranje (CLV), (4) kratka priča meča,
+    (5) pouka za nos, (6) izmjena samo uz [GATE PASSED]. Kočnice protiv izmišljanja ostaju.
 
     POPRAVAK 26.09.2026 20:28 (revizija, H2): prompt sada dobiva CINJENICE O MECU izracunate
     u kodu (kvota picka i protivnika, devig cijena, pojas kvote s nasim izmjerenim edgeom,
@@ -1039,6 +1178,12 @@ def _analyze_lost_match(match: dict, stats: dict = None) -> str:
         print(f"  Cinjenice za analizu gubitka nedostupne: {e}")
         facts_block = ("=== MATCH FACTS === unavailable - do not guess odds, price band, "
                        "round or ticket status; say they are unknown.")
+    # Nos-ploča (01.11.2026 17:43, P1): znakovi prije meča i njihova bilanca — vidi `_loss_nose_block`.
+    try:
+        nose_block = _loss_nose_block(match)
+    except Exception as e:
+        print(f"  Nos-ploca za analizu gubitka nedostupna: {e}")
+        nose_block = "=== NOSE BOARD === not available - do not invent pre-match signs."
 
     prompt = f"""A tennis prediction model made an incorrect prediction. Analyse the error.
 
@@ -1049,6 +1194,7 @@ STATED RISKS: {risk_notes}
 KEY FACTORS THAT DROVE THE PICK: {', '.join(key_factors) if key_factors else 'N/A'}
 
 {facts_block}
+{nose_block}
 FACT DISCIPLINE (added 26.09.2026): every statement about odds, price band, market
 underdog status, consensus, round or ticket status MUST come from the MATCH FACTS above.
 Never convert our confidence into odds. The price band belongs to OUR PICK's odds, never the
@@ -1080,10 +1226,23 @@ EVIDENCE DISCIPLINE (mandatory - this section overrides your instinct to find a 
   support it. Otherwise say "post-match description".
 - Do not recommend adding an input the model already receives (see the list above).
 
-Write a concise but COMPLETE analysis (~250 words, never leave a sentence unfinished):
+THE USER'S EXPLICIT REQUEST (01.11.2026): this analysis exists to train the user's "nose" - to
+recognise a MINE (a pick that loses more often than its price says) BEFORE the match and to know
+when to skip it. Sentences like "the market also backed our pick", "we sat in the 1.35-1.43
+band" or "this is the close-match category" teach him nothing: write the PRICE SENTENCE once and
+move on.
 
-1. WHAT WE GOT WRONG - name at most two pre-match factors. For EACH one give FOUR separate
-   labels, one per line, each justified with a number (or "no data"):
+Write a SHORT but COMPLETE analysis (~220 words, never leave a sentence unfinished), in exactly
+this order:
+
+1. PRICE - copy the PRICE SENTENCE from the MATCH FACTS. Nothing else about the market, price
+   bands, the consensus or loss categories.
+
+2. MINE CHECK - go through the NOSE BOARD. For each sign present: one line - the sign, our record
+   with it so far (only the numbers given on the board), its evidence level, and "mine smell
+   before the match: YES / NO / TOO EARLY". If no sign was present, write exactly "No pre-match
+   sign on the nose board." You may name at most ONE pre-match factor that is NOT on the board;
+   give it FOUR separate labels, one per line, each justified with a number (or "no data"):
      (a) PRE-MATCH:        [VISIBLE BEFORE THE MATCH] or [POST-MATCH ONLY]
      (b) OUR RECORD:       wins vs losses after the price, from the base rates above:
                            [SEPARATES WINS FROM LOSSES] / [DOES NOT SEPARATE] /
@@ -1096,22 +1255,28 @@ Write a concise but COMPLETE analysis (~250 words, never leave a sentence unfini
    (b) is a pattern inside the SAME matches the base rates come from, so it is NOT proof.
    As of 18.10.2026 NO factor has [GATE PASSED]. [FAILED OR CLOSED]: ATP wins this season,
    R16/QF, tournament statistics, tiebreak record, form x opponent quality, the bookmaker
-   consensus. [CANDIDATE, UNCONFIRMED]: price bands (K5/K10), hard ATP 250 (K18), ELO and
-   serve/return since 14.09. (K22). The price band is where the match sits, not a factor:
-   do not name it here.
+   consensus, nationality and home crowd. [CANDIDATE, UNCONFIRMED]: the 1.35-1.45 band (K5),
+   hard ATP 250 (K18), ELO and serve/return since 14.09. (K22), the nose-board signs (K26).
 
-2. HOW THE MATCH WENT - the post-match story, explicitly labelled as description. It is fine
-   and useful to say "his second serve collapsed"; it is wrong to call that a model failure.
+3. CLOSING LINE - one line from the MATCH FACTS: did the market move toward or away from our
+   pick before the start? It describes the price we entered at; it is NOT a cause of the result.
+   If it was not captured, write "Closing line not captured."
 
-3. WHAT SHOULD CHANGE - at most ONE proposal, and only for a factor whose PREDICTIVE VALUE is
-   [GATE PASSED]. If none is, write exactly: "No model change justified by this match." You may
-   add ONE line "Worth measuring: <factor>" for a factor that is [VISIBLE BEFORE THE MATCH] and
-   [NEVER TESTED] and NOT on the ALREADY MEASURED list in the base rates - that is a registry
-   candidate, not a change; if every idea is on that list, write no such line. "No model change" is
-   a complete and correct answer, and it is the RIGHT answer most of the time - the single
-   most common error in these analyses has been proposing a fix that the data does not carry.
-   If you do propose something, state what it would cost when it fires on a match we would
-   have won."""
+4. HOW THE MATCH WENT - two or three sentences of post-match description. It is fine and useful
+   to say "his second serve collapsed"; it is wrong to call that a model failure.
+
+5. FOR THE NOSE - one sentence: would anything visible before the match have told us to skip this
+   pick? If not, write "Nothing visible before the match marked this as a mine." You may add ONE
+   line "Worth measuring: <factor>" only for a factor that is [VISIBLE BEFORE THE MATCH] and
+   [NEVER TESTED] and NOT on the ALREADY MEASURED list in the base rates and NOT already on the
+   nose board - that is a registry candidate, not a change; usually there is none.
+
+6. WHAT SHOULD CHANGE - at most ONE proposal, and only for a factor whose PREDICTIVE VALUE is
+   [GATE PASSED]. If none is, write exactly: "No model change justified by this match."
+   "No model change" is a complete and correct answer, and it is the RIGHT answer most of the
+   time - the single most common error in these analyses has been proposing a fix that the data
+   does not carry. If you do propose something, state what it would cost when it fires on a
+   match we would have won."""
 
     try:
         client = _get_client()

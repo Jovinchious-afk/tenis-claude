@@ -1340,7 +1340,10 @@ check("odbaceno kretanje kvota je zapisano s brojkom", "+0,007" in _di)
 check("odbacene su i kratke kvote kao 'problem'", "varijanca" in _di)
 
 _b = _fa._LOSS_BASE_RATES
-check("bazne stope sadrze strukturu pojasa cijene", "PRICE BAND STRUCTURE" in _b)
+# 01.11.2026 (P1, korisnikov "provedi"): pojasevi se u analizi gubitka vise ne raspravljaju, ali
+# blok ostaje — nazivi pojaseva i zabrana izvodjenja pojasa iz pouzdanosti cuvaju se dalje.
+check("bazne stope: pojasevi kvote se ne raspravljaju (osim na nos-ploci)",
+      "PRICE BANDS - NOT DISCUSSED" in _b and "NOSE BOARD" in _b)
 check("bazne stope imenuju rupu 1,35-1,60",
       "1.35-1.43" in _b and "1.43-1.60" in _b)
 check("bazne stope kazu da kratke kvote nisu obrazac", "VARIANCE" in _b)
@@ -2528,8 +2531,13 @@ check("dosje: A kao pick 1-1, kao protivnik nas srusio 1/1",
 # --- H2: cinjenice o mecu u analizi gubitka ---------------------------------------
 _orig48 = (_fa48.db.find_existing_analysis, _fa48.db.get_ticket_status,
            _fa48.db.get_resolved_for_context, _fa48._CTX_ROWS_CACHE[:])
+# 01.11.2026: analiza gubitka v3 cita i snimke trzista (CLV) i retke za nos-plocu — u testu bez mreze
+_orig48b = (_fa48.db.get_market_lines_between, _fa48.db.get_rows_for_nos_ploca, _fa48._NOS_ROWS[:])
 try:
     _fa48._CTX_ROWS_CACHE.clear()
+    _fa48.db.get_market_lines_between = lambda *a, **k: []
+    _fa48.db.get_rows_for_nos_ploca = lambda *a, **k: []
+    _fa48._NOS_ROWS.clear()
     _fa48.db.get_resolved_for_context = lambda *a, **k: _rows48
     _fa48.db.find_existing_analysis = lambda *a, **k: {
         "player1": "Ben Shelton", "player2": "Carlos Alcaraz", "round": "SF",
@@ -2543,8 +2551,13 @@ try:
     _f48 = _fa48._loss_match_facts(_lm48)
     check("cinjenice: kvota picka i protivnika + devig cijena",
           "odds 1.24" in _f48 and "4.10" in _f48 and "76.8%" in _f48, _f48)
-    check("cinjenice: pojas iz KVOTE PICKA (1,20-1,35), ne iz pouzdanosti",
-          "1.20-1.35" in _f48 and "1.35-1.43" not in _f48, _f48)
+    # 01.11.2026 (P1): redak s pojasom i edgeom pojasa maknut (korisnik: "ne znaci nista");
+    # umjesto njega jedna recenica o cijeni iz KVOTE PICKA (76,8% -> ~2 od 10 izgubi) i redak o CLV-u.
+    check("cinjenice: nema retka o pojasu, jedna recenica o cijeni iz kvote picka",
+          "Price band" not in _f48 and "1.35-1.43" not in _f48 and "PRICE SENTENCE" in _f48
+          and "about 2 in 10 such picks lose" in _f48, _f48)
+    check("cinjenice: zatvaranje nije snimljeno -> izricito, bez nagadjanja",
+          "Closing line: NOT CAPTURED" in _f48, _f48)
     check("cinjenice: konsenzus poravnat na nas pick (1-0,221 = 77,9%)", "77.9%" in _f48, _f48)
     check("cinjenice: rucna runda ima prednost pred oznakom na tiketu (SF, ne QF)",
           "Round: SF (entered manually" in _f48, _f48)
@@ -2594,6 +2607,8 @@ try:
 finally:
     (_fa48.db.find_existing_analysis, _fa48.db.get_ticket_status,
      _fa48.db.get_resolved_for_context) = _orig48[:3]
+    _fa48.db.get_market_lines_between, _fa48.db.get_rows_for_nos_ploca = _orig48b[:2]
+    _fa48._NOS_ROWS[:] = _orig48b[2]
     _fa48._CTX_ROWS_CACHE.clear()
     _fa48._CTX_ROWS_CACHE.extend(_orig48[3])
 
@@ -2882,8 +2897,10 @@ check("bazne stope: pojasevi cijene su OPIS, ne potvrdjeno pravilo",
       "DESCRIPTIVE ONLY, NOT A CONFIRMED RULE" in _fa51._LOSS_BASE_RATES)
 _o51 = (_fa51.db.find_existing_analysis, _fa51.db.get_ticket_status, _fa51.db.get_resolved_for_context,
         _fa51._CTX_ROWS_CACHE[:])
+_o51b = _fa51.db.get_market_lines_between   # 01.11.2026: CLV redak u testu bez mreze
 try:
     _fa51._CTX_ROWS_CACHE.clear()
+    _fa51.db.get_market_lines_between = lambda *a, **k: []
     _fa51.db.get_resolved_for_context = lambda *a, **k: []
     _fa51.db.find_existing_analysis = lambda *a, **k: {
         "player1": "Taylor Fritz", "player2": "Jaume Antoni Munar Clar", "round": "R32",
@@ -2907,6 +2924,7 @@ try:
           "Tournament level: UNKNOWN" in _fa51._loss_match_facts(_lm51))
 finally:
     (_fa51.db.find_existing_analysis, _fa51.db.get_ticket_status, _fa51.db.get_resolved_for_context) = _o51[:3]
+    _fa51.db.get_market_lines_between = _o51b
     _fa51._CTX_ROWS_CACHE[:] = _o51[3]
 
 print()
@@ -3136,9 +3154,10 @@ check("Dnevni listić: nema više ESPN/BBC dohvata, čita spremljeni Google News
       and "p1_gnews" in _pg54 and "model ovo NE vidi" in _pg54)
 # --- C. Analiza gubitka: bez zastarjelih brojki pojaseva, popis izmjerenog, bez nagađanja ---
 _b54 = _fa54._LOSS_BASE_RATES
-check("bazne stope: brojke pojaseva maknute, upućuje na živu brojku iz MATCH FACTS",
+# 01.11.2026 (P1): i živa brojka pojasa maknuta je iz MATCH FACTS (korisnik: "ne znači ništa").
+check("bazne stope: brojke pojaseva maknute (25.10.), a 01.11. i živa brojka iz MATCH FACTS",
       "+8.8pp" not in _b54 and "n= 72 | edge +4.8pp" not in _b54 and "numbers removed 25.10.2026" in _b54
-      and "THE LIVE EDGE FOR THIS MATCH'S BAND IS IN THE MATCH FACTS" in _b54)
+      and "live band edge removed from the MATCH FACTS 01.11.2026" in _b54)
 check("bazne stope: blok ALREADY MEASURED postoji i pokriva statistiku s turnira i ritam",
       "ALREADY MEASURED" in _b54 and "CURRENT tournament" in _b54 and "rhythm vs" in _b54)
 check("bazne stope: K18 okinut na jednom tjednu, nije uveden", "NOT introduced" in _b54)
@@ -3167,6 +3186,171 @@ _shuf54 = list(reversed(_syn54 + [dict(_syn54[0], date="2026-10-28", win=1.0)]))
 check("prvih N: stabilan poredak po (datum, vrijeme) ne ovisi o redoslijedu ulaza",
       _mc54._first_n(_shuf54, 30) == _mc54._first_n(list(reversed(_shuf54)), 30))
 check("rules_hash netaknut nakon provedbe revizije 25.10.", _pr._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
+
+print()
+print("=== 55. Nos-ploča (P2), analiza gubitka v3 'provjera mine' (P1), prikaz (P2b), CLV, K26 (01.11.2026 17:50) ===")
+# Korisnikov "provedi P1, P2 i P2b" nakon revizije 01.11.2026. Ništa od ovoga ne dira prompt
+# PREDVIĐANJA ni odabir tiketa: ploča se računa nakon tiketa i model je ne vidi.
+from agent import nos_ploca as _np55
+from agent import clv as _clv55
+_cs55 = {"p1_return_won": 44.6, "p1_serve_pts_won": 59.4, "p2_return_won": 40.0, "p2_serve_pts_won": 64.0,
+         "p1_nationality": "ARG", "p2_nationality": "GER", "p1_elo_surface": 1800.0, "p2_elo_surface": 1790.0,
+         "p1_age": 25, "p2_age": 30, "p1_days_rest": 3, "p2_days_rest": 25,
+         "p1_gnews": {"injury_n2": 0, "inj_v": 2}, "p2_gnews": {"injury_n2": 1, "inj_v": 2},
+         "nose": {"version": "nose-v1", "ticket_suitability": "UZ UPOZORENJE"}, "session": "night"}
+_rec55 = {"pick": "Juan Manuel Cerundolo", "p1": "Juan Manuel Cerundolo", "p2": "Daniel Altmaier",
+          "odds_p1": 1.70, "odds_p2": 2.10, "surface": "Indoor Hard",
+          "tournament": "Swiss Indoors Basel - Basel", "round": "R32", "cs": _cs55}
+_b55 = _np55.compute(_rec55)
+check("ploča: točno očekivani znakovi (novčić, tanki ELO, profil točke 1, susjed, ozljeda i pauza "
+      "protivnika, Nose, noćna)",
+      set(_b55["znakovi"]) == {"novcic", "tanki_elo", "profil_t1_pick", "prot_susjed", "ozljeda_prot",
+                               "pauza_prot", "nose_upozorenje", "nocna"} and not _b55["nedostaje"], str(_b55))
+check("ploča: profil točke 1 vrijedi samo u dvorani",
+      "profil_t1_pick" not in _np55.compute(dict(_rec55, surface="Hard"))["znakovi"])
+check("ploča: ELO 1500 je zadana vrijednost -> 'nedostaje', ne 'tanki ELO'",
+      "tanki_elo" in _np55.compute(dict(_rec55, cs=dict(_cs55, p2_elo_surface=1500.0)))["nedostaje"])
+check("ploča: turnir bez grada (Davis Cup) -> domaći/susjed nedostaju",
+      {"prot_domaci", "prot_susjed", "pick_domaci"} <= set(
+          _np55.compute(dict(_rec55, tournament="Davis Cup, World Group, Q2, GER-CRO"))["nedostaje"]))
+check("ploča: Talijan u Umagu je susjed preko glavnog grada (Rim–Umag < 600 km)",
+      "prot_susjed" in _np55.compute(dict(_rec55, tournament="Plava Laguna Croatia Open - Umag",
+                                           cs=dict(_cs55, p2_nationality="ITA")))["znakovi"])
+check("ploča: domaći protivnik (Švicarac u Baselu)",
+      "prot_domaci" in _np55.compute(dict(_rec55, cs=dict(_cs55, p2_nationality="SUI")))["znakovi"])
+check("ploča: mlađi pick broji se samo u R128/R64 i od QF",
+      "mladi_pick" not in _b55["znakovi"]
+      and "mladi_pick" in _np55.compute(dict(_rec55, round="QF"))["znakovi"])
+check("ploča: pick koji nije igrač meča -> greška u zapisu, bez iznimke",
+      _np55.compute(dict(_rec55, pick="Netko Treci")).get("error") == "nema picka")
+_flat55 = {"predicted_winner": "Juan Manuel Cerundolo", "player1": "Juan Manuel Cerundolo",
+           "player2": "Daniel Altmaier", "bookmaker_odds_p1": 1.70, "bookmaker_odds_p2": 2.10,
+           "surface": "Indoor Hard", "tournament": "Swiss Indoors Basel - Basel", "round": "R32",
+           "n1": "ARG", "n2": "GER", "es1": "1800.0", "es2": "1790.0", "r1": "44.6", "r2": "40.0",
+           "s1": "59.4", "s2": "64.0", "age1": "25", "age2": "30", "rest1": "3", "rest2": "25",
+           "inj1": "0", "inj2": "1", "nose": "UZ UPOZORENJE", "ses": "night"}
+check("ploča: plosni redak iz baze (JSON putanje) daje iste znakove kao pun snapshot",
+      sorted(_np55.compute(_np55.rec_from_flat(_flat55))["znakovi"]) == sorted(_b55["znakovi"]))
+_row55 = {"predicted_winner": "Daniel Altmaier", "player1": "Juan Manuel Cerundolo", "player2": "Daniel Altmaier",
+          "bookmaker_odds_p1": 1.70, "bookmaker_odds_p2": 2.10, "surface": "Indoor Hard",
+          "tournament": "Swiss Indoors Basel - Basel", "round": "R32",
+          "context_snapshot": dict(_cs55, nos_ploca={"version": _np55.VERSION, "znakovi": ["nocna"]})}
+check("ploča: za nogu s drugim pickom od spremljene analize računa se iznova (ponovna analiza)",
+      "profil_t1_pick" in _np55.board_for_pick(_row55, "Juan Manuel Cerundolo")["znakovi"]
+      and _np55.board_for_pick(_row55, "Daniel Altmaier")["znakovi"] == ["nocna"])
+_t55 = _np55.tally([{"znakovi": ["novcic", "tanki_elo"], "win": 0.0, "p": 0.55},
+                    {"znakovi": [], "win": 1.0, "p": 0.55}])
+check("bilanca: znak koji je sam pojas cijene nema usporedbu 'u istom pojasu'",
+      _t55["novcic"]["band_diff"] is None and _t55["novcic"]["n"] == 1)
+check("bilanca: ostali znakovi se uspoređuju s pickovima iste cijene (−100pp u primjeru)",
+      _t55["tanki_elo"]["band_diff"] is not None and round(_t55["tanki_elo"]["band_diff"]) == -100)
+check("prikaz: redak nos-ploče nosi ikonu i razinu dokaza",
+      "⚠️ Novčić" in _np55.opis(_b55) and "[kandidat K24]" in _np55.opis(_b55))
+# --- CLV (agent/clv.py) ---
+_ml55 = [{"event_id": "e1", "player1": "Daniel Altmaier", "player2": "Juan Manuel Cerundolo", "bookmaker": bk,
+          "odds_p1": o2, "odds_p2": o1, "hours_to_start": 1.5, "captured_at": "2026-10-26T12:00:00",
+          "commence_time": "2026-10-26T13:30:00Z"} for bk, o1, o2 in (("a", 1.80, 2.00), ("b", 1.82, 1.98))]
+_c55 = _clv55.for_pick(_clv55.index_lines(_ml55, 4.0), "Juan Manuel Cerundolo", "Daniel Altmaier",
+                       "Juan Manuel Cerundolo", 1.70, 2.10, "2026-10-26")
+check("CLV: zamijenjeni domaćin/gost poravnat, tržište pobjeglo OD picka (negativan CLV)",
+      _c55 is not None and _c55["clv_pp"] < 0 and _c55["n_books"] == 2, str(_c55))
+check("CLV: snimke dalje od 4 h od početka se ne broje",
+      _clv55.for_pick(_clv55.index_lines([dict(x, hours_to_start=6.0) for x in _ml55], 4.0),
+                      "Juan Manuel Cerundolo", "Daniel Altmaier", "Juan Manuel Cerundolo", 1.70, 2.10,
+                      "2026-10-26") is None)
+# --- analiza gubitka v3 ---
+import agent.feedback_analyzer as _fa55
+_b55r = _fa55._LOSS_BASE_RATES
+check("bazne stope: tablica razloga poraza (36/30/12%) maknuta, poruka 'većina bez izmjene' ostaje",
+      "HOW OUR LOSSES ACTUALLY BREAK DOWN" not in _b55r and "No model change justified by this match" in _b55r)
+check("bazne stope: izmjereno 01.11. je na popisu ALREADY MEASURED",
+      "nationality, home crowd" in _b55r and "travel" in _b55r and "giant-killer" in _b55r)
+check("bazne stope: CLV je opis ulazne cijene, ne uzrok", "CLOSING LINE (CLV)" in _b55r and "NOT a cause" in _b55r)
+check("bazne stope i dalje u budžetu", len(_b55r) < 12000, "%d" % len(_b55r))
+_o55 = (_fa55.db.find_existing_analysis, _fa55.db.get_ticket_status, _fa55.db.get_market_lines_between,
+        _fa55.db.get_rows_for_nos_ploca, _fa55._NOS_ROWS[:], _fa55.db.get_tournament_draw)
+try:
+    _fa55._NOS_ROWS.clear()
+    _fa55.db.find_existing_analysis = lambda *a, **k: dict(_row55, predicted_winner="Juan Manuel Cerundolo",
+                                                           context_snapshot=dict(_cs55, market_p=0.56))
+    _fa55.db.get_ticket_status = lambda *a, **k: {"status": "lost", "ticket_date": "2026-10-26"}
+    _fa55.db.get_market_lines_between = lambda *a, **k: _ml55
+    _fa55.db.get_rows_for_nos_ploca = lambda *a, **k: [dict(_flat55, prediction_correct=False,
+                                                            match_date="2026-10-20", player2="X Y")]
+    _fa55.db.get_tournament_draw = lambda *a, **k: []
+    _lm55 = {"pick": "Juan Manuel Cerundolo", "player1": "Juan Manuel Cerundolo", "player2": "Daniel Altmaier",
+             "odds": 1.70, "confidence": 57, "tournament": "Swiss Indoors Basel - Basel",
+             "tournament_level": "ATP 500", "match_date": "2026-10-26", "ticket_id": "t55", "round": "R32",
+             "actual_winner": "Daniel Altmaier", "actual_score": "6-7(5) 7-6(4) 6-4"}
+    _f55 = _fa55._loss_match_facts(_lm55)
+    check("činjenice: redak o zatvaranju s pomakom OD našeg picka", "moved AWAY FROM our pick" in _f55, _f55)
+    _nb55 = _fa55._loss_nose_block(_lm55)
+    check("nos-ploča u analizi: znakovi ovog meča + dosadašnja bilanca",
+          "NOSE BOARD" in _nb55 and "Our pick: elite return + weak serve, indoors" in _nb55
+          and "our record with this sign so far" in _nb55, _nb55)
+
+    class _Resp55:
+        content = [type("B", (), {"text": "ok"})()]
+
+    class _Msgs55:
+        last = None
+
+        def create(self, **kw):
+            _Msgs55.last = kw
+            return _Resp55()
+
+    class _Cli55:
+        messages = _Msgs55()
+    _orig_cli55 = _fa55._get_client
+    _fa55._get_client = lambda: _Cli55()
+    try:
+        _fa55._analyze_lost_match(_lm55, {})
+        _p55 = _Msgs55.last["messages"][0]["content"]
+        check("prompt v3: provjera mine kroz nos-ploču, cijena jednom, CLV, pouka za nos",
+              all(s in _p55 for s in ("NOSE BOARD", "MINE CHECK", "PRICE SENTENCE", "CLOSING LINE",
+                                       "FOR THE NOSE", "WHAT SHOULD CHANGE"))
+              and "WHAT WE GOT WRONG" not in _p55)
+        check("prompt v3: korisnikov zahtjev je izričito napisan (bez tržišnog šablona)",
+              "the market also backed our pick" in _p55 and "teach him nothing" in _p55)
+    finally:
+        _fa55._get_client = _orig_cli55
+finally:
+    (_fa55.db.find_existing_analysis, _fa55.db.get_ticket_status, _fa55.db.get_market_lines_between,
+     _fa55.db.get_rows_for_nos_ploca) = _o55[:4]
+    _fa55._NOS_ROWS[:] = _o55[4]
+    _fa55.db.get_tournament_draw = _o55[5]
+# --- ugradnja: run, stranica, baza ---
+_rd55 = open("agent/run_daily.py", encoding="utf-8").read()
+_i_nose, _i_nos = _rd55.find("_nose.shadow(pred"), _rd55.find('pred["context_snapshot"]["nos_ploca"]')
+check("dnevni run: ploča se računa nakon Nosea, u sjeni, u try/except",
+      0 < _i_nose < _i_nos and "Nos-ploča (sjena" in _rd55 and "nije izračunata" in _rd55)
+_pg55 = open("pages/1_Dnevni_Listic.py", encoding="utf-8").read()
+check("Dnevni listić: redak nos-ploče po paru i tablica znakova",
+      "_nos_ploca_line" in _pg55 and "board_for_pick" in _pg55 and "| znak | vrsta | razina dokaza" in _pg55)
+from database import supabase_client as _db55
+check("baza: plosni upit nosi spremljenu ploču i sva polja koja treba izračun",
+      all(s in _db55._NOS_PLOCA_SELECT for s in ("nos:context_snapshot->nos_ploca", "n1:", "es2:", "r1:", "s2:",
+                                                 "age1:", "rest2:", "inj2:", "nose:", "ses:", "elos:")))
+# --- K26 (scripts/measure_candidates.py) ---
+_spec55 = _iu48.spec_from_file_location("measure_candidates55", "scripts/measure_candidates.py")
+_mc55 = _iu48.module_from_spec(_spec55)
+_spec55.loader.exec_module(_mc55)
+check("measure_candidates: K26 postoji", "K26" in _mc55.ALL)
+_syn55 = ([{"date": "2026-11-03", "created": f"2026-11-03T08:{i % 60:02d}:{i // 60:02d}", "p": 0.6, "win": 0.0,
+            "nos_saved": True, "nos_signs": ["tanki_elo"], "p1": "A B", "p2": "C D", "pick": "A B",
+            "o1": 1.6, "o2": 2.4} for i in range(150)]
+          + [{"date": "2026-11-03", "created": f"2026-11-03T09:{i % 60:02d}:{i // 60:02d}", "p": 0.6, "win": 1.0,
+              "nos_saved": True, "nos_signs": [], "p1": "E F", "p2": "G H", "pick": "E F",
+              "o1": 1.6, "o2": 2.4} for i in range(150)])
+_k55 = {lab.strip(): st for lab, n, e, st in _mc55.k26(_syn55, lines=[])}
+check("K26: 150 gubitnih pickova sa znakom naspram pobjeda iste cijene -> POTVRĐEN (mina)",
+      "POTVRDJEN (mina)" in _k55.get("Tanki ELO: razlika na podlozi < 50", ""), str(_k55))
+check("K26: znak bez dovoljno pickova čeka (ishod n/150)",
+      "ishod 0/150" in _k55.get("Novčić: kvota picka 1,65+", ""))
+check("K26: analize bez spremljene ploče (prije 02.11.) se ne broje",
+      "ishod 0/150" in {lab.strip(): st for lab, n, e, st in _mc55.k26(
+          [dict(x, nos_saved=False) for x in _syn55], lines=[])}.get("Tanki ELO: razlika na podlozi < 50", ""))
+check("rules_hash netaknut nakon nos-ploče", _pr._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
 
 print("\n" + "=" * 60)
 if _fails:

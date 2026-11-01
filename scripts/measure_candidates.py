@@ -58,6 +58,14 @@ PRAGOVI (zapisani PRIJE podataka; isti su u DECISION_INPUTS.md, sekcija 0a):
                                                prijedlog "najvise 1 takva noga"; > 0 -> K18 zatvoriti;
                                                inace nejasno (DI K18b, 25.10.2026 11:44). K18 je okinut
                                                25.10. na JEDNOM tjednu i NIJE uveden.
+  K26  nos-ploca-v1 (znakovi)      od 02.11.   samo analize sa SPREMLJENOM plocom; po znaku (10 znakova K26):
+                                               probir po CIJENI na prvih 40 sa snimljenim zatvaranjem: prosjecni
+                                               CLV <= -1pp i interval ispod 0 -> "mina po cijeni" (zrcalno +1pp);
+                                               odluka po ISHODU na prvih 150: razlika u istom pojasu cijene (za
+                                               znakove koji su sami cijena: edge) <= -5pp, interval ispod 0,
+                                               obje polovice < 0 -> POTVRDJEN (mina) -> prijedlog; zrcalno za
+                                               priliku; na suprotnoj strani nule od vrste znaka -> PAO
+                                               (DI K26, 01.11.2026 17:47)
 POREDAK (od 25.10.2026, revizija 25.10., P5): kad prag kaze "prvih N", redci se slazu STABILNO po
 (datum, vrijeme upisa analize) i presuda se zamrzava na tih N — inace presuda "treperi" (K18 je
 20.10. bio POTVRDJEN, 21.-23. CEKA, 24. opet POTVRDJEN).
@@ -82,9 +90,10 @@ def load_rows() -> list:
     off = 0
     while True:
         chunk = db._rest("GET", "analyzed_matches", params={
+            # `tournament` (01.11.2026): nos-ploca (K26) iz njega cita drzavu turnira (domaci/susjed)
             "select": "match_date,player1,player2,predicted_winner,actual_winner,prediction_correct,"
-                      "bookmaker_odds_p1,bookmaker_odds_p2,round,surface,tournament_level,context_snapshot,"
-                      "created_at",
+                      "bookmaker_odds_p1,bookmaker_odds_p2,round,surface,tournament,tournament_level,"
+                      "context_snapshot,created_at",
             "prediction_correct": "not.is.null", "order": "match_date.asc",
             "offset": str(off), "limit": "1000"})
         raw.extend(chunk)
@@ -120,6 +129,9 @@ def load_rows() -> list:
         # K24 (18.10.2026 12:44): Nose zapis iz dnevnog runa (samo nose-v1, bez greske).
         nz = cs.get("nose") if isinstance(cs.get("nose"), dict) else {}
         nz = nz if (nz.get("version") == "nose-v1" and not nz.get("error")) else {}
+        # K26 (01.11.2026 17:47): nos-ploca — spremljena (od 02.11.2026) ili izracunata iz snapshota (opis).
+        from agent import nos_ploca as _np
+        nb = _np.board_for_row(r)
         out.append({
             "date": str(r.get("match_date") or "")[:10], "odds": po, "p": p,
             "win": 1.0 if r.get("prediction_correct") else 0.0,
@@ -143,6 +155,10 @@ def load_rows() -> list:
             "nose_suit": nz.get("ticket_suitability"),
             "nose_p_own": (nz.get("pick_quality") or {}).get("p_own"),
             "nose_opp_value": bool((nz.get("vs_market") or {}).get("opp_value")),
+            "nos_signs": [] if nb.get("error") else (nb.get("znakovi") or []),
+            "nos_saved": bool(nb.get("spremljeno")) and not nb.get("error"),
+            "p1": p1, "p2": p2, "pick": pick,
+            "o1": r.get("bookmaker_odds_p1"), "o2": r.get("bookmaker_odds_p2"),
         })
     return out
 
@@ -443,8 +459,88 @@ def l4(_rows):
     return [(lab, n, (100 * mu) if mu is not None else None, st)]
 
 
+def _mean_ci(xs):
+    """(prosjek, donja, gornja granica 95%) u istim jedinicama kao ulaz."""
+    import math
+    n = len(xs)
+    if n < 2:
+        return (xs[0] if xs else None), None, None
+    m = sum(xs) / n
+    sd = math.sqrt(sum((x - m) ** 2 for x in xs) / (n - 1))
+    return m, m - 1.96 * sd / math.sqrt(n), m + 1.96 * sd / math.sqrt(n)
+
+
+def k26(rows, lines=None):
+    """Nos-ploca v1 (DI K26, pragovi 01.11.2026 17:47, prije prvog podatka). Samo analize od 02.11.2026 sa
+    SPREMLJENOM plocom; presude zamrznute na prvih 40 (CLV) i prvih 150 (ishod) po (datum, vrijeme
+    analize). Znakovi drugih kandidata (K5, K13b, K19, K24, nocna) ovdje se ne sude."""
+    import datetime
+    from agent import nos_ploca as _np
+    from agent import clv as _clv
+    s = sorted([r for r in rows if r["date"] >= _np.START_DATE and r["nos_saved"]],
+               key=lambda r: (r["date"], r["created"]))
+    if lines is None:
+        d_to = (datetime.date.today() + datetime.timedelta(days=2)).isoformat()
+        d_from = (datetime.date.fromisoformat(_np.START_DATE) - datetime.timedelta(days=1)).isoformat()
+        lines = db.get_market_lines_between(d_from, d_to)
+    idx = _clv.index_lines(lines, 4.0)
+    out = [(f"K26 nos-ploca: analiza sa spremljenom plocom od {_np.START_DATE}", len(s), None, "")]
+    for sid in _np.K26_ZNAKOVI:
+        kind = _np.INFO[sid]["vrsta"]
+        fl = [r for r in s if sid in r["nos_signs"]]
+        # probir po cijeni: prvih 40 sa snimljenim zatvaranjem
+        clvs = []
+        for r in fl:
+            c = _clv.for_pick(idx, r["p1"], r["p2"], r["pick"], r["o1"], r["o2"], r["date"])
+            if c:
+                clvs.append(c["clv_pp"])
+            if len(clvs) == 40:
+                break
+        cm, clo, chi = _mean_ci(clvs)
+        if len(clvs) < 40:
+            st_c = f"CLV {len(clvs)}/40"
+        elif cm <= -1.0 and chi < 0:
+            st_c = "MINA PO CIJENI (probir)"
+        elif cm >= 1.0 and clo > 0:
+            st_c = "PRILIKA PO CIJENI (probir)"
+        else:
+            st_c = "cijena nejasna"
+        # odluka po ishodu: prvih 150
+        f150 = fl[:150]
+        cut = f150[-1]["date"] if f150 else ""
+        others = [r for r in s if sid not in r["nos_signs"] and (not cut or r["date"] <= cut)]
+        by = {}
+        for r in others:
+            by.setdefault(_np._band(r["p"]), []).append(r["win"] - r["p"])
+        vals = []
+        for r in f150:
+            res = r["win"] - r["p"]
+            if sid in _np.PRICE_SIGNS:
+                vals.append(100 * res)
+            elif by.get(_np._band(r["p"])):
+                b_ = by[_np._band(r["p"])]
+                vals.append(100 * (res - sum(b_) / len(b_)))
+        m, lo, hi = _mean_ci(vals)
+        if len(fl) < 150:
+            st_o = f"ishod {len(fl)}/150"
+        else:
+            h1, h2 = _mean_ci(vals[:75])[0], _mean_ci(vals[75:])[0]
+            if m <= -5 and hi < 0 and h1 < 0 and h2 < 0:
+                st_o = "POTVRDJEN (mina) -> prijedlog korisniku"
+            elif m >= 5 and lo > 0 and h1 > 0 and h2 > 0:
+                st_o = "POTVRDJEN (prilika) -> prijedlog korisniku"
+            elif (kind == "mina" and m > 0) or (kind == "prilika" and m < 0):
+                st_o = "PAO"
+            else:
+                st_o = "NEJASNO"
+        out.append((f"    {_np.INFO[sid]['oznaka'][:40]}", len(fl), m, f"{st_c} | {st_o}"
+                    + (f" | CLV {cm:+.2f}pp" if clvs else "")))
+    return out
+
+
 ALL = {"K5": k5, "K10": k10, "K11": k11, "K13": k13, "K13b": k13b, "K17": k17, "K18": k18,
-       "K18b": k18b, "K19": k19, "K20": k20, "KONS": kons, "K22": k22, "K24": k24, "L4": l4}
+       "K18b": k18b, "K19": k19, "K20": k20, "KONS": kons, "K22": k22, "K24": k24, "L4": l4,
+       "K26": k26}
 
 if __name__ == "__main__":
     # Preusmjerenje izlaza SAMO kad se skripta pokrece — test je uvozi kao modul, a zamjena

@@ -242,6 +242,12 @@ Od **26.09.2026 20:46** (`context_snapshot` v22):
 
 Za **K19** (pauza) koristi se postojeći `p*_days_rest` — ne treba novo polje.
 
+Od **02.11.2026** (prvi run nakon 01.11.2026 17:51; `context_version` se ne mijenja, isti obrazac kao Nose):
+
+| polje | što je |
+|---|---|
+| `nos_ploca` | NOS-PLOČA v1 (`agent/nos_ploca.py`): `{"version": "nos-ploca-v1", "znakovi": [id], "detalji": {id: tekst}, "nedostaje": [id]}` — 17 znakova vidljivih PRIJE meča za NAŠ pick, računa se NAKON tiketa i iza Nosea; model je ne vidi, tiket je ne koristi. Mjeri K26 |
+
 Svrha: svaka buduća hipoteza mora se moći provjeriti retroaktivno umjesto pogađati.
 
 ---
@@ -1176,6 +1182,115 @@ podacima — zato ne smije u odluku bez potvrde. Ni ovo ne tvrdi da model tuče 
 - Tek kad prođu A i B → prijedlog nove ere (pragovi po kvantilima, pričuva, jedan plaćeni poziv).
   Osnova za implementaciju postoji na grani `tml-era-881d89f8`.
 
+### K26 — Nos-ploča v1: znakovi prije meča u sjeni (01.11.2026 17:51, korisnikov "provedi P1, P2 i P2b") — KANDIDAT, pragovi PRIJE prvog podatka
+
+**Što:** `agent/nos_ploca.py` (nos-ploca-v1) za svaki analizirani meč upisuje u
+`context_snapshot["nos_ploca"]` koji su od 17 znakova bili upaljeni za NAŠ pick PRIJE meča. Računa
+se u dnevnom runu NAKON slaganja tiketa (iza Nosea); model ih ne vidi, tiket ih ne koristi. Prikaz:
+Dnevni listić (redak 🐽 po paru + tablica svih znakova) i večernja analiza gubitka v3 ("provjera
+mine"). Povod: revizija 01.11.2026 (`revizije/2026-11-01/REVIZIJA_2026-11-01.md`) — pick je tržišni
+favorit u 94–96% mečeva, svaki dosad izmjereni "nos" ne zna više od cijene, a analize gubitka bile
+su tržišni šablon (12/12).
+
+**Znakovi koje sudi K26 (10):** novčić (kvota picka ≥ 1,65) · pick je tržišni autsajder (devigirana
+cijena < 0,50) · tanki ELO (|ELO podloge| < 50; ELO 1500 = nedostaje) · profil točke 1 za pick i za
+protivnika (karijerni povrat ≥ 44,40% I servis ≤ 60,80%, samo "Indoor"; percentili našeg korpusa
+do 01.11., n=1.186) · protivnik domaći · protivnik susjed (kopnena granica ili glavni grad ≤ 600 km
+od grada turnira, definicija LAB-a E-N) · pick domaći · pick 4+ god. mlađi u R128/R64 ili od QF ·
+prava vijest o ozljedi PICKA (detektor v2). Ostalih 7 na ploči (pojas 1,35–1,45 = K5, ozljeda
+protivnika = K13b, pauza 21+ = K19, Nose = K24, noćna = praćenje) sude njihovi kandidati.
+
+**PRAG (zapisan prije prvog podatka; sudac `python scripts/measure_candidates.py --only K26`):**
+- Uzorak: samo analize od **02.11.2026** sa SPREMLJENOM pločom (`nos_ploca.version = nos-ploca-v1`),
+  riješene, obje kvote, bez `elo_suspect`; poredak (datum meča, vrijeme upisa analize); presude
+  ZAMRZNUTE na prvih N.
+- **Probir po CIJENI (brz):** na prvih 40 pickova sa znakom i snimljenim zatvaranjem (≤ 4 h prije
+  početka, `agent/clv.py`): prosječni CLV ≤ −1,0pp i 95% interval ispod 0 → "mina po cijeni";
+  ≥ +1,0pp i interval iznad 0 → "prilika po cijeni"; inače "cijena nejasna". Snaga: uz SD ≈ 2pp,
+  n=40 → ±0,6pp. Probir sam NIKAD ne mijenja model — kaže samo koje znakove pratiti.
+- **Odluka po ISHODU (spora):** na prvih 150 pickova sa znakom: razlika naspram naših ostalih pickova
+  u ISTOM pojasu cijene (pojasevi 0,55 / 0,65 / 0,75 / 0,85; za znakove koji su sami cijena —
+  novčić, autsajder — edge naspram cijene) ≤ −5pp, 95% interval ispod 0 i obje polovice (prvih/drugih
+  75) < 0 → **POTVRĐEN (mina) → prijedlog korisniku** (npr. "najviše 1 takva noga po tiketu");
+  zrcalno ≥ +5pp → POTVRĐEN (prilika); na suprotnoj strani nule od vrste znaka → PAO; inače NEJASNO.
+  Holm preko znakova koji dođu do 150. Snaga: n=150 → ±7,6pp.
+- **Ulazak u model:** samo uz korisnikovo odobrenje. Definicije su zamrznute — svaka izmjena je
+  nos-ploca-v2 i brojanje kreće od nule.
+- **Realno očekivanje:** većina znakova će pasti (kao sve dosad na povijesti); rijetki znakovi (profil
+  točke 1, ozljeda picka) mogu i godinu dana ostati ispod 40/150.
+
+**Opis (prije K26, analize do 01.11. izračunate naknadno — NE dokaz):** na 732 riješena picka
+novčić −0,9pp (225), pojas 1,35–1,45 −6,0pp (101), pick autsajder −6,3pp (68), tanki ELO −3,6pp
+(113), profil točke 1 za pick n=2 — tablica na Dnevnom listiću.
+
+### IZMJERENO 01.11.2026 14:12 — revizija Basel/Beč i korisnikovih 9 točaka (A, B, C3, D4, D7–D9; LAB C, N, G, T)
+
+Izvještaj: `revizije/2026-11-01/REVIZIJA_2026-11-01.md`; kartice 17 poraza i 43 pobjede:
+`revizije/2026-11-01/KARTICE_2026-11-01.md`. Pragovi zapisani prije računanja:
+`revizije/2026-11-01/PRAGOVI_REVIZIJA_2026-11-01.md` (13:05; NAKNADNO 13:40 i 14:11). Kritičar
+(skeptik): **SUMNJIVO** — brojke ponovljene neovisnim kodom (`revizije/2026-11-01/skeptik/`),
+curenja nema; preglasne formulacije i plan P3 ispravljeni prije upisa. **U modelu ništa nije
+mijenjano** (korisnikova uputa: prvo analiza).
+
+    TJEDAN (26.10.–01.11., Basel + Beč, hard dvorana)  n=60  43W  edge +3,5pp ±11,4  ROI +0,6%  (po poenima neodlučivo)
+      pick = tržišni favorit 56/60; "uvijek favorit" bi pobijedio 43 (isto) — NOVO 179 naspram 180, STARO 291 naspram 303
+    tiketi: 4, dobitan 1 (30.10. @4,19); od 27.05. 6 od 73 (oček. 8,2)
+
+**IZMJERENO I ODBAČENO (ne otvarati bez novog izvora) — LAB 12.436 mečeva, poštena cijena, strogi
+datum, dovoljno snage (±4pp ili uže; `revizije/2026-11-01/skripte/r_lab_nos.py`):**
+
+    N1 susjed (kopnena granica ili glavni grad <= 600 km od turnira)  n=3.040  +0,4pp  ±1,5   PADA
+    N3 "turnir sunarodnjaka" (+10pp QF ondje, bez njega samog)          n=2.199  +0,8pp  ±1,9   PADA
+    T1 bolji TB zapis 12 mj. za 20pp+ (oba >= 6 TB)                      n=2.150  -0,8pp  ±1,9   PADA
+    T3 TB zapis na OVOM turniru (>= 4 TB, >= 75%)                        n=  797  +0,2pp  ±3,0   PADA
+    C7 favorit napuhan tie-breakovima (TB >= 65%, poeni <= 51%)          n=  555  +0,9pp  ±3,9   PADA
+    domaći igrač (K2, ponovno; mečevi s dva domaća jednom)               n=2.796  -1,5pp [-3,1, +0,2]  (odbačeno 27.09.)
+
+OPIS: postojanost TB postotka iz godine u godinu r = +0,12 [+0,07, +0,17] (udio poena +0,61; povrh
+poena +0,05 do +0,09) — mala stvarna vještina koja u jednom meču tone u sreći; TB zapis ostaje
+"not an argument".
+
+**NIJE POTVRĐENO (ne prolazi, ali premalo snage da se odbaci; ± = pola intervala):** G1 "ubojica
+diva", sada ELO-favorit +0,5 (245, ±5,9); G2 +0,5 (204); G4 +5,0 (136, ±7,8); C4 skok dvostrukih
+favorita −2,3 (195, ±6,6); C8 autsajder bolji po poenima +4,4 (261, ±6,0); C9 lanac putnik + DF +
+hold +2,7 (176, ±7,0); T2 TB "kad je ostalo slično" −2,8 (338, ±5,3); C5 svježi H2H protiv
+favorita +5,0, obrnuto (244) — krhka ćelija (favorit ≥ 0,70: 34 od 35; bez nje +3,0); N2 susjedni
+autsajder −2,7 (950, ±3,0) — smjer obrnut, trag H3.
+
+**NE ODBACUJE SE (nema snage ili nije pravi test):** C1 elitni povrat + hold ≤ P10 u dvorani −5,1
+(65) i C1r −2,1 (290) — povijesni proxy iz TML profila, NE signal koji je model vidio (Cerúndolo
+je po TML-u 46./42. percentil; model je vidio RapidAPI/scouting karijeru) → **korisnikova točka 1
+OTVORENA**; C2 jet-lag favorit −2,0 (115); C3 (15); C6 (52); C10 (82); G3 (18).
+
+**Naši podaci (opis):**
+- pojas 1,35–1,45: STARO −5,0 (60), NOVO −7,4 (41), spojeno −6,0 [−15,0, +3,1]; naspram LAB baze
+  iste cijene (+3,1) −9,0 [−18,6, +0,5]; 1,35–1,65 spojeno −6,4 [−12,1, −0,8] (STARO −8,8, NOVO
+  −2,8) → prag D4 nije ispunjen (to NIJE "nema rupe"); ide kroz K5 (n ≥ 100, sada 48); noge tiketa
+  1,35–1,45 −11,3 (26); postojeća zona 1,43–1,60 u NOVO 0,0 (69);
+- simulacija ograničenja pojasa NIJE dokaz: očekivani povrat po cijeni je umnožak marži, pa je
+  neosjetljiv na pojas; "najviše 1 noga 1,35–1,45" uzima ~8% dana s tiketom, zabrana 33%;
+- TB zapis na našima: STARO r −0,19 (100), NOVO +0,11 (79) — predznak se okreće;
+- tekst analize "tanko / coin-flip / samo ELO" (granice riječi): +1,2 / −0,9pp u istom pojasu uz
+  ±9pp — ne vidi razliku manju od ~9pp;
+- dob: NOVO r +0,18 (277), STARO −0,05 (razlika z = 2,65), 26.08. obrnuto, LAB −1,2pp → nije kandidat;
+- analize gubitka tjedna: 12/12 "No model change", 12/12 tržište (predložak traži "after price"),
+  5/12 brojka pojasa; prijedlog "provjera mine" + registar znakova (P1/P2) čeka korisnika;
+- ista noga na 2+ tiketa: 45 od 27.05., 18 izgubljenih — korisnik je dedupe odbio dvaput (18.07.,
+  04.08.) → samo činjenica, ne prijedlog;
+- Odds API pokriva i Basel i Beč (svih 60 pickova s konsenzusom); KONS rok 31.10. prošao (n=57,
+  −0,4pp) → bonus ostaje 0.
+
+**Ishodi kandidata (pragovi zapisani ranije):** sve ČEKA — K22 137/150 (ELO r +0,15 [−0,02, +0,31],
+servis+povrat +0,02; presuda tijekom Pariza); K24 G1 17 (+3,7pp), G2 38 (+0,8), G3 r +0,005 (137);
+K20 272/300 (r −0,04); K5 48/100 (−3,9); K13b 7/30; K18b 0/30; K19 25/40; L4 7/30; noćna 58/60;
+ljevaci 178/300.
+
+**Plan čiste provjere (P3, samo ako korisnik skine tennis-data 2010–2021):** H3 domaći/susjedni
+autsajder kao glavni test (~±2pp), H2 i H5 sporedni; H1 i H4 povučeni (PRAGOVI NAKNADNO 13:40 i 14:11).
+
+**Višestruko testiranje:** na istom povijesnom uzorku sada 109 testova (88 + 21) i ~250 opisnih
+podrezova; Σz² = 20,6 na 21 testu (pod nulom ~21) — ukupni rezultat je nula.
+
 ### IZMJERENO 25.10.2026 11:24 — revizija Lyon/Bruxelles/Almaty (A1–A4, C1–C4, D, N, H2, G2, E, F)
 
 Izvještaj: `revizije/2026-10-25/REVIZIJA_2026-10-25.md`; kartice 33 poraza:
@@ -1718,7 +1833,7 @@ Sve tri žive u kodu, ne u promptu; `rules_hash` je netaknut (`a0424315`).
 | provjera | gdje | učinak |
 |---|---|---|
 | pouzdanost u pojasu 65-68 | `predictor._apply_measured_penalties` | −5pp (spušta ispod praga 63) |
-| naš pick vodi u tie-break zapisu 10pp+ (uz 3+ TB kod oba) | isto | −4pp |
+| ~~naš pick vodi u tie-break zapisu 10pp+ (uz 3+ TB kod oba)~~ | isto | ~~−4pp~~ **UKLONJENO 06.09.2026 10:27** (pala izvan uzorka, `predictor.py`; zapis ispravljen 01.11.2026 14:12) |
 | Med-Low scouting profil na našem picku | `ticket_builder._scouting_ok` | **veto** za tiket |
 
 Pojas 65-68 računa se na broju **nakon** ostalih kazni, jer je izmjeren na

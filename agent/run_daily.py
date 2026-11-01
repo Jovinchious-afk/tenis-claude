@@ -1168,6 +1168,27 @@ def main():
     except Exception as e:
         print(f"!!! Nose (sjena) nije izracunat: {str(e)[:120]} — tiket nije pogodjen.")
 
+    # NOS-PLOČA U SJENI (01.11.2026 17:39, korisnikov "provedi P1, P2 i P2b" nakon revizije 01.11.2026;
+    # agent/nos_ploca.py): popis znakova vidljivih PRIJE meča (novčić, pojas 1,35-1,45, pick autsajder,
+    # tanki ELO, profil iz točke 1, domaći/susjed, mlađi pick, ozljeda v2, pauza 21+, Nose, noćna).
+    # Računa se TEK OVDJE — kad je tiket već složen i iza Nosea, jer čita njegovu ocjenu — pa ne može
+    # utjecati na izbor; upisuje se samo u context_snapshot["nos_ploca"]. Model je ne vidi. Sudac je
+    # K26 (DECISION_INPUTS): CLV i edge u istom pojasu cijene na analizama od 02.11.2026.
+    try:
+        from agent import nos_ploca as _np
+        _cnt = {}
+        for pred in predictions:
+            if isinstance(pred.get("context_snapshot"), dict):
+                _b = _np.compute(_np.rec_from_pred(pred))
+                pred["context_snapshot"]["nos_ploca"] = _b
+                for _z in _b.get("znakovi") or []:
+                    _cnt[_z] = _cnt.get(_z, 0) + 1
+        print(f"\nNos-ploča (sjena, {_np.VERSION}): " + (", ".join(
+            f"{_np.INFO[k]['oznaka']} {v}" for k, v in sorted(_cnt.items(), key=lambda kv: -kv[1]))
+            or "nijedan znak nije upaljen"))
+    except Exception as e:
+        print(f"!!! Nos-ploča (sjena) nije izračunata: {str(e)[:120]} — tiket nije pogođen.")
+
     # 9. Spremi u Supabase
     is_analysis_only = ticket.get("status") == "analysis_only"
     if not DRY_RUN:

@@ -591,6 +591,65 @@ def get_resolved_for_context(limit: int = 3000) -> list:
                    limit=limit)
 
 
+def _select_all(table: str, params: dict, max_pages: int = 60) -> list:
+    """Svi retci upita, stranicu po stranicu (Supabase vraća najviše 1.000 redaka po pozivu)."""
+    out, page = [], 0
+    while page < max_pages:
+        p = dict(params)
+        p.update({"offset": str(page * 1000), "limit": "1000"})
+        chunk = _rest("GET", table, params=p)
+        out.extend(chunk)
+        if len(chunk) < 1000:
+            break
+        page += 1
+    return out
+
+
+# NOS-PLOČA (01.11.2026 17:37, revizija 01.11.2026, korisnikov "provedi P1, P2 i P2b"): samo polja
+# snapshota koja trebaju znakovi (`agent/nos_ploca.py`), preko PostgREST JSON putanja — pun
+# `context_snapshot` svih analiza je ~7 MB, a ovo je nekoliko desetaka kB. `nos` je spremljena ploča
+# (od 02.11.2026), ostala polja služe da se ploča izračuna i za starije analize (OPIS, ne dokaz).
+_NOS_PLOCA_SELECT = (
+    "id,predicted_winner,player1,player2,bookmaker_odds_p1,bookmaker_odds_p2,prediction_correct,"
+    "match_date,created_at,round,surface,tournament,tournament_level,"
+    "nos:context_snapshot->nos_ploca,"
+    "n1:context_snapshot->>p1_nationality,n2:context_snapshot->>p2_nationality,"
+    "es1:context_snapshot->>p1_elo_surface,es2:context_snapshot->>p2_elo_surface,"
+    "r1:context_snapshot->>p1_return_won,r2:context_snapshot->>p2_return_won,"
+    "s1:context_snapshot->>p1_serve_pts_won,s2:context_snapshot->>p2_serve_pts_won,"
+    "age1:context_snapshot->>p1_age,age2:context_snapshot->>p2_age,"
+    "rest1:context_snapshot->>p1_days_rest,rest2:context_snapshot->>p2_days_rest,"
+    "inj1:context_snapshot->p1_gnews->>injury_n2,inj2:context_snapshot->p2_gnews->>injury_n2,"
+    "nose:context_snapshot->nose->>ticket_suitability,ses:context_snapshot->>session,"
+    "elos:context_snapshot->>elo_suspect")
+
+
+def get_rows_for_nos_ploca(resolved_only: bool = True) -> list:
+    """Analize s poljima za nos-ploču (vidi `_NOS_PLOCA_SELECT`). Samo čita."""
+    params = {"select": _NOS_PLOCA_SELECT, "order": "match_date.asc"}
+    if resolved_only:
+        params["prediction_correct"] = "not.is.null"
+    try:
+        return _select_all("analyzed_matches", params)
+    except Exception as e:
+        print(f"  Nos-ploča: retci nedostupni ({str(e)[:60]})")
+        return []
+
+
+def get_market_lines_between(date_from: str, date_to: str) -> list:
+    """Snimke kladionica (`market_lines`) za mečeve s početkom u [date_from, date_to) — za CLV
+    (`agent/clv.py`; 01.11.2026 17:37). Samo čita; neuspjeh vraća prazan popis."""
+    try:
+        return _select_all("market_lines", {
+            "select": "event_id,player1,player2,bookmaker,odds_p1,odds_p2,hours_to_start,"
+                      "captured_at,commence_time",
+            "and": f"(commence_time.gte.{date_from},commence_time.lt.{date_to})",
+            "order": "captured_at.asc"})
+    except Exception as e:
+        print(f"  market_lines nedostupne ({str(e)[:60]})")
+        return []
+
+
 def get_ticket_status(ticket_id: str) -> dict:
     """Status i datum tiketa kojem noga pripada (26.09.2026 20:28).
 

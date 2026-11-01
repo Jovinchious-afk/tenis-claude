@@ -147,6 +147,17 @@ def _needs_conf_floor(p) -> bool:
 # Korisnikova uputa uz ovu izmjenu (08.08.2026): model ne smije izbjegavati veliku kvotu
 # zato što je velika — traži se intrinzična vrijednost para, uz spremnost na 2.00+ kad
 # podaci i sportska argumentacija to nose.
+#
+# ── POJAS 1,35-1,45 I ZONA 1,43-1,60 — STANJE 01.11.2026 13:38 (revizija 01.11., točka 4; samo komentar) ──
+# Naši pickovi naspram devigirane cijene: 1,35-1,45 STARO -5,0pp (n=60), NOVO -7,4pp (n=41),
+# spojeno -6,0 [-15,0, +3,1] -> po pragu zapisanom unaprijed NE predlaže se (interval prelazi 0);
+# noge tiketa -11,3pp (n=26). Postojeća zona 1,43-1,60 (hard): STARO -10,5pp (n=83), NOVO 0,0pp
+# (n=69) — u eri bccf4742 se nije ponovila. Povijest: tržište u 1,35-1,43 +3,7pp (nema rupe);
+# naspram te baze naši 1,35-1,45 su -9,0 [-18,6, +0,5], a spojeni 1,35-1,65 -6,4 [-12,1, -0,8]
+# (STARO -8,8, NOVO -2,8) — prag nije ispunjen, ali to NIJE "nema problema" (skeptik).
+# Simulacija od 08.09.: "najviše 1 noga 1,35-1,45" uzima ~8% dana s tiketom, "bez nogu" 33%
+# (očekivani povrat po cijeni je umnožak marži, pa simulacija ne može pokazati korist pojasa).
+# Odluka čeka K5 (n >= 100, DI) i korisnika (P4).
 _HARD_CAUTION_ZONE = (1.43, 1.60)   # uključivo — max 1 po tiketu (vidi _find_best_combination)
 _HARD_CAUTION_ZONE_MAX = 1
 _HARD_GS_MIN_CONF = 65.0
@@ -978,6 +989,11 @@ _CONSENSUS_GAP_BONUS_DO_18_10 = 4.0   # stara vrijednost, cuva se za ponovni tes
 # blokiralo 4 od 13 tiketa, medju njima jedini dobitni (skeptik). K10 (bonus po pojasu) formalno
 # ispunjen vec 18.10., oblik se nije ponovio (dulje kvote losije). Preporuka: NE uvoditi; odluka
 # korisnika (kao KONS 18.10.). Ovdje se NISTA ne mijenja dok korisnik ne kaze "provedi".
+# ── KONS: ROK 31.10. PROSAO; ODDS API POKRIVA I BASEL I BEC (01.11.2026 13:38, revizija 01.11.) ──
+# Rok iz zapisa od 08.09. ("do kraja listopada 60+ pickova uz gap >= +1pp i edge > +5pp") je
+# prosao: n=57, edge -0,4pp -> bonus ostaje 0 (ugasen 18.10.). Ispravak tvrdnje iz 26.09. da Odds
+# API pokriva samo GS, Masters i odabrane 500-ice: pokriva i Basel (`tennis_atp_swiss_indoors`) i
+# Bec (`tennis_atp_vienna_open`) — svih 60 pickova 26.10.-01.11. imalo je konsenzus (~42 kuce).
 
 
 def _consensus_gap_pp(pred: dict):
