@@ -187,7 +187,9 @@ težine i prag nisu dirani (era hard bccf4742).
 - **Pazi:**
   - prvi run s pločom je sutra (Pariz); u ispisu runa traži redak "Nos-ploča (sjena…)";
   - prva večernja analiza gubitka u novom obliku stiže nakon prvog izgubljenog para s liste;
-  - testovi 958 + 279 OK.
+  - testovi 958 + 279 OK;
+  - commit `b49f85b`, pushano 01.11.2026 17:57 — sutrašnji run i Streamlit već koriste novi kod.
+    Povratak ako zatreba: `git revert b49f85b`, pa `git push origin master`.
 
 ### 01.11.2026 14:12 — Revizija Basel i Beč i tvojih 9 točaka (samo mjerenje, model netaknut)
 
@@ -217,7 +219,8 @@ pratimo, i tvojih 9 pitanja/sugestija — **ništa ne implementirati prije zaklj
   - `agent/ticket_builder.py`: pojas 1,35–1,45 i zona; Odds API pokriva Basel/Beč; rok za KONS;
   - `agent/feedback_analyzer.py`: analize gubitka;
   - `agent/predictor.py`: tie-break.
-- **Pazi:** testovi 926 + 279 OK; era hard bccf4742 ista; ništa nije commitano ni pushano.
+- **Pazi:** testovi 926 + 279 OK; era hard bccf4742 ista. (Commitano i pushano tek uz provedbu,
+  01.11.2026 17:57, commit `b49f85b`.)
 - **Čeka tebe:** stavka "TVOJ PROVEDI — revizija 01.11.2026" na vrhu ČEKA.
 
 ### 26.10.2026 20:01 — Snimanje zatvarajućih kvota: novi termin i širi prozor (model netaknut)
