@@ -491,6 +491,9 @@ def _select_combo(predictions: list, cfg: dict, nos_autsajderi: list = None):
     # I DALJE NIJE MIJENJANO — prag je nosiva greda selekcije, a zamjena (filtri po kvaliteti
     # nedavnih protivnika / dobi / rundi) mjerena je IN-SAMPLE i tek treba potvrdu na US Openu.
     # Vidi MODEL_CHANGELOG 26.08.2026 14:01, točke 4 i 10.
+    # PROVJERENO 08.11.2026 17:27 (revizija 08.11., Dodatak 2): pickovi 60–62,9 naspram 63+ u istom pojasu
+    # kvote −9,0pp od 05.10. do 07.11. (n=105) i −2,6pp od 30.08. -> prag 63 OSTAJE. Od 09.11. prag čita
+    # pouzdanost NAKON nosa (`agent/nos_odluka.py`, ±6).
     conf_floor = cfg["min_confidence"]            # 63 od 04.10.2026 19:22 (60 od 08.09. do 04.10.)
     VALUE_MIN_CONF = 58.0
     VALUE_MIN_EDGE = 12.0
@@ -1191,6 +1194,15 @@ def _score_combo(combo: tuple) -> float:
     # nestabilan. Izricit bonus po pojasu je nova heuristika -> NE uvodi se bez korisnika;
     # kandidat K10b za zasebno testiranje (oprez: LAB favoriti 1,35-1,43 +3,7pp, pa bi takav
     # bonus mogao rezati pojas koji trziste ne kaznjava). Do tada clan ostaje kakav jest.
+    #
+    # PROVJERENO 08.11.2026 17:27 (revizija 08.11., Dodatak 2; `r_bodovanje_sim.py`): simulacija hodom
+    # naprijed 27.09.–07.11. S NOSOM, 7 inačica bodovanja. Sadašnje: 7 od 26 tiketa dobitno, ROI +62%,
+    # edge nogu +14,3pp. Bez value bonusa, bez bonusa 72+, bez kazne za najslabiju nogu ili s dvostrukom
+    # kaznom za višak nogu: isto 7 od 26 i ROI +62 do +63% — sitni članovi mijenjaju 1–2 noge u 41 dan.
+    # Zajednička vjerojatnost iz TRŽIŠNE cijene bila je lošija (6 od 26, +50%). -> BODOVANJE OSTAJE.
+    # Value bonus je i dalje prerušena sklonost kvotama ~1,85–1,90, a ondje od 17.08. gubimo (1,65–1,85
+    # −6,0pp, 1,85+ −8,1pp; 1,20–1,35 +4,7pp); u praksi ga nadjača nos. PLAN ZA PROSINAC (korisnik
+    # 08.11.2026): maknuti ga ili zamijeniti naučenim znakom nosa po pojasu, uz simulaciju prije uvođenja.
     edge_total = 0.0
     for p in combo:
         fair = p.get("fair_odds") or 0

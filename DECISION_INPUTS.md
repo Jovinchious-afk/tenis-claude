@@ -1352,6 +1352,16 @@ Sitni dijelovi gotovo ne mijenjaju izbor; promjena se ne predlaže.
 | forma na turniru, povijest turnira | težina 0 |
 | protivnik nas izbacio | +0,2pp (jedna noga, šum — ne predlaže se, pa ne ide skeptiku) |
 
+**ODLUKA 08.11.2026 17:30 (korisnik: "napravi to što predlažeš"):**
+- Med-Low −4, pojas 65–68 −5, prag 63 i bodovanje tiketa OSTAJU (komentari s brojkama u kodu);
+- kazna za tržišnog autsajdera −5 ostaje DO PROSINCA, a onda postaje naučeni znak nosa;
+- value bonus u `_score_combo` u prosincu se miče ili postaje znak nosa po pojasu kvote;
+- obje prosinačke izmjene uvode se samo uz simulaciju hodom naprijed i korisnikovo odobrenje;
+- "maknute" varijable ne ulaze u nos;
+- sljedeći kandidat za nos je točan H2H iz TML-a (prosinac).
+
+Pregled dana: `revizije/2026-11-08/SVE_PROMJENE_2026-11-08.md`.
+
 ### IZMJERENO 08.11.2026 12:09 — revizija Pariza i korisnikovih 11 ideja (A0/A1, F, E na našima; LAB U, H, D, Z)
 
 Pragovi zapisani prije računanja: `revizije/2026-11-08/PRAGOVI_REVIZIJA_2026-11-08.md` (11:27;

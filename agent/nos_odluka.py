@@ -50,6 +50,14 @@ TEZINE_PATH = os.path.join(ROOT, "config", "nos_tezine.json")
 # izostavljen). Prozor 120 imao je najbolji edge nogu (+14,3pp naspram +12,2 uz 60 dana i +5,9 bez nosa)
 # i u SVAKOM tjednu edge jednak ili bolji od prozora 60; ROI tiketa +62% (60 dana +63%, bez nosa +24%).
 # Ograda: razlike među inačicama su u granici slučajnosti (jedan dobitni tiket mijenja poredak).
+# STARE VARIJABLE KAO ZNAK NOSA — PROBANO 08.11.2026 17:27 (revizija 08.11., Dodatak 2): svaka je dodana
+# kao jedan znak više i ponovljena je ista simulacija hodom naprijed. Edge nogu tiketa se mijenjao ovako:
+# konsenzus kladionica −5,4pp, ATP pobjede u sezoni −7,3pp, vodstvo u tie-breakovima −3,0pp, izjednačen
+# servis −2,7pp; forma i povijest na turniru dobile su težinu 0; "protivnik nam je već izbacio picka"
+# +0,2pp (jedna noga, šum). -> NIJEDNA NIJE DODANA. Nosu može pomoći samo podatak kojeg nema u kvoti:
+# ozljeda iz detektora v3 (K13c, od 09.11.) i točan H2H iz TML-a (prosinac). Također za prosinac: kad se
+# makne fiksna kazna −5 za autsajdera u predictoru, `pick_autsajder` se vraća kao naučeni znak (time
+# nestaje dvostruko brojanje iz točke 1 docstringa).
 PROZOR_DANA = 120         # nos uči na zadnja ~4 mjeseca riješenih pickova
 K_SKUPLJANJE = 60.0       # uz n=60 znak dobiva pola svog izmjerenog učinka, uz n=20 četvrtinu
 MIN_N = 8                 # znak s manje pickova ima težinu 0

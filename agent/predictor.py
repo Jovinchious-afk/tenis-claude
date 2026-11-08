@@ -2374,6 +2374,17 @@ def _enforce_stated_caps(result: dict) -> None:
 
 _SCOUTING_MEDLOW_PENALTY = 4.0
 _MARKET_UNDERDOG_PENALTY = 5.0
+# ── PROVJERENO 08.11.2026 17:27 (revizija 08.11., Dodatak 2; korisnik: "napravi to što predlažeš") ──
+# Sve tri kazne ostaju kakve jesu; brojke su ostatak pobjeda − devigirana cijena u istom pojasu kvote.
+#   Med-Low −4:         od uvođenja −2,9pp (n=32); pickovi koje je kazna spustila ispod 63 pogodili su
+#                       3 od 11 (cijena je očekivala 63%)                                   -> ZADRŽANO
+#   tržišni autsajder −5: 05.10.–07.11. +5,4pp (n=19), od uvođenja −1,6pp (n=44); spušteni 4 od 9
+#                       (cijena 47%) — danas otprilike nula                                 -> ZADRŽANO do prosinca
+#   pojas 65–68 −5:     05.10.–07.11. −3,7pp (n=48), od 30.08. −4,4pp (n=100), sve četiri polovice ispod
+#                       nule; spušteni 66 od 100 (cijena 69%)                               -> ZADRŽANO
+# PLAN ZA PROSINAC (zimska pauza, uz čišćenje prompta): kaznu za autsajdera zamijeniti NAUČENIM znakom
+# nosa (`agent/nos_odluka.py`), pa nos sam uči koliko vrijedi; prije uvođenja simulacija hodom naprijed.
+# Skripta: `revizije/2026-11-08/skripte/r_provjera_modela.py`.
 
 # ---------------------------------------------------------------------------
 # REVIZIJA HARD MODELA 30.08.2026 12:40 — dvije nove mjerene kazne

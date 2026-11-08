@@ -16,6 +16,30 @@ dnevnik napravljenog jednostavnim jezikom. Dopunjava se na kraju svake radne ses
 
 ---
 
+## 2026-11-08 17:29 — Zatvaranje dana: kazne, prag 63 i bodovanje ZADRŽANI (komentari u kodu), plan za prosinac, sažetak svih izmjena 08.11.; model, prompt i era NEPROMIJENJENI
+
+**Povod:** korisnik je nakon provjere (Dodatak 2 revizije, DI "IZMJERENO 08.11.2026 17:19") rekao
+"napravi to što predlažeš i zapiši u komentar i repozitorij koje smo sve promjene danas uveli".
+
+**Što (samo zapis, nijedna brojka u kodu nije promijenjena):**
+- `agent/predictor.py`, iznad `_SCOUTING_MEDLOW_PENALTY`: kazne Med-Low −4 i pojas 65–68 −5 ZADRŽANE,
+  kazna za tržišnog autsajdera −5 zadržana do prosinca (danas ≈ 0: +5,4pp n=19 / −1,6pp n=44). Komentar
+  je izvan teksta prompta, pa `rules_hash` ostaje isti.
+- `agent/ticket_builder.py`: uz prag 63 (60–62,9 −9,0pp, n=105 → ostaje) i u `_score_combo` (simulacija
+  7 inačica bodovanja s nosom: 7 od 26 dobitnih i ROI +62 do +63% u svim inačicama osim tržišne, koja je
+  lošija s 6 od 26 i +50% → bodovanje ostaje).
+- `agent/nos_odluka.py`, iznad `PROZOR_DANA`: stare varijable probane kao znak nosa kvare ga ili ne mijenjaju
+  ništa (konsenzus −5,4pp, sezona −7,3pp, TB −3,0pp, izjednačen servis −2,7pp) → ne dodaju se.
+- Novi pregled cijelog dana: `revizije/2026-11-08/SVE_PROMJENE_2026-11-08.md`. Sadrži što je uvedeno, što
+  je zadržano, plan za prosinac, što gledati nakon Stockholma i kako vratiti.
+
+**Plan za prosinac (korisnik se složio 08.11.2026), uz čišćenje prompta i simulaciju prije uvođenja:**
+1. kazna za autsajdera −5 → naučeni znak nosa (`pick_autsajder` se vraća u nos, a dvostruko brojanje nestaje);
+2. value bonus u `_score_combo` → maknuti ili zamijeniti znakom nosa po pojasu kvote;
+3. točan H2H iz TML-a kao kandidat za znak nosa.
+
+**Ishod:** testovi prolaze, `rules_hash` nepromijenjen. Sljedeća provjera je K27 od 09.11. (Stockholm).
+
 ## 2026-11-08 16:38 — NOS-ODLUKA: nos dobiva pravo odluke pri slaganju tiketa (korisnikova odluka, BEZ kapije) + provedba P1/P2/P3/P5/P6 revizije 08.11.; prompt i era NEPROMIJENJENI
 
 **Povod:** korisnik je nakon revizije Pariza (`revizije/2026-11-08/REVIZIJA_2026-11-08.md`) odlučio:

@@ -6,7 +6,7 @@ danima, jednostavnim jezikom). Brojke, obrazloženja i tehnički detalji su u
 (dalje: DI).
 
 **Pravilo:** na kraju svake radne sesije ovdje se dopiše što smo napravili i ažurira se
-popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 08.11.2026 17:20.
+popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 08.11.2026 17:30.
 
 **Jedna naredba za sve zakazane provjere kandidata:** `python scripts/measure_candidates.py`
 (čita bazu, ništa ne mijenja; kaže za svakog kandidata ČEKA / POTVRĐEN / PAO).
@@ -21,6 +21,8 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 | što | kada / uvjet | ishod | gdje |
 |---|---|---|---|
 | ~~**TVOJ "PROVEDI" — revizija 08.11.2026**~~ | **PROVEDENO 08.11.2026 16:44** (tvoj "napravi predloženo" + "nos mora dobiti moć odluke") | P1 vijesti (svi označeni naslovi, detektor v3, K13b zagađen → K13c) · P2 popis "samo analiza" po pouzdanosti + ispis jučerašnjih nogu · P3 H2H se sprema (izvor TML tek u prosincu) · P5 tablica rundi i nos-odluke na listiću · P6 upozorenje na kvote bez marže. NIJE: P2b (ponovna analiza ostaje); P4 "jutro" nije zaseban kandidat nego naučeni znak nosa | MODEL_CHANGELOG 08.11.2026 16:38 |
+| **PRVA SESIJA NAKON STOCKHOLMA** (dogovoreno 08.11.2026 17:30) | čim završi Stockholm (~15.11.) | popis u `revizije/2026-11-08/SVE_PROMJENE_2026-11-08.md`, točka 5: prvi run s nosom (redak "Nos-odluka" u GitHub ispisu: težine učitane, preko/ispod praga, nos-autsajder), "nos dodao / maknuo" po danima, `measure_candidates.py --only K27` i `--only K13c`, **K20 mail 15.11. (javiti stanje Intuicije)**, nalazi GPT-astre | isti dokument, točka 6: kako vratiti nos |
+| **PROSINAC — kazna za autsajdera i value bonus → znak nosa** (tvoj "napravi to što predlažeš", 08.11.2026 17:30) | zimska pauza (prosinac 2026.), zajedno s čišćenjem prompta | (1) fiksna kazna −5 za tržišnog autsajdera (`predictor`) → naučeni znak nosa `pick_autsajder`; (2) value bonus u `_score_combo` → maknuti ili znak nosa po pojasu kvote (veza s K10b); (3) točan H2H iz TML-a kao kandidat za znak. Svaka izmjena samo uz simulaciju hodom naprijed na svim tjednima do tada i tvoje odobrenje. Danas: autsajder −5 ≈ 0 (+5,4pp n=19 / −1,6pp n=44); value potiče kvote ~1,85–1,90, gdje od 17.08. gubimo (−6,0 / −8,1pp) | DI "ODLUKA 08.11.2026 17:30"; komentari u `agent/predictor.py`, `agent/ticket_builder.py`, `agent/nos_odluka.py` |
 | **K27 — NOS-ODLUKA u odluci (od 09.11.2026, tvoja odluka BEZ kapije)** | od prvog runa s nosom (Stockholm, 09.11.); noge koje je nos DODAO naspram onih koje je MAKNUO, svaka skupina ≥ 40; nos-autsajder prvih 30 nogu (realno proljeće 2027.) | dodao − maknuo ≥ +5pp → nos pomaže; ≤ −5pp → prijedlog `NOS_ODLUKA_ON = False`; autsajder ≤ −5pp → prijedlog `NOS_AUTSAJDER_ON = False`. Prije uvođenja: simulacija 27.09.–07.11. 26 tiketa / 7 dobitnih / ROI +62% (bez nosa 17 / 5 / +24%), ALI svih 25 kandidata za autsajdera 7 pogođeno (ROI −28%) | DI K27; `measure_candidates.py --only K27`; težine `config/nos_tezine.json` (GitHub uči svako jutro) |
 | **K13c — ozljeda protivnika, detektor v3** (zamjena za zagađeni K13b) | prvih 30 riješenih pickova od 09.11.2026 s protivnikom `injury_n3 ≥ 1` | isti prag kao K13b (≥ ostali + 5pp → prijedlog; ≤ 0 → samo bilježenje) | DI K13c; `measure_candidates.py --only K13c` |
 | **GPT-astra pregled (tvoj drugi AI)** | pregled koda, toka i logike nos-odluke | sve na jednom mjestu: `revizije/2026-11-08/IZMJENE_ZA_PREGLED_2026-11-08.md` | — |
@@ -158,6 +160,27 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 ---
 
 ## NAPRAVLJENO — dnevnik
+
+### 08.11.2026 17:30 — Zatvaranje dana: odluke zapisane u kod i repozitorij (model nepromijenjen)
+
+Tvoj zahtjev: "napravi to što predlažeš i zapiši u komentar i repozitorij koje smo sve promjene danas uveli".
+
+- **Jedan pregled cijelog dana:** `revizije/2026-11-08/SVE_PROMJENE_2026-11-08.md`. Ondje je što je
+  uvedeno, što je zadržano, plan za prosinac, što gledati nakon Stockholma i kako vratiti nos.
+- **Komentari u kodu (s brojkama i datumom), bez ijedne promijenjene brojke:**
+  - Med-Low −4, pojas 65–68 −5 i kazna za autsajdera −5 (ova do prosinca);
+  - prag 63;
+  - bodovanje tiketa;
+  - stare varijable koje kvare nos.
+- **Prosinac:**
+  - kazna za autsajdera i value bonus postaju naučeni znakovi nosa;
+  - kandidat za novi znak je točan H2H iz TML-a;
+  - sve uz simulaciju i tvoje odobrenje (nova stavka u "ČEKA").
+- **Testovi:** svi prolaze, a era prompta je ista.
+- **Gdje u kodu:**
+  - `agent/predictor.py` (iznad `_SCOUTING_MEDLOW_PENALTY`);
+  - `agent/ticket_builder.py` (prag 63, `_score_combo`);
+  - `agent/nos_odluka.py` (iznad `PROZOR_DANA`).
 
 ### 08.11.2026 17:20 — Provjera postojećih kazni, praga 63, bodovanja i "maknutih" varijabli (samo mjerenje)
 
