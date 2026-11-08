@@ -162,3 +162,74 @@ dvostrukih rangova (npr. Zverev i Sinner oba 1). Dopuna: igraču koji danas NIJE
 upisuje se zadnji rang iz TML-a (rang u trenutku zadnjeg meča, 2026.csv + turniri u tijeku) ako je
 taj meč noviji od 18.10.2026. Igrač bez TML meča od 18.10. zadržava stari rang (npr. Sinner, zadnji
 meč 12.07.) i u listu Promjene dobiva napomenu "rang star". Rang i dalje ne čita ni kod ni model.
+
+## K — NAKNADNO 08.11.2026 17:08 (prije računanja): provjera POSTOJEĆIH kazni, praga i bodovanja
+
+Korisnikov zahtjev 08.11.2026 navečer: provjeriti mjere koje su i danas na snazi. Ništa se ne mijenja.
+Uzorci: Z5 = pickovi 05.10.–07.11.2026 (n=268); UV = od uvođenja kazne (17.08.2026; za pojas 65–68 od
+30.08.2026). Učinak = razlika (pobjeda − cijena) skupine i ostalih pickova u istom pojasu kvote; za
+skupinu koju definira sama cijena (pick autsajder) = edge skupine − edge ostalih. Interval: bootstrap.
+
+| test | skupina | očekivani smjer kazne/bonusa |
+|---|---|---|
+| KZ1 | scouting picka Med-Low (kazna −4) | − |
+| KZ2 | pick tržišni autsajder (kazna −5) | − |
+| KZ3 | pojas pouzdanosti 65–68 prije kazne (kazna −5) | − |
+| KZ4 | prag 63: pouzdanost 60–62,9 naspram 63+ | − za 60–62,9 |
+| BOD1 | "value" (pouzdanost − 100/kvota u 3–20pp, autsajderi do 28) — bonus | + |
+| BOD2 | pouzdanost 72+ — bonus | + |
+
+**Presuda po kazni/bonusu:**
+- **ZADRŽATI**: smjer potvrđen u Z5 ILI u UV uz razliku ≤ −3pp (za bonus ≥ +3pp) i interval UV koji ne
+  prelazi nulu.
+- **PRIJEDLOG UKINUTI**: razlika u krivom smjeru i u Z5 i u UV.
+- Inače **NEJASNO** (ostaje, prati se).
+- Snaga: Z5 n=12–48 → ±14–27pp; UV n=32–100 → ±10–17pp.
+
+**Bodovanje kao cjelina (BOD3)** — simulacija hodom naprijed 27.09.–07.11. s nosom kako je postavljen
+(prozor 120), ista metoda kao r_nos_varijante.py; inačice zadane sada:
+- (a) sadašnje bodovanje;
+- (b) bez "value" bonusa;
+- (c) bez bonusa 72+;
+- (d) bez kazne za najslabiju nogu;
+- (e) dvostruka kazna za višak nogu (6 po nozi);
+- (f) zajednička vjerojatnost iz TRŽIŠNE cijene umjesto pouzdanosti;
+- (g) samo zajednička vjerojatnost i kazna za višak nogu.
+
+Prijedlog promjene samo ako inačica nadmaši (a) u edgeu nogu I u ROI-ju tiketa, i ima edge nogu
+≥ (a) u ≥ 3 od 5 tjedana.
+
+## L — NAKNADNO 08.11.2026 17:08: "maknuto iz modela", ponovno na Z5
+
+Učinak u istom pojasu kvote, bootstrap, polovice. **KANDIDAT** = interval ne prelazi nulu i obje
+polovice istog predznaka; inače "nije potvrđeno". Holm na 8.
+
+| test | skupina | smjer |
+|---|---|---|
+| M1 | konsenzus kladionica ≥ +1pp iznad SuperSporta (pick) | + |
+| M2 | pick je domaći | − |
+| M2b | protivnik je domaći | + |
+| M3 | statistika s turnira: pick ≥ 2pp više osvojenih servis-poena, oba ≥ 2 meča na turniru | + |
+| M4 | povijest turnira: pick dalje došao na tom turniru (3 god.) | + |
+| M5 | tie-break vodstvo picka ≥ 10pp, oba ≥ 3 TB (stara kazna tvrdila −) | − |
+| M6 | "izjednačen servis": apsolutna razlika servisa picka i protivnika < 2,5pp | − |
+| M7 | protivnik je na ovom turniru već izbacio našeg picka (stari veto) | − |
+| M8 | pick ima ≥ 8 ATP pobjeda više u sezoni | + |
+
+Ne mjeri se:
+- scouting "voli / muči se protiv" (samo tekst, a izmjereno je na 101 tvrdnji);
+- trend ranga (izvor ne postoji);
+- GS polufinala (u Z5 nema Slama).
+
+## M — NAKNADNO 08.11.2026 17:08: pomažu li te varijable NOSU (simulacija "nos + jedan znak")
+
+Ista simulacija hodom naprijed kao K/BOD3, s nosom (prozor 120). Svakoj inačici se doda JEDAN znak:
+M1, M3, M4, M5, M6, M7, M8. Znak se uči istim pravilima (ridge, predznak iz smjera u tablici L; M5/M6
+su "opis" pa nemaju ograničenje predznaka).
+
+**Prijedlog dodavanja u nos (v2)** samo ako su ispunjeni svi uvjeti:
+- edge nogu > sadašnji nos ukupno;
+- edge nogu ≥ sadašnji nos u ≥ 3 od 5 tjedana;
+- ROI tiketa nije lošiji za više od 10 postotnih bodova.
+
+Uz 7 pokušaja očekuje se ~1 sretan prolaz, pa pobjednik ide skeptiku prije prijedloga.

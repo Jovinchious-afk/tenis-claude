@@ -1297,6 +1297,61 @@ protivnika = K13b, pauza 21+ = K19, Nose = K24, noćna = praćenje) sude njihovi
 novčić −0,9pp (225), pojas 1,35–1,45 −6,0pp (101), pick autsajder −6,3pp (68), tanki ELO −3,6pp
 (113), profil točke 1 za pick n=2 — tablica na Dnevnom listiću.
 
+### IZMJERENO 08.11.2026 17:19 — provjera postojećih kazni, praga 63, bodovanja i "maknutih" varijabli (PRAGOVI K, L, M)
+
+Skripte `revizije/2026-11-08/skripte/r_provjera_modela.py`, `r_bodovanje_sim.py`; izvještaj Dodatak 2.
+Ništa nije mijenjano.
+
+**Kazne** (Z5 = 05.10.–07.11. / od uvođenja; "praktično" = pickovi koje je kazna spustila ispod 63):
+
+| kazna | Z5 | od uvođenja | praktično | presuda |
+|---|---|---|---|---|
+| Med-Low −4 | +7,1pp (n=12) | −2,9pp (n=32) | 3/11 pogođeno naspram cijene 63% | zadržati |
+| pick autsajder −5 | +5,4pp (n=19) | −1,6pp (n=44) | 4/9 naspram 47% | nejasno |
+| pojas 65–68 −5 | −3,7pp (n=48) | −4,4pp (n=100; sve 4 polovice < 0) | 66/100 naspram 69% | zadržati |
+
+**Prag 63:** 60–62,9 naspram 63+ daje −9,0pp u Z5 (n=105) i −2,6pp od 30.08. → zadržati.
+r(pouzdanost, ostatak) = +0,06 (n=481).
+
+**Bodovanje** (hod naprijed s nosom):
+
+| inačica | ROI | edge nogu |
+|---|---|---|
+| sadašnje | +62% | +14,3pp |
+| bez value bonusa | +62% | +13,1pp |
+| bez bonusa 72+ | +63% | +14,4pp |
+| bez kazne za najslabiju nogu | +62% | +14,3pp |
+| dvostruka kazna za višak nogu | +63% | +14,4pp |
+| zajednička vjerojatnost iz tržišta | +50% | +10,5pp |
+| samo zajednička + višak nogu | +63% | +14,2pp |
+
+Sitni dijelovi gotovo ne mijenjaju izbor; promjena se ne predlaže.
+
+**Maknute varijable na Z5 — nijedna nije kandidat** (Holm ≥ 0,31):
+
+| varijabla | razlika |
+|---|---|
+| konsenzus | +5,1 |
+| pick domaći | +9,3 |
+| protivnik domaći | +0,1 |
+| forma na turniru | −26,4 (polovice se razilaze) |
+| povijest turnira | +2,8 |
+| TB vodstvo | +9,8 (obrnuto od stare kazne) |
+| izjednačen servis | +2,6 |
+| protivnik nas izbacio | +3,0 |
+| pobjede u sezoni | +14,5 (polovice +34/−1,5) |
+
+**Kao znak nosa nijedna ne pomaže:**
+
+| znak | učinak na nos |
+|---|---|
+| konsenzus | −5,4pp |
+| TB vodstvo | −3,0pp |
+| izjednačen servis | −2,7pp |
+| sezona | −7,3pp |
+| forma na turniru, povijest turnira | težina 0 |
+| protivnik nas izbacio | +0,2pp (jedna noga, šum — ne predlaže se, pa ne ide skeptiku) |
+
 ### IZMJERENO 08.11.2026 12:09 — revizija Pariza i korisnikovih 11 ideja (A0/A1, F, E na našima; LAB U, H, D, Z)
 
 Pragovi zapisani prije računanja: `revizije/2026-11-08/PRAGOVI_REVIZIJA_2026-11-08.md` (11:27;

@@ -6,7 +6,7 @@ danima, jednostavnim jezikom). Brojke, obrazloženja i tehnički detalji su u
 (dalje: DI).
 
 **Pravilo:** na kraju svake radne sesije ovdje se dopiše što smo napravili i ažurira se
-popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 08.11.2026 16:44.
+popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 08.11.2026 17:20.
 
 **Jedna naredba za sve zakazane provjere kandidata:** `python scripts/measure_candidates.py`
 (čita bazu, ništa ne mijenja; kaže za svakog kandidata ČEKA / POTVRĐEN / PAO).
@@ -158,6 +158,25 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 ---
 
 ## NAPRAVLJENO — dnevnik
+
+### 08.11.2026 17:20 — Provjera postojećih kazni, praga 63, bodovanja i "maknutih" varijabli (samo mjerenje)
+
+Tvoj zahtjev: provjeriti mjere koje su i danas na snazi i bi li išta od maknutog pomoglo nosu. Ništa nije
+mijenjano u modelu.
+
+- **Kazne:**
+  - Med-Low −4 ostaje (pickovi koje je spustila ispod 63 pogodili su 3 od 11, a kvota je očekivala 63%);
+  - pojas 65–68 −5 ostaje (−3,7 / −4,4pp, dosljedno u svim polovicama);
+  - kazna za autsajdera je danas otprilike nula (nejasno), pa ostaje dok se ne skupi više.
+- **Prag 63:** ostaje (60–62,9 je −9,0pp na zadnjih 5 tjedana).
+- **Bodovanje tiketa:** u simulaciji s nosom sitni dijelovi gotovo ne mijenjaju izbor, pa nema promjene.
+  Zajednička vjerojatnost iz tržišta bila bi lošija (+50% naspram +62%).
+- **Maknute varijable:** nijedna nije kandidat i nijedna ne poboljšava nos. Konsenzus, tie-break i
+  pobjede u sezoni ga kvare.
+- **Gdje:**
+  - izvještaj `revizije/2026-11-08/REVIZIJA_2026-11-08.md`, Dodatak 2;
+  - registar DI "IZMJERENO 08.11.2026 17:19";
+  - skripte `r_provjera_modela.py` i `r_bodovanje_sim.py`.
 
 ### 08.11.2026 16:44 — Nos dobiva pravo odluke (nos-odluka v1) + provedba revizije 08.11. (P1, P2, P3, P5, P6)
 
