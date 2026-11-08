@@ -199,6 +199,7 @@ uzorku ... nešto danas moramo mijenjati", pa "isto napravi s prijašnja 3-4 tur
   - `agent/predictor.py` (samo verzija snimke 24), `database/supabase_client.py`, `config/model_config.py`;
   - `pages/1_Dnevni_Listic.py`, `scripts/measure_candidates.py` (K13c, K27), `.github/workflows/daily_ticket.yml`.
 - **Pregled za GPT-astru:** `revizije/2026-11-08/IZMJENE_ZA_PREGLED_2026-11-08.md`.
+- **Commit `bf185c9`, pushano 08.11.2026 16:49** — sutrašnji run i Streamlit već koriste novi kod. Povratak: prekidači gore ili `git revert bf185c9` pa `git push origin master`.
 - **Pazi:** testovi 2 × SVE PROŠLO (nova sekcija 56); sutrašnji run je prvi s nosom — u ispisu traži
   "Nos-odluka (" i "NOS-AUTSAJDER".
 
@@ -234,7 +235,7 @@ Tvoja uputa: sve prvo analizirati i javiti mišljenje, ništa ne implementirati.
   - povratak scoutinga: `python revizije/2026-11-08/skripte/r_scouting_vrati.py --vrati`.
 - **Pazi:**
   - testovi 2 × SVE PROŠLO;
-  - nije commitano.
+  - commit `1b3c3d4` (revizija i scouting), pushano 08.11.2026.
 
 ### 01.11.2026 17:52 — Nos-ploča, analiza gubitka "provjera mine", prikaz na listiću (P1, P2, P2b; predviđanje netaknuto)
 
