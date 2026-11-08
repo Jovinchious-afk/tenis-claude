@@ -148,6 +148,12 @@ def load_rows() -> list:
             # K13b (25.10.2026 11:44): strogi detektor v2; None = zapis bez v2 (prije 26.10.) ili greska.
             "inj2_opp": ((cs.get(f"{b}_gnews") or {}).get("injury_n2")
                          if (cs.get(f"{b}_gnews") or {}).get("inj_v") == 2 else None),
+            # K27 (08.11.2026 16:44): nos-odluka — je li meč na tiketu S nosom (i na kojoj strani) i bi li
+            # bio na tiketu BEZ nosa (`agent/nos_odluka.oznaci_tiket`); None = analiza bez nos-odluke.
+            "nos_tik": (cs.get("nos_odluka") or {}).get("na_tiketu"),
+            "nos_bez": (cs.get("nos_odluka") or {}).get("bez_nosa_na_tiketu"),
+            # K13c (08.11.2026 16:36, revizija 08.11. P1): detektor v3 (bez krivog igrača); None = zapis bez v3.
+            "inj3_opp": (cs.get(f"{b}_gnews") or {}).get("injury_n3"),
             "created": str(r.get("created_at") or ""),
             # K20 (27.09.2026 12:33): procjena Intuicije za NAS pick, zapisana prije meca.
             "int_edge": ((cs.get("intuicija") or {}).get("pick") or {}).get("edge_pp"),
@@ -282,7 +288,59 @@ def k13b(rows):
         st = "POTVRDJEN (prijedlog)" if e1 - e2 >= 5 else ("PAO" if e1 - e2 <= 0 else "NEJASNO")
     else:
         st = f"CEKA ({n1}/30)"
-    return [("K13b protivnik s ozljedom v2 (od 26.10.)", n1, e1, st),
+    return [("K13b protivnik s ozljedom v2 (od 26.10.) — ZAGAĐEN, vidi K13c", n1, e1, st),
+            ("     protivnik bez takve vijesti", n2, e2, "")]
+
+
+def k27(rows):
+    """Nos-odluka u odluci od 08.11.2026 (korisnikova odluka BEZ kapije) — PRAĆENJE s pragom (DI K27,
+    08.11.2026 16:44): noge koje je nos DODAO (na tiketu s nosom, ne bi bile bez njega) naspram nogu koje je
+    MAKNUO (bile bi bez nosa, nisu na tiketu), od 09.11.2026; i posebno noge na autsajdera (nos-autsajder)."""
+    s = [r for r in rows if r["date"] >= "2026-11-09" and r.get("nos_bez") is not None]
+    dodao, maknuo, auts = [], [], []
+    for r in s:
+        tik, bez = r.get("nos_tik"), r.get("nos_bez")
+        if tik and tik != r["pick"]:                       # nos je igrao drugu stranu (autsajder)
+            x = {"win": 1.0 - r["win"], "p": 1.0 - r["p"]}
+            auts.append(x)
+            if not bez:
+                dodao.append(x)
+        elif tik and not bez:
+            dodao.append({"win": r["win"], "p": r["p"]})
+        elif bez and not tik:
+            maknuo.append({"win": r["win"], "p": r["p"]})
+    n1, e1 = edge(dodao)
+    n2, e2 = edge(maknuo)
+    n3, e3 = edge(auts)
+    if n1 >= 40 and n2 >= 40:
+        d = e1 - e2
+        st = ("POTVRDJEN (nos pomaže)" if d >= 5 else
+              ("PAO (prijedlog: NOS_ODLUKA_ON=False)" if d <= -5 else "NEJASNO"))
+    else:
+        st = f"CEKA (dodao {n1}/40, maknuo {n2}/40)"
+    if n3 >= 30:
+        st3 = ("POTVRDJEN" if e3 >= 5 else ("PAO (prijedlog: NOS_AUTSAJDER_ON=False)" if e3 <= -5 else "NEJASNO"))
+    else:
+        st3 = f"CEKA ({n3}/30)"
+    return [("K27 nos-odluka: noge koje je nos DODAO", n1, e1, st),
+            ("     noge koje je nos MAKNUO", n2, e2, ""),
+            ("K27b nos-autsajder: noge na autsajdera", n3, e3, st3)]
+
+
+def k13c(rows):
+    """Protivnik s vijesti o ozljedi po detektoru v3 (DI K13c, 08.11.2026 16:36): isti prag kao K13b, ali
+    broji od 09.11.2026 — v2 je pripisivao ozljedu krivom igraču (revizija 08.11.2026, ideja 6)."""
+    s = [r for r in rows if r["date"] >= "2026-11-09" and r.get("inj3_opp") is not None]
+    inj = _first_n([r for r in s if r["inj3_opp"] >= 1], 30)
+    last = inj[-1]["date"] if inj else ""
+    rest = [r for r in s if r["inj3_opp"] == 0 and (not last or r["date"] <= last)]
+    n1, e1 = edge(inj)
+    n2, e2 = edge(rest)
+    if n1 >= 30 and e1 is not None and e2 is not None:
+        st = "POTVRDJEN (prijedlog)" if e1 - e2 >= 5 else ("PAO" if e1 - e2 <= 0 else "NEJASNO")
+    else:
+        st = f"CEKA ({n1}/30)"
+    return [("K13c protivnik s ozljedom v3 (od 09.11.)", n1, e1, st),
             ("     protivnik bez takve vijesti", n2, e2, "")]
 
 
@@ -538,7 +596,7 @@ def k26(rows, lines=None):
     return out
 
 
-ALL = {"K5": k5, "K10": k10, "K11": k11, "K13": k13, "K13b": k13b, "K17": k17, "K18": k18,
+ALL = {"K5": k5, "K10": k10, "K11": k11, "K13": k13, "K13b": k13b, "K13c": k13c, "K27": k27, "K17": k17, "K18": k18,
        "K18b": k18b, "K19": k19, "K20": k20, "KONS": kons, "K22": k22, "K24": k24, "L4": l4,
        "K26": k26}
 

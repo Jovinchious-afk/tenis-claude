@@ -636,6 +636,27 @@ def get_rows_for_nos_ploca(resolved_only: bool = True) -> list:
         return []
 
 
+# NOS-ODLUKA (08.11.2026 12:34, korisnikova odluka "nos mora dobiti moć odluke"): ista polja kao nos-ploča i još
+# scouting pouzdanost obje strane, lokalni sat, Noseova razlika naspram cijene i detektor ozljeda v3 —
+# sve što treba `agent/nos_odluka.znakovi` da nauči težine (`scripts/nos_tezine.py`). Samo čita.
+_NOS_ODLUKA_SELECT = (
+    _NOS_PLOCA_SELECT + ","
+    "sc1:context_snapshot->>p1_scouting_confidence,sc2:context_snapshot->>p2_scouting_confidence,"
+    "lt:context_snapshot->>local_time,nd:context_snapshot->nose->vs_market->>diff_pp,"
+    "inj3_1:context_snapshot->p1_gnews->>injury_n3,inj3_2:context_snapshot->p2_gnews->>injury_n3")
+
+
+def get_rows_for_nos_odluka(od_datuma: str) -> list:
+    """Riješene analize od `od_datuma` (GGGG-MM-DD) s poljima za nos-odluku. Samo čita."""
+    params = {"select": _NOS_ODLUKA_SELECT, "order": "match_date.asc",
+              "prediction_correct": "not.is.null", "match_date": f"gte.{od_datuma}"}
+    try:
+        return _select_all("analyzed_matches", params)
+    except Exception as e:
+        print(f"  Nos-odluka: retci nedostupni ({str(e)[:60]})")
+        return []
+
+
 def get_market_lines_between(date_from: str, date_to: str) -> list:
     """Snimke kladionica (`market_lines`) za mečeve s početkom u [date_from, date_to) — za CLV
     (`agent/clv.py`; 01.11.2026 17:37). Samo čita; neuspjeh vraća prazan popis."""

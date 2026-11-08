@@ -6,7 +6,7 @@ danima, jednostavnim jezikom). Brojke, obrazloženja i tehnički detalji su u
 (dalje: DI).
 
 **Pravilo:** na kraju svake radne sesije ovdje se dopiše što smo napravili i ažurira se
-popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 08.11.2026 12:08.
+popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 08.11.2026 16:44.
 
 **Jedna naredba za sve zakazane provjere kandidata:** `python scripts/measure_candidates.py`
 (čita bazu, ništa ne mijenja; kaže za svakog kandidata ČEKA / POTVRĐEN / PAO).
@@ -20,7 +20,10 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 
 | što | kada / uvjet | ishod | gdje |
 |---|---|---|---|
-| **TVOJ "PROVEDI" — revizija 08.11.2026** (Pariz + tvojih 11 ideja; samo mjerenje, model netaknut) | čeka tvoju odluku | **P1** vijesti: spremati sve označene naslove, detektor ozljeda v3, K13b zamrznuti · **P2** popis "samo analiza" po pouzdanosti + log koje jučerašnje noge su danas ispale · **P2b** (tvoja odluka) ne analizirati ponovno meč iz zadnja 24 h · **P3** H2H spremati u snimku; u zimskoj eri izvor TML · **P4** (samo ako želiš; skeptik ne preporučuje) kandidat "sat < 13:00", 120 jutarnjih pickova od 09.11. · **P6** kvote sa screenshota: 43 para (6%) bez marže (npr. 1,50/3,00) — provjeriti čitač i upozoravati kad je marža ≤ 1% · **P5** tablica "autsajderi po rundi: prošlo / očekivano" na listiću (samo prikaz). Scouting (rangovi) već NAPRAVLJEN | `revizije/2026-11-08/REVIZIJA_2026-11-08.md` točka 4 |
+| ~~**TVOJ "PROVEDI" — revizija 08.11.2026**~~ | **PROVEDENO 08.11.2026 16:44** (tvoj "napravi predloženo" + "nos mora dobiti moć odluke") | P1 vijesti (svi označeni naslovi, detektor v3, K13b zagađen → K13c) · P2 popis "samo analiza" po pouzdanosti + ispis jučerašnjih nogu · P3 H2H se sprema (izvor TML tek u prosincu) · P5 tablica rundi i nos-odluke na listiću · P6 upozorenje na kvote bez marže. NIJE: P2b (ponovna analiza ostaje); P4 "jutro" nije zaseban kandidat nego naučeni znak nosa | MODEL_CHANGELOG 08.11.2026 16:38 |
+| **K27 — NOS-ODLUKA u odluci (od 09.11.2026, tvoja odluka BEZ kapije)** | od prvog runa s nosom (Stockholm, 09.11.); noge koje je nos DODAO naspram onih koje je MAKNUO, svaka skupina ≥ 40; nos-autsajder prvih 30 nogu (realno proljeće 2027.) | dodao − maknuo ≥ +5pp → nos pomaže; ≤ −5pp → prijedlog `NOS_ODLUKA_ON = False`; autsajder ≤ −5pp → prijedlog `NOS_AUTSAJDER_ON = False`. Prije uvođenja: simulacija 27.09.–07.11. 26 tiketa / 7 dobitnih / ROI +62% (bez nosa 17 / 5 / +24%), ALI svih 25 kandidata za autsajdera 7 pogođeno (ROI −28%) | DI K27; `measure_candidates.py --only K27`; težine `config/nos_tezine.json` (GitHub uči svako jutro) |
+| **K13c — ozljeda protivnika, detektor v3** (zamjena za zagađeni K13b) | prvih 30 riješenih pickova od 09.11.2026 s protivnikom `injury_n3 ≥ 1` | isti prag kao K13b (≥ ostali + 5pp → prijedlog; ≤ 0 → samo bilježenje) | DI K13c; `measure_candidates.py --only K13c` |
+| **GPT-astra pregled (tvoj drugi AI)** | pregled koda, toka i logike nos-odluke | sve na jednom mjestu: `revizije/2026-11-08/IZMJENE_ZA_PREGLED_2026-11-08.md` | — |
 | **K26 — nos-ploča v1 (znakovi prije meča, u sjeni)** (01.11.2026 17:52, tvoj "provedi P1, P2 i P2b") | broji se od prvog runa s pločom (Pariz, **02.11.2026**), samo analize sa spremljenom pločom. **Probir po cijeni (CLV)** kad znak ima 40 pickova sa snimljenim zatvaranjem — za česte znakove (novčić, tanki ELO, domaći/susjed) realno **4–6 tjedana** od Pariza (zima: siječanj); **odluka po ishodu** na 150 pickova po znaku — **proljeće 2027.**; rijetki znakovi (profil točke 1, ozljeda picka) mogu i godinu dana | CLV ≤ −1pp uz interval ispod 0 → "mina po cijeni" (samo prati se); ishod: razlika u istom pojasu cijene ≤ −5pp, interval ispod 0, obje polovice < 0 → **prijedlog tebi** (npr. najviše 1 takva noga po tiketu); suprotna strana nule → PAO. Ništa ne ulazi u model bez tvog odobrenja | DI K26; `python scripts/measure_candidates.py --only K26`; tablica na Dnevnom listiću |
 | **Revizija 01.11.2026 — ostatak** (P1, P2, P2b **PROVEDENO 01.11.2026 17:52**) | **P4** plan za pojas 1,35–1,45: "najviše 1 noga po tiketu" tek ako K5 na n = 100 da ≤ −5pp uz interval ispod 0 (~veljača) · **P3** (tvoj ručni korak, neobavezno): tennis-data 2010–2021 samo za jednu čistu provjeru H3 (domaći/susjedni autsajder); prije skidanja kod zamrznuti i "na suho" pokrenuti na 2022–26 | — | `revizije/2026-11-01/REVIZIJA_2026-11-01.md` točka 8 i dodatak "Provedba"; pragovi H u `PRAGOVI_REVIZIJA_2026-11-01.md` (NAKNADNO 13:40, 14:11) |
 | **K25 — servis/povrat iz TML-a SAMO GLAVNOG ŽDRIJEBA** (18.10.2026, nastavak tvog prelaska na TML) | **test A ODGOĐEN** (tvoja odluka 18.10.2026 19:56: "za drugi put"; besplatno, godine 2010–2019 koje nitko nije gledao); **test B** sam se skuplja od 19.10.2026, provjera kad bude ≥ 700 ATP mečeva (~prosinac) | prag zapisan 17:34 prije gledanja: A bolji za ≥ 0,005 log-gubitka u obje polovice i u ≥ 8 od 10 godina; B bolji za ≥ 0,005 uz interval iznad nule naspram sadašnjeg stanja. Tek kad prođu oba → prijedlog nove ere (jedan plaćeni poziv). Na viđenim podacima +0,013 do +0,019 svake godine, ali to je naknadni rez | DI K25; `revizije/2026-10-18/PRAGOVI_C_TML_PROMPT_2026-10-18.md`; osnova koda na grani `tml-era-881d89f8` |
@@ -155,6 +158,49 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 ---
 
 ## NAPRAVLJENO — dnevnik
+
+### 08.11.2026 16:44 — Nos dobiva pravo odluke (nos-odluka v1) + provedba revizije 08.11. (P1, P2, P3, P5, P6)
+
+Tvoja odluka: "moramo dati nosu moć da donosi odluke ... ne zanima me ako je rezultat slučajan na malom
+uzorku ... nešto danas moramo mijenjati", pa "isto napravi s prijašnja 3-4 turnira i takav nos postavi".
+
+- **Što nos sada radi (od sutrašnjeg runa, Stockholm):**
+  - svaki pick dobiva "ocjenu nosa" iz znakova (jak ELO, kratka kvota 1,20–1,35, noć, scouting, protivnik
+    s profilom tvoje točke 1, domaći protivnik / jutro, Noseovo upozorenje, mlađi pick, pauza...);
+  - ocjena pomiče pouzdanost ZA TIKET najviše ±6 boda — pick od 58 može na tiket, a pick od 66 može ispasti;
+  - smije igrati NAJVIŠE JEDNU nogu na autsajdera kad Nose vidi vrijednost na protivniku, a model nije uvjeren;
+    na dane kad favoriti sami ne slože kvotu 4+, nos zato može složiti tiket;
+  - recenzent tiketa tu nogu ne smije maknuti;
+  - nos UČI svako jutro (GitHub, prije runa) iz svih riješenih pickova zadnjih 120 dana.
+- **Kako je odabran:** simulacija na 5 turnirskih tjedana (27.09.–07.11.), uvijek s težinama naučenim
+  samo prije tog dana. 11 inačica, a odabrana ima najbolji edge nogu:
+
+  | inačica | tiketa | dobitnih | ROI | edge nogu |
+  |---|---|---|---|---|
+  | odabrana (prozor 120) | 26 | 7 | +62% | +14,3pp |
+  | bez nosa | 17 | 5 | +24% | +5,9pp |
+
+- **Ograda (iskreno):** svih 25 kandidata za autsajdera pogodilo je samo 7 (ROI −28%). U simulaciji su
+  dobro prošli jer su na tikete ušli najjači u danu. Razlike drži nekoliko tiketa — prava presuda je K27.
+- **Ostalo provedeno:**
+  - vijesti: detektor ozljeda v3 (više ne pripisuje ozljedu krivom igraču) i svi označeni naslovi se spremaju;
+    nos-ploča uz znak pokazuje i naslov; K13b zagađen → nova serija K13c;
+  - popis "samo analiza" složen po pouzdanosti (Fritz @1,21 uz 70 više ne nestaje);
+  - ispis jučerašnjih nogu: zašto se par s jučerašnjeg tiketa danas (ne) pojavljuje;
+  - H2H i marža kvota spremaju se uz analizu; glasno upozorenje na kvote bez marže;
+  - Dnevni listić: redak nos-odluke po paru, tablica težina, tablica autsajdera po rundi.
+- **Što NIJE dirano:** prompt analize i era (`rules_hash`), prag 63, 3–6 nogu, kvota 4–50. TML statistika
+  u promptu nije uvedena (izmjerena kao šum); čišćenje prompta ostaje za prosinac.
+- **Prekidači za povratak** (`config/model_config.py`): `NOS_ODLUKA_ON = False` (stari izbor),
+  `NOS_AUTSAJDER_ON = False` (bez autsajdera).
+- **Gdje u kodu:**
+  - `agent/nos_odluka.py` (novo), `scripts/nos_tezine.py` (novo), `config/nos_tezine.json` (novo);
+  - `agent/run_daily.py`, `agent/ticket_builder.py`, `agent/player_news.py`, `agent/nos_ploca.py`;
+  - `agent/predictor.py` (samo verzija snimke 24), `database/supabase_client.py`, `config/model_config.py`;
+  - `pages/1_Dnevni_Listic.py`, `scripts/measure_candidates.py` (K13c, K27), `.github/workflows/daily_ticket.yml`.
+- **Pregled za GPT-astru:** `revizije/2026-11-08/IZMJENE_ZA_PREGLED_2026-11-08.md`.
+- **Pazi:** testovi 2 × SVE PROŠLO (nova sekcija 56); sutrašnji run je prvi s nosom — u ispisu traži
+  "Nos-odluka (" i "NOS-AUTSAJDER".
 
 ### 08.11.2026 12:09 — Revizija Pariza i tvojih 11 ideja (samo mjerenje) + scouting rangovi
 

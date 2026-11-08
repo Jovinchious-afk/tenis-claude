@@ -197,7 +197,8 @@ _ERA_RULES_HASH = "bccf4742"
 # v20 19.09. (Davis Cup) | v21 26.09. 17:04 (ruka/sezona/GS) | v22 26.09. 20:28
 # (market_source, p*_aces_per100 umjesto uvijek-nultog p*_aces, visina/tezina None umjesto 0)
 # v23 27.09.2026 11:53 (p*_gnews: vijesti po igracu s Google Newsa, SAMO biljezenje za K13)
-_CTX_VERSION = 23
+# v24 08.11.2026 (h2h, odds_margin_pct, nos_odluka; vijesti injury_n3/inj_items — revizija 08.11.)
+_CTX_VERSION = 24
 
 
 check("prompt dobiva eksplicitan razlog umjesto sata",
@@ -411,9 +412,12 @@ _tb = open("agent/ticket_builder.py", encoding="utf-8").read()
 # REVIDIRANO 04.10.2026 19:22 — prag vraćen na 63 (K1 okidač, korisnikova odluka).
 check("prag vraćen na 63", '"min_confidence": 63.0' in
       open("config/model_config.py", encoding="utf-8").read())
-check("build_ticket sam i dalje ne čita tržište izravno",
-      "market_p" not in _tb.split("def build_ticket")[1].split("def ")[0]
-      if "def build_ticket" in _tb else True)
+# REVIDIRANO 08.11.2026: izbor kombinacije izdvojen je iz build_ticket u `_select_combo` (nos-odluka,
+# korisnikova odluka); build_ticket sada odmah gradi noge, koje tržište samo BILJEŽE (`market_snapshot`).
+# Test zato čuva isto pravilo na mjestu gdje se bira: izbor ne čita tržište izravno.
+check("izbor kombinacije (_select_combo) ne čita tržište izravno",
+      "market_p" not in _tb.split("def _select_combo")[1].split("\ndef ")[0]
+      if "def _select_combo" in _tb else False)
 check("tržišni konsenzus ulazi u bodovanje kombinacija",
       "_consensus_gap_pp" in _tb and "consensus_bonus" in _tb)
 check("konsenzus je BONUS, ne tvrdi filtar",

@@ -1048,6 +1048,37 @@ def main():
     print(f"\nAnaliziram {len(matches_with_data)} mečeva s Claude...")
     predictions = analyze_matches_batch(matches_with_data, weights, injury_news)
 
+    # H2H I MARŽA U SNIMKU (08.11.2026 12:39, revizija 08.11.2026, P3 i P6; korisnikov "napravi predloženo"):
+    # (a) H2H koji model vidi u promptu (RapidAPI) do danas se NIJE spremao, pa se nije moglo vidjeti da
+    #     je nepotpun (Zverev–Musetti: 1 susret umjesto 5). Sada ide u `context_snapshot["h2h"]`.
+    # (b) 43 para od 27.07. (6%) imala su screenshot kvote BEZ marže (1,50/3,00; 1,25/5,00) — kladionica
+    #     to ne daje, dakle sumnja na čitanje screenshota. Svaki takav par se glasno ispiše; marža ide u
+    #     `odds_margin_pct`. Ništa od ovoga ne mijenja pick ni tiket.
+    _h2h_by_match = {id(it.get("match")): it.get("h2h") for it in matches_with_data}
+    _bez_marze = []
+    for _pr in predictions:
+        _cs, _m = _pr.get("context_snapshot"), _pr.get("match") or {}
+        if not isinstance(_cs, dict):
+            continue
+        _h = _h2h_by_match.get(id(_m))
+        if isinstance(_h, dict):
+            _cs["h2h"] = {"izvor": "rapidapi", "total": _h.get("total"), "p1_wins": _h.get("p1_wins"),
+                          "p2_wins": _h.get("p2_wins"), "hard": _h.get("hard"), "clay": _h.get("clay"),
+                          "grass": _h.get("grass")}
+        try:
+            _o1, _o2 = float(_m.get("odds_p1") or 0), float(_m.get("odds_p2") or 0)
+        except (TypeError, ValueError):
+            _o1 = _o2 = 0.0
+        if _o1 > 1.0 and _o2 > 1.0:
+            _mg = 100.0 * (1.0 / _o1 + 1.0 / _o2 - 1.0)
+            _cs["odds_margin_pct"] = round(_mg, 2)
+            if _mg <= 1.0:
+                _bez_marze.append(f"{_m.get('player1')} {_o1} / {_m.get('player2')} {_o2} (marža {_mg:+.1f}%)")
+    if _bez_marze:
+        print(f"!!! Kvote bez marže ({len(_bez_marze)}) — provjeri čitanje screenshota (kladionica uvijek ima maržu):")
+        for _x in _bez_marze:
+            print(f"    {_x}")
+
     valid_predictions = [p for p in predictions if not p.get("skip_reason")]
     print(f"Valjane predikcije: {len(valid_predictions)}/{len(predictions)}")
 
@@ -1073,54 +1104,9 @@ def main():
             _rules = ", ".join(a["rule"] for a in _m["applied"])
             print(f"  {str(_p.get('pick'))[:26]:26s} {_m['from']:.0f} -> {_m['to']:.0f}  ({_rules})")
 
-    # 8. Generiraj tiket ili analysis-only zapis
-    print("\nGeneriram tiket...")
-    # Razlog bez tiketa ide u sazetak (18.10.2026 12:40, revizija B4): "too_few" = premalo
-    # meceva; "no_combo" = meceva je bilo, ali nijedna kombinacija nije prosla pravila tiketa
-    # (najcesce prag 63). Do danas je sazetak u oba slucaja pisao "only N matches".
-    if analysis_only_mode or len(valid_predictions) < 4:
-        ticket = build_analysis_only_ticket(valid_predictions, reason="too_few")
-        print(f"Analysis-only: {ticket['matches_count']} mečeva analizirano, tiket nije kreiran.")
-    else:
-        ticket = build_ticket(predictions, weights, min_odds_override=min_odds_override)
-        if not ticket:
-            print("Kaskadni fallback nije uspio — prelazim u analysis-only mode.")
-            ticket = build_analysis_only_ticket(valid_predictions, reason="no_combo")
-
-    print(f"\n=== TIKET GENERIRAN ===")
-    print(f"Mečevi: {ticket['matches_count']}")
-    print(f"Ukupna kvota: {ticket['total_odds']:.2f}")
-    print(f"Potencijalni dobitak: €{ticket['potential_win']:.2f}")
-    for m in ticket["matches"]:
-        print(f"  {m['pick']} ({m['tournament']}, {m['surface']}) — kvota: {m['odds']:.2f}, conf: {m['confidence']:.0f}%")
-
-    # INTUICIJA U SJENI (27.09.2026 12:30, korisnikova zelja): nauceni signal za obje strane
-    # svakog meca (agent/intuicija.py). Racuna se TEK OVDJE — kad je tiket vec slozen — pa
-    # fizicki ne moze utjecati na izbor; upisuje se samo u context_snapshot["intuicija"]
-    # (zapis ide uz v23, prvi put u istom runu kao vijesti). U odluku ulazi tek nakon kapije
-    # K20 (DECISION_INPUTS) i korisnikova odobrenja. Svaka greska ovdje je glasna, ali ne rusi run.
-    try:
-        from agent import intuicija as _int
-        _int_models = _int.build_models(db)
-        _own = _int_models.get("own") or {}
-        print(f"\nIntuicija (sjena): uci na {_int_models.get('n_matches')} rijesenih analiza; "
-              f"nas sloj {'SUTI — ' + str(_own.get('silent')) if _own.get('silent') else 'aktivan (λ=' + str(_own.get('lambda')) + ')'}")
-        _dogs = []
-        for pred in predictions:
-            if isinstance(pred.get("context_snapshot"), dict):
-                _s = _int.shadow_scores(pred, _int_models)
-                pred["context_snapshot"]["intuicija"] = _s
-                if _s.get("underdog_flag"):
-                    _o = _s.get("other") or {}
-                    _dogs.append(f"{_o.get('player')} (+{_o.get('edge_pp'):.1f}pp)")
-        if _dogs:
-            print(f"  Intuicija bi uzela autsajdera (samo biljezenje): {', '.join(_dogs)}")
-    except Exception as e:
-        print(f"!!! Intuicija (sjena) nije izracunata: {str(e)[:120]} — tiket nije pogodjen.")
-        for pred in predictions:
-            if isinstance(pred.get("context_snapshot"), dict):
-                pred["context_snapshot"]["intuicija"] = {"error": str(e)[:120]}
-
+    # PREMJEŠTENO 08.11.2026 12:38 ISPRED TIKETA (nos-odluka, korisnikova odluka 08.11.2026): TML forma, Nose i
+    # nos-ploča računaju se sada PRIJE slaganja tiketa jer ih čita `agent/nos_odluka.py`. Sami i dalje
+    # samo bilježe (tekst ispod opisuje stanje do 08.11.); odluku donosi nos-odluka niže.
     # NOSE U SJENI (18.10.2026 12:41, korisnikova odluka 1a; agent/nose.py): cetiri odvojene
     # procjene (Pick Quality, Mine Risk, Upset Value, Ticket Suitability / NO PICK). Faza A je
     # vlastita procjena iz teniskih polja snapshota — kvotu NE vidi; zamrzne se (SHA-256) pa se
@@ -1188,6 +1174,150 @@ def main():
             or "nijedan znak nije upaljen"))
     except Exception as e:
         print(f"!!! Nos-ploča (sjena) nije izračunata: {str(e)[:120]} — tiket nije pogođen.")
+
+    # NOS-ODLUKA (08.11.2026 12:38, korisnikova odluka nakon revizije Pariza: "moramo dati nosu tj. intuiciji moć
+    # da donosi odluke pri kreiranju picka ... ne zanima me ako je rezultat slučajan na malom uzorku").
+    # Uvedeno BEZ kapije, na izričit zahtjev (CLAUDE.md pravilo 1: ulazak u model odobrava korisnik).
+    # Nos (Nose + nos-ploča + scouting; težine iz `config/nos_tezine.json`, GitHub ih uči svako jutro)
+    # pomiče POUZDANOST ZA TIKET najviše ±6 boda i smije predložiti JEDNU nogu na autsajdera. Modelova
+    # pouzdanost se vraća prije upisa u bazu (`vrati_model`). Usporedba: što bi tiket bio BEZ nosa
+    # (`predlozi_bez_pregleda`, bez plaćenih poziva) -> `nos_odluka.bez_nosa_na_tiketu` u snapshotu.
+    from config.model_config import NOS_ODLUKA_ON, NOS_AUTSAJDER_ON
+    _nos_autsajderi, _legacy_keys, _nos_on = [], None, False
+    if NOS_ODLUKA_ON:
+        try:
+            from agent import nos_odluka as _no
+            from agent.ticket_builder import predlozi_bez_pregleda as _bez_nosa
+            _nos_t = _no.ucitaj_tezine()
+            try:
+                _lc = _bez_nosa(predictions) or []
+                _legacy_keys = {frozenset([str((p.get("match") or {}).get("player1") or "").lower(),
+                                           str((p.get("match") or {}).get("player2") or "").lower()]) for p in _lc}
+            except Exception as e:  # usporedba nikad ne smije srušiti run
+                print(f"  Nos-odluka: usporedba 'bez nosa' nije izračunata ({str(e)[:80]})")
+            _nos_autsajderi = _no.primijeni(predictions, _nos_t)
+            _nos_on = True
+            _rec = [p["context_snapshot"]["nos_odluka"] for p in predictions
+                    if isinstance(p.get("context_snapshot"), dict)
+                    and isinstance(p["context_snapshot"].get("nos_odluka"), dict)
+                    and "ocjena" in p["context_snapshot"]["nos_odluka"]]
+            _floor = 63.0
+            _gore = [r for r in _rec if r["conf_model"] < _floor <= r["conf_tiket"]]
+            _dolje = [r for r in _rec if r["conf_tiket"] < _floor <= r["conf_model"]]
+            print(f"\nNos-odluka ({_no.VERSION}; težine {_nos_t.get('napravljeno') or 'NEMA — nos šuti'}"
+                  f"{', ' + str(_nos_t.get('n_pickova')) + ' pickova' if _nos_t else ''}): "
+                  f"POTVRDI {sum(r['odluka'] == 'POTVRDI' for r in _rec)}, OSLABI {sum(r['odluka'] == 'OSLABI' for r in _rec)}, "
+                  f"neutralno {sum(r['odluka'] == 'NEUTRALNO' for r in _rec)}; "
+                  f"preko praga {len(_gore)}, ispod praga {len(_dolje)}; kandidata za autsajdera {len(_nos_autsajderi)}")
+            for _p in predictions:
+                _r = (_p.get("context_snapshot") or {}).get("nos_odluka") or {}
+                if _r.get("ocjena"):
+                    print(f"  {str(_p.get('pick'))[:26]:26s} {_r['conf_model']:.0f} -> {_r['conf_tiket']:.0f}  "
+                          + ", ".join(f"{s} {w:+.1f}" for s, w in _r.get("doprinosi") or []))
+            for _d in _nos_autsajderi:
+                print(f"  NOS-AUTSAJDER kandidat: {_d['pick']} (+{_d['nos_prednost_pp']:.1f}pp; model je birao {_d['nos_model_pick']})")
+            if not NOS_AUTSAJDER_ON:
+                _nos_autsajderi = []
+        except Exception as e:
+            print(f"!!! Nos-odluka nije izvršena: {str(e)[:120]} — tiket po starom (bez nosa).")
+            try:
+                _no.vrati_model(predictions)
+            except Exception:
+                pass
+            _nos_autsajderi, _nos_on = [], False
+
+    # 8. Generiraj tiket ili analysis-only zapis
+    print("\nGeneriram tiket...")
+    # Razlog bez tiketa ide u sazetak (18.10.2026 12:40, revizija B4): "too_few" = premalo
+    # meceva; "no_combo" = meceva je bilo, ali nijedna kombinacija nije prosla pravila tiketa
+    # (najcesce prag 63). Do danas je sazetak u oba slucaja pisao "only N matches".
+    if analysis_only_mode or len(valid_predictions) < 4:
+        ticket = build_analysis_only_ticket(valid_predictions, reason="too_few")
+        print(f"Analysis-only: {ticket['matches_count']} mečeva analizirano, tiket nije kreiran.")
+    else:
+        ticket = build_ticket(predictions, weights, min_odds_override=min_odds_override,
+                              nos_autsajderi=_nos_autsajderi)
+        if not ticket:
+            print("Kaskadni fallback nije uspio — prelazim u analysis-only mode.")
+            ticket = build_analysis_only_ticket(valid_predictions, reason="no_combo")
+
+    print(f"\n=== TIKET GENERIRAN ===")
+    print(f"Mečevi: {ticket['matches_count']}")
+    print(f"Ukupna kvota: {ticket['total_odds']:.2f}")
+    print(f"Potencijalni dobitak: €{ticket['potential_win']:.2f}")
+    for m in ticket["matches"]:
+        print(f"  {m['pick']} ({m['tournament']}, {m['surface']}) — kvota: {m['odds']:.2f}, conf: {m['confidence']:.0f}%")
+
+    # NOS-ODLUKA nakon tiketa (08.11.2026 12:38): u snapshot upiši je li pick na tiketu i bi li bio BEZ nosa, pa
+    # VRATI modelovu pouzdanost — u `analyzed_matches` ide model, noga tiketa nosi pouzdanost nakon nosa.
+    if _nos_on:
+        try:
+            _no.oznaci_tiket(predictions, ticket, _legacy_keys)
+            if _legacy_keys is not None and ticket.get("status") != "analysis_only":
+                _now = {frozenset([str(l.get("player1") or "").lower(), str(l.get("player2") or "").lower()])
+                        for l in ticket.get("matches") or []}
+                print(f"Nos-odluka: tiket bez nosa imao bi {len(_legacy_keys)} nogu; zajedničkih {len(_now & _legacy_keys)}, "
+                      f"nos dodao {len(_now - _legacy_keys)}, nos maknuo {len(_legacy_keys - _now)}")
+        except Exception as e:
+            print(f"!!! Nos-odluka: oznaka tiketa nije upisana ({str(e)[:80]})")
+        _no.vrati_model(predictions)
+
+    # JUČERAŠNJE NOGE (08.11.2026 12:38, revizija 08.11.2026, ideja 3 / P2): par s jučerašnjeg tiketa koji se igra
+    # danas ili sutra smije opet na tiket — zabrane nema od 18.07.2026. Ovdje se samo ISPISUJE što se s
+    # njim danas dogodilo, da se ne čini kao da je "izbačen": nova analiza (drugi broj), prag 63,
+    # kombinacija ili izbacivanje prije analize (screenshot / API).
+    try:
+        _yday = db.get_ticket_by_date(format_date(today - datetime.timedelta(days=1)))
+        _ylegs = (db._select("ticket_matches", filters={"ticket_id": f"eq.{_yday.get('id')}"})
+                  if _yday and _yday.get("status") in ("pending", "won", "lost") else [])
+        _ylegs = [l for l in _ylegs or [] if str(l.get("match_date") or "")[:10] >= today_str]
+        if _ylegs:
+            print(f"\nJučerašnji tiket: {len(_ylegs)} nogu igra danas/sutra —")
+            _now = {frozenset([str(l.get("player1") or "").lower(), str(l.get("player2") or "").lower()])
+                    for l in ticket.get("matches") or []}
+            for _l in _ylegs:
+                _k = frozenset([str(_l.get("player1") or "").lower(), str(_l.get("player2") or "").lower()])
+                _pp = [p for p in predictions if frozenset([str((p.get("match") or {}).get("player1") or "").lower(),
+                                                           str((p.get("match") or {}).get("player2") or "").lower()]) == _k]
+                if not _pp:
+                    _why = "NIJE analiziran danas (izbačen prije analize: vidi 'Screenshot-isključivost' gore ili ga API nema)"
+                elif _k in _now and ticket.get("status") != "analysis_only":
+                    _why = "opet na tiketu"
+                else:
+                    _r = (_pp[0].get("context_snapshot") or {}).get("nos_odluka") or {}
+                    _c = _r.get("conf_tiket", _pp[0].get("confidence"))
+                    _why = (f"danas {_pp[0].get('pick')} uz {_c}"
+                            + (" — ispod praga 63" if (_c or 0) < 63 else " — nije ušao u najbolju kombinaciju"))
+                print(f"  {_l.get('pick')} (jučer {_l.get('confidence')}): {_why}")
+    except Exception as e:
+        print(f"  (jučerašnje noge nisu provjerene: {str(e)[:80]})")
+
+    # INTUICIJA U SJENI (27.09.2026 12:30, korisnikova zelja): nauceni signal za obje strane
+    # svakog meca (agent/intuicija.py). Racuna se TEK OVDJE — kad je tiket vec slozen — pa
+    # fizicki ne moze utjecati na izbor; upisuje se samo u context_snapshot["intuicija"]
+    # (zapis ide uz v23, prvi put u istom runu kao vijesti). U odluku ulazi tek nakon kapije
+    # K20 (DECISION_INPUTS) i korisnikova odobrenja. Svaka greska ovdje je glasna, ali ne rusi run.
+    try:
+        from agent import intuicija as _int
+        _int_models = _int.build_models(db)
+        _own = _int_models.get("own") or {}
+        print(f"\nIntuicija (sjena): uci na {_int_models.get('n_matches')} rijesenih analiza; "
+              f"nas sloj {'SUTI — ' + str(_own.get('silent')) if _own.get('silent') else 'aktivan (λ=' + str(_own.get('lambda')) + ')'}")
+        _dogs = []
+        for pred in predictions:
+            if isinstance(pred.get("context_snapshot"), dict):
+                _s = _int.shadow_scores(pred, _int_models)
+                pred["context_snapshot"]["intuicija"] = _s
+                if _s.get("underdog_flag"):
+                    _o = _s.get("other") or {}
+                    _dogs.append(f"{_o.get('player')} (+{_o.get('edge_pp'):.1f}pp)")
+        if _dogs:
+            print(f"  Intuicija bi uzela autsajdera (samo biljezenje): {', '.join(_dogs)}")
+    except Exception as e:
+        print(f"!!! Intuicija (sjena) nije izracunata: {str(e)[:120]} — tiket nije pogodjen.")
+        for pred in predictions:
+            if isinstance(pred.get("context_snapshot"), dict):
+                pred["context_snapshot"]["intuicija"] = {"error": str(e)[:120]}
 
     # 9. Spremi u Supabase
     is_analysis_only = ticket.get("status") == "analysis_only"

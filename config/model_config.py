@@ -223,6 +223,17 @@ TICKET_CONFIG = {
     "last_resort_confidence": 55.0,
 }
 
+# NOS-ODLUKA (08.11.2026 12:37, korisnikova odluka nakon revizije Pariza: "moramo dati nosu moć da donosi
+# odluke ... ne zanima me ako je rezultat slučajan na malom uzorku"). Uvedeno BEZ kapije, na izričit
+# korisnikov zahtjev. Prekidači za povratak na stari izbor bez diranja koda:
+#   NOS_ODLUKA_ON     — nos (Nose + nos-ploča + scouting, težine `config/nos_tezine.json`) pomiče
+#                       pouzdanost ZA TIKET najviše ±6 boda (`agent/nos_odluka.py`);
+#   NOS_AUTSAJDER_ON  — najviše jedna noga na autsajdera kad Nose vidi vrijednost na protivniku a model
+#                       nije uvjeren (`ticket_builder._nos_autsajder_u_tiket`).
+# Modelova pouzdanost i dalje ide u bazu; nos-odluka i "tiket bez nosa" bilježe se u snapshotu.
+NOS_ODLUKA_ON = True
+NOS_AUTSAJDER_ON = True
+
 # Surface-specifični overridi UKINUTI 26.07.2026 (korisnikova odluka): sve podloge sada
 # dijele istu strukturu iz TICKET_CONFIG-a. Prazan dict znači "nema override-a" i
 # _apply_surface_overrides tiho prolazi bez ikakve izmjene.

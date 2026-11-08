@@ -141,6 +141,73 @@ _PREVIEW_RE = re.compile(
     re.IGNORECASE)
 
 
+# ── DETEKTOR OZLJEDA v3 (08.11.2026 12:42, revizija 08.11.2026 P1; korisnikov "napravi predloženo") ──────
+# Revizija 08.11. (ideja 6): od 28 oznaka v2 od 26.10. vidljiva su samo 4 naslova (spremalo se prvih 8,
+# a brojalo sve), a 3 od te 4 su KRIVI IGRAČ: "Taylor Fritz Advances After Injury Forces Arthur Fils To
+# Quit" -> Fritz; "Jodar wins, Cobolli pulls out" -> Jodar; "Rune Beats Halys After 11-Month Injury
+# Layoff" -> Halys. Pravi slučaj ("Arthur Fils Cleared to Play ... Despite Injury Scare") v2 je promašio,
+# jer je riječ 7 mjesta od prezimena. Pravilo v3, zapisano PRIJE ijednog podatka iz njega (K13c broji od
+# 09.11.2026):
+#   1. naslov u kojem se uz našeg igrača spominje I DRUGI poznati igrač (prezime iz TML tablice
+#      `config/tml_forma_12m.json`) NE broji se — ne zna se čija je ozljeda. Oprezno: gubi i poneki pravi
+#      slučaj ("Medvedev into final after Bublik retirement" za Bublika);
+#   2. kad je naš igrač JEDINI igrač u naslovu, riječ o tijelu/bolesti broji se BILO GDJE u naslovu, a
+#      odustajanje i dalje samo iza prezimena (kao v2);
+#   3. "physiotherapist" nije ozljeda; umirovljenje karijere i kladioničarski naslovi ne broje se (kao v2).
+# v2 (`strict_injury`, `injury_n2`, `inj_v: 2`) ostaje netaknut — K13b se ne preoznačava.
+_NOT_INJURY = re.compile(r"^physiotherap")
+_KNOWN = None
+
+
+# Riječi koje su i nečije prezime, a u naslovima su grad ili obična riječ ("Paris", "basic") — ne smiju
+# naslov proglasiti "s drugim igračem". Uz to gradovi turnira iz nos-ploče (`nos_ploca._GRADOVI`).
+_NOT_A_PLAYER = {"added", "basic", "bolt", "gray", "rice", "park", "sun", "king", "young", "price",
+                 "bond", "may", "will", "wild", "fine", "open", "star", "best", "day", "hope", "law",
+                 "rose", "paris", "london", "madrid", "rome", "vienna", "basel", "turin", "monte", "carlo"}
+
+
+def _known_surnames() -> set:
+    """Prezimena igrača s ≥ 3 meča glavnog ždrijeba u TML tablici zadnjih 12 mjeseci (~300 igrača),
+    bez gradova turnira i običnih riječi; prazan skup ako tablice nema."""
+    global _KNOWN
+    if _KNOWN is None:
+        out = set()
+        try:
+            import json
+            import os
+            p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config",
+                             "tml_forma_12m.json")
+            for v in (json.load(open(p, encoding="utf-8")).get("igraci") or {}).values():
+                if (v.get("n_main") or 0) >= 3:
+                    out |= _surnames(v.get("name") or "")
+            try:
+                from agent.nos_ploca import _GRADOVI
+                for g in _GRADOVI:
+                    out -= set(re.findall(r"[a-z]+", _fold(g)))
+            except Exception:
+                pass
+        except Exception:
+            pass
+        _KNOWN = out - _NOT_A_PLAYER
+    return _KNOWN
+
+
+def strict_injury_v3(title: str, name: str) -> list:
+    """Detektor v3 (pravilo gore): [] ako je u naslovu još neki poznati igrač."""
+    sn = _surnames(name)
+    if not sn or _CAREER_RE.search(title or ""):
+        return []
+    toks = re.findall(r"[a-z]+", _fold(title))
+    if not any(t in sn for t in toks):
+        return []
+    own = set(re.findall(r"[a-z]+", _fold(name)))
+    if any(t in _known_surnames() and t not in own for t in toks):
+        return []
+    hits = {h for h in strict_injury(title, name) if not _NOT_INJURY.match(h)}
+    hits |= {t for t in toks if _PHYS_RE.match(t) and not _NOT_INJURY.match(t)}
+    return sorted(hits)
+
+
 def display_items(gnews: dict, match_date=None, days: int = 3, max_items: int = 3) -> list:
     """Naslovi za prikaz čovjeku: ne-kladioničarski, ≤ days dana prije meča, prezime u naslovu, i
     ili stvarna ozljeda (v2) ili "priča" (nije najava/rezultat). [{d, s, t, kind}] — najnoviji prvi."""
@@ -220,6 +287,7 @@ def parse_feed(xml_bytes, match_date, days: int = _DAYS, max_items: int = _MAX_I
         rec = {"d": pub.isoformat(), "t": title[:160], "s": src[:40], "inj": flags, "bet": bet}
         if name:
             rec["inj2"] = strict_injury(title, name)
+            rec["inj3"] = strict_injury_v3(title, name)     # 08.11.2026 12:42, detektor v3
         items.append(rec)
     items.sort(key=lambda x: x["d"], reverse=True)
     # injury_n broji samo NE-kladioničarske naslove s riječju o ozljedi — to je mjera za K13.
@@ -229,6 +297,10 @@ def parse_feed(xml_bytes, match_date, days: int = _DAYS, max_items: int = _MAX_I
         # 25.10.2026 11:39: K13b — strogi detektor v2, broji se preko SVIH naslova u prozoru (kao K13).
         out["injury_n2"] = sum(1 for x in items if x.get("inj2") and not x["bet"])
         out["inj_v"] = 2
+        # 08.11.2026 12:42 (P1): detektor v3 i SVI označeni naslovi (ne samo prvih 8), da se svaka oznaka
+        # može provjeriti — revizija 08.11. nije mogla vidjeti 24 od 28 naslova koji su upalili v2.
+        out["injury_n3"] = sum(1 for x in items if x.get("inj3") and not x["bet"])
+        out["inj_items"] = [x for x in items if x.get("inj") or x.get("inj2") or x.get("inj3")][:30]
     return out
 
 

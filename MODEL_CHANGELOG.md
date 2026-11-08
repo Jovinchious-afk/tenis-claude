@@ -16,6 +16,189 @@ dnevnik napravljenog jednostavnim jezikom. Dopunjava se na kraju svake radne ses
 
 ---
 
+## 2026-11-08 16:38 — NOS-ODLUKA: nos dobiva pravo odluke pri slaganju tiketa (korisnikova odluka, BEZ kapije) + provedba P1/P2/P3/P5/P6 revizije 08.11.; prompt i era NEPROMIJENJENI
+
+**Povod:** korisnik je nakon revizije Pariza (`revizije/2026-11-08/REVIZIJA_2026-11-08.md`) odlučio:
+
+> "moramo dati nosu tj. intuiciji moć da donosi odluke pri kreiranju picka ... ne zanima me ako je
+> rezultat slučajan na malom uzorku ... nešto danas moramo mijenjati ... napravi predloženo".
+
+Za Stockholm (09.11.).
+
+**Kapija:** CLAUDE.md pravilo 1 kaže da ulazak u model uvijek odobrava korisnik. Ovdje ga je izričito
+naložio i svjesno preskočio potvrdu izvan uzorka. Zato vrijedi sljedeće:
+
+- sve se bilježi uz svaku analizu;
+- računa se i "što bi tiket bio bez nosa";
+- postoje prekidači za povratak bez diranja koda.
+
+**1. NOS-ODLUKA (`agent/nos_odluka.py`, novo; nos-odluka-v1).**
+
+- *Znakovi:* 14 znakova nos-ploče, istih definicija. Izostavljena su tri:
+  - `pick_autsajder`, jer ga već kažnjava mjerena kazna −5;
+  - `ozljeda_*` v2, jer je zagađen krivim igračem.
+
+  Uz njih ide 8 novih: ozljeda v3 (pick i protivnik), jak scouting (High/Med-High), jak ELO
+  (≥ +150 na podlozi), pojas 1,20–1,35, jutarnji meč (< 13 h), Nose daje strani ±5pp naspram cijene.
+- *Učenje* (`nauci`, `scripts/nos_tezine.py` → `config/nos_tezine.json`):
+  - podaci: naši riješeni pickovi zadnjih 60 dana;
+  - ridge na "pobjeda − devigirana cijena", λ = 60 po znaku, nekažnjeni slobodni član;
+  - predznak iz definicije znaka: mina ≤ 0, prilika ≥ 0, a znak krivog predznaka ispada;
+  - strop ±4 po znaku, znak treba n ≥ 8.
+  - GitHub uči svako jutro prije runa (novi korak u `daily_ticket.yml`, `NOS_TEZINE_PATH`). Bez toga se
+    čita spremljena datoteka.
+  - Danas (368 pickova 09.09.–08.11.), u bodovima:
+
+    | znak | težina |
+    |---|---|
+    | jak ELO | +4,0 |
+    | jak scouting | +4,0 |
+    | protivnik s profilom točke 1 | +4,0 |
+    | noć | +2,9 |
+    | pojas 1,20–1,35 | +1,5 |
+    | protivnik domaći | +0,7 |
+    | mlađi pick | −3,8 |
+    | novčić | −3,5 |
+    | jutro | −3,3 |
+    | Nose upozorenje | −3,0 |
+    | pauza picka | −1,7 |
+- *Odluka* (`primijeni`):
+  - pouzdanost ZA TIKET = model + zbroj težina, sa stropom ±6. To pomiče prag 63, kaskadu, dnevne
+    limite i bodovanje kombinacija;
+  - modelova pouzdanost vraća se prije upisa u `analyzed_matches` (`vrati_model`), pa mjerenje modela
+    nije prekinuto. Noga tiketa nosi pouzdanost nakon nosa;
+  - zapis: `context_snapshot["nos_odluka"]` (znakovi, doprinosi, conf_model → conf_tiket, odluka,
+    autsajder, `na_tiketu`, `bez_nosa_na_tiketu`).
+- *Nos-autsajder:* uvjeti su:
+  - Nose vidi ≥ +5pp vrijednosti na protivniku;
+  - kvota protivnika je 2,00–3,50;
+  - model nije uvjeren (≤ 64);
+  - znakovi protivnika (bez cjenovnih) ≥ 0.
+
+  Ishod: **najviše jedna noga po tiketu** (`ticket_builder._nos_autsajder_u_tiket`):
+  - isti meč na tiketu → noga se okreće;
+  - inače zamjenjuje najslabiju nogu, ili se dodaje;
+  - na dane bez tiketa slaže tiket "favoriti + autsajder";
+  - uvijek ista tvrda pravila (3–6 nogu, kvota 4–50, zone, jedan meč jednom).
+
+  Recenzent tiketa tu nogu ne smije maknuti: ako je makne, ostaje predloženi tiket. U njegov prompt
+  dodan je jedan redak. To NIJE prompt analize, pa `rules_hash` ostaje isti.
+- *Usporedba:* `ticket_builder.predlozi_bez_pregleda` daje izbor bez nosa, bez plaćenih poziva i bez
+  ispisa. Ispis runa kaže koliko je nogu nos dodao ili maknuo.
+- *Refaktor:* izbor kombinacije izdvojen je iz `build_ticket` u `_select_combo`. Tijelo je premješteno
+  bez izmjene logike.
+- *Prekidači:* `NOS_ODLUKA_ON`, `NOS_AUTSAJDER_ON` (`config/model_config.py`).
+
+**2. Dnevni run (`agent/run_daily.py`):**
+
+- TML forma, Nose i nos-ploča premješteni su ISPRED tiketa, jer ih nos čita;
+- Intuicija ostaje iza tiketa;
+- nos-odluka ide prije `build_ticket`; oznaka tiketa i povrat modelove pouzdanosti idu nakon;
+- **ispis jučerašnjih nogu** (P2): što se danas dogodilo sa svakim parom s jučerašnjeg tiketa.
+
+**3. P1 vijesti (`agent/player_news.py`):**
+
+- detektor ozljeda v3 (`strict_injury_v3`) ne broji naslov u kojem je još neki poznati igrač (TML
+  igrači s ≥ 3 meča glavnog ždrijeba; bez gradova turnira i običnih riječi);
+- kad je naš igrač sam u naslovu, riječ o tijelu broji se bilo gdje;
+- "physiotherapist" nije ozljeda;
+- na 10 naslova iz revizije v3 je točan u 10 od 10, a v2 u 4 od 10;
+- spremaju se `injury_n3` i **svi označeni naslovi** (`inj_items`, do 30);
+- v2 ostaje netaknut;
+- nos-ploča uz znak ozljede sada pokazuje i naslov (definicija se ne mijenja);
+- K13b je označen kao ZAGAĐEN, a nova serija K13c (v3) mjeri se od 09.11.
+
+**4. P2 popis "samo analiza":** najprije pickovi 63+ po pouzdanosti, a ne po najvećoj kvoti
+(`build_analysis_only_ticket`).
+
+**5. P3/P6 snimka (v24):**
+
+- `h2h`: RapidAPI H2H koji model vidi, do danas se nije spremao;
+- `odds_margin_pct`, uz glasan ispis kvota bez marže;
+- `context_version` 23 → 24.
+
+**6. P5 Dnevni listić:**
+
+- redak "Nos-odluka" po paru;
+- tablica težina nosa;
+- tablica autsajdera po rundi naspram kvote.
+
+**Što NIJE mijenjano:** prompt analize i `rules_hash`, prag 63, struktura 3–6 nogu i kvota 4–50,
+mjerene kazne, težine `model_weights`.
+
+TML statistika u promptu (grana `tml-era-881d89f8`) NIJE uvedena. Izmjerena je kao šum
+(+0,0028 [−0,0015, +0,0068]), a uz nos bi se izgubila i mogućnost da se razdvoji učinak dviju izmjena.
+Čišćenje prompta ostaje za prosinac.
+
+**Provjera:**
+
+- testovi: `test_cap_and_weather.py` (nova sekcija 56, 29 provjera) i `test_provisional_schedule.py`
+  — SVE PROŠLO;
+- Dnevni listić prikazan bez greške (Streamlit AppTest);
+- refaktor provjeren: stari `build_ticket` i novi `_select_combo` daju iste noge na 41 od 41 dana;
+- pošteno izvan uzorka na Parizu (težine samo do 01.11.):
+  - nos bi podigao 35 pickova, koji su prošli 24–11 (edge −1,6pp);
+  - spustio bi 11 pickova, koji su prošli 5–6 (−9,0pp);
+  - nos-autsajderi 2 od 4, ROI +52% (`r_nos_replay.py`).
+- Simulacija toka po danima: `r_nos_tiket_sim.py`, `r_nos_varijante.py` (vidi unos ispod).
+
+**Povratak:**
+
+- `NOS_ODLUKA_ON = False` i/ili `NOS_AUTSAJDER_ON = False` (tiket po starom, bilježenje ostaje);
+- cijela izmjena: `git revert <sha>`.
+
+**Dopuna 08.11.2026 16:43 — izbor inačice na prijašnjim turnirima** (korisnikov zahtjev "isto napravi i
+s prijašnja 3-4 turnira ... i takav nos postavi"):
+
+`revizije/2026-11-08/skripte/r_nos_varijante.py`:
+
+- hod naprijed 27.09.–07.11., 5 turnirskih tjedana;
+- težine se uvijek uče samo prije simuliranog dana;
+- 11 inačica zadanih unaprijed;
+- isti `_select_combo`, bez Claudeova pregleda;
+- ulog 50.
+
+| inačica | tiketa | dobitnih | ROI | edge nogu |
+|---|---|---|---|---|
+| bez nosa | 17 | 5 | +24% | +5,9pp |
+| v1 (prozor 60) | 29 | 8 | +63% | +12,2pp |
+| **prozor 120 (odabrana)** | 26 | 7 | +62% | **+14,3pp** |
+| samo autsajder | 22 | 7 | +73% | +8,9pp |
+| samo pouzdanost | 28 | 6 | −10% | +6,7pp |
+| samo pouzdanost, prozor 120 | 26 | 5 | −21% | +8,6pp |
+| agresivnija | 29 | 8 | +67% | +9,9pp |
+| opreznija | 28 | 6 | +27% | +11,6pp |
+| prozor 30 | 23 | 3 | −36% | +9,2pp |
+
+Odabran je prozor 120 (`PROZOR_DANA` 60 → 120). Ima najbolji edge nogu, a u svakom tjednu edge je
+jednak ili bolji od prozora 60.
+
+**Ograde:**
+
+- razlike u ROI-ju drži nekoliko tiketa;
+- svih 25 jedinstvenih kandidata za autsajdera pogodilo je samo 7 (ROI −28%). Simulirani tiketi
+  izgledaju bolje jer su na njih ušli najjači kandidati dana (4 od 9) i jer se isti meč zna ponoviti
+  dva dana;
+- inačice samo s pouzdanošću daju više tiketa i lošiji ROI.
+
+Novo učenje (753 picka, 120 dana), u bodovima:
+
+| znak | težina |
+|---|---|
+| pojas 1,20–1,35 | +4,0 |
+| jak ELO | +4,0 |
+| noć | +3,8 |
+| protivnik s profilom točke 1 | +3,7 |
+| protivnik domaći | +1,8 |
+| scouting | +1,0 |
+| jutro | −4,0 |
+| Nose upozorenje | −4,0 |
+| pauza picka | −2,9 |
+| mlađi pick | −2,3 |
+| pojas 1,35–1,45 | −0,8 |
+
+Praćenje: K27/K27b u DECISION_INPUTS i `measure_candidates.py`.
+
 ## 2026-11-08 12:07 — Scouting top 150: osvježeno 79 rangova (56 + 23 dopuna 12:12), tekst profila bez izmjene; model, prompt, tiket i era NEPROMIJENJENI
 
 *Dopuna 08.11.2026 12:12 (pravilo J2, zapisano 12:10):* prvi upis dao je 26 dvostrukih rangova (npr.

@@ -1160,6 +1160,80 @@ korisniku (kao kod u odabiru, nikad u prompt); razlika ≤ 0 → samo bilježenj
 Snaga: n=30 → ±17pp — probir. Učestalost: ~3% igrača ima stvarnu vijest, pa 30 slučajeva treba
 ~1.000 analiza (realno proljeće 2027.). Model vijesti NE vidi (ključ `gnews`).
 
+### K27 — NOS-ODLUKA u ODLUCI od 08.11.2026 (korisnikova odluka, BEZ kapije) — PRAĆENJE s pragom (08.11.2026 16:43)
+
+**Što ulazi u odluku:**
+
+- `agent/nos_odluka.py` (nos-odluka-v1) pomiče POUZDANOST ZA TIKET najviše ±6 boda. Zbraja
+  naučene težine znakova: nos-ploča + scouting + jak ELO + pojas 1,20–1,35 + jutro + Nose.
+- Smije igrati NAJVIŠE JEDNU nogu na autsajdera ("nos-autsajder"). Uvjeti:
+  - Nose vidi ≥ +5pp na protivniku;
+  - kvota 2,00–3,50;
+  - model ≤ 64;
+  - znakovi protivnika ≥ 0.
+- Težine se uče svako jutro iz zadnjih 120 dana. Ridge λ = 60, predznak iz definicije znaka, strop
+  ±4 po znaku.
+- Prekidači: `NOS_ODLUKA_ON`, `NOS_AUTSAJDER_ON`.
+- Opis i provjera: MODEL_CHANGELOG 08.11.2026 16:38 i `revizije/2026-11-08/IZMJENE_ZA_PREGLED_2026-11-08.md`.
+
+**Zašto bez kapije:** korisnik 08.11.2026: "ne zanima me ako je rezultat slučajan na malom uzorku ...
+nešto danas moramo mijenjati". Pravilo 1 kaže da ulazak odobrava korisnik.
+
+**Što smo znali prije uvođenja** (opis, ne dokaz):
+
+- hod naprijed 27.09.–07.11., bez Claudeova pregleda:
+
+  | inačica | tiketa | dobitnih | ROI | edge nogu |
+  |---|---|---|---|---|
+  | bez nosa | 17 | 5 | +24% | +5,9pp |
+  | odabrana (prozor 120) | 26 | 7 | +62% | +14,3pp |
+  | samo pouzdanost | 26 | 5 | −21% | +8,6pp |
+
+- SVI jedinstveni kandidati za nos-autsajdera: 7 od 25 pogođeno, ROI −28%. Oni koji su ušli na
+  simulirane tikete (najjači u danu) prošli su bolje, 4 od 9;
+- Pariz izvan uzorka (težine do 01.11.): podignuti pickovi 24–11 (−1,6pp), spušteni 5–6 (−9,0pp).
+
+**PRAG PRAĆENJA** (zapisan prije prvog podatka, od 09.11.2026; `measure_candidates.py --only K27`):
+
+- **K27:** usporedba nogu koje je nos DODAO i koje je MAKNUO. Dodao = na tiketu s nosom, ne bi bile
+  bez njega (`nos_odluka.na_tiketu`, `bez_nosa_na_tiketu`). Maknuo = bile bi bez nosa, nisu na tiketu.
+  Kad svaka skupina ima ≥ 40 nogu:
+  - edge(dodao) − edge(maknuo) ≥ +5pp → nos pomaže;
+  - ≤ −5pp → prijedlog korisniku: `NOS_ODLUKA_ON = False`;
+  - između → nejasno, nastavlja.
+- **K27b:** prvih 30 nogu na autsajdera:
+  - edge ≤ −5pp → prijedlog `NOS_AUTSAJDER_ON = False`;
+  - ≥ +5pp → zadržati;
+  - između → nastavlja.
+- **Snaga:** n=40 po skupini → razlika ±21pp; n=30 → ±17pp. To je probir, a ne dokaz. Realno
+  prikupljanje traje do proljeća 2027. (sezona počinje u siječnju).
+
+### K13c — vijest o OZLJEDI protivnika, detektor v3 (08.11.2026 16:41) — KANDIDAT, prag prije podataka
+
+Zamjena za K13b, koji je zagađen: revizija 08.11. (ideja 6) našla je da v2 pripisuje ozljedu krivom
+igraču u 3 od 4 provjerljiva slučaja i da se sprema samo 8 naslova.
+
+**Detektor v3** (`agent/player_news.strict_injury_v3`, `p*_gnews.injury_n3`, svi označeni naslovi u
+`inj_items`):
+
+- naslov s još jednim poznatim igračem ne broji se;
+- kad je naš igrač sam u naslovu, riječ o tijelu broji se bilo gdje;
+- "physiotherapist" nije ozljeda.
+
+Na 10 naslova iz revizije v3 je točan u 10 od 10, a v2 u 4 od 10. To su naslovi na kojima je pravilo
+i nastalo, pa to NIJE dokaz.
+
+**PRAG** (isti kao K13b, zapisan prije ijednog podatka iz v3):
+
+- uzorak: prvih 30 riješenih pickova od 09.11.2026 u kojima protivnik ima `injury_n3 ≥ 1`, poredak
+  (datum, vrijeme analize);
+- edge te skupine ≥ ostali + 5pp → prijedlog;
+- razlika ≤ 0 → samo bilježenje;
+- između → nejasno.
+
+Snaga: n=30 → ±17pp (probir). Mjeri ga `measure_candidates.py --only K13c`. Nos-odluka (K27) znakove
+ozljede od danas čita iz v3: dok se ne skupi barem 8 slučajeva, njihova je težina 0.
+
 ### K25 — TML servis/povrat SAMO GLAVNOG ŽDRIJEBA bolje procjenjuje igrače od karijere svih razina (18.10.2026 17:34) — HIPOTEZA
 
 Naknadni nalaz kritičara pri provjeri prelaska na TML (PRAGOVI_C, "REZULTATI I ODLUKA"): kad se iz

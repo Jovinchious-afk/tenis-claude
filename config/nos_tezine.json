@@ -1,0 +1,173 @@
+{
+ "version": "nos-odluka-v1",
+ "napravljeno": "08.11.2026 16:42",
+ "prozor": {
+  "od": "2026-07-11",
+  "do": "2026-11-08",
+  "dana": 120
+ },
+ "n_pickova": 753,
+ "parametri": {
+  "K": 60.0,
+  "min_n": 8,
+  "strop_znak": 4.0,
+  "strop_ukupno": 6.0
+ },
+ "znakovi": {
+  "novcic": {
+   "n": 230,
+   "ucinak_pp": -0.87,
+   "tezina_pp": 0.0,
+   "vrsta": "mina",
+   "oznaka": "Novčić: kvota 1,65+"
+  },
+  "pojas_135_145": {
+   "n": 101,
+   "ucinak_pp": -2.58,
+   "tezina_pp": -0.77,
+   "vrsta": "mina",
+   "oznaka": "Pojas 1,35–1,45"
+  },
+  "tanki_elo": {
+   "n": 124,
+   "ucinak_pp": 5.64,
+   "tezina_pp": 0.0,
+   "vrsta": "mina",
+   "oznaka": "Tanki ELO (< 50)"
+  },
+  "profil_t1_pick": {
+   "n": 2,
+   "ucinak_pp": -5.41,
+   "tezina_pp": 0.0,
+   "vrsta": "mina",
+   "oznaka": "Pick: elitni povrat + slab servis, dvorana"
+  },
+  "profil_t1_prot": {
+   "n": 14,
+   "ucinak_pp": 18.71,
+   "tezina_pp": 3.72,
+   "vrsta": "prilika",
+   "oznaka": "Protivnik: elitni povrat + slab servis, dvorana"
+  },
+  "prot_domaci": {
+   "n": 100,
+   "ucinak_pp": 4.97,
+   "tezina_pp": 1.75,
+   "vrsta": "prilika",
+   "oznaka": "Protivnik je domaći"
+  },
+  "prot_susjed": {
+   "n": 86,
+   "ucinak_pp": -2.21,
+   "tezina_pp": 0.0,
+   "vrsta": "prilika",
+   "oznaka": "Protivnik je susjed"
+  },
+  "pick_domaci": {
+   "n": 72,
+   "ucinak_pp": 9.0,
+   "tezina_pp": 0.0,
+   "vrsta": "mina",
+   "oznaka": "Pick je domaći"
+  },
+  "mladi_pick": {
+   "n": 92,
+   "ucinak_pp": -4.48,
+   "tezina_pp": -2.34,
+   "vrsta": "mina",
+   "oznaka": "Pick 4+ god. mlađi (R128/R64 ili QF+)"
+  },
+  "pauza_pick": {
+   "n": 16,
+   "ucinak_pp": -15.1,
+   "tezina_pp": -2.91,
+   "vrsta": "mina",
+   "oznaka": "Pick nakon 21+ dan pauze"
+  },
+  "pauza_prot": {
+   "n": 31,
+   "ucinak_pp": -10.61,
+   "tezina_pp": 0.0,
+   "vrsta": "prilika",
+   "oznaka": "Protivnik nakon 21+ dan pauze"
+  },
+  "nose_izbjegavaj": {
+   "n": 24,
+   "ucinak_pp": 19.38,
+   "tezina_pp": 0.0,
+   "vrsta": "mina",
+   "oznaka": "Nose: IZBJEGAVAJ"
+  },
+  "nose_upozorenje": {
+   "n": 42,
+   "ucinak_pp": -8.04,
+   "tezina_pp": -4.0,
+   "vrsta": "mina",
+   "oznaka": "Nose: UZ UPOZORENJE"
+  },
+  "nocna": {
+   "n": 164,
+   "ucinak_pp": 8.0,
+   "tezina_pp": 3.8,
+   "vrsta": "opis",
+   "oznaka": "Noćna sesija"
+  },
+  "ozljeda_pick_v3": {
+   "n": 0,
+   "ucinak_pp": null,
+   "tezina_pp": 0.0,
+   "vrsta": "mina",
+   "oznaka": "Pick: vijest o ozljedi (detektor v3)"
+  },
+  "ozljeda_prot_v3": {
+   "n": 0,
+   "ucinak_pp": null,
+   "tezina_pp": 0.0,
+   "vrsta": "prilika",
+   "oznaka": "Protivnik: vijest o ozljedi (detektor v3)"
+  },
+  "scout_jak": {
+   "n": 352,
+   "ucinak_pp": 0.85,
+   "tezina_pp": 1.04,
+   "vrsta": "prilika",
+   "oznaka": "Pick: scouting High/Med-High"
+  },
+  "elo_jak": {
+   "n": 247,
+   "ucinak_pp": 10.84,
+   "tezina_pp": 3.97,
+   "vrsta": "prilika",
+   "oznaka": "ELO na podlozi +150 ili više"
+  },
+  "pojas_120_135": {
+   "n": 148,
+   "ucinak_pp": 9.87,
+   "tezina_pp": 4.0,
+   "vrsta": "prilika",
+   "oznaka": "Pojas 1,20–1,35"
+  },
+  "jutro": {
+   "n": 123,
+   "ucinak_pp": -7.04,
+   "tezina_pp": -4.0,
+   "vrsta": "mina",
+   "oznaka": "Jutarnji meč (< 13 h)"
+  },
+  "nose_plus": {
+   "n": 45,
+   "ucinak_pp": -5.07,
+   "tezina_pp": 0.0,
+   "vrsta": "prilika",
+   "oznaka": "Nose daje strani 5pp+ više od cijene"
+  },
+  "nose_minus": {
+   "n": 53,
+   "ucinak_pp": 3.54,
+   "tezina_pp": 0.0,
+   "vrsta": "mina",
+   "oznaka": "Nose daje strani 5pp+ manje od cijene"
+  }
+ },
+ "slobodni_clan_pp": -4.26
+}

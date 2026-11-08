@@ -341,7 +341,12 @@ def compute(rec: dict) -> dict:
         for sid, x in (("ozljeda_pick", a), ("ozljeda_prot", b)):
             g = cs.get(f"{x}_gnews")
             v = _num(g.get("injury_n2")) if isinstance(g, dict) and "injury_n2" in g else None
-            put(sid, (v >= 1) if v is not None else None, f"{v:.0f} naslova" if v else "")
+            # 08.11.2026 (revizija, ideja 6): uz broj i SAM naslov, da se oznaka može provjeriti (od danas
+            # se spremaju svi označeni naslovi, `inj_items`). Definicija znaka (v2) se NE mijenja.
+            naslov = next((it.get("t") for it in (g.get("inj_items") or []) if it.get("inj2")),
+                          None) if isinstance(g, dict) else None
+            put(sid, (v >= 1) if v is not None else None,
+                (f"{v:.0f} naslova" + (f": „{str(naslov)[:90]}“" if naslov else "")) if v else "")
         # 13–14 pauza 21+ dan
         for sid, x in (("pauza_pick", a), ("pauza_prot", b)):
             d = _num(cs.get(f"{x}_days_rest"))

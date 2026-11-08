@@ -109,7 +109,18 @@ def _nos_ploca_line(tournament: str, p1: str, p2: str, match_date: str, pick: st
                    "surface,tournament,round,match_date,context_snapshot")
         if not r:
             return ""
-        return _np.opis(_np.board_for_pick(r, pick))
+        line = _np.opis(_np.board_for_pick(r, pick))
+        # 08.11.2026 (nos-odluka, korisnikova odluka): što je nos odlučio za taj pick
+        no = ((r.get("context_snapshot") or {}).get("nos_odluka") or {})
+        if no.get("ocjena") is not None and not no.get("error"):
+            dop = ", ".join(f"{s} {w:+.1f}" for s, w in no.get("doprinosi") or [])
+            line += (f"\n\n🧭 Nos-odluka: {no.get('odluka')} — pouzdanost modela {no.get('conf_model'):.0f} → "
+                     f"za tiket {no.get('conf_tiket'):.0f}" + (f" ({dop})" if dop else ""))
+            au = no.get("autsajder") or {}
+            if au.get("igrac"):
+                line += (f" · nos-autsajder: {au['igrac']} @{au.get('kvota')} "
+                         f"(Nose +{au.get('prednost_pp')}pp naspram cijene)")
+        return line
     except Exception:
         return ""
 
@@ -344,6 +355,70 @@ with st.expander("🐽 Nos-ploča — svi znakovi, razina dokaza i kako su dosad
         st.markdown("\n".join(_rows_tab))
     except Exception as _e_tab:
         st.caption(f"Nos-ploča trenutno nije dostupna ({str(_e_tab)[:60]}).")
+
+# NOS-ODLUKA (08.11.2026, korisnikova odluka "nos mora dobiti moć odluke"): težine koje danas vrijede.
+# GitHub ih uči svako jutro prije dnevnog runa; ovdje se prikazuje spremljena `config/nos_tezine.json`.
+with st.expander("🧭 Nos-odluka — težine znakova koje pomiču pouzdanost za tiket (najviše ±6 boda)"):
+    try:
+        from agent import nos_odluka as _no_tab
+        _tz = _no_tab.ucitaj_tezine()
+        if not _tz:
+            st.caption("Težine nisu dostupne — nos šuti (tiket po starom).")
+        else:
+            st.caption(f"Naučeno {_tz.get('napravljeno')} na {_tz.get('n_pickova')} riješenih pickova "
+                       f"({_tz['prozor']['od']} – {_tz['prozor']['do']}). Uveden 08.11.2026 BEZ kapije, na tvoj "
+                       "zahtjev; mina smije samo oduzimati, prilika samo dodavati, strop ±4 po znaku.")
+            _rows_no = ["| znak | vrsta | pickova | učinak zasebno | težina |", "|---|---|---|---|---|"]
+            for _s, _z in sorted(_tz["znakovi"].items(), key=lambda kv: -abs(kv[1]["tezina_pp"])):
+                _u = "–" if _z.get("ucinak_pp") is None else f"{_z['ucinak_pp']:+.1f}pp"
+                _rows_no.append(f"| {_z['oznaka']} | {_z['vrsta']} | {_z['n']} | {_u} | {_z['tezina_pp']:+.1f} |")
+            st.markdown("\n".join(_rows_no))
+    except Exception as _e_no:
+        st.caption(f"Nos-odluka trenutno nije dostupna ({str(_e_no)[:60]}).")
+
+
+# AUTSAJDERI PO RUNDI (08.11.2026, revizija 08.11., ideja 9 / P5 — korisnikova želja "pratiti"): koliko
+# je autsajdera prošlo u svakoj rundi naspram onoga što je kvota očekivala, od kad su runde ručne
+# (26.09.2026). Samo prikaz: povijest (12.436 mečeva) kaže da kvota to već zna (±1–2pp po rundi).
+@st.cache_data(ttl=3600, show_spinner=False)
+def _runde_tablica() -> list:
+    try:
+        rows = db.get_rows_for_nos_ploca(resolved_only=True) or []
+    except Exception:
+        return []
+    acc = {}
+    for r in rows:
+        if str(r.get("match_date") or "")[:10] < "2026-09-26":
+            continue
+        rd = str(r.get("round") or "").strip().upper()
+        try:
+            o1, o2 = float(r.get("bookmaker_odds_p1") or 0), float(r.get("bookmaker_odds_p2") or 0)
+        except (TypeError, ValueError):
+            continue
+        if rd not in ("R128", "R64", "R32", "R16", "QF", "SF", "F") or o1 <= 1 or o2 <= 1 or o1 == o2:
+            continue
+        q1 = (1 / o1) / (1 / o1 + 1 / o2)
+        p1_won = (r.get("predicted_winner") == r.get("player1")) == bool(r.get("prediction_correct"))
+        dog_is_p1 = q1 < 0.5
+        a = acc.setdefault(rd, [0, 0, 0.0])
+        a[0] += 1
+        a[1] += 1 if (p1_won == dog_is_p1) else 0
+        a[2] += min(q1, 1 - q1)
+    return [(rd, *acc[rd]) for rd in ("R128", "R64", "R32", "R16", "QF", "SF", "F") if rd in acc]
+
+
+with st.expander("📊 Autsajderi po rundi — koliko ih prolazi naspram onoga što kvota očekuje (od 26.09.2026)"):
+    _rt = _runde_tablica()
+    if not _rt:
+        st.caption("Nema riješenih mečeva s ručnom rundom.")
+    else:
+        st.caption("Povijest (12.436 mečeva, revizija 08.11.2026): autsajderi u svakoj rundi prolaze koliko "
+                   "kvota kaže (±1–2pp). Znati KOLIKO ih prođe ne govori KOJI.")
+        _rows_rt = ["| runda | mečeva | autsajder prošao | kvota očekivala | razlika |", "|---|---|---|---|---|"]
+        for _rd, _n, _w, _e in _rt:
+            _rows_rt.append(f"| {_rd} | {_n} | {_w} ({100 * _w / _n:.0f}%) | {_e:.1f} ({100 * _e / _n:.0f}%) | "
+                            f"{100 * (_w - _e) / _n:+.1f}pp |")
+        st.markdown("\n".join(_rows_rt))
 
 # ── VIJESTI O IGRACIMA S LISTICA (13.09.2026 11:55) ─────────────────────────────
 #

@@ -1875,7 +1875,12 @@ def analyze_match(match: dict, p1_data: dict, p2_data: dict, h2h: dict, weights:
             # agent/player_news.py) — SAMO ZA MJERENJE K13. Prompt i `rules_hash` se NE
             # mijenjaju: model ove vijesti ne vidi (kljuc je `gnews`, prompt cita `news`).
             # Neuspjeh dohvata je {"error": ...}, ne prazno. Mjerenje K13 rezati po v >= 23.
-            "context_version": 23,
+            # v24 (08.11.2026 12:39, revizija 08.11. + korisnikova nos-odluka): `run_daily` dopisuje `h2h`
+            # (RapidAPI H2H koji model vidi — do danas se nije spremao, 4 od 21 tvrdnji "nema
+            # susreta" bile su krive), `odds_margin_pct` (marža screenshot kvota; 6% parova bez
+            # marže) i `nos_odluka`; vijesti nose i `injury_n3`/`inj_items` (detektor v3). Prompt
+            # i `rules_hash` se NE mijenjaju. Nos-odluku i K13c rezati po v >= 24.
+            "context_version": 24,
             "p1_gnews": p1.get("gnews") or None,
             "p2_gnews": p2.get("gnews") or None,
             "p1_ctx": p1.get("ctx") or None,

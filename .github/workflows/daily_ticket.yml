@@ -45,6 +45,18 @@ jobs:
           python scripts/update_tml_form.py --preuzmi --izlaz="$RUNNER_TEMP/tml_forma_12m.json" \
             && echo "TML_FORMA_PATH=$RUNNER_TEMP/tml_forma_12m.json" >> "$GITHUB_ENV"
 
+      # NOS UČI (08.11.2026, korisnikova odluka "nos mora dobiti moć odluke"): težine znakova nos-odluke iz
+      # svih RIJEŠENIH pickova zadnjih 120 dana (agent/nos_odluka.py, scripts/nos_tezine.py). Samo čita bazu,
+      # bez plaćenih poziva. Ako korak ne uspije, run čita spremljenu config/nos_tezine.json.
+      - name: Nose learns (nos-odluka weights)
+        continue-on-error: true
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          python scripts/nos_tezine.py --izlaz="$RUNNER_TEMP/nos_tezine.json" \
+            && echo "NOS_TEZINE_PATH=$RUNNER_TEMP/nos_tezine.json" >> "$GITHUB_ENV"
+
       - name: Generate daily ticket
         env:
           # Ukljuceno 08.08.2026 11:35. Bez toga Python puferira stdout pa se ispis

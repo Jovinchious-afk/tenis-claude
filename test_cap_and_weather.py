@@ -433,8 +433,8 @@ for f in ("p1_serve_pts_won", "p1_hold_pct", "p1_hold_pct_from_bp", "p1_return_w
           "p1_return_won_weighted", "p1_bp_saved", "p1_bp_converted", "p1_first_serve_pct",
           "bp_in_prompt"):
     check(f"snapshot biljezi {f}", f'"{f}"' in _all)
-check("context_version podignut na 23 (v17 27.08., v18/v19 13.09., v20 19.09., v21/v22 26.09., v23 27.09.)",
-      '"context_version": 23' in _all)
+check("context_version podignut na 24 (v17 27.08., v18/v19 13.09., v20 19.09., v21/v22 26.09., v23 27.09., v24 08.11.)",
+      '"context_version": 24' in _all)
 
 # (e) nove vrijednosti ne smiju procuriti u prompt template
 check("prompt template nema novih polja",
@@ -547,7 +547,7 @@ _wf2 = open(".github/workflows/daily_ticket.yml", encoding="utf-8").read()
 
 # A — bez utjecaja na pickove
 check("ELO se biljezi u snapshot", '"p1_elo_overall"' in _prsrc and '"elo_gap_surface"' in _prsrc)
-check("context_version podignut na 23", '"context_version": 23' in _prsrc)
+check("context_version podignut na 24", '"context_version": 24' in _prsrc)
 check("broj protivnika u avg_opp_elo se biljezi", "_avg_opponent_elo_n" in _rd2)
 check("PYTHONUNBUFFERED aktiviran", 'PYTHONUNBUFFERED: "1"' in _wf2)
 check("hard okidac vise ne vristi na 30", "_HARD_NEXT_TRIGGER = 180" in _rd2)
@@ -699,7 +699,7 @@ check("stara zabrana oslanjanja na kvotu i dalje stoji",
 check("nova polja u JSON shemi",
       '"above_64_basis"' in _FULL_PROMPT
       and '"market_check"' in _FULL_PROMPT)
-check("context_version podignut na 23", '"context_version": 23' in _all2)
+check("context_version podignut na 24", '"context_version": 24' in _all2)
 
 print("\n=== 22. Runde na razini TURNIRA (13.08.2026) ===")
 print("  (uklonjeno 26.09.2026 17:04 — runda je rucni unos, vidi odjeljak 44)")
@@ -1744,7 +1744,7 @@ check("rules_hash je i dalje era 6ca9a0ab (mijenjaju se VRIJEDNOSTI, ne predloza
       _h39 == _ERA_RULES_HASH, _h39)
 
 # --- (i) context_snapshot v18 biljezi ODAKLE svaka vrijednost dolazi ---
-check("context_version podignut na 23", '"context_version": 23' in _prsrc39)
+check("context_version podignut na 24", '"context_version": 24' in _prsrc39)
 check("biljezi se round_source", '"round_source"' in _prsrc39)
 check("biljezi se izvor gradje za oba igraca",
       '"p1_build_source"' in _prsrc39 and '"p2_build_source"' in _prsrc39)
@@ -2489,7 +2489,7 @@ check("asovi se biljeze iz aces_per_game pod novim imenom",
 check("stari uvijek-nulti kljuc p1_aces se vise ne pise", '"p1_aces":' not in _src48)
 check("visina/tezina: prazno ostaje prazno (None, ne 0)",
       '"p1_height_cm": (safe_float(' in _src48 and _src48.count(") or None),") >= 4)
-check("context_version je 23 (v23 27.09.2026 11:53)", '"context_version": 23,' in _src48)
+check("context_version je 24 (v23 27.09.2026 11:53, v24 08.11.2026)", '"context_version": 24,' in _src48)
 
 # --- nova era prompta ----------------------------------------------------------------
 check("asovi u promptu oznaceni kao 'per 100 serve pts'",
@@ -2708,7 +2708,7 @@ check("dnevni run puni gnews za oba igraca",
       '"gnews": p1_gnews' in _rdsrc49 and '"gnews": p2_gnews' in _rdsrc49
       and "pn.player_news(match.get(\"player1\")" in _rdsrc49)
 check("prompt koristi samo 'news', nikad 'gnews'",
-      'p1_news=p1.get("news"' in _prsrc49 and 'p1.get("gnews")' not in _prsrc49.split('"context_version": 23')[0])
+      'p1_news=p1.get("news"' in _prsrc49 and 'p1.get("gnews")' not in _prsrc49.split('"context_version": 24')[0])
 
 print("\n=== 50. Intuicija u sjeni (27.09.2026 12:30) — uci iz podataka, NE dira izbor ===")
 import numpy as _np50
@@ -3010,9 +3010,11 @@ check("Nose: K24 trazi i kontrolu pojasa cijene", _g1a.get("band_diff") is not N
 
 # --- C. Nose je U SJENI: racuna se nakon tiketa, tiket ga ne cita ---
 _rd52 = io.open("agent/run_daily.py", encoding="utf-8").read()
-check("run_daily: Nose se racuna NAKON slaganja tiketa i nakon Intuicije",
-      _rd52.find("_nose.shadow(pred") > _rd52.find("ticket = build_ticket(")
-      and _rd52.find("_nose.shadow(pred") > _rd52.find("_int.shadow_scores(pred"))
+# 08.11.2026: od nos-odluke (korisnikova odluka) Nose se računa PRIJE slaganja tiketa, nakon analize,
+# jer ga čita `agent/nos_odluka.py`; Intuicija i dalje ide NAKON tiketa (ne smije utjecati na izbor).
+check("run_daily: Nose se računa nakon analize i PRIJE slaganja tiketa (nos-odluka, 08.11.2026)",
+      _rd52.find("predictions = analyze_matches_batch(") < _rd52.find("_nose.shadow(pred")
+      < _rd52.find("ticket = build_ticket(") < _rd52.find("_int.shadow_scores(pred"))
 check("run_daily: Nose se upisuje samo u context_snapshot['nose']",
       'pred["context_snapshot"]["nose"] = _n' in _rd52)
 _tb52 = io.open("agent/ticket_builder.py", encoding="utf-8").read()
@@ -3070,8 +3072,8 @@ check("Nose: i s TML-om faza A ne ovisi o kvoti", _n53["frozen"] == _n53c["froze
 check("Nose: opis kaže koji je izvor servisa/povrata", "TML zadnjih 12 mjeseci" in _ns.describe(_n53))
 check("Nose: usporedna karijerna varijanta postoji", "p_own" in _ns.shadow_karijera(_cp52.deepcopy(_pred52)))
 _rd53 = io.open("agent/run_daily.py", encoding="utf-8").read()
-check("run_daily: TML se bilježi NAKON tiketa i prije Nosea",
-      _rd53.find("ticket = build_ticket(") < _rd53.find('_cs["p1_tml12"]') < _rd53.find("_nose.shadow(pred, tml="))
+check("run_daily: TML se bilježi prije Nosea, a oba PRIJE tiketa (nos-odluka, 08.11.2026)",
+      _rd53.find('_cs["p1_tml12"]') < _rd53.find("_nose.shadow(pred, tml=") < _rd53.find("ticket = build_ticket("))
 check("run_daily: biljezi se i karijerna varijanta Nosea", '["nose_karijera"]' in _rd53)
 check("prompt NE čita TML (predictor ga ne spominje)",
       "tml_forma" not in io.open("agent/predictor.py", encoding="utf-8").read())
@@ -3351,6 +3353,147 @@ check("K26: analize bez spremljene ploče (prije 02.11.) se ne broje",
       "ishod 0/150" in {lab.strip(): st for lab, n, e, st in _mc55.k26(
           [dict(x, nos_saved=False) for x in _syn55], lines=[])}.get("Tanki ELO: razlika na podlozi < 50", ""))
 check("rules_hash netaknut nakon nos-ploče", _pr._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
+
+print("\n=== 56. Nos-odluka (08.11.2026) — nos dobiva pravo odluke (korisnikova odluka) ===")
+from agent import nos_odluka as _no56
+from agent import ticket_builder as _tb56
+from agent import player_news as _pn56
+import config.model_config as _mc56
+
+
+def _pred56(p1="Ana Bel", p2="Cid Dor", pick=None, conf=61.0, o1=1.30, o2=3.40, extra_cs=None,
+            surface="Indoor Hard", rnd="R32", date="2026-11-09"):
+    cs = {"p1_nationality": "USA", "p2_nationality": "FRA", "p1_elo_surface": 1900, "p2_elo_surface": 1700,
+          "p1_return_won": 40, "p2_return_won": 40, "p1_serve_pts_won": 65, "p2_serve_pts_won": 64,
+          "p1_age": 25, "p2_age": 26, "p1_days_rest": 3, "p2_days_rest": 3, "session": "night",
+          "local_time": "19:30", "p1_scouting_confidence": "High", "p2_scouting_confidence": "Med",
+          "nose": {"version": "nose-v1", "ticket_suitability": "UKLJUČI",
+                   "vs_market": {"diff_pp": -1.0, "p_market": 0.72, "opp_value": False},
+                   "upset_value": {"p_own_opp": 0.30}}}
+    cs.update(extra_cs or {})
+    m = {"player1": p1, "player2": p2, "odds_p1": o1, "odds_p2": o2, "odds_available": True,
+         "tournament": "Stockholm Open - Stockholm", "round": rnd, "surface": surface, "level": "ATP 250",
+         "date": date}
+    return {"pick": pick or p1, "confidence": conf, "fair_odds": round(100 / conf, 3), "match": m,
+            "context_snapshot": cs, "value": False, "risk_level": "srednji", "risk_notes": "", "key_factors": []}
+
+
+_T56 = {"version": _no56.VERSION, "napravljeno": "test",
+        "znakovi": {"elo_jak": {"tezina_pp": 3.0}, "scout_jak": {"tezina_pp": 2.5}, "nocna": {"tezina_pp": 2.0},
+                    "jutro": {"tezina_pp": -3.0}, "novcic": {"tezina_pp": -3.5}}}
+_p56 = _pred56()
+_z56 = _no56.znakovi(_tb56 and __import__("agent.nos_ploca", fromlist=["x"]).rec_from_pred(_p56))
+check("nos: znakovi picka (jak ELO, jak scouting, noć, pojas 1,20–1,35)",
+      all(s in _z56["aktivni"] for s in ("elo_jak", "scout_jak", "nocna", "pojas_120_135"))
+      and "jutro" not in _z56["aktivni"], str(_z56))
+_zo56 = _no56.znakovi(__import__("agent.nos_ploca", fromlist=["x"]).rec_from_pred(_p56), za_igraca="Cid Dor")
+check("nos: znakovi protivnika gledaju NJEGOVU stranu (nema jakog ELO-a ni scoutinga)",
+      "elo_jak" not in _zo56["aktivni"] and "scout_jak" not in _zo56["aktivni"], str(_zo56))
+_s56, _d56 = _no56.ocjena(_z56["aktivni"], _T56)
+check("nos: ukupna ocjena ima strop ±6 boda", _s56 == _no56.STROP_UKUPNO, str((_s56, _d56)))
+_ps56 = [_pred56()]
+_no56.primijeni(_ps56, _T56)
+check("nos: pouzdanost ZA TIKET = model + ocjena (61 -> 67), model se čuva",
+      _ps56[0]["confidence"] == 67.0 and _ps56[0]["_nos_model"]["confidence"] == 61.0
+      and _ps56[0]["context_snapshot"]["nos_odluka"]["odluka"] == "POTVRDI")
+_no56.vrati_model(_ps56)
+check("nos: vrati_model vraća modelovu pouzdanost prije upisa u bazu",
+      _ps56[0]["confidence"] == 61.0 and "_nos_model" not in _ps56[0]
+      and _ps56[0]["context_snapshot"]["nos_odluka"]["conf_tiket"] == 67.0)
+_ps56b = [_pred56(extra_cs={"session": "day", "local_time": "11:00"}, o1=1.75, o2=2.05)]
+_ps56b[0]["context_snapshot"]["p1_elo_surface"] = 1720
+_ps56b[0]["context_snapshot"]["p1_scouting_confidence"] = "Med"
+_no56.primijeni(_ps56b, _T56)
+check("nos: jutarnji novčić slabi pick (−3,5 −3,0 = −6,5 -> strop −6: 61 -> 55)",
+      _ps56b[0]["confidence"] == 55.0 and _ps56b[0]["context_snapshot"]["nos_odluka"]["odluka"] == "OSLABI",
+      str(_ps56b[0]["context_snapshot"]["nos_odluka"]))
+# učenje: predznak iz definicije, strop, najmanji n
+_rows56 = ([{"aktivni": ["elo_jak"], "nedostaje": [], "win": 1.0 if i % 5 else 0.0, "p": 0.6, "date": "2026-11-01"}
+            for i in range(100)]
+           + [{"aktivni": ["pick_domaci"], "nedostaje": [], "win": 1.0, "p": 0.6, "date": "2026-11-01"} for _ in range(50)]
+           + [{"aktivni": ["prot_susjed"], "nedostaje": [], "win": 1.0, "p": 0.6, "date": "2026-11-01"} for _ in range(5)]
+           + [{"aktivni": [], "nedostaje": [], "win": 1.0 if i % 2 else 0.0, "p": 0.6, "date": "2026-11-01"}
+              for i in range(200)])
+_l56 = _no56.nauci(_rows56, danas="2026-11-09")
+check("nos uči: znak 'prilika' s pozitivnim učinkom dobiva težinu, uz strop",
+      0 < _l56["znakovi"]["elo_jak"]["tezina_pp"] <= _no56.STROP_ZNAK, str(_l56["znakovi"]["elo_jak"]))
+check("nos uči: 'mina' koja je slučajno pomagala NE dobiva pozitivnu težinu (predznak iz definicije)",
+      _l56["znakovi"]["pick_domaci"]["tezina_pp"] == 0.0, str(_l56["znakovi"]["pick_domaci"]))
+check("nos uči: znak s manje od MIN_N pickova ima težinu 0", _l56["znakovi"]["prot_susjed"]["tezina_pp"] == 0.0)
+check("nos uči: stariji od prozora se ne broje",
+      _no56.nauci([dict(r, date="2026-01-01") for r in _rows56], danas="2026-11-09")["n_pickova"] == 0)
+# nos-autsajder
+_pd56 = _pred56(conf=61.0, o1=1.55, o2=2.50,
+                extra_cs={"nose": {"version": "nose-v1", "ticket_suitability": "UKLJUČI",
+                                   "vs_market": {"diff_pp": -10.0, "p_market": 0.62, "opp_value": True},
+                                   "upset_value": {"p_own_opp": 0.48}}})
+_rec56 = __import__("agent.nos_ploca", fromlist=["x"]).rec_from_pred(_pd56)
+_f56, _i56 = _no56._autsajder(_pd56, _rec56, {"version": _no56.VERSION, "znakovi": {}}, 61.0)
+check("nos-autsajder: Nose +10pp na protivniku, kvota 2,50, model 61 -> kandidat",
+      bool(_f56) and _f56["pick"] == "Cid Dor" and _f56["nos_autsajder"] and _f56["confidence"] == 48.0, str(_i56))
+check("nos-autsajder: model uvjeren (66) -> nema kandidata",
+      _no56._autsajder(_pd56, _rec56, {"version": _no56.VERSION, "znakovi": {}}, 66.0)[0] is None)
+_pd56c = _cp49.deepcopy(_pd56) if "_cp49" in globals() else __import__("copy").deepcopy(_pd56)
+_pd56c["match"]["odds_p2"] = 4.20
+check("nos-autsajder: kvota izvan 2,00–3,50 -> nema kandidata",
+      _no56._autsajder(_pd56c, __import__("agent.nos_ploca", fromlist=["x"]).rec_from_pred(_pd56c),
+                       {"version": _no56.VERSION, "znakovi": {}}, 61.0)[0] is None)
+_pz56 = [__import__("copy").deepcopy(_pd56)]
+check("nos bez težina šuti u potpunosti: pouzdanost ista, nema autsajdera",
+      _no56.primijeni(_pz56, {}) == [] and _pz56[0]["confidence"] == 61.0)
+_dc56 = dict(_f56, match=dict(_f56["match"], level="Davis Cup"))
+_cfg56 = dict(_mc56.TICKET_CONFIG)
+check("nos-autsajder: Davis Cup nikad na tiket (isto pravilo kao ostale noge)",
+      _tb56._nos_autsajder_u_tiket(None, [_pred56(p1=f"Za{i} X", p2=f"Zb{i} Y", conf=70.0, o1=1.25, o2=4.0)
+                                          for i in range(3)], [_dc56], _cfg56) is None)
+_fav56 = [_pred56(p1=f"Fa{i} X", p2=f"Fb{i} Y", conf=66.0 + i, o1=o, o2=2.6) for i, o in enumerate((1.70, 1.80, 1.65))]
+_t56 = _tb56._nos_autsajder_u_tiket(list(_fav56), _fav56, [_f56], _cfg56)
+check("nos-autsajder: zamjenjuje NAJSLABIJU nogu (broj nogu isti, autsajder na tiketu)",
+      len(_t56) == 3 and any(p.get("nos_autsajder") for p in _t56) and _fav56[0] not in _t56, str([p["pick"] for p in _t56]))
+_same56 = _pred56(conf=64.0, o1=1.55, o2=2.50)
+_t56b = _tb56._nos_autsajder_u_tiket([_fav56[1], _fav56[2], _same56], _fav56, [_f56], _cfg56)
+check("nos-autsajder: isti meč na tiketu -> noga se OKREĆE na autsajdera",
+      _same56 not in _t56b and any(p.get("nos_autsajder") for p in _t56b) and len(_t56b) == 3)
+_short56 = [_pred56(p1=f"Sa{i} X", p2=f"Sb{i} Y", conf=70.0, o1=o, o2=4.0) for i, o in enumerate((1.20, 1.25, 1.30))]
+_t56c = _tb56._nos_autsajder_u_tiket(None, _short56, [_f56], _cfg56)
+check("nos-autsajder: dan bez tiketa (favoriti 1,95) -> složi tiket s autsajderom (kvota 4+)",
+      bool(_t56c) and any(p.get("nos_autsajder") for p in _t56c)
+      and _tb56.combined_odds([_tb56._pick_odds(p) for p in _t56c]) >= _cfg56["min_combined_odds"])
+_big56 = [_pred56(p1=f"Ba{i} X", p2=f"Bb{i} Y", conf=66.0, o1=1.9, o2=1.9) for i in range(6)]
+check("nos-autsajder: ne stane u pravila (kvota > 50, max 6 nogu) -> tiket ostaje isti",
+      _tb56._nos_autsajder_u_tiket(list(_big56), _big56, [_f56], _cfg56) == _big56)
+# analysis-only popis, vijesti v3, ugradnja
+import inspect as _in56
+check("popis 'samo analiza': prvo pickovi na pragu 63+, po pouzdanosti (ne po kvoti)",
+      '(p.get("confidence") or 0) >= _floor' in _in56.getsource(_tb56.build_analysis_only_ticket))
+_v3cases56 = [
+    ("Taylor Fritz Advances After Injury Forces Arthur Fils To Quit - NDTV Sports", "Taylor Fritz", False),
+    ("Race to Turin, daily: Jodar wins, Cobolli pulls out and five contenders play to survive", "Rafael Jodar", False),
+    ("Holger Rune Beats Quentin Halys After 11-Month Injury Layoff At Swiss Indoors Basel", "Quentin Halys", False),
+    ("Rune withdraws from Brussels due to injury: 'Really annoying and unfortunate timing'", "Holger Rune", True),
+    ("All is Fine: Arthur Fils Cleared to Play in Paris Despite Injury Scare", "Arthur Fils", True),
+    ("Carlos Alcaraz's physiotherapist shares details of late-night recovery in Paris", "Carlos Alcaraz", False),
+]
+check("detektor ozljeda v3: 6 naslova iz revizije 08.11. (krivi igrač, fizioterapeut, Fils)",
+      all(bool(_pn56.strict_injury_v3(t, n)) == e for t, n, e in _v3cases56),
+      str([(n, _pn56.strict_injury_v3(t, n)) for t, n, e in _v3cases56]))
+_rss56 = ("<rss><channel><item><title>Rune withdraws from Brussels due to injury</title>"
+          "<pubDate>Sat, 07 Nov 2026 10:00:00 GMT</pubDate><source>X</source></item></channel></rss>").encode()
+_g56 = _pn56.parse_feed(_rss56, "2026-11-08", name="Holger Rune")
+check("vijesti: injury_n3 i SVI označeni naslovi (inj_items) se spremaju; v2 netaknut",
+      _g56.get("injury_n3") == 1 and len(_g56.get("inj_items") or []) == 1 and _g56.get("inj_v") == 2)
+_rd56 = open("agent/run_daily.py", encoding="utf-8").read()
+check("dnevni run: nos-odluka PRIJE tiketa, nos-autsajder ide u build_ticket",
+      _rd56.find("_no.primijeni(predictions") < _rd56.find("ticket = build_ticket(")
+      and "nos_autsajderi=_nos_autsajderi" in _rd56)
+check("dnevni run: modelova pouzdanost se vraća PRIJE upisa u bazu",
+      _rd56.find("_no.vrati_model(predictions)") < _rd56.find("# 9. Spremi u Supabase"))
+check("dnevni run: H2H i marža kvota idu u snapshot",
+      '_cs["h2h"] = ' in _rd56 and '_cs["odds_margin_pct"]' in _rd56 and "Kvote bez marže" in _rd56)
+check("config: prekidači NOS_ODLUKA_ON i NOS_AUTSAJDER_ON postoje",
+      hasattr(_mc56, "NOS_ODLUKA_ON") and hasattr(_mc56, "NOS_AUTSAJDER_ON"))
+check("rules_hash netaknut nakon nos-odluke (prompt nije diran)",
+      _pr._model_stamp("hard")["rules_hash"] == _ERA_RULES_HASH)
 
 print("\n" + "=" * 60)
 if _fails:

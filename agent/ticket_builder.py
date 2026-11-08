@@ -443,21 +443,13 @@ def _selection_ok(p) -> bool:
             and _both_declining_ok(p) and _clay_fatigue_ok(p))
 
 
-def build_ticket(predictions: list, weights: dict, min_odds_override: float = None) -> Optional[dict]:
-    """
-    Ulaz: lista predikcija iz predictor.analyze_match()
-    Izlaz: optimalni tiket dict s matches, odds, summary
+def _select_combo(predictions: list, cfg: dict, nos_autsajderi: list = None):
+    """Izbor kombinacije BEZ Claudeova pregleda i sažetka -> (best_combo ili None, candidates).
 
-    Strategija (quality-first):
-    - Primarni kriterij: statistička kvaliteta (confidence + value)
-    - Sekundarni: combined odds mora biti 6-20 (nije cilj, samo filter)
-    - Challengeri se ne stavljaju na tiket
-    - Kaskadni fallback — uvijek generiraj tiket, nikad ne odustaj
+    IZDVOJENO iz `build_ticket` 08.11.2026 12:37 (nos-odluka, korisnikova odluka 08.11.2026) da se ista
+    logika može pozvati i za usporedbu "što bi tiket bio bez nosa" (`run_daily`, bez plaćenih poziva).
+    Tijelo je premješteno bez izmjene; novo je samo `nos_autsajderi` na kraju (`_nos_autsajder_u_tiket`).
     """
-    cfg = dict(TICKET_CONFIG)
-    if min_odds_override is not None:
-        cfg["min_combined_odds"] = min_odds_override
-
     # ── Selekcijska disciplina (SVE podloge) + value-override ───────────────
     # Naslov je do 07.08.2026 glasio "Grass + clay" — zaostatak iz doba prije 18.07., kad je
     # floor prosiren i na hard. `_needs_conf_floor` pokriva sve tri podloge.
@@ -620,13 +612,121 @@ def build_ticket(predictions: list, weights: dict, min_odds_override: float = No
         if best_combo:
             print("Tiket složen s riskantijim pickovima — prihvaćamo veći rizik.")
 
+    # NOS-AUTSAJDER (08.11.2026 12:37, korisnikova odluka 08.11.2026): najviše JEDNA noga na autsajdera kad
+    # ga nos predloži (`agent/nos_odluka._autsajder`). Ide i na dane kad favoriti sami ne slože kvotu 4+.
+    if nos_autsajderi:
+        best_combo = _nos_autsajder_u_tiket(best_combo, candidates, nos_autsajderi, cfg)
+    return best_combo, candidates
+
+
+def _match_key(p) -> frozenset:
+    m = p.get("match", {}) or {}
+    return frozenset([str(m.get("player1") or "").lower(), str(m.get("player2") or "").lower()])
+
+
+def _combo_rules_ok(combo, cfg: dict) -> bool:
+    """Ista tvrda pravila kao u `_find_best_combination` (broj nogu, raspon kvote, zone)."""
+    if not (cfg["min_matches"] <= len(combo) <= cfg["max_matches"]):
+        return False
+    if any(_pick_odds(p) < 1.06 for p in combo):
+        return False
+    odds = combined_odds([_pick_odds(p) for p in combo])
+    if odds < cfg["min_combined_odds"] or odds > cfg["max_combined_odds"]:
+        return False
+    if len({_match_key(p) for p in combo}) < len(combo):
+        return False
+    return (_clay_dead_zone_count(combo) <= _CLAY_DEAD_ZONE_MAX
+            and _hard_caution_zone_count(combo) <= _HARD_CAUTION_ZONE_MAX)
+
+
+def _nos_autsajder_u_tiket(best_combo, candidates: list, dogs: list, cfg: dict):
+    """Ubaci NAJVIŠE JEDNOG nos-autsajdera (08.11.2026 12:37, korisnikova odluka 08.11.2026).
+
+    Bira kandidata s najvećom Noseovom prednošću naspram cijene. Pravila:
+      - meč tog autsajdera je već na tiketu (naš pick) -> nos preuzima odluku: noga se OKREĆE;
+      - inače autsajder zamjenjuje NAJSLABIJU nogu (broj nogu ostaje isti);
+      - ako to ne stane u raspon kvote / broj nogu, dodaje se kao nova noga;
+      - nema tiketa (favoriti sami ne slože 4+) -> najbolja kombinacija favorita + taj autsajder.
+    Sve kombinacije moraju proći ista tvrda pravila (`_combo_rules_ok`). Ništa ne stane -> tiket ostaje."""
+    dogs = [d for d in (dogs or []) if _is_main_tour(d) and _has_odds(d)
+            and (d.get("match", {}) or {}).get("level", "") not in _NON_TICKET_LEVELS]   # npr. Davis Cup
+    if not dogs:
+        return best_combo
+    dog = max(dogs, key=lambda d: d.get("nos_prednost_pp") or 0)
+    key = _match_key(dog)
+    if best_combo:
+        base = [p for p in best_combo if _match_key(p) != key]
+        if len(base) < len(best_combo):
+            trials = [base + [dog]]
+        else:
+            weakest = min(base, key=lambda p: (p.get("confidence") or 0))
+            trials = [[p for p in base if p is not weakest] + [dog], base + [dog]]
+        for t in trials:
+            if _combo_rules_ok(t, cfg):
+                print(f"  NOS-AUTSAJDER na tiketu: {dog.get('pick')} @ {_pick_odds(dog):.2f} "
+                      f"(Nose +{dog.get('nos_prednost_pp', 0):.1f}pp; model je birao {dog.get('nos_model_pick')})")
+                return t
+        print(f"  NOS-AUTSAJDER {dog.get('pick')} @ {_pick_odds(dog):.2f} nije stao u pravila tiketa — tiket ostaje.")
+        return best_combo
+    pool = [p for p in candidates if _match_key(p) != key and not p.get("nos_autsajder")]
+    best, best_score = None, None
+    for n in range(cfg["max_matches"] - 1, cfg["min_matches"] - 2, -1):
+        if n < 1 or n > len(pool):
+            continue
+        for c in itertools.combinations(pool, n):
+            t = list(c) + [dog]
+            if not _combo_rules_ok(t, cfg):
+                continue
+            s = _score_combo(tuple(t))
+            if best_score is None or s > best_score:
+                best, best_score = t, s
+    if best:
+        print(f"  NOS-AUTSAJDER složio tiket koji favoriti sami nisu mogli: {dog.get('pick')} @ {_pick_odds(dog):.2f} "
+              f"+ {len(best) - 1} favorita")
+    return best
+
+
+def predlozi_bez_pregleda(predictions: list):
+    """Kombinacija koju bi pravila izabrala (bez Claudeova pregleda, bez sažetka, bez ispisa) —
+    za usporedbu "tiket bez nosa" u `run_daily`. Ne mijenja predikcije."""
+    import contextlib
+    import io
+    with contextlib.redirect_stdout(io.StringIO()):
+        combo, _ = _select_combo(list(predictions), dict(TICKET_CONFIG))
+    return combo
+
+
+def build_ticket(predictions: list, weights: dict, min_odds_override: float = None,
+                 nos_autsajderi: list = None) -> Optional[dict]:
+    """
+    Ulaz: lista predikcija iz predictor.analyze_match()
+    Izlaz: optimalni tiket dict s matches, odds, summary
+
+    Strategija (quality-first):
+    - Primarni kriterij: statistička kvaliteta (confidence + value)
+    - Sekundarni: combined odds mora biti 6-20 (nije cilj, samo filter)
+    - Challengeri se ne stavljaju na tiket
+    - Kaskadni fallback — uvijek generiraj tiket, nikad ne odustaj
+    - od 08.11.2026: `nos_autsajderi` (najviše jedna noga, `_nos_autsajder_u_tiket`)
+    """
+    cfg = dict(TICKET_CONFIG)
+    if min_odds_override is not None:
+        cfg["min_combined_odds"] = min_odds_override
+    best_combo, candidates = _select_combo(predictions, cfg, nos_autsajderi)
+
     if not best_combo:
         print("Nema dovoljno mečeva sa stvarnim kvotama za valjan tiket.")
         return None
 
     # Final holistic review by Claude Sonnet before ticket is confirmed
     rejected_candidates = [p for p in candidates if p not in best_combo]
+    _proposed = list(best_combo)
     best_combo = _review_ticket(best_combo, rejected_candidates, cfg)
+    # 08.11.2026 (nos-odluka, korisnikova odluka "nos mora dobiti moć odluke"): recenzent ne smije maknuti
+    # nogu koju je nos odlučio igrati na autsajdera — ako je makne, ostaje predloženi tiket.
+    if any(p.get("nos_autsajder") for p in _proposed) and not any(p.get("nos_autsajder") for p in best_combo):
+        print("  Recenzent je maknuo NOS-AUTSAJDERA — nos ima pravo odluke (08.11.2026), ostaje predloženi tiket.")
+        best_combo = _proposed
 
     total_odds = combined_odds([_pick_odds(p) for p in best_combo])
     pot_win = potential_win(cfg["stake"], total_odds)
@@ -1250,6 +1350,7 @@ HARD CONSTRAINTS:
 - Final ticket: {cfg["min_matches"]}-{cfg["max_matches"]} picks, combined odds {cfg["min_combined_odds"]:g}-{cfg["max_combined_odds"]:g}
 - Max 2 replacements
 - Never remove a strong pick just because odds are low
+- A pick whose risk notes start with "NOS-AUTSAJDER" is the owner's deliberate underdog leg (max one per ticket). Keep it; do not remove or replace it.
 - Never add a pick just to increase odds
 - Prefer stability over excitement
 
@@ -1405,7 +1506,13 @@ def build_analysis_only_ticket(predictions: list, reason: str = None) -> dict:
              if not p.get("skip_reason") and _is_main_tour(p)
              and _pick_odds(p) >= _ANALYSIS_ONLY_MIN_ODDS]
     # Sortiraj po kvoti silazno pa ograniči na 12 — veće kvote uđu unutar tih 12.
-    valid.sort(key=lambda p: _pick_odds(p), reverse=True)
+    # PROMIJENJENO 08.11.2026 12:37 (revizija 08.11.2026, ideja 3 / P2, korisnikov "napravi predloženo"):
+    # najprije pickovi na pragu tiketa (63+), po pouzdanosti, pa ostali po pouzdanosti; kvota je tek
+    # treći ključ. Do danas su na popis ulazile samo najveće kvote, pa jaki favoriti (Fritz @1,21 uz
+    # 70, 03.11.) nisu bili vidljivi iako su analizirani — korisnik je to čitao kao da su izbačeni.
+    _floor = TICKET_CONFIG["min_confidence"]
+    valid.sort(key=lambda p: ((p.get("confidence") or 0) >= _floor, p.get("confidence") or 0,
+                              _pick_odds(p)), reverse=True)
     valid = valid[:_ANALYSIS_ONLY_MAX_PICKS]
 
     ticket_matches = []
