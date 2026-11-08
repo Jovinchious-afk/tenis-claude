@@ -1,0 +1,1394 @@
+{
+ "vrijeme": "08.11.2026",
+ "pravila": "PRAGOVI_REVIZIJA_2026-11-08.md, točka J (11:27) i NAKNADNO J (11:53)",
+ "tml_do": "2026-11-07",
+ "promjene": [
+  {
+   "player_name": "jurij rodionov",
+   "display_name": "Jurij Rodionov",
+   "confidence": "Med-Low",
+   "old": {
+    "rank": 136
+   },
+   "new": {
+    "rank": 137
+   },
+   "reasons": [
+    "rang 136 -> 137 (snimka dnevnog runa 2026-10-28)"
+   ]
+  },
+  {
+   "player_name": "flavio cobolli",
+   "display_name": "Flavio Cobolli",
+   "confidence": "Low",
+   "old": {
+    "rank": 9
+   },
+   "new": {
+    "rank": 6
+   },
+   "reasons": [
+    "rang 9 -> 6 (snimka dnevnog runa 2026-10-29)"
+   ]
+  },
+  {
+   "player_name": "jakub mensik",
+   "display_name": "Jakub Mensik",
+   "confidence": "Med",
+   "old": {
+    "rank": 15
+   },
+   "new": {
+    "rank": 16
+   },
+   "reasons": [
+    "rang 15 -> 16 (snimka dnevnog runa 2026-10-28)"
+   ]
+  },
+  {
+   "player_name": "lorenzo musetti",
+   "display_name": "Lorenzo Musetti",
+   "confidence": "High",
+   "old": {
+    "rank": 15
+   },
+   "new": {
+    "rank": 24
+   },
+   "reasons": [
+    "rang 15 -> 24 (snimka dnevnog runa 2026-11-05)"
+   ]
+  },
+  {
+   "player_name": "learner tien",
+   "display_name": "Learner Tien",
+   "confidence": "Insufficient",
+   "old": {
+    "rank": 16
+   },
+   "new": {
+    "rank": 19
+   },
+   "reasons": [
+    "rang 16 -> 19 (snimka dnevnog runa 2026-11-04)"
+   ]
+  },
+  {
+   "player_name": "arthur fils",
+   "display_name": "Arthur Fils",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 10
+   },
+   "new": {
+    "rank": 7
+   },
+   "reasons": [
+    "rang 10 -> 7 (snimka dnevnog runa 2026-11-05)"
+   ]
+  },
+  {
+   "player_name": "rafael jodar",
+   "display_name": "Rafael Jodar",
+   "confidence": "Insufficient",
+   "old": {
+    "rank": 13
+   },
+   "new": {
+    "rank": 10
+   },
+   "reasons": [
+    "rang 13 -> 10 (snimka dnevnog runa 2026-11-03)"
+   ]
+  },
+  {
+   "player_name": "casper ruud",
+   "display_name": "Casper Ruud",
+   "confidence": "High",
+   "old": {
+    "rank": 24
+   },
+   "new": {
+    "rank": 23
+   },
+   "reasons": [
+    "rang 24 -> 23 (snimka dnevnog runa 2026-11-07)"
+   ]
+  },
+  {
+   "player_name": "alejandro davidovich fokina",
+   "display_name": "Alejandro Davidovich Fokina",
+   "confidence": "Med",
+   "old": {
+    "rank": 26
+   },
+   "new": {
+    "rank": 17
+   },
+   "reasons": [
+    "rang 26 -> 17 (snimka dnevnog runa 2026-11-03)"
+   ]
+  },
+  {
+   "player_name": "jiri lehecka",
+   "display_name": "Jiri Lehecka",
+   "confidence": "Med",
+   "old": {
+    "rank": 19
+   },
+   "new": {
+    "rank": 15
+   },
+   "reasons": [
+    "rang 19 -> 15 (snimka dnevnog runa 2026-11-03)"
+   ]
+  },
+  {
+   "player_name": "ugo humbert",
+   "display_name": "Ugo Humbert",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 29
+   },
+   "new": {
+    "rank": 38
+   },
+   "reasons": [
+    "rang 29 -> 38 (snimka dnevnog runa 2026-11-04)"
+   ]
+  },
+  {
+   "player_name": "arthur fery",
+   "display_name": "Arthur Fery",
+   "confidence": "Low",
+   "old": {
+    "rank": 37
+   },
+   "new": {
+    "rank": 32
+   },
+   "reasons": [
+    "rang 37 -> 32 (snimka dnevnog runa 2026-11-03)"
+   ]
+  },
+  {
+   "player_name": "martin landaluce",
+   "display_name": "Martin Landaluce",
+   "confidence": "Med",
+   "old": {
+    "rank": 73
+   },
+   "new": {
+    "rank": 67
+   },
+   "reasons": [
+    "rang 73 -> 67 (snimka dnevnog runa 2026-10-27)"
+   ]
+  },
+  {
+   "player_name": "zizou bergs",
+   "display_name": "Zizou Bergs",
+   "confidence": "Med",
+   "old": {
+    "rank": 39
+   },
+   "new": {
+    "rank": 40
+   },
+   "reasons": [
+    "rang 39 -> 40 (snimka dnevnog runa 2026-11-02)"
+   ]
+  },
+  {
+   "player_name": "tomas machac",
+   "display_name": "Tomas Machac",
+   "confidence": "Med",
+   "old": {
+    "rank": 75
+   },
+   "new": {
+    "rank": 69
+   },
+   "reasons": [
+    "rang 75 -> 69 (snimka dnevnog runa 2026-11-04)"
+   ]
+  },
+  {
+   "player_name": "mariano navone",
+   "display_name": "Mariano Navone",
+   "confidence": "Med",
+   "old": {
+    "rank": 47
+   },
+   "new": {
+    "rank": 48
+   },
+   "reasons": [
+    "rang 47 -> 48 (snimka dnevnog runa 2026-11-02)"
+   ]
+  },
+  {
+   "player_name": "stefanos tsitsipas",
+   "display_name": "Stefanos Tsitsipas",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 43
+   },
+   "new": {
+    "rank": 34
+   },
+   "reasons": [
+    "rang 43 -> 34 (snimka dnevnog runa 2026-11-03)"
+   ]
+  },
+  {
+   "player_name": "juan manuel cerundolo",
+   "display_name": "Juan Manuel Cerundolo",
+   "confidence": "Med",
+   "old": {
+    "rank": 55
+   },
+   "new": {
+    "rank": 54
+   },
+   "reasons": [
+    "rang 55 -> 54 (snimka dnevnog runa 2026-11-02)"
+   ]
+  },
+  {
+   "player_name": "andrey rublev",
+   "display_name": "Andrey Rublev",
+   "confidence": "High",
+   "old": {
+    "rank": 14
+   },
+   "new": {
+    "rank": 22
+   },
+   "reasons": [
+    "rang 14 -> 22 (snimka dnevnog runa 2026-11-03)"
+   ]
+  },
+  {
+   "player_name": "denis shapovalov",
+   "display_name": "Denis Shapovalov",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 42
+   },
+   "new": {
+    "rank": 51
+   },
+   "reasons": [
+    "rang 42 -> 51 (snimka dnevnog runa 2026-11-02)"
+   ]
+  },
+  {
+   "player_name": "hubert hurkacz",
+   "display_name": "Hubert Hurkacz",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 34
+   },
+   "new": {
+    "rank": 29
+   },
+   "reasons": [
+    "rang 34 -> 29 (snimka dnevnog runa 2026-11-02)"
+   ]
+  },
+  {
+   "player_name": "lorenzo sonego",
+   "display_name": "Lorenzo Sonego",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 77
+   },
+   "new": {
+    "rank": 106
+   },
+   "reasons": [
+    "rang 77 -> 106 (snimka dnevnog runa 2026-11-02)"
+   ]
+  },
+  {
+   "player_name": "alex molcan",
+   "display_name": "Alex Molcan",
+   "confidence": "Med-Low",
+   "old": {
+    "rank": 81
+   },
+   "new": {
+    "rank": 78
+   },
+   "reasons": [
+    "rang 81 -> 78 (snimka dnevnog runa 2026-11-04)"
+   ]
+  },
+  {
+   "player_name": "holger rune",
+   "display_name": "Holger Rune",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 195
+   },
+   "new": {
+    "rank": 433
+   },
+   "reasons": [
+    "rang 195 -> 433 (snimka dnevnog runa 2026-11-03)"
+   ]
+  },
+  {
+   "player_name": "jacob fearnley",
+   "display_name": "Jacob Fearnley",
+   "confidence": "Med",
+   "old": {
+    "rank": 110
+   },
+   "new": {
+    "rank": 86
+   },
+   "reasons": [
+    "rang 110 -> 86 (snimka dnevnog runa 2026-10-26)"
+   ]
+  },
+  {
+   "player_name": "valentin vacherot",
+   "display_name": "Valentin Vacherot",
+   "confidence": "Insufficient",
+   "old": {
+    "rank": 14
+   },
+   "new": {
+    "rank": 27
+   },
+   "reasons": [
+    "rang 14 -> 27 (snimka dnevnog runa 2026-11-03)"
+   ]
+  },
+  {
+   "player_name": "titouan droguet",
+   "display_name": "Titouan Droguet",
+   "confidence": "Med-Low",
+   "old": {
+    "rank": 119
+   },
+   "new": {
+    "rank": 79
+   },
+   "reasons": [
+    "rang 119 -> 79 (snimka dnevnog runa 2026-11-02)"
+   ]
+  },
+  {
+   "player_name": "grigor dimitrov",
+   "display_name": "Grigor Dimitrov",
+   "confidence": "Med-Low",
+   "old": {
+    "rank": 140
+   },
+   "new": {
+    "rank": 124
+   },
+   "reasons": [
+    "rang 140 -> 124 (snimka dnevnog runa 2026-10-27)"
+   ]
+  },
+  {
+   "player_name": "stan wawrinka",
+   "display_name": "Stan Wawrinka",
+   "confidence": "Med-Low",
+   "old": {
+    "rank": 125
+   },
+   "new": {
+    "rank": 151
+   },
+   "reasons": [
+    "rang 125 -> 151 (snimka dnevnog runa 2026-10-27)"
+   ]
+  },
+  {
+   "player_name": "tommy paul",
+   "display_name": "Tommy Paul",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 17
+   },
+   "new": {
+    "rank": 14
+   },
+   "reasons": [
+    "rang 17 -> 14 (snimka dnevnog runa 2026-11-06)"
+   ]
+  },
+  {
+   "player_name": "karen khachanov",
+   "display_name": "Karen Khachanov",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 27
+   },
+   "new": {
+    "rank": 25
+   },
+   "reasons": [
+    "rang 27 -> 25 (snimka dnevnog runa 2026-11-04)"
+   ]
+  },
+  {
+   "player_name": "arthur rinderknech",
+   "display_name": "Arthur Rinderknech",
+   "confidence": "Med",
+   "old": {
+    "rank": 27
+   },
+   "new": {
+    "rank": 68
+   },
+   "reasons": [
+    "rang 27 -> 68 (snimka dnevnog runa 2026-11-05)"
+   ]
+  },
+  {
+   "player_name": "matteo arnaldi",
+   "display_name": "Matteo Arnaldi",
+   "confidence": "Med",
+   "old": {
+    "rank": 38
+   },
+   "new": {
+    "rank": 36
+   },
+   "reasons": [
+    "rang 38 -> 36 (snimka dnevnog runa 2026-11-02)"
+   ]
+  },
+  {
+   "player_name": "ignacio buse",
+   "display_name": "Ignacio Buse",
+   "confidence": "Med",
+   "old": {
+    "rank": 36
+   },
+   "new": {
+    "rank": 33
+   },
+   "reasons": [
+    "rang 36 -> 33 (snimka dnevnog runa 2026-11-05)"
+   ]
+  },
+  {
+   "player_name": "jan-lennard struff",
+   "display_name": "Jan-Lennard Struff",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 59
+   },
+   "new": {
+    "rank": 39
+   },
+   "reasons": [
+    "rang 59 -> 39 (snimka dnevnog runa 2026-11-05)"
+   ]
+  },
+  {
+   "player_name": "matteo berrettini",
+   "display_name": "Matteo Berrettini",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 46
+   },
+   "new": {
+    "rank": 43
+   },
+   "reasons": [
+    "rang 46 -> 43 (snimka dnevnog runa 2026-11-05)"
+   ]
+  },
+  {
+   "player_name": "adrian mannarino",
+   "display_name": "Adrian Mannarino",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 83
+   },
+   "new": {
+    "rank": 73
+   },
+   "reasons": [
+    "rang 83 -> 73 (snimka dnevnog runa 2026-10-30)"
+   ]
+  },
+  {
+   "player_name": "nuno borges",
+   "display_name": "Nuno Borges",
+   "confidence": "Med",
+   "old": {
+    "rank": 51
+   },
+   "new": {
+    "rank": 49
+   },
+   "reasons": [
+    "rang 51 -> 49 (snimka dnevnog runa 2026-11-06)"
+   ]
+  },
+  {
+   "player_name": "yannick hanfmann",
+   "display_name": "Yannick Hanfmann",
+   "confidence": "Med",
+   "old": {
+    "rank": 57
+   },
+   "new": {
+    "rank": 59
+   },
+   "reasons": [
+    "rang 57 -> 59 (snimka dnevnog runa 2026-10-28)"
+   ]
+  },
+  {
+   "player_name": "botic van de zandschulp",
+   "display_name": "Botic Van De Zandschulp",
+   "confidence": "Med",
+   "old": {
+    "rank": 41
+   },
+   "new": {
+    "rank": 37
+   },
+   "reasons": [
+    "rang 41 -> 37 (snimka dnevnog runa 2026-11-02)"
+   ]
+  },
+  {
+   "player_name": "thiago agustin tirante",
+   "display_name": "Thiago Agustin Tirante",
+   "confidence": "Low",
+   "old": {
+    "rank": 54
+   },
+   "new": {
+    "rank": 53
+   },
+   "reasons": [
+    "rang 54 -> 53 (snimka dnevnog runa 2026-11-04)"
+   ]
+  },
+  {
+   "player_name": "luca van assche",
+   "display_name": "Luca Van Assche",
+   "confidence": "Med",
+   "old": {
+    "rank": 45
+   },
+   "new": {
+    "rank": 47
+   },
+   "reasons": [
+    "rang 45 -> 47 (snimka dnevnog runa 2026-11-07)"
+   ]
+  },
+  {
+   "player_name": "tallon griekspoor",
+   "display_name": "Tallon Griekspoor",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 58
+   },
+   "new": {
+    "rank": 50
+   },
+   "reasons": [
+    "rang 58 -> 50 (snimka dnevnog runa 2026-10-29)"
+   ]
+  },
+  {
+   "player_name": "daniel merida aguilar",
+   "display_name": "Daniel Merida Aguilar",
+   "confidence": "Med",
+   "old": {
+    "rank": 44
+   },
+   "new": {
+    "rank": 42
+   },
+   "reasons": [
+    "rang 44 -> 42 (snimka dnevnog runa 2026-11-04)"
+   ]
+  },
+  {
+   "player_name": "mattia bellucci",
+   "display_name": "Mattia Bellucci",
+   "confidence": "Med-Low",
+   "old": {
+    "rank": 79
+   },
+   "new": {
+    "rank": 66
+   },
+   "reasons": [
+    "rang 79 -> 66 (snimka dnevnog runa 2026-11-04)"
+   ]
+  },
+  {
+   "player_name": "giovanni mpetshi perricard",
+   "display_name": "Giovanni Mpetshi Perricard",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 89
+   },
+   "new": {
+    "rank": 148
+   },
+   "reasons": [
+    "rang 89 -> 148 (snimka dnevnog runa 2026-10-27)"
+   ]
+  },
+  {
+   "player_name": "daniel altmaier",
+   "display_name": "Daniel Altmaier",
+   "confidence": "Med",
+   "old": {
+    "rank": 67
+   },
+   "new": {
+    "rank": 60
+   },
+   "reasons": [
+    "rang 67 -> 60 (snimka dnevnog runa 2026-10-29)"
+   ]
+  },
+  {
+   "player_name": "rinky hijikata",
+   "display_name": "Rinky Hijikata",
+   "confidence": "Med",
+   "old": {
+    "rank": 96
+   },
+   "new": {
+    "rank": 83
+   },
+   "reasons": [
+    "rang 96 -> 83 (snimka dnevnog runa 2026-11-06)"
+   ]
+  },
+  {
+   "player_name": "kyrian jacquet",
+   "display_name": "Kyrian Jacquet",
+   "confidence": "Med-Low",
+   "old": {
+    "rank": 120
+   },
+   "new": {
+    "rank": 80
+   },
+   "reasons": [
+    "rang 120 -> 80 (snimka dnevnog runa 2026-11-02)"
+   ]
+  },
+  {
+   "player_name": "alexander zverev",
+   "display_name": "Alexander Zverev",
+   "confidence": "High",
+   "old": {
+    "rank": 2
+   },
+   "new": {
+    "rank": 1
+   },
+   "reasons": [
+    "rang 2 -> 1 (snimka dnevnog runa 2026-11-04)"
+   ]
+  },
+  {
+   "player_name": "benjamin bonzi",
+   "display_name": "Benjamin Bonzi",
+   "confidence": "Med-Low",
+   "old": {
+    "rank": 101
+   },
+   "new": {
+    "rank": 95
+   },
+   "reasons": [
+    "rang 101 -> 95 (snimka dnevnog runa 2026-11-03)"
+   ]
+  },
+  {
+   "player_name": "quentin halys",
+   "display_name": "Quentin Halys",
+   "confidence": "Med",
+   "old": {
+    "rank": 48
+   },
+   "new": {
+    "rank": 46
+   },
+   "reasons": [
+    "rang 48 -> 46 (snimka dnevnog runa 2026-11-05)"
+   ]
+  },
+  {
+   "player_name": "arthur gea",
+   "display_name": "Arthur Gea",
+   "confidence": "Med",
+   "old": {
+    "rank": 56
+   },
+   "new": {
+    "rank": 44
+   },
+   "reasons": [
+    "rang 56 -> 44 (snimka dnevnog runa 2026-11-03)"
+   ]
+  },
+  {
+   "player_name": "cameron norrie",
+   "display_name": "Cameron Norrie",
+   "confidence": "Med-High",
+   "old": {
+    "rank": 40
+   },
+   "new": {
+    "rank": 45
+   },
+   "reasons": [
+    "rang 40 -> 45 (snimka dnevnog runa 2026-11-03)"
+   ]
+  },
+  {
+   "player_name": "aleksandar kovacevic",
+   "display_name": "Aleksandar Kovacevic",
+   "confidence": "Low",
+   "old": {
+    "rank": 81
+   },
+   "new": {
+    "rank": 84
+   },
+   "reasons": [
+    "rang 81 -> 84 (snimka dnevnog runa 2026-10-27)"
+   ]
+  },
+  {
+   "player_name": "nikoloz basilashvili",
+   "display_name": "Nikoloz Basilashvili",
+   "confidence": "Med-Low",
+   "old": {
+    "rank": 133
+   },
+   "new": {
+    "rank": 95
+   },
+   "reasons": [
+    "rang 133 -> 95 (snimka dnevnog runa 2026-10-29)"
+   ]
+  },
+  {
+   "player_name": "jaime faria",
+   "display_name": "Jaime Faria",
+   "confidence": null,
+   "old": {
+    "rank": 60
+   },
+   "new": {
+    "rank": 56
+   },
+   "reasons": [
+    "rang 60 -> 56 (TML, zadnji meč 19.10.2026, Lyon)"
+   ]
+  },
+  {
+   "player_name": "corentin moutet",
+   "display_name": "Corentin Moutet",
+   "confidence": null,
+   "old": {
+    "rank": 40
+   },
+   "new": {
+    "rank": 94
+   },
+   "reasons": [
+    "rang 40 -> 94 (TML, zadnji meč 23.10.2026, Lyon)"
+   ]
+  },
+  {
+   "player_name": "jaume munar",
+   "display_name": "Jaume Munar",
+   "confidence": null,
+   "old": {
+    "rank": 43
+   },
+   "new": {
+    "rank": 51
+   },
+   "reasons": [
+    "rang 43 -> 51 (TML, zadnji meč 20.10.2026, Brussels)"
+   ]
+  },
+  {
+   "player_name": "fabian marozsan",
+   "display_name": "Fabian Marozsan",
+   "confidence": null,
+   "old": {
+    "rank": 63
+   },
+   "new": {
+    "rank": 64
+   },
+   "reasons": [
+    "rang 63 -> 64 (TML, zadnji meč 22.10.2026, Almaty)"
+   ]
+  },
+  {
+   "player_name": "sebastian baez",
+   "display_name": "Sebastian Baez",
+   "confidence": null,
+   "old": {
+    "rank": 53
+   },
+   "new": {
+    "rank": 52
+   },
+   "reasons": [
+    "rang 53 -> 52 (TML, zadnji meč 02.11.2026, Paris Masters)"
+   ]
+  },
+  {
+   "player_name": "adolfo daniel vallejo",
+   "display_name": "Adolfo Daniel Vallejo",
+   "confidence": null,
+   "old": {
+    "rank": 52
+   },
+   "new": {
+    "rank": 56
+   },
+   "reasons": [
+    "rang 52 -> 56 (TML, zadnji meč 03.11.2026, Paris Masters)"
+   ]
+  },
+  {
+   "player_name": "roman safiullin",
+   "display_name": "Roman Safiullin",
+   "confidence": null,
+   "old": {
+    "rank": 94
+   },
+   "new": {
+    "rank": 70
+   },
+   "reasons": [
+    "rang 94 -> 70 (TML, zadnji meč 20.10.2026, Almaty)"
+   ]
+  },
+  {
+   "player_name": "damir dzumhur",
+   "display_name": "Damir Dzumhur",
+   "confidence": null,
+   "old": {
+    "rank": 87
+   },
+   "new": {
+    "rank": 83
+   },
+   "reasons": [
+    "rang 87 -> 83 (TML, zadnji meč 22.10.2026, Brussels)"
+   ]
+  },
+  {
+   "player_name": "dino prizmic",
+   "display_name": "Dino Prizmic",
+   "confidence": null,
+   "old": {
+    "rank": 91
+   },
+   "new": {
+    "rank": 95
+   },
+   "reasons": [
+    "rang 91 -> 95 (TML, zadnji meč 21.10.2026, Brussels)"
+   ]
+  },
+  {
+   "player_name": "aleksandar vukic",
+   "display_name": "Aleksandar Vukic",
+   "confidence": null,
+   "old": {
+    "rank": 105
+   },
+   "new": {
+    "rank": 116
+   },
+   "reasons": [
+    "rang 105 -> 116 (TML, zadnji meč 19.10.2026, Almaty)"
+   ]
+  },
+  {
+   "player_name": "facundo diaz acosta",
+   "display_name": "Facundo Diaz Acosta",
+   "confidence": null,
+   "old": {
+    "rank": 69
+   },
+   "new": {
+    "rank": 71
+   },
+   "reasons": [
+    "rang 69 -> 71 (TML, zadnji meč 21.10.2026, Almaty)"
+   ]
+  },
+  {
+   "player_name": "toby samuel",
+   "display_name": "Toby Samuel",
+   "confidence": null,
+   "old": {
+    "rank": 112
+   },
+   "new": {
+    "rank": 96
+   },
+   "reasons": [
+    "rang 112 -> 96 (TML, zadnji meč 20.10.2026, Brussels)"
+   ]
+  },
+  {
+   "player_name": "raphael collignon",
+   "display_name": "Raphael Collignon",
+   "confidence": null,
+   "old": {
+    "rank": 37
+   },
+   "new": {
+    "rank": 55
+   },
+   "reasons": [
+    "rang 37 -> 55 (TML, zadnji meč 22.10.2026, Brussels)"
+   ]
+  },
+  {
+   "player_name": "hugo gaston",
+   "display_name": "Hugo Gaston",
+   "confidence": null,
+   "old": {
+    "rank": 90
+   },
+   "new": {
+    "rank": 93
+   },
+   "reasons": [
+    "rang 90 -> 93 (TML, zadnji meč 20.10.2026, Brussels)"
+   ]
+  },
+  {
+   "player_name": "james duckworth",
+   "display_name": "James Duckworth",
+   "confidence": null,
+   "old": {
+    "rank": 64
+   },
+   "new": {
+    "rank": 73
+   },
+   "reasons": [
+    "rang 64 -> 73 (TML, zadnji meč 23.10.2026, Almaty)"
+   ]
+  },
+  {
+   "player_name": "marin cilic",
+   "display_name": "Marin Cilic",
+   "confidence": null,
+   "old": {
+    "rank": 80
+   },
+   "new": {
+    "rank": 84
+   },
+   "reasons": [
+    "rang 80 -> 84 (TML, zadnji meč 19.10.2026, Almaty)"
+   ]
+  },
+  {
+   "player_name": "martin damm",
+   "display_name": "Martin Damm",
+   "confidence": null,
+   "old": {
+    "rank": 104
+   },
+   "new": {
+    "rank": 107
+   },
+   "reasons": [
+    "rang 104 -> 107 (TML, zadnji meč 21.10.2026, Brussels)"
+   ]
+  },
+  {
+   "player_name": "miomir kecmanovic",
+   "display_name": "Miomir Kecmanovic",
+   "confidence": null,
+   "old": {
+    "rank": 61
+   },
+   "new": {
+    "rank": 57
+   },
+   "reasons": [
+    "rang 61 -> 57 (TML, zadnji meč 19.10.2026, Almaty)"
+   ]
+  },
+  {
+   "player_name": "alexander bublik",
+   "display_name": "Alexander Bublik",
+   "confidence": null,
+   "old": {
+    "rank": 22
+   },
+   "new": {
+    "rank": 19
+   },
+   "reasons": [
+    "rang 22 -> 19 (TML, zadnji meč 24.10.2026, Almaty)"
+   ]
+  },
+  {
+   "player_name": "terence atmane",
+   "display_name": "Terence Atmane",
+   "confidence": null,
+   "old": {
+    "rank": 49
+   },
+   "new": {
+    "rank": 98
+   },
+   "reasons": [
+    "rang 49 -> 98 (TML, zadnji meč 23.10.2026, Almaty)"
+   ]
+  },
+  {
+   "player_name": "hamad medjedovic",
+   "display_name": "Hamad Medjedovic",
+   "confidence": null,
+   "old": {
+    "rank": 78
+   },
+   "new": {
+    "rank": 76
+   },
+   "reasons": [
+    "rang 78 -> 76 (TML, zadnji meč 20.10.2026, Lyon)"
+   ]
+  },
+  {
+   "player_name": "nishesh basavareddy",
+   "display_name": "Nishesh Basavareddy",
+   "confidence": null,
+   "old": {
+    "rank": 146
+   },
+   "new": {
+    "rank": 134
+   },
+   "reasons": [
+    "rang 146 -> 134 (TML, zadnji meč 20.10.2026, Brussels)"
+   ]
+  },
+  {
+   "player_name": "timofey skatov",
+   "display_name": "Timofey Skatov",
+   "confidence": null,
+   "old": {
+    "rank": 150
+   },
+   "new": {
+    "rank": 201
+   },
+   "reasons": [
+    "rang 150 -> 201 (TML, zadnji meč 20.10.2026, Almaty)"
+   ]
+  }
+ ],
+ "dopuna_J2": {
+  "pravilo": "PRAGOVI J2 (NAKNADNO 08.11.2026 12:10)",
+  "upisano": 23,
+  "stari_rang": [
+   {
+    "igrac": "Gustavo Heide",
+    "rang": 134,
+    "zadnji_tml_mec": "20260918"
+   },
+   {
+    "igrac": "Reilly Opelka",
+    "rang": 135,
+    "zadnji_tml_mec": "20260524"
+   },
+   {
+    "igrac": "Andrea Pellegrino",
+    "rang": 137,
+    "zadnji_tml_mec": "20260716"
+   },
+   {
+    "igrac": "Tomas Barrios Vera",
+    "rang": 138,
+    "zadnji_tml_mec": "20260831"
+   },
+   {
+    "igrac": "Cristian Garin",
+    "rang": 139,
+    "zadnji_tml_mec": "20260919"
+   },
+   {
+    "igrac": "Ethan Quinn",
+    "rang": 45,
+    "zadnji_tml_mec": "20260701"
+   },
+   {
+    "igrac": "Sebastian Korda",
+    "rang": 64,
+    "zadnji_tml_mec": "20260324"
+   },
+   {
+    "igrac": "Pablo Carreno Busta",
+    "rang": 65,
+    "zadnji_tml_mec": "20261012"
+   },
+   {
+    "igrac": "Emilio Nava",
+    "rang": 100,
+    "zadnji_tml_mec": "20260629"
+   },
+   {
+    "igrac": "Camilo Ugo Carabelli",
+    "rang": 77,
+    "zadnji_tml_mec": "20261010"
+   },
+   {
+    "igrac": "Francisco Comesana",
+    "rang": 100,
+    "zadnji_tml_mec": "20260901"
+   },
+   {
+    "igrac": "Alexander Shevchenko",
+    "rang": 84,
+    "zadnji_tml_mec": null
+   },
+   {
+    "igrac": "Marco Trungelliti",
+    "rang": 95,
+    "zadnji_tml_mec": "20261007"
+   },
+   {
+    "igrac": "Jan Choinski",
+    "rang": 90,
+    "zadnji_tml_mec": "20260902"
+   },
+   {
+    "igrac": "Gabriel Diallo",
+    "rang": 92,
+    "zadnji_tml_mec": "20260805"
+   },
+   {
+    "igrac": "Valentin Royer",
+    "rang": 105,
+    "zadnji_tml_mec": "20261008"
+   },
+   {
+    "igrac": "Jesper De Jong",
+    "rang": 98,
+    "zadnji_tml_mec": "20260919"
+   },
+   {
+    "igrac": "Eliot Spizzirri",
+    "rang": 109,
+    "zadnji_tml_mec": "20260525"
+   },
+   {
+    "igrac": "Chak Lam Coleman Wong",
+    "rang": 108,
+    "zadnji_tml_mec": null
+   },
+   {
+    "igrac": "Bu Yunchaokete",
+    "rang": 93,
+    "zadnji_tml_mec": null
+   },
+   {
+    "igrac": "Patrick Kypson",
+    "rang": 113,
+    "zadnji_tml_mec": "20260702"
+   },
+   {
+    "igrac": "Otto Virtanen",
+    "rang": 115,
+    "zadnji_tml_mec": "20260919"
+   },
+   {
+    "igrac": "Yibing Wu",
+    "rang": 117,
+    "zadnji_tml_mec": "20261009"
+   },
+   {
+    "igrac": "Zsombor Piros",
+    "rang": 122,
+    "zadnji_tml_mec": "20260918"
+   },
+   {
+    "igrac": "Henrique Rocha",
+    "rang": 123,
+    "zadnji_tml_mec": "20260720"
+   },
+   {
+    "igrac": "Sebastian Ofner",
+    "rang": 124,
+    "zadnji_tml_mec": "20260721"
+   },
+   {
+    "igrac": "Christopher O'Connell",
+    "rang": 126,
+    "zadnji_tml_mec": "20260820"
+   },
+   {
+    "igrac": "Vilius Gaubas",
+    "rang": 128,
+    "zadnji_tml_mec": "20260919"
+   },
+   {
+    "igrac": "Pablo Llamas Ruiz",
+    "rang": 129,
+    "zadnji_tml_mec": "20260630"
+   },
+   {
+    "igrac": "Jannik Sinner",
+    "rang": 1,
+    "zadnji_tml_mec": "20260712"
+   },
+   {
+    "igrac": "Leandro Riedi",
+    "rang": 130,
+    "zadnji_tml_mec": "20260206"
+   },
+   {
+    "igrac": "Alexandre Muller",
+    "rang": 132,
+    "zadnji_tml_mec": "20260927"
+   },
+   {
+    "igrac": "Vit Kopriva",
+    "rang": 68,
+    "zadnji_tml_mec": "20261008"
+   },
+   {
+    "igrac": "Kamil Majchrzak",
+    "rang": 70,
+    "zadnji_tml_mec": "20261007"
+   },
+   {
+    "igrac": "Marton Fucsovics",
+    "rang": 76,
+    "zadnji_tml_mec": "20260830"
+   },
+   {
+    "igrac": "Zachary Svajda",
+    "rang": 82,
+    "zadnji_tml_mec": "20261010"
+   },
+   {
+    "igrac": "Jenson Brooksby",
+    "rang": 102,
+    "zadnji_tml_mec": "20261009"
+   },
+   {
+    "igrac": "Adam Walton",
+    "rang": 99,
+    "zadnji_tml_mec": "20260923"
+   },
+   {
+    "igrac": "Shintaro Mochizuki",
+    "rang": 114,
+    "zadnji_tml_mec": "20260924"
+   },
+   {
+    "igrac": "Dalibor Svrcina",
+    "rang": 126,
+    "zadnji_tml_mec": "20261012"
+   },
+   {
+    "igrac": "Michael Zheng",
+    "rang": 118,
+    "zadnji_tml_mec": "20261007"
+   },
+   {
+    "igrac": "Dane Sweeny",
+    "rang": 121,
+    "zadnji_tml_mec": "20260924"
+   },
+   {
+    "igrac": "Felix Auger-Aliassime",
+    "rang": 6,
+    "zadnji_tml_mec": "20261014"
+   },
+   {
+    "igrac": "Joao Fonseca",
+    "rang": 28,
+    "zadnji_tml_mec": "20260918"
+   },
+   {
+    "igrac": "Roman Andres Burruchaga",
+    "rang": 60,
+    "zadnji_tml_mec": "20260831"
+   },
+   {
+    "igrac": "Alexei Popyrin",
+    "rang": 103,
+    "zadnji_tml_mec": "20260903"
+   },
+   {
+    "igrac": "Nicolas Mejia",
+    "rang": 119,
+    "zadnji_tml_mec": "20261008"
+   },
+   {
+    "igrac": "Arthur Cazaux",
+    "rang": 141,
+    "zadnji_tml_mec": "20260322"
+   },
+   {
+    "igrac": "Stefano Travaglia",
+    "rang": 142,
+    "zadnji_tml_mec": "20260717"
+   },
+   {
+    "igrac": "Hugo Dellien",
+    "rang": 143,
+    "zadnji_tml_mec": "20260918"
+   },
+   {
+    "igrac": "Nicolai Budkov Kjaer",
+    "rang": 144,
+    "zadnji_tml_mec": "20260918"
+   },
+   {
+    "igrac": "Mackenzie Mcdonald",
+    "rang": 145,
+    "zadnji_tml_mec": "20260728"
+   },
+   {
+    "igrac": "Jack Draper",
+    "rang": 147,
+    "zadnji_tml_mec": "20260814"
+   },
+   {
+    "igrac": "Pedro Martinez Portero",
+    "rang": 148,
+    "zadnji_tml_mec": null
+   },
+   {
+    "igrac": "Francesco Maestrelli",
+    "rang": 149,
+    "zadnji_tml_mec": "20260507"
+   }
+  ]
+ }
+}

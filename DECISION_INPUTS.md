@@ -925,7 +925,7 @@ Tržište povratak nakon pauze sustavno blago precjenjuje. Nedavna PREDAJA to ne
 **PRAG:** 40 naših mečeva (od 27.09.2026) u kojima pick ILI protivnik ima `days_rest` ≥ 21:
 pick s pauzom < 0 i protivnik s pauzom > 0 → ±2pp; obrnuto → odbaciti.
 
-### K20 — "Intuicija": naučeni signal u sjeni (27.09.2026 12:34) — KANDIDAT, samo bilježenje — *25.10.2026 11:24: 1. provjera (n=209) r = −0,035 → NIJE PROŠLA, uči dalje*
+### K20 — "Intuicija": naučeni signal u sjeni (27.09.2026 12:34) — KANDIDAT, samo bilježenje — *25.10.2026 11:24: 1. provjera (n=209) r = −0,035 → NIJE PROŠLA, uči dalje* — *08.11.2026 12:08: 2. provjera (n=325) r = −0,054 (treba ≥ 0,12), gornja trećina −3,4pp → NIJE PROŠLA, sljedeća na 600; dok je vlastiti sloj tih, procjena = tržišna cijena (0,0pp odstupanja), pa autsajdera ne bira nikad*
 
 Korisnikova želja: varijabla koja se kroz vrijeme razvija i sama prepoznaje dobar rizik, npr.
 autsajdera. Kod: `agent/intuicija.py` (model), `scripts/intuicija_prior.py` (prior iz povijesti
@@ -1012,7 +1012,7 @@ Do tada u model ne ulazi ništa.
 > prosjek kladionica). K21 spojeno pravilo: **n = 9** od potrebnih 150, edge −0,0pp [−32, +32] →
 > **ČEKA**. Ispis: `.cache/rev_2026-10-18b/out_k21_od_2026-09-14.txt`.
 
-### K22 — ELO jaz i servis/povrat nose nešto povrh cijene OD 14.09.? (18.10.2026 10:09) — KANDIDAT
+### K22 — ELO jaz i servis/povrat nose nešto povrh cijene OD 14.09.? (18.10.2026 10:09) — KANDIDAT — *08.11.2026 12:08: n=190 ELO r +0,100 [−0,04, +0,24], servis+povrat +0,004 → ne prolazi (interval prelazi 0), nije ni pao (nisu oba ≤ 0) → ČEKA još +150; povijest +0,00*
 
 Iz testa težina J2 (revizija 18.10., `r_nasi.py`): na hard pickovima od 04.08. predstavnik
 kategorije naspram ostatka nakon cijene. Kriterij za promjenu težina (obje polovice) NIJE
@@ -1146,7 +1146,7 @@ takva noga po tiketu"; edge > 0 → K18 se zatvara; između → nejasno. Snaga: 
 ne dokaz). Realno: 250-ice na hardu sljedeće su tek u siječnju 2027. Mjeri `measure_candidates.py`
 (K18b).
 
-### K13b — vijest o OZLJEDI protivnika, strogi detektor v2 (25.10.2026 11:46) — KANDIDAT, prag prije podataka
+### K13b — vijest o OZLJEDI protivnika, strogi detektor v2 (25.10.2026 11:46) — KANDIDAT, prag prije podataka — *08.11.2026 12:08: ZAGAĐENO — 11/30 (−10,3pp), ali od 28 oznaka v2 od 26.10. naslov je spremljen za samo 4 (sprema se prvih 8 naslova, broje se svi), a 3 od te 4 su krivi igrač ("Fritz Advances After Injury Forces Fils To Quit" → Fritz). Mjerenje ne vrijedi dok se ne spreme svi označeni naslovi i detektor ne popravi (prijedlog P1 revizije 08.11.)*
 K13 (27.09.) broji naslove s riječju o ozljedi bilo gdje u naslovu; revizija 25.10. našla je da su
 od 15 takvih oznaka stvarne samo 3–5 (umirovljenje karijere, walkover, tuđa ozljeda). K13 se NE
 preoznačava (21 viđeni slučaj ostaje kako je zapisan). Od 26.10.2026 dnevni run uz stari bilježi i
@@ -1222,6 +1222,62 @@ protivnika = K13b, pauza 21+ = K19, Nose = K24, noćna = praćenje) sude njihovi
 **Opis (prije K26, analize do 01.11. izračunate naknadno — NE dokaz):** na 732 riješena picka
 novčić −0,9pp (225), pojas 1,35–1,45 −6,0pp (101), pick autsajder −6,3pp (68), tanki ELO −3,6pp
 (113), profil točke 1 za pick n=2 — tablica na Dnevnom listiću.
+
+### IZMJERENO 08.11.2026 12:09 — revizija Pariza i korisnikovih 11 ideja (A0/A1, F, E na našima; LAB U, H, D, Z)
+
+Pragovi zapisani prije računanja: `revizije/2026-11-08/PRAGOVI_REVIZIJA_2026-11-08.md` (11:27;
+NAKNADNO 11:48 za Z, 11:53 za scouting). Skripte: `revizije/2026-11-08/skripte/r_nasi.py`, `r_lab.py`,
+`r_lab_z.py`; ispisi `.cache/rev_2026-11-08/out_*.txt`. Izvještaj: `revizije/2026-11-08/REVIZIJA_2026-11-08.md`.
+
+**A0 "Noćna sesija" (stavka ČEKA) — NE PROLAZI PRAG:** NOVO od 05.10. noć +2,1pp (69) / dan −5,5pp
+(179), razlika u istom pojasu +7,4pp [−5,2, +19,8], polovice +3,8/+10,0; STARO 27.07.–04.10. +7,7pp
+[−2,8, +17,5]. Uvjet "noćni interval iznad 0" nije ispunjen. **A1 opis:** jutro < 13 h −8,3pp (123;
+STARO −8,0 / NOVO −9,0), popodne −3,3 (375), večer ≥ 18 h +4,9 (162). Podjele po razini,
+turniru i rundi daju isti oblik, ali NISU potvrda. **Skeptik 08.11.2026 12:22: SUMNJIVO.** Razliku nose naši
+autsajder-pickovi (za "uvijek favorit" noć − dan +2,2 [−5,4, +10,3]). Dio jaza je "prvi val dana" (−9,3
+[−18,0, −1,5] naspram +0,4; s njim u regresiji noć +6,4 [−2,1, +14,9]). Jutro NOVO (−9,0) uglavnom je
+Almaty. Bez Pariza NOVO je +3,0. Hipoteza je nađena 04.10. među 24 varijable, a prag zapisan nakon
+što se vidjelo 58 od 69 noćnih. **Upis: A0 ne prolazi, nije potvrđeno (ne odbačeno, snaga ±12,5pp),
+ostaje praćenje (znak "nocna" na nos-ploči), BEZ novog K broja; "jutro < 13 h" nije kandidat.** Prava
+provjera bila bi samo povijesni Odds API sa satom početka (plaćeno, korisnikova odluka). Usput:
+43 para od 27.07. (6%) imaju kvote bez marže (npr. 1,50/3,00), noću 12%, danju 5% → provjeriti
+čitač screenshota (prijedlog P6).
+
+**IZMJERENO I ODBAČENO (LAB 12.436 mečeva, poštena cijena, strogi datum; ne otvarati bez novog izvora):**
+
+    U1 4.+ tjedan zaredom naspram odmornog (niz 0)            n=1.664  +1,5pp [-0,6, +3,7]   obrnuto
+    U2 3. tjedan zaredom                                      n=1.492  +1,6pp [-0,6, +3,9]   obrnuto
+    U3 >=3 turnira u 45 d naspram <=1                         n=1.034  +3,6pp [+1,0, +6,2]   obrnuto (zrcalo K19)
+    U4 >=10 mečeva u 30 d naspram <=4                         n=  689  +0,6pp [-2,7, +3,9]
+    U5 33+ god. s <=1 dan odmora naspram <30 (korisnikova)    n=1.054  -1,1pp [-3,7, +1,6]
+    U6 30+ s <=1 dan odmora naspram <26                       n=1.210  -2,0pp [-4,5, +0,5]
+    U7 30+ i niz >=2 naspram <26                              n=  619  +0,4pp [-3,1, +3,9]
+    H1 vođa u H2H (>=3 susreta, >=75%)                        n=  976  +0,5pp [-2,3, +3,2]   (vođa je favorit u 80%)
+    H3 "ubojica velikana" (autsajder s >=2 top-5 pobjede, B top 5) n=456 -2,2pp [-5,8, +1,4]
+    D  autsajder po rundi R128/R64/R32/R16/QF/SF: -0,6 / +1,0 / -1,5 / -0,7 / -1,1 / +0,8pp (n 587–4.046)
+    D  tijesni autsajder 0,40–0,50 u R128/R32/R16: -0,4 / -1,2 / +1,4pp
+    Z1 brzi uspon na ljestvici (rang <= 0,70 x prije 90 d)    n=  885  +0,2pp [-2,7, +3,0]
+
+**NIJE POTVRĐENO (interval širi od ±4pp):** H2 vođa u H2H kao autsajder −0,3 (195); D autsajder u F
++1,2 (298); D tijesni u R64/QF/SF/F +1,1/+1,4/+1,7/+4,9; Z2 prvi meč nakon naslova −0,4 (361);
+Z3 nedavna predaja (RET ≤ 21 d) **+4,3 [−0,9, +9,5] (266) — obrnuto, tržište pretjeruje s predajom**
+(kao berba 26.09.); Z4 revanš u 21 dan 0,0 (309); Z5 kraj sezone × top-5 favorit +0,2 (126); Z6 kraj
+sezone × niz ≥ 2 −2,3 [−7,2, +2,7] (306); Z7 isto, mlađi od 23 −3,5 (49). Holm: nijedan < 0,05 ni u
+jednoj obitelji. Na istoj povijesti ukupno **140 testova**.
+
+**Ponovno mjerenje na zadnjih 5 tjedana (korisnikov zahtjev; naši 05.10.–07.11., n=268, 13 testova
+R1–R13): 0 KANDIDATA, Holm svi 1,00.** Dva stara nalaza okrenula su predznak: "pick stariji 4+ god."
+(26.08. −15pp) sada +12,8 [−1,0, +26,7]; "prosječni ELO protivnika < 1700" (26.08. −19pp) sada +4,9.
+
+**E tlak zraka (od 27.07., 596 pickova):** E1 nizak − visok −1,5pp [−10,0, +8,3]; E2 bolji server
++0,5 (n 27/104), E3 dvorana −0,7 → nije potvrđeno; tlak se već bilježi, novo praćenje se ne predlaže.
+
+**Runde, naši od 26.09. (opis):** autsajderi 114 od 325 naspram očekivanih 106,6 (+2,3pp); tijesni
+54,4% naspram 44,7% (n=90, ROI +15%) — povijest to ne potvrđuje (sreća razdoblja).
+
+**Podatkovni kvarovi nađeni usput (nisu kandidati):** (1) RapidAPI H2H nepotpun — od 21 analize koje
+tvrde "nema / samo jedan susret" 4 su krive (Zverev–Musetti 1 umjesto 5); H2H se ne sprema u snimku.
+(2) Detektor ozljeda v2 — vidi K13b gore (zagađeno).
 
 ### IZMJERENO 01.11.2026 14:12 — revizija Basel/Beč i korisnikovih 9 točaka (A, B, C3, D4, D7–D9; LAB C, N, G, T)
 

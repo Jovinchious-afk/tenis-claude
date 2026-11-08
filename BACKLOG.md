@@ -6,7 +6,7 @@ danima, jednostavnim jezikom). Brojke, obrazloženja i tehnički detalji su u
 (dalje: DI).
 
 **Pravilo:** na kraju svake radne sesije ovdje se dopiše što smo napravili i ažurira se
-popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 01.11.2026 17:52.
+popis otvorenog. Otvoreno 26.09.2026 19:21, zadnje ažurirano 08.11.2026 12:08.
 
 **Jedna naredba za sve zakazane provjere kandidata:** `python scripts/measure_candidates.py`
 (čita bazu, ništa ne mijenja; kaže za svakog kandidata ČEKA / POTVRĐEN / PAO).
@@ -20,19 +20,20 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 
 | što | kada / uvjet | ishod | gdje |
 |---|---|---|---|
+| **TVOJ "PROVEDI" — revizija 08.11.2026** (Pariz + tvojih 11 ideja; samo mjerenje, model netaknut) | čeka tvoju odluku | **P1** vijesti: spremati sve označene naslove, detektor ozljeda v3, K13b zamrznuti · **P2** popis "samo analiza" po pouzdanosti + log koje jučerašnje noge su danas ispale · **P2b** (tvoja odluka) ne analizirati ponovno meč iz zadnja 24 h · **P3** H2H spremati u snimku; u zimskoj eri izvor TML · **P4** (samo ako želiš; skeptik ne preporučuje) kandidat "sat < 13:00", 120 jutarnjih pickova od 09.11. · **P6** kvote sa screenshota: 43 para (6%) bez marže (npr. 1,50/3,00) — provjeriti čitač i upozoravati kad je marža ≤ 1% · **P5** tablica "autsajderi po rundi: prošlo / očekivano" na listiću (samo prikaz). Scouting (rangovi) već NAPRAVLJEN | `revizije/2026-11-08/REVIZIJA_2026-11-08.md` točka 4 |
 | **K26 — nos-ploča v1 (znakovi prije meča, u sjeni)** (01.11.2026 17:52, tvoj "provedi P1, P2 i P2b") | broji se od prvog runa s pločom (Pariz, **02.11.2026**), samo analize sa spremljenom pločom. **Probir po cijeni (CLV)** kad znak ima 40 pickova sa snimljenim zatvaranjem — za česte znakove (novčić, tanki ELO, domaći/susjed) realno **4–6 tjedana** od Pariza (zima: siječanj); **odluka po ishodu** na 150 pickova po znaku — **proljeće 2027.**; rijetki znakovi (profil točke 1, ozljeda picka) mogu i godinu dana | CLV ≤ −1pp uz interval ispod 0 → "mina po cijeni" (samo prati se); ishod: razlika u istom pojasu cijene ≤ −5pp, interval ispod 0, obje polovice < 0 → **prijedlog tebi** (npr. najviše 1 takva noga po tiketu); suprotna strana nule → PAO. Ništa ne ulazi u model bez tvog odobrenja | DI K26; `python scripts/measure_candidates.py --only K26`; tablica na Dnevnom listiću |
 | **Revizija 01.11.2026 — ostatak** (P1, P2, P2b **PROVEDENO 01.11.2026 17:52**) | **P4** plan za pojas 1,35–1,45: "najviše 1 noga po tiketu" tek ako K5 na n = 100 da ≤ −5pp uz interval ispod 0 (~veljača) · **P3** (tvoj ručni korak, neobavezno): tennis-data 2010–2021 samo za jednu čistu provjeru H3 (domaći/susjedni autsajder); prije skidanja kod zamrznuti i "na suho" pokrenuti na 2022–26 | — | `revizije/2026-11-01/REVIZIJA_2026-11-01.md` točka 8 i dodatak "Provedba"; pragovi H u `PRAGOVI_REVIZIJA_2026-11-01.md` (NAKNADNO 13:40, 14:11) |
 | **K25 — servis/povrat iz TML-a SAMO GLAVNOG ŽDRIJEBA** (18.10.2026, nastavak tvog prelaska na TML) | **test A ODGOĐEN** (tvoja odluka 18.10.2026 19:56: "za drugi put"; besplatno, godine 2010–2019 koje nitko nije gledao); **test B** sam se skuplja od 19.10.2026, provjera kad bude ≥ 700 ATP mečeva (~prosinac) | prag zapisan 17:34 prije gledanja: A bolji za ≥ 0,005 log-gubitka u obje polovice i u ≥ 8 od 10 godina; B bolji za ≥ 0,005 uz interval iznad nule naspram sadašnjeg stanja. Tek kad prođu oba → prijedlog nove ere (jedan plaćeni poziv). Na viđenim podacima +0,013 do +0,019 svake godine, ali to je naknadni rez | DI K25; `revizije/2026-10-18/PRAGOVI_C_TML_PROMPT_2026-10-18.md`; osnova koda na grani `tml-era-881d89f8` |
 | ~~**TVOJ "PROVEDI" — revizija 25.10.2026**~~ | **PROVEDENO 25.10.2026 11:49** (tvoj "provedi sve što smatraš korisnim") | P1 panel vijesti zamijenjen (Google News: samo priče i stvarne ozljede, 3 dana) · P2 detektor ozljeda v2 + K13b · P3 analiza gubitka popravljena · P4 K18 i K10 NE uvedeni, K18b nova serija · P5 pravilo poretka "prvih N" · P7 sigurnosna provjera ključeva prije pusha (čisto). **P6 NIJE proveden** — čeka zimsku pauzu (stavka "Sljedeća era prompta" niže) | MODEL_CHANGELOG 25.10.2026 11:49 |
-| **K13b — vijest o OZLJEDI protivnika, strogi detektor v2** (25.10.2026) | 30 riješenih pickova od 26.10.2026 s protivnikom `injury_n2 ≥ 1`, prvih 30 po (datum, vrijeme analize) — realno proljeće 2027. (~3% igrača ima stvarnu vijest). **01.11.: 7 od 30 (−9,8pp)** | edge te skupine ≥ ostali + 5pp → prijedlog (kod u odabiru, ne prompt); ≤ 0 → samo bilježenje. Snaga ±17pp (probir) | DI K13b; `measure_candidates.py --only K13b` |
+| **K13b — vijest o OZLJEDI protivnika, strogi detektor v2** (25.10.2026) | 30 riješenih pickova od 26.10.2026 s protivnikom `injury_n2 ≥ 1`, prvih 30 po (datum, vrijeme analize) — realno proljeće 2027. (~3% igrača ima stvarnu vijest). **01.11.: 7 od 30 (−9,8pp)**; **08.11.: 11/30 (−10,3pp) — ZAGAĐENO:** sprema se samo 8 naslova (28 oznaka, vidljiva 4), a 3 od 4 vidljive su krivi igrač (Fritz nosio Filsovu ozljedu) → ne mjeriti dok se ne provede P1 revizije 08.11. | edge te skupine ≥ ostali + 5pp → prijedlog (kod u odabiru, ne prompt); ≤ 0 → samo bilježenje. Snaga ±17pp (probir) | DI K13b; `measure_candidates.py --only K13b` |
 | **K18b — hard ATP 250, nova serija** (25.10.2026) | prvih 30 hard 250 pickova od 26.10.2026 (sljedeće 250-ice na hardu tek u siječnju 2027.) | ≤ −5pp → prijedlog "najviše jedna takva noga"; > 0 → K18 zatvoriti; između nejasno | DI K18b; `measure_candidates.py --only K18b` |
 | **Omjer protiv ljevaka** | 300 mečeva s ljevakom (25.10.: 162; 01.11.: 178) | ponovno izmjeriti; do tada samo bilježenje | DI "IZMJERENO 26.09.2026" |
 | ~~**K1 — prag VRAĆEN na 63 (04.10.2026 19:22, tvoja odluka)**~~ | **ZATVORENO 25.10.2026** | 21 dan od 05.10.: 7 s tiketom, 10 bez (prag je sam odlučio 3 dana), 4 bez runa; 0 od 7 dobitnih (oček. 1,34). Pouzdanost i dalje bez informacije (r −0,09 u eri bccf4742, −0,03 prije) → prag 63 ostaje i ne pomiče se po pouzdanosti | DI "IZMJERENO 25.10.2026" |
-| **Noćna sesija (samo bilježenje)** | 60 noćnih pickova od 05.10.2026 (25.10.: 35; **01.11.: 58** — noć +0,1pp, dan −3,0pp; Pariz prelazi 60) | tada pogledati smije li postati kandidat (stari +5,7pp n=83, novi +5,4pp n=12; od 05.10. −3,1pp naspram dana −5,3pp) | `context_snapshot.session` |
+| **Noćna sesija (samo bilježenje)** | **PROVJERENO 08.11.2026 12:08 (revizija 08.11.): 69 noćnih od 05.10.** — noć +2,1pp, dan −5,5pp, razlika u istom pojasu +7,4pp [−5,2, +19,8]; STARO +7,7pp → **prag NIJE ispunjen** (noćni interval prelazi 0) | smjer isti u dvije ere, na obje razine turnira, unutar 14 turnira (+8,8pp) i u svakoj rundi; jutro (< 13 h) −8,3pp (n=123, obje ere ≈ −8/−9) → **skeptik 08.11.2026 12:22: SUMNJIVO** (razliku nose naši autsajder-pickovi i "prvi val dana"; za "uvijek favorit" noć − dan +2,2pp) → ostaje praćenje bez K broja; "jutro" NIJE kandidat (P4 samo ako ti želiš) | `context_snapshot.session`, `local_time`; revizija 08.11. ideja 1 |
 | **K21 — favorit u QF/SF/F protiv boljeg servera** (tvoja ideja o četvrtfinalima, 04.10.2026) | kad bude ≥ 150 NOVIH ATP mečeva nakon 13.09.2026 (~godinu dana; ~130 godišnje) — nakon što osvježiš `.cache/tennis-data/2026.xlsx` | povijest: −4,1pp (n=617) — skeptik SUMNJIVO (23 testa u sesiji, nema neovisne potvrde). Prolazi: edge ≤ −4pp, interval ispod nule, obje polovice novog razdoblja < 0 → prijedlog kazne pri izboru tiketa (ne u promptu); pada: edge ≥ 0 | DI K21; `python revizije/2026-10-04/skripte/r_lab2.py --od=2026-09-14` · **18.10.2026 15:46: `2026.xlsx` osvježen (do 06.10.), LAB obnovljen — K21 n = 9 od 150, ČEKA** |
 | ~~**K17 — pick s "High" scouting profilom**~~ | **PAO i zatvoren 18.10.2026** (n=43, +13,7pp; spojeno −0,3pp) — kazna nikad nije bila u kodu | — | DI K17 |
 | ~~**TVOJ "PROVEDI" — revizija 18.10.2026**~~ | **PROVEDENO 18.10.2026 13:02** (tvoj "kreni, 1a 2a 3a") | B1 bazne stope analize gubitka popravljene + četiri nove oznake umjesto SIGNAL CONFIRMED; B2 bonus za konsenzus ugašen; B3 recenzent (L4), K22 i Nose (K24) u `measure_candidates.py`; B4 sažetak dana bez tiketa kaže pravi razlog | `revizije/2026-10-18/REVIZIJA_B_2026-10-18.md` |
-| **K22 — ELO jaz i servis/povrat od 14.09.** | 150 hard pickova od 19.10.2026 (25.10.: 74; ELO r +0,18, servis+povrat −0,08; **01.11.: 137** — ELO r +0,15 [−0,02, +0,31], servis+povrat +0,02 → presuda tijekom Pariza) | r ≥ +0,10 (interval iznad nule, obje polovice) za ELO ili servis+povrat → prijedlog bonusa/težine; oba ≤ 0 → pada. Sada od 14.09.: +0,19 i +0,18 (n=169), prije 0 i obrnuto | DI K22 · od 18.10. mjeri `measure_candidates.py` (K22). **Povijest ga NE podupire** (kritičar 18.10.): LAB r(ELO jaz) +0,00, servis+povrat +0,02 (n=12.320); B4b uz kontrolu pojasa +0,4pp; rez "od 14.09." odabran naknadno |
+| **K22 — ELO jaz i servis/povrat od 14.09.** | 150 hard pickova od 19.10.2026 (25.10.: 74; ELO r +0,18, servis+povrat −0,08; **01.11.: 137** — ELO r +0,15 [−0,02, +0,31], servis+povrat +0,02 → presuda tijekom Pariza; **08.11.: 190 — ELO r +0,10 [−0,04, +0,24], servis+povrat +0,00 → ne prolazi (interval prelazi 0), nije ni pao → ČEKA +150**) | r ≥ +0,10 (interval iznad nule, obje polovice) za ELO ili servis+povrat → prijedlog bonusa/težine; oba ≤ 0 → pada. Sada od 14.09.: +0,19 i +0,18 (n=169), prije 0 i obrnuto | DI K22 · od 18.10. mjeri `measure_candidates.py` (K22). **Povijest ga NE podupire** (kritičar 18.10.): LAB r(ELO jaz) +0,00, servis+povrat +0,02 (n=12.320); B4b uz kontrolu pojasa +0,4pp; rez "od 14.09." odabran naknadno |
 | **K24 — Nose u sjeni (nose-v1)** (tvoja odluka 1a, 18.10.2026) | od prvog runa s Noseom (~19.10.): G1 mina i G2 vrijednost na protivniku — probir n=60 (G1 ~kraj prosinca, G2 ~5 tjedana), odluka n=150; G3 vlastita procjena n=300 (~2 mjeseca). **25.10.: G1 10 (−14,2pp), G2 22 (+1,4), G3 r −0,12 (74); 01.11.: G1 17 (+3,7pp — "mine" prolaze bolje), G2 38 (+0,8), G3 r +0,005 (137)** | presuda ZAMRZNUTA na prvih 60 (probir) / 150 (odluka) / 300 (G3) po datumu; G1: IZBJEGAVAJ ≤ −5pp, interval ispod 0, obje polovice < 0 I ≤ −3pp naspram ostalih pickova u istom pojasu cijene → prijedlog; G2 zrcalno; G3 r ≥ +0,10. Povijest: NO PICK na favoritu +1,3pp, razilaženje s cijenom −1,5pp → realno očekuj PAO (šansa prolaza ~1%, kritičar) | DI K24; `python scripts/measure_candidates.py --only K24` |
 | **K23 — "zalet protiv boljih servera" precijenjen (S1 obrnuto)** + **K21** + dubina 4+ | kad osvježiš `.cache/tennis-data/2026.xlsx` (ručno, tennis-data.co.uk) | jednom pokrenuti na ATP mečevima nakon 13.09. s pragovima iz DI (K23: ≤ −3pp, interval ispod nule, obje polovice < 0) | DI K21, K23 · **18.10.2026 15:46: pokrenuto na novim mečevima — S1 n = 4, dubina 4+ n = 1 → ČEKA (2027.)** |
 | **K10b — izričit bonus po pojasu kvote** | zasebno testiranje (nije hitno) | prvo simulacija tiketa po varijantama bodovanja, pa prag prije dva turnira; oprez: povijest 1,35–1,43 +3,7pp | DI K10, K10b |
@@ -43,7 +44,7 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 | ~~**Konsenzus kladionica**~~ | **BONUS UGAŠEN 18.10.2026 12:37** (tvoja odluka 3a) | nije potvrđen (n=40, −0,4pp ±13,9); stara vrijednost 4.0 čuva se u `_CONSENSUS_GAP_BONUS_DO_18_10`; signal se i dalje bilježi i prati (KONS). Ponovni test samo uz prag zapisan unaprijed. **Rok 31.10. prošao: n=57, −0,4pp → ostaje ugašen. Odds API pokriva i Basel i Beč (svih 60 pickova imalo je konsenzus)** | `agent/ticket_builder.py` |
 | ~~**Odds API — ključ deaktiviran**~~ | **RIJEŠENO 18.10.2026 11:24** | novi ključ besplatnog plana upisan u GitHub Secrets i `.env`; besplatni `/sports` poziv: status 200, **500/500 kredita**. Večernje snimanje smanjeno na **1× dnevno (17:30 UTC)**. Pratiti potrošnju: `kredita preostalo` u ispisu daily runa; za Australian Open (siječanj) pomaknuti termin | `.github/workflows/market_close.yml` |
 | **Snimanje zatvarajućih kvota — novi termin 08:30 UTC, prozor 4 h** (26.10.2026 20:01, tvoja odluka "B") | prvi zakazani run 27.10.2026 (~11:30–13:30 po našem), pa do kraja Basela i Beča (01.11.). **PROVJERENO 01.11.2026 (revizija): radi** — 27.–31.10. svaki dan 2–6 mečeva po turniru, uhvaćenih 0,1–3,8 h prije početka | GitHub → Actions → Market Close Capture → zadnji run → redak "Zapisano N redaka, M meceva": očekivano 3–6 mečeva dnevno. Ako dva dana zaredom (dok turnir traje) piše "Nijedan mec ne pocinje u tom prozoru" → GitHub kasni drukčije, termin pomaknuti. **Siječanj: za Australian Open termin pomaknuti** (08:30 UTC je ondje večer) | `.github/workflows/market_close.yml` |
-| **K20 — Intuicija (naučeni signal u sjeni)** | **dvije provjere:** 150 riješenih procjena — **NAPRAVLJENA 25.10.2026: n=209, r −0,035 (trebalo ≥ 0,14) → NIJE PROŠLA, uči dalje** — pa 300 (≈ siječanj; 01.11.: 272, r −0,04), poslije svakih +300. **Mail sa stanjem stiže sam 15.11.2026 i 15.01.2027** | uz 150 treba r ≥ 0,16, uz 300 r ≥ 0,12 (interval iznad nule) i gornja trećina ≥ +3pp → prijedlog bonusa pri izboru tiketa (i za autsajdere); inače uči dalje u sjeni | DI K20; `python scripts/intuicija_report.py` |
+| **K20 — Intuicija (naučeni signal u sjeni)** | **dvije provjere:** 150 riješenih procjena — **NAPRAVLJENA 25.10.2026: n=209, r −0,035 (trebalo ≥ 0,14) → NIJE PROŠLA, uči dalje** — pa 300 — **NAPRAVLJENA 08.11.2026 12:08: n=325, r −0,054 (treba ≥ 0,12), gornja trećina −3,4pp → NIJE PROŠLA**; tiha Intuicija = tržišna cijena (nikad ne bira autsajdera); sljedeća na 600, poslije svakih +300. **Mail sa stanjem stiže sam 15.11.2026 i 15.01.2027** | uz 150 treba r ≥ 0,16, uz 300 r ≥ 0,12 (interval iznad nule) i gornja trećina ≥ +3pp → prijedlog bonusa pri izboru tiketa (i za autsajdere); inače uči dalje u sjeni | DI K20; `python scripts/intuicija_report.py` |
 | **K14 — Davis Cup** | 20 riješenih Davis Cup mečeva (finalni turnir u studenom) | unutar 5pp od prosjeka → smije na tiket | DI K14 |
 | **Clay težine** | prije prve zemlje 2027. (siječanj 2027.) | aktivna v17 nastala je iz auto-feedbacka na analizama gubitaka (ELO spušten na 11%) — vratiti na v13 ili izjednačiti s hardom | Supabase `model_weights`; MODEL_CHANGELOG 26.09.2026 20:46 |
 
@@ -154,6 +155,40 @@ na mečevima na kojima nije pronađen. Svaka stavka ima prag zapisan UNAPRIJED.
 ---
 
 ## NAPRAVLJENO — dnevnik
+
+### 08.11.2026 12:09 — Revizija Pariza i tvojih 11 ideja (samo mjerenje) + scouting rangovi
+
+Tvoja uputa: sve prvo analizirati i javiti mišljenje, ništa ne implementirati. Iznimka je scouting
+("slobodno diraj i Excel i Supabase").
+
+- **Što je napravljeno:**
+  - izvještaj `revizije/2026-11-08/REVIZIJA_2026-11-08.md` (Pariz + svih 11 ideja);
+  - pragovi zapisani prije računanja u `PRAGOVI_REVIZIJA_2026-11-08.md`;
+  - 31 novi test na 12.436 povijesnih mečeva (umor, H2H, runde, 7 kombinacija iz analiza gubitaka);
+    **nijedan ne pobjeđuje kvotu**;
+  - 13 starih ideja ponovno izmjereno na zadnjih 5 tjedana: **0 kandidata**;
+  - pročitane sve analize gubitaka (239).
+- **Najvažnije:**
+  - **doba dana:** jutro (< 13 h) −8,3pp, večer +4,9pp; prag "noćne sesije" nije ispunjen, a skeptik
+    kaže SUMNJIVO (razliku nose naši autsajder-pickovi i prvi val dana) → samo praćenje;
+  - **H2H nepotpun:** Zverev–Musetti model je vidio 1 susret, a bilo ih je 5;
+  - **detektor ozljeda:** pripisuje ozljedu krivom igraču (naslov o Filsovoj predaji označio je Fritza);
+  - **isti par sutradan:** zabrane nema; nestaje zbog nove analize, pravila tiketa i popisa koji
+    prikazuje samo najveće kvote;
+  - **Intuicija:** pala i 2. provjeru (n=325, r −0,054), i dok je tiha jednaka je cijeni.
+- **Scouting (napravljeno):**
+  - 79 rangova osvježeno u Supabaseu i Excelu (56 iz dnevnog runa, 23 iz TML-a; 55 igrača bez meča od 18.10. zadržava stari rang, npr. Sinner);
+  - tekst profila nije mijenjan (nijedna tvrdnja nema dovoljno dokaza da padne);
+  - Excel ima nove listove "Dokazi/Promjene 08.11.2026", a listovi od 18.10. su sačuvani.
+- **Čeka tebe:** P1–P6 u tablici "ČEKA" (vijesti, popis "samo analiza", H2H, "jutro" samo po želji,
+  tablica rundi, čitač kvota sa screenshota).
+- **Gdje u kodu:**
+  - ništa nije mijenjano u `agent/`;
+  - skripte u `revizije/2026-11-08/skripte/`;
+  - povratak scoutinga: `python revizije/2026-11-08/skripte/r_scouting_vrati.py --vrati`.
+- **Pazi:**
+  - testovi 2 × SVE PROŠLO;
+  - nije commitano.
 
 ### 01.11.2026 17:52 — Nos-ploča, analiza gubitka "provjera mine", prikaz na listiću (P1, P2, P2b; predviđanje netaknuto)
 

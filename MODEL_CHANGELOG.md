@@ -16,6 +16,39 @@ dnevnik napravljenog jednostavnim jezikom. Dopunjava se na kraju svake radne ses
 
 ---
 
+## 2026-11-08 12:07 — Scouting top 150: osvježeno 79 rangova (56 + 23 dopuna 12:12), tekst profila bez izmjene; model, prompt, tiket i era NEPROMIJENJENI
+
+*Dopuna 08.11.2026 12:12 (pravilo J2, zapisano 12:10):* prvi upis dao je 26 dvostrukih rangova (npr.
+Zverev i Sinner oba 1), jer je osvježio samo igrače iz naših analiza. `r_scouting_rang_tml.py`
+upisao je još 23 ranga iz TML-a, i to igračima koji su igrali od 18.10., a nisu bili u našim
+analizama. 55 igrača bez meča od 18.10. zadržava stari rang (Sinner: zadnji meč 12.07.), uz
+oznaku "rang star" u listu Promjene. Povratak istom skriptom (`r_scouting_vrati.py` čita sve promjene).
+
+**Povod:** revizija Pariza (`revizije/2026-11-08/REVIZIJA_2026-11-08.md`, ideja 2). Korisnik
+08.11.2026: "slobodno diraj i Excel i Supabase kada napraviš update za scouting". Pravila su
+zapisana prije računa: `revizije/2026-11-08/PRAGOVI_REVIZIJA_2026-11-08.md`, točka J (11:27) i
+NAKNADNO J (11:53).
+
+**Što:** `revizije/2026-11-08/skripte/r_scouting.py --primijeni`
+- **Rang:** 56 profila dobilo je novi rang iz snimki dnevnog runa od 26.10. (npr. Zverev 2→1,
+  Jodar 13→10, Vacherot 14→27, Rune 195→433). Rang je činjenica: kod ga ne čita, a model ga ne vidi.
+- **Tekst profila: 0 izmjena.** Statistika je TML preuzet 08.11. (365 dana do 07.11., glavni ždrijeb,
+  ≥ 25 mečeva, 94 igrača). Pet obrazaca je provjereno: četiri stara i novi "slabiji u dvorani"
+  (pada uz ≥ 12 mečeva u dvorani, poene u dvorani ≥ otvoreni tvrdi i ≥ 55% pobjeda). Nijedna nova
+  tvrdnja nije opovrgnuta, a sve oznake od 18.10. i dalje vrijede.
+- **Primjer:** Musetti u dvorani ima 9–4, ali 51,0% poena naspram 52,2% na otvorenom tvrdom, pa
+  tvrdnja ostaje. Za većinu ostalih ima premalo mečeva u dvorani.
+- **Excel:** glavni list izvezen iz Supabasea. Listovi od 18.10. preneseni su iz kopije, a dodani su
+  "Dokazi 08.11.2026" i "Promjene 08.11.2026".
+
+**Zašto:** stari rangovi bili su od 18.10.; scouting na povijesti ne nosi ništa povrh cijene
+(K17 pao), pa tekst mijenjamo samo uz izmjereno opovrgavanje.
+
+**Povratak:** `python revizije/2026-11-08/skripte/r_scouting_vrati.py --vrati`. Kopije su u
+`revizije/2026-11-08/scouting/` (Supabase JSON prije izmjene i Excel prije izmjene).
+
+**Ishod:** nema učinka na predviđanje (rang se ne čita); testovi 2 × SVE PROŠLO.
+
 ## 2026-11-01 17:52 — Nos-ploča (znakovi prije meča, u sjeni), analiza gubitka v3 "provjera mine", prikaz na Dnevnom listiću, CLV kao mjerilo, K26; predviđanje, tiket i era NEPROMIJENJENI
 
 **Povod:** revizija 01.11.2026 (`revizije/2026-11-01/REVIZIJA_2026-11-01.md`, skeptik SUMNJIVO —
